@@ -19,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { EditProjectModal } from '@/components/EditProjectModal'
+import { ProjectComments } from '@/components/ProjectComments'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -208,10 +209,11 @@ export default function ProjectDetails() {
           </Card>
 
           <Tabs defaultValue="tasks" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="tasks">Tarefas</TabsTrigger>
               <TabsTrigger value="team">Equipe</TabsTrigger>
               <TabsTrigger value="history">Histórico</TabsTrigger>
+              <TabsTrigger value="comments">Comentários</TabsTrigger>
             </TabsList>
 
             <TabsContent value="tasks" className="mt-4">
@@ -307,6 +309,10 @@ export default function ProjectDetails() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="comments" className="mt-4">
+              <ProjectComments projectId={project.id} />
             </TabsContent>
           </Tabs>
         </div>

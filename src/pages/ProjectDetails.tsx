@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { StatusBadge } from '@/components/StatusBadge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   ArrowLeft,
@@ -65,13 +66,6 @@ const MOCK_HISTORY = [
   { id: 4, date: '2024-03-12', time: '16:45', action: 'Orçamento estimado atualizado' },
 ]
 
-const statusColors: Record<string, string> = {
-  Planejamento: 'bg-blue-100 text-blue-800 border-blue-200',
-  'Em Andamento': 'bg-amber-100 text-amber-800 border-amber-200',
-  Concluído: 'bg-green-100 text-green-800 border-green-200',
-  Atrasado: 'bg-red-100 text-red-800 border-red-200',
-}
-
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -95,7 +89,7 @@ export default function ProjectDetails() {
   const handleDelete = () => {
     deleteProject(project.id)
     toast({
-      title: 'Projeto excluído',
+      title: 'Projeto deletado',
       description: 'O projeto foi removido com sucesso.',
       variant: 'destructive',
     })
@@ -137,7 +131,7 @@ export default function ProjectDetails() {
             className="gap-2"
           >
             <Trash2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Excluir</span>
+            <span className="hidden sm:inline">Deletar</span>
           </Button>
         </div>
       </div>
@@ -152,12 +146,7 @@ export default function ProjectDetails() {
                   <CardTitle className="text-2xl font-bold">{project.name}</CardTitle>
                   <CardDescription className="text-base mt-1">{project.client}</CardDescription>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={`px-3 py-1 text-sm font-medium ${statusColors[project.status] || ''}`}
-                >
-                  {project.status}
-                </Badge>
+                <StatusBadge status={project.status} className="px-3 py-1 text-sm font-medium" />
               </div>
             </CardHeader>
             <CardContent>
@@ -384,7 +373,7 @@ export default function ProjectDetails() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza que deseja excluir?</AlertDialogTitle>
+            <AlertDialogTitle>Tem certeza que deseja deletar?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta ação não pode ser desfeita. Isso removerá permanentemente o projeto "
               {project.name}" do sistema.
@@ -396,7 +385,7 @@ export default function ProjectDetails() {
               onClick={handleDelete}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
-              Excluir
+              Deletar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

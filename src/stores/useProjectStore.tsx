@@ -8,11 +8,22 @@ import React, {
   useRef,
 } from 'react'
 import { addDays, subDays, format } from 'date-fns'
-import { Project, User, Comment, AppNotification, TimeLog, Task } from '@/types/project'
+import {
+  Project,
+  User,
+  Comment,
+  AppNotification,
+  TimeLog as BaseTimeLog,
+  Task,
+} from '@/types/project'
 import { sendSlackNotification } from '@/lib/slack'
 
 const today = new Date()
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd')
+
+export type AppTimeLog = BaseTimeLog & {
+  status: 'Pending' | 'Approved' | 'Rejected'
+}
 
 export const MOCK_USERS: User[] = [
   {
@@ -49,7 +60,30 @@ export const MOCK_TASKS: Task[] = [
   { id: 't5', projectId: '4', name: 'Análise de Solo' },
 ]
 
-export const MOCK_TIME_LOGS: TimeLog[] = []
+export const MOCK_TIME_LOGS: AppTimeLog[] = [
+  {
+    id: 'tl-1',
+    projectId: '1',
+    taskId: 't1',
+    userId: '2',
+    date: new Date().toISOString(),
+    hours: 4,
+    description: 'Levantamento de campo inicial',
+    createdAt: new Date().toISOString(),
+    status: 'Pending',
+  } as AppTimeLog,
+  {
+    id: 'tl-2',
+    projectId: '2',
+    taskId: 't3',
+    userId: '2',
+    date: subDays(new Date(), 1).toISOString(),
+    hours: 6,
+    description: 'Cálculo estrutural da base',
+    createdAt: subDays(new Date(), 1).toISOString(),
+    status: 'Approved',
+  } as AppTimeLog,
+]
 
 const MOCK_COMMENTS: Comment[] = [
   {
@@ -175,8 +209,10 @@ interface ProjectStore {
   updateUserHourlyRate: (userId: string, rate: number) => void
 
   tasks: Task[]
-  timeLogs: TimeLog[]
-  addTimeLog: (log: Omit<TimeLog, 'id' | 'createdAt'>) => void
+  timeLogs: AppTimeLog[]
+  addTimeLog: (log: Omit<AppTimeLog, 'id' | 'createdAt' | 'status'>) => void
+  approveTimeLog: (id: string) => void
+  rejectTimeLog: (id: string) => void
 
   isNewProjectModalOpen: boolean
   setNewProjectModalOpen: (open: boolean) => void
@@ -194,7 +230,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS)
   const [users, setUsers] = useState<User[]>(MOCK_USERS)
   const [tasks] = useState<Task[]>(MOCK_TASKS)
-  const [timeLogs, setTimeLogs] = useState<TimeLog[]>(MOCK_TIME_LOGS)
+  const [timeLogs, setTimeLogs] = useState<AppTimeLog[]>(MOCK_TIME_LOGS)
   const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS)
   const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS)
   const [isNewProjectModalOpen, setNewProjectModalOpen] = useState(false)
@@ -217,11 +253,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       read: false,
     }
     setNotifications((prev) => [newNotif, ...prev])
-
-    // Edge Function Mock - Email Integration
-    console.log(
-      `[Edge Function Mock] Envio de email disparado via Resend para a notificação: "${newNotif.title}"`,
-    )
   }, [])
 
   const addProject = (p: Project) => {
@@ -237,7 +268,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setProjects((prev) => {
       const oldProject = prev.find((proj) => proj.id === id)
       if (oldProject && p.status && oldProject.status !== p.status) {
-        // Status Change Trigger
         addNotification({
           title: 'Atualização de Status',
           description: `O projeto ${oldProject.name} mudou o status para ${p.status}.`,
@@ -290,25 +320,56 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, hourlyRate: rate } : u)))
   }
 
-  const addTimeLog = (log: Omit<TimeLog, 'id' | 'createdAt'>) => {
-    const newLog: TimeLog = {
+  const addTimeLog = (log: Omit<AppTimeLog, 'id' | 'createdAt' | 'status'>) => {
+    const newLog: AppTimeLog = {
       ...log,
       id: `tl-${Date.now()}`,
       createdAt: new Date().toISOString(),
-    }
+      status: 'Pending',
+    } as AppTimeLog
     setTimeLogs((prev) => [...prev, newLog])
 
-    // Update real cost on project
-    const user = users.find((u) => u.id === log.userId)
-    const rate = user?.hourlyRate || 0
-    const cost = log.hours * rate
-
-    setProjects((prev) =>
-      prev.map((p) => (p.id === log.projectId ? { ...p, spent: (p.spent || 0) + cost } : p)),
-    )
+    addNotification({
+      title: 'Horas Pendentes',
+      description: 'Um novo registro de horas aguarda aprovação.',
+      link: '/history',
+    })
   }
 
-  // Automated Event Triggers
+  const approveTimeLog = (id: string) => {
+    setTimeLogs((prev) => {
+      const log = prev.find((l) => l.id === id)
+      if (!log || log.status !== 'Pending') return prev
+
+      const user = users.find((u) => u.id === log.userId)
+      const rate = user?.hourlyRate || 0
+      const cost = log.hours * rate
+
+      setProjects((prevProjects) =>
+        prevProjects.map((p) =>
+          p.id === log.projectId ? { ...p, spent: (p.spent || 0) + cost } : p,
+        ),
+      )
+
+      return prev.map((l) => (l.id === id ? { ...l, status: 'Approved' } : l))
+    })
+
+    addNotification({
+      title: 'Horas Aprovadas',
+      description: 'Um registro de horas foi aprovado e o custo foi atualizado.',
+      link: '/history',
+    })
+  }
+
+  const rejectTimeLog = (id: string) => {
+    setTimeLogs((prev) => prev.map((l) => (l.id === id ? { ...l, status: 'Rejected' } : l)))
+    addNotification({
+      title: 'Horas Rejeitadas',
+      description: 'Um registro de horas foi rejeitado.',
+      link: '/history',
+    })
+  }
+
   useEffect(() => {
     if (hasCheckedAutomations.current) return
     hasCheckedAutomations.current = true
@@ -328,7 +389,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const diffTime = endDate.getTime() - now.getTime()
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-      // Upcoming Deadline
       if (diffDays >= 0 && diffDays <= 3) {
         addNotification({
           title: 'Prazo Crítico',
@@ -341,9 +401,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           '⚠️ Alerta de Prazo Crítico',
           `O projeto *${p.name}* tem uma entrega se aproximando em ${diffDays} dia(s) (Data de Entrega: ${p.endDate}).`,
         )
-      }
-      // Delayed Projects
-      else if (diffDays < 0) {
+      } else if (diffDays < 0) {
         if (p.status !== 'Atrasado') {
           projectsToUpdate.push({ id: p.id, changes: { status: 'Atrasado' } })
           updatedProjects = true
@@ -365,7 +423,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       )
     }
 
-    // Mock new task assignment after 3 seconds
     const taskTimer = setTimeout(() => {
       addNotification({
         title: 'Nova Tarefa Atribuída',
@@ -403,6 +460,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         tasks,
         timeLogs,
         addTimeLog,
+        approveTimeLog,
+        rejectTimeLog,
         isNewProjectModalOpen,
         setNewProjectModalOpen,
         globalSearch,

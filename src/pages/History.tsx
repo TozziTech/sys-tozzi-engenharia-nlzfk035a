@@ -7,6 +7,8 @@ import {
   FileText,
   FileSpreadsheet,
   Clock,
+  Check,
+  X,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -72,10 +74,14 @@ export default function History() {
   const [action, setAction] = useState('all')
   const [period, setPeriod] = useState('all')
   const [activeTab, setActiveTab] = useState('system')
-  const { projects, users, timeLogs, tasks } = useProjectStore()
 
-  const currentUserObj = users[0]
+  const { projects, users, timeLogs, tasks, approveTimeLog, rejectTimeLog } = useProjectStore()
+
+  const [currentUserId, setCurrentUserId] = useState(users[0]?.id)
+  const currentUserObj = users.find((u) => u.id === currentUserId) || users[0]
   const currentUser = currentUserObj?.name || 'Admin User'
+
+  const isManager = ['Gerente de Projeto', 'Administrador'].includes(currentUserObj?.role || '')
 
   const filteredLogs = useMemo(() => {
     return MOCK_LOGS.filter((log) => {
@@ -115,7 +121,23 @@ export default function History() {
             Acompanhe atividades do sistema e registro de horas (Timesheet).
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-end items-center">
+          <div className="flex items-center gap-2 mr-2 border-r border-border pr-4">
+            <span className="text-sm text-muted-foreground hidden sm:inline">Visão:</span>
+            <Select value={currentUserId} onValueChange={setCurrentUserId}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name} ({u.role})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <Dialog>
             <DialogTrigger asChild>
               <Button className="flex-1 sm:flex-none">
@@ -286,13 +308,15 @@ export default function History() {
                       <TableHead>Usuário</TableHead>
                       <TableHead>Projeto</TableHead>
                       <TableHead>Tarefa</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Horas</TableHead>
+                      {isManager && <TableHead className="text-right w-[100px]">Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {timeLogs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell colSpan={isManager ? 7 : 6} className="h-24 text-center">
                           Nenhum registro de hora encontrado.
                         </TableCell>
                       </TableRow>
@@ -303,6 +327,8 @@ export default function History() {
                           const project = projects.find((p) => p.id === log.projectId)
                           const task = tasks.find((t) => t.id === log.taskId)
                           const user = users.find((u) => u.id === log.userId)
+                          const status = log.status || 'Pending'
+
                           return (
                             <TableRow key={log.id}>
                               <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
@@ -321,9 +347,61 @@ export default function History() {
                                 {project?.name || 'Projeto Excluído'}
                               </TableCell>
                               <TableCell>{task?.name || 'N/A'}</TableCell>
+                              <TableCell>
+                                {status === 'Pending' && (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400"
+                                  >
+                                    Pendente
+                                  </Badge>
+                                )}
+                                {status === 'Approved' && (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                  >
+                                    Aprovado
+                                  </Badge>
+                                )}
+                                {status === 'Rejected' && (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400"
+                                  >
+                                    Rejeitado
+                                  </Badge>
+                                )}
+                              </TableCell>
                               <TableCell className="text-right font-medium text-emerald-600 dark:text-emerald-400">
                                 {log.hours}h
                               </TableCell>
+                              {isManager && (
+                                <TableCell className="text-right">
+                                  {status === 'Pending' ? (
+                                    <div className="flex justify-end gap-1">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/50"
+                                        onClick={() => approveTimeLog(log.id)}
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/50"
+                                        onClick={() => rejectTimeLog(log.id)}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs pr-4">-</span>
+                                  )}
+                                </TableCell>
+                              )}
                             </TableRow>
                           )
                         })

@@ -1,14 +1,18 @@
-import { Search, Bell, Plus, Check } from 'lucide-react'
+import { Search, Bell, Plus, Check, AlertTriangle, Activity, Database } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import useProjectStore from '@/stores/useProjectStore'
+import { ThemeToggle } from './ThemeToggle'
 
 export function Header() {
   const {
+    projects,
     globalSearch,
     setGlobalSearch,
     setNewProjectModalOpen,
@@ -19,10 +23,39 @@ export function Header() {
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const criticalProjects = projects.filter((p) => {
+    if (p.status === 'Concluído') return false
+    const endDate = new Date(p.endDate)
+    endDate.setHours(0, 0, 0, 0)
+    const diffTime = endDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays >= 0 && diffDays <= 3
+  })
+
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b bg-white dark:bg-slate-900 px-4 md:px-6 shadow-sm">
       <SidebarTrigger className="-ml-1" />
       <div className="flex flex-1 items-center gap-4 md:gap-8">
+        <div className="hidden sm:flex items-center">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="outline"
+                className="cursor-help border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-400 gap-1.5 py-1"
+              >
+                <Database className="h-3 w-3" />
+                Sem Banco
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Os dados são salvos apenas localmente na sessão atual.</p>
+              <p>Conecte um backend para persistência permanente.</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <div className="relative flex-1 md:grow-0">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -34,12 +67,96 @@ export function Header() {
           />
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <Link to="/performance">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden md:flex gap-2 text-slate-600 dark:text-slate-300"
+            >
+              <Activity className="h-4 w-4" />
+              <span>Performance</span>
+            </Button>
+          </Link>
+          <ThemeToggle />
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative text-slate-500 hover:text-slate-900"
+                className="relative text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300"
+              >
+                <AlertTriangle className="h-5 w-5" />
+                {criticalProjects.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white border-2 border-white dark:border-slate-900">
+                    {criticalProjects.length > 99 ? '99+' : criticalProjects.length}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[calc(100vw-2rem)] sm:w-80 p-0 mr-4 mt-2 shadow-lg rounded-xl overflow-hidden"
+              align="end"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-rose-50/80 backdrop-blur-sm dark:bg-rose-900/20 border-rose-100 dark:border-rose-900/50">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-rose-700 dark:text-rose-400">
+                    Prazos Críticos
+                  </span>
+                  {criticalProjects.length > 0 && (
+                    <span className="flex h-5 items-center justify-center rounded-full bg-rose-200 px-2 text-[10px] font-bold text-rose-700 dark:bg-rose-800 dark:text-rose-200">
+                      {criticalProjects.length}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <ScrollArea className="max-h-[360px]">
+                {criticalProjects.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
+                    <div className="p-3 bg-slate-100 rounded-full dark:bg-slate-800">
+                      <Check className="h-6 w-6 text-slate-400 dark:text-slate-500" />
+                    </div>
+                    <span>Nenhum projeto em prazo crítico.</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col">
+                    {criticalProjects.map((proj) => (
+                      <div
+                        key={proj.id}
+                        className="p-4 border-b last:border-0 flex flex-col gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors group"
+                      >
+                        <div className="flex justify-between items-start gap-3">
+                          <Link
+                            to={`/projects/${proj.id}`}
+                            className="text-sm font-medium hover:underline hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-tight text-slate-900 dark:text-slate-100"
+                          >
+                            {proj.name}
+                          </Link>
+                          <Badge
+                            variant="destructive"
+                            className="text-[10px] h-5 px-1.5 shrink-0 bg-rose-500 hover:bg-rose-600"
+                          >
+                            Crítico
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                          Eng: {proj.engineer}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-medium mt-1">
+                          Vence em: {new Date(proj.endDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (

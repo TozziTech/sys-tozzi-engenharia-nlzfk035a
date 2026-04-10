@@ -66,6 +66,12 @@ export interface AppNotification {
   link?: string
 }
 
+export interface ExpenseCategory {
+  id: string
+  name: string
+  color: string
+}
+
 export interface Transaction {
   id: string
   projectId: string
@@ -73,6 +79,8 @@ export interface Transaction {
   type: 'Entrada' | 'Saída'
   value: number
   date: string
+  categoryId?: string
+  status?: 'Pendente' | 'Pago'
 }
 
 export interface Project {

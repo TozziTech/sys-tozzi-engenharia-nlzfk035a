@@ -16,8 +16,15 @@ import {
   TimeLog as BaseTimeLog,
   Task,
   Transaction,
+  ExpenseCategory,
 } from '@/types/project'
 import { sendSlackNotification } from '@/lib/slack'
+
+export const MOCK_CATEGORIES: ExpenseCategory[] = [
+  { id: 'cat1', name: 'Marketing', color: 'hsl(var(--chart-1))' },
+  { id: 'cat2', name: 'Desenvolvimento', color: 'hsl(var(--chart-2))' },
+  { id: 'cat3', name: 'Infraestrutura', color: 'hsl(var(--chart-3))' },
+]
 
 const today = new Date()
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd')
@@ -69,6 +76,7 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     type: 'Entrada',
     value: 50000,
     date: new Date().toISOString(),
+    status: 'Pago',
   },
   {
     id: 'tr2',
@@ -77,6 +85,8 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     type: 'Saída',
     value: 15000,
     date: subDays(new Date(), 2).toISOString(),
+    categoryId: 'cat3',
+    status: 'Pago',
   },
   {
     id: 'tr3',
@@ -85,6 +95,8 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     type: 'Saída',
     value: 5000,
     date: subDays(new Date(), 5).toISOString(),
+    categoryId: 'cat2',
+    status: 'Pago',
   },
   {
     id: 'tr4',
@@ -93,6 +105,7 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     type: 'Entrada',
     value: 30000,
     date: subDays(new Date(), 10).toISOString(),
+    status: 'Pago',
   },
   {
     id: 'tr5',
@@ -101,6 +114,8 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     type: 'Saída',
     value: 2000,
     date: subDays(new Date(), 8).toISOString(),
+    categoryId: 'cat3',
+    status: 'Pendente',
   },
 ]
 
@@ -267,6 +282,12 @@ interface ProjectStore {
   setSlackWebhookUrl: (url: string) => void
   assignTask: (projectName: string, taskName: string, assigneeName: string) => void
   transactions: Transaction[]
+  addTransaction: (t: Omit<Transaction, 'id'>) => void
+  deleteTransaction: (id: string) => void
+
+  categories: ExpenseCategory[]
+  addCategory: (c: Omit<ExpenseCategory, 'id'>) => void
+  deleteCategory: (id: string) => void
 }
 
 const ProjectContext = createContext<ProjectStore | undefined>(undefined)
@@ -283,8 +304,25 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [slackWebhookUrl, setSlackWebhookUrlState] = useState(
     () => localStorage.getItem('slackWebhookUrl') || '',
   )
-  const [transactions] = useState<Transaction[]>(MOCK_TRANSACTIONS)
+  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS)
+  const [categories, setCategories] = useState<ExpenseCategory[]>(MOCK_CATEGORIES)
   const hasCheckedAutomations = useRef(false)
+
+  const addTransaction = (t: Omit<Transaction, 'id'>) => {
+    setTransactions((prev) => [{ ...t, id: `tr-${Date.now()}` }, ...prev])
+  }
+
+  const deleteTransaction = (id: string) => {
+    setTransactions((prev) => prev.filter((tr) => tr.id !== id))
+  }
+
+  const addCategory = (c: Omit<ExpenseCategory, 'id'>) => {
+    setCategories((prev) => [...prev, { ...c, id: `cat-${Date.now()}` }])
+  }
+
+  const deleteCategory = (id: string) => {
+    setCategories((prev) => prev.filter((cat) => cat.id !== id))
+  }
 
   const setSlackWebhookUrl = (url: string) => {
     setSlackWebhookUrlState(url)
@@ -516,6 +554,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setSlackWebhookUrl,
         assignTask,
         transactions,
+        addTransaction,
+        deleteTransaction,
+        categories,
+        addCategory,
+        deleteCategory,
       },
     },
     children,

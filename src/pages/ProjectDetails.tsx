@@ -7,6 +7,14 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@/components/ui/chart'
 import {
   ArrowLeft,
   Calendar,
@@ -74,7 +82,7 @@ const MOCK_HISTORY = [
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { projects, deleteProject, transactions } = useProjectStore()
+  const { projects, deleteProject, transactions, categories } = useProjectStore()
   const { toast } = useToast()
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -312,6 +320,44 @@ export default function ProjectDetails() {
                   .reduce((acc, curr) => acc + curr.value, 0)
                 const profit = totalIn - totalOut
 
+                const expensesByMonth = useMemo(() => {
+                  const data: Record<string, number> = {}
+                  projectTransactions.forEach((tx) => {
+                    if (tx.type === 'Saída') {
+                      const month = tx.date.substring(0, 7)
+                      data[month] = (data[month] || 0) + tx.value
+                    }
+                  })
+                  return Object.entries(data)
+                    .sort((a, b) => a[0].localeCompare(b[0]))
+                    .map(([month, value]) => ({ month, value }))
+                }, [projectTransactions])
+
+                const expensesByCategory = useMemo(() => {
+                  const data: Record<string, number> = {}
+                  projectTransactions.forEach((tx) => {
+                    if (tx.type === 'Saída' && tx.categoryId) {
+                      data[tx.categoryId] = (data[tx.categoryId] || 0) + tx.value
+                    }
+                  })
+                  return Object.entries(data).map(([id, value]) => {
+                    const cat = categories.find((c) => c.id === id)
+                    return {
+                      name: cat?.name || 'Outros',
+                      value,
+                      fill: cat?.color || 'hsl(var(--muted))',
+                    }
+                  })
+                }, [projectTransactions])
+
+                const pieChartConfig = useMemo(() => {
+                  const config: any = { value: { label: 'Valor' } }
+                  categories.forEach((cat) => {
+                    config[cat.name] = { label: cat.name, color: cat.color }
+                  })
+                  return config
+                }, [])
+
                 const handleExportCSV = () => {
                   const headers = ['Data', 'Descrição', 'Tipo', 'Valor']
                   const rows = projectTransactions.map((t) => [
@@ -379,6 +425,97 @@ export default function ProjectDetails() {
                       </CardContent>
                     </Card>
 
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium">
+                            Evolução de Despesas
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {expensesByMonth.length > 0 ? (
+                            <ChartContainer
+                              config={{
+                                value: { label: 'Despesas', color: 'hsl(var(--chart-1))' },
+                              }}
+                              className="h-[200px] w-full"
+                            >
+                              <BarChart
+                                data={expensesByMonth}
+                                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                              >
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <XAxis
+                                  dataKey="month"
+                                  tickFormatter={(val) => {
+                                    const [y, m] = val.split('-')
+                                    return `${m}/${y}`
+                                  }}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  fontSize={12}
+                                />
+                                <YAxis
+                                  tickFormatter={(val) => `R$${val / 1000}k`}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  fontSize={12}
+                                />
+                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <Bar
+                                  dataKey="value"
+                                  fill="var(--color-value)"
+                                  radius={[4, 4, 0, 0]}
+                                />
+                              </BarChart>
+                            </ChartContainer>
+                          ) : (
+                            <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md">
+                              Sem despesas registradas
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm font-medium">
+                            Despesas por Categoria
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {expensesByCategory.length > 0 ? (
+                            <ChartContainer config={pieChartConfig} className="h-[200px] w-full">
+                              <PieChart>
+                                <Pie
+                                  data={expensesByCategory}
+                                  dataKey="value"
+                                  nameKey="name"
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius={40}
+                                  outerRadius={70}
+                                >
+                                  {expensesByCategory.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                  ))}
+                                </Pie>
+                                <ChartTooltip content={<ChartTooltipContent />} />
+                                <ChartLegend
+                                  content={<ChartLegendContent />}
+                                  className="-translate-y-2 flex-wrap"
+                                />
+                              </PieChart>
+                            </ChartContainer>
+                          ) : (
+                            <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md">
+                              Sem categorias registradas
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -434,43 +571,63 @@ export default function ProjectDetails() {
                                 <TableRow>
                                   <TableHead>Data</TableHead>
                                   <TableHead>Descrição</TableHead>
+                                  <TableHead>Categoria</TableHead>
                                   <TableHead>Tipo</TableHead>
                                   <TableHead className="text-right">Valor</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {projectTransactions.map((transaction) => (
-                                  <TableRow key={transaction.id}>
-                                    <TableCell className="whitespace-nowrap">
-                                      {new Date(transaction.date).toLocaleDateString('pt-BR')}
-                                    </TableCell>
-                                    <TableCell>{transaction.description}</TableCell>
-                                    <TableCell>
-                                      <Badge
-                                        variant={
-                                          transaction.type === 'Entrada' ? 'default' : 'destructive'
-                                        }
-                                        className={
+                                {projectTransactions.map((transaction) => {
+                                  const cat = categories.find(
+                                    (c) => c.id === transaction.categoryId,
+                                  )
+                                  return (
+                                    <TableRow key={transaction.id}>
+                                      <TableCell className="whitespace-nowrap">
+                                        {new Date(transaction.date).toLocaleDateString('pt-BR')}
+                                      </TableCell>
+                                      <TableCell>{transaction.description}</TableCell>
+                                      <TableCell>
+                                        {transaction.type === 'Saída' && cat ? (
+                                          <Badge
+                                            variant="outline"
+                                            style={{ borderColor: cat.color, color: cat.color }}
+                                          >
+                                            {cat.name}
+                                          </Badge>
+                                        ) : (
+                                          '-'
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge
+                                          variant={
+                                            transaction.type === 'Entrada'
+                                              ? 'default'
+                                              : 'destructive'
+                                          }
+                                          className={
+                                            transaction.type === 'Entrada'
+                                              ? 'bg-emerald-500 hover:bg-emerald-600'
+                                              : ''
+                                          }
+                                        >
+                                          {transaction.type}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell
+                                        className={`text-right font-medium whitespace-nowrap ${
                                           transaction.type === 'Entrada'
-                                            ? 'bg-emerald-500 hover:bg-emerald-600'
-                                            : ''
-                                        }
+                                            ? 'text-emerald-500'
+                                            : 'text-red-500'
+                                        }`}
                                       >
-                                        {transaction.type}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell
-                                      className={`text-right font-medium whitespace-nowrap ${
-                                        transaction.type === 'Entrada'
-                                          ? 'text-emerald-500'
-                                          : 'text-red-500'
-                                      }`}
-                                    >
-                                      {transaction.type === 'Entrada' ? '+' : '-'}
-                                      {formatCurrency(transaction.value)}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
+                                        {transaction.type === 'Entrada' ? '+' : '-'}
+                                        {formatCurrency(transaction.value)}
+                                      </TableCell>
+                                    </TableRow>
+                                  )
+                                })}
                               </TableBody>
                             </Table>
                           </div>

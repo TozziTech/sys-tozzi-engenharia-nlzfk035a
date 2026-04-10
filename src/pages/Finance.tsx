@@ -1,5 +1,14 @@
 import { useState, useMemo } from 'react'
-import { Plus, AlertCircle, ArrowUpRight, ArrowDownRight, Wallet, FilterX } from 'lucide-react'
+import {
+  Plus,
+  AlertCircle,
+  ArrowUpRight,
+  ArrowDownRight,
+  Wallet,
+  FilterX,
+  Tags,
+  Trash2,
+} from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -29,102 +38,52 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-type Transaction = {
-  id: string
-  description: string
-  type: 'Entrada' | 'Saída'
-  amount: number
-  date: string
-  project: string
-  status: 'Pendente' | 'Pago'
-}
-
-const mockProjects = [
-  'Implantação de Rede',
-  'Manutenção Preventiva',
-  'Reforma Escritório Centro',
-  'Nova Filial Sul',
-]
+import useProjectStore from '@/stores/useProjectStore'
+import { Transaction } from '@/types/project'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  ChartConfig,
+} from '@/components/ui/chart'
 
 const months = [
-  { value: '1', label: 'Janeiro' },
-  { value: '2', label: 'Fevereiro' },
-  { value: '3', label: 'Março' },
-  { value: '4', label: 'Abril' },
-  { value: '5', label: 'Maio' },
-  { value: '6', label: 'Junho' },
-  { value: '7', label: 'Julho' },
-  { value: '8', label: 'Agosto' },
-  { value: '9', label: 'Setembro' },
+  { value: '01', label: 'Janeiro' },
+  { value: '02', label: 'Fevereiro' },
+  { value: '03', label: 'Março' },
+  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Maio' },
+  { value: '06', label: 'Junho' },
+  { value: '07', label: 'Julho' },
+  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Setembro' },
   { value: '10', label: 'Outubro' },
   { value: '11', label: 'Novembro' },
   { value: '12', label: 'Dezembro' },
 ]
 
-const initialData: Transaction[] = [
-  {
-    id: '1',
-    description: 'Pagamento Inicial',
-    type: 'Entrada',
-    amount: 15000,
-    date: '2023-10-01',
-    project: 'Implantação de Rede',
-    status: 'Pago',
-  },
-  {
-    id: '2',
-    description: 'Compra de Equipamentos',
-    type: 'Saída',
-    amount: 4500,
-    date: '2023-10-05',
-    project: 'Implantação de Rede',
-    status: 'Pago',
-  },
-  {
-    id: '3',
-    description: 'Serviços de Consultoria',
-    type: 'Entrada',
-    amount: 8000,
-    date: '2023-10-10',
-    project: 'Manutenção Preventiva',
-    status: 'Pendente',
-  },
-  {
-    id: '4',
-    description: 'Licenças de Software',
-    type: 'Saída',
-    amount: 1200,
-    date: '2023-10-12',
-    project: 'Manutenção Preventiva',
-    status: 'Pendente',
-  },
-  {
-    id: '5',
-    description: 'Adiantamento Cliente',
-    type: 'Entrada',
-    amount: 5000,
-    date: '2023-10-15',
-    project: 'Reforma Escritório Centro',
-    status: 'Pago',
-  },
-]
-
 export default function Finance() {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialData)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const { projects, transactions, addTransaction, categories, addCategory, deleteCategory } =
+    useProjectStore()
 
-  // Form State
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isCatModalOpen, setIsCatModalOpen] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
+  const [newCatColor, setNewCatColor] = useState('#6366f1')
+
   const [formData, setFormData] = useState<Partial<Transaction>>({
     type: 'Entrada',
     status: 'Pendente',
-    amount: 0,
+    value: 0,
     description: '',
-    date: '',
-    project: '',
+    date: new Date().toISOString().split('T')[0],
+    projectId: '',
+    categoryId: '',
   })
 
-  // Filter State
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [selectedYear, setSelectedYear] = useState<string>('all')
@@ -135,24 +94,23 @@ export default function Finance() {
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-'
-    const [y, m, d] = dateStr.split('-')
-    return `${d}/${m}/${y}`
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('pt-BR')
   }
 
   const availableYears = useMemo(() => {
     const years = new Set<string>()
     years.add(new Date().getFullYear().toString())
-    transactions.forEach((tx) => years.add(tx.date.split('-')[0]))
+    transactions.forEach((tx) => years.add(tx.date.substring(0, 4)))
     return Array.from(years).sort().reverse()
   }, [transactions])
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
-      const [y, m] = tx.date.split('-')
-      const txMonth = parseInt(m, 10).toString()
-      const txYear = y
+      const txYear = tx.date.substring(0, 4)
+      const txMonth = tx.date.substring(5, 7)
 
-      if (selectedProject !== 'all' && tx.project !== selectedProject) return false
+      if (selectedProject !== 'all' && tx.projectId !== selectedProject) return false
       if (selectedMonth !== 'all' && txMonth !== selectedMonth) return false
       if (selectedYear !== 'all' && txYear !== selectedYear) return false
       if (selectedType !== 'all' && tx.type !== selectedType) return false
@@ -164,8 +122,8 @@ export default function Finance() {
     let inFlow = 0
     let outFlow = 0
     filteredTransactions.forEach((tx) => {
-      if (tx.type === 'Entrada') inFlow += tx.amount
-      else outFlow += tx.amount
+      if (tx.type === 'Entrada') inFlow += tx.value
+      else outFlow += tx.value
     })
     return {
       totalIn: inFlow,
@@ -177,17 +135,59 @@ export default function Finance() {
   const projectPerformance = useMemo(() => {
     const map = new Map<string, { in: number; out: number }>()
     filteredTransactions.forEach((tx) => {
-      if (!map.has(tx.project)) map.set(tx.project, { in: 0, out: 0 })
-      if (tx.type === 'Entrada') map.get(tx.project)!.in += tx.amount
-      else map.get(tx.project)!.out += tx.amount
+      if (!map.has(tx.projectId)) map.set(tx.projectId, { in: 0, out: 0 })
+      if (tx.type === 'Entrada') map.get(tx.projectId)!.in += tx.value
+      else map.get(tx.projectId)!.out += tx.value
     })
-    return Array.from(map.entries()).map(([name, data]) => ({
-      name,
-      inflow: data.in,
-      outflow: data.out,
-      profit: data.in - data.out,
-    }))
+    return Array.from(map.entries()).map(([id, data]) => {
+      const p = projects.find((proj) => proj.id === id)
+      return {
+        id,
+        name: p?.name || 'Desconhecido',
+        inflow: data.in,
+        outflow: data.out,
+        profit: data.in - data.out,
+      }
+    })
+  }, [filteredTransactions, projects])
+
+  const expensesByMonth = useMemo(() => {
+    const data: Record<string, number> = {}
+    filteredTransactions.forEach((tx) => {
+      if (tx.type === 'Saída') {
+        const month = tx.date.substring(0, 7)
+        data[month] = (data[month] || 0) + tx.value
+      }
+    })
+    return Object.entries(data)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([month, value]) => ({ month, value }))
   }, [filteredTransactions])
+
+  const expensesByCategory = useMemo(() => {
+    const data: Record<string, number> = {}
+    filteredTransactions.forEach((tx) => {
+      if (tx.type === 'Saída' && tx.categoryId) {
+        data[tx.categoryId] = (data[tx.categoryId] || 0) + tx.value
+      }
+    })
+    return Object.entries(data).map(([id, value]) => {
+      const cat = categories.find((c) => c.id === id)
+      return {
+        name: cat?.name || 'Outros',
+        value,
+        fill: cat?.color || 'hsl(var(--muted))',
+      }
+    })
+  }, [filteredTransactions, categories])
+
+  const pieChartConfig = useMemo(() => {
+    const config: ChartConfig = { value: { label: 'Valor' } }
+    categories.forEach((cat) => {
+      config[cat.name] = { label: cat.name, color: cat.color }
+    })
+    return config
+  }, [categories])
 
   const clearFilters = () => {
     setSelectedProject('all')
@@ -197,18 +197,35 @@ export default function Finance() {
   }
 
   const handleSubmit = () => {
-    if (!formData.description || !formData.date || !formData.project || !formData.amount) return
-    const newTx = { ...formData, id: Math.random().toString() } as Transaction
-    setTransactions([newTx, ...transactions])
+    if (!formData.description || !formData.date || !formData.projectId || !formData.value) return
+
+    addTransaction({
+      description: formData.description,
+      type: formData.type as 'Entrada' | 'Saída',
+      value: formData.value,
+      date: new Date(formData.date).toISOString(),
+      projectId: formData.projectId,
+      status: formData.status as 'Pendente' | 'Pago',
+      categoryId: formData.type === 'Saída' ? formData.categoryId : undefined,
+    })
+
     setIsModalOpen(false)
     setFormData({
       type: 'Entrada',
       status: 'Pendente',
-      amount: 0,
+      value: 0,
       description: '',
-      date: '',
-      project: '',
+      date: new Date().toISOString().split('T')[0],
+      projectId: '',
+      categoryId: '',
     })
+  }
+
+  const handleAddCategory = () => {
+    if (newCatName.trim()) {
+      addCategory({ name: newCatName.trim(), color: newCatColor })
+      setNewCatName('')
+    }
   }
 
   return (
@@ -224,114 +241,210 @@ export default function Finance() {
           </p>
         </div>
 
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              <Plus className="h-4 w-4 mr-2" /> Nova Transação
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Adicionar Nova Transação</DialogTitle>
-            </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="col-span-2 space-y-2">
-                <Label>Descrição</Label>
-                <Input
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Ex: Compra de materiais..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(v: 'Entrada' | 'Saída') => setFormData({ ...formData, type: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Entrada">Entrada</SelectItem>
-                    <SelectItem value="Saída">Saída</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Valor (R$)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.amount || ''}
-                  onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Data</Label>
-                <Input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(v: 'Pendente' | 'Pago') =>
-                    setFormData({ ...formData, status: v })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pendente">Pendente</SelectItem>
-                    <SelectItem value="Pago">Pago</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label>Projeto Vinculado</Label>
-                <Select
-                  value={formData.project}
-                  onValueChange={(v) => setFormData({ ...formData, project: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um projeto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockProjects.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                Cancelar
+        <div className="flex gap-2 flex-wrap">
+          <Dialog open={isCatModalOpen} onOpenChange={setIsCatModalOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="bg-white dark:bg-slate-950">
+                <Tags className="h-4 w-4 mr-2" /> Categorias
               </Button>
-              <Button
-                onClick={handleSubmit}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                Salvar
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Gerenciar Categorias de Despesas</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Nova categoria..."
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                  />
+                  <Input
+                    type="color"
+                    className="w-14 h-10 p-1 cursor-pointer"
+                    value={newCatColor}
+                    onChange={(e) => setNewCatColor(e.target.value)}
+                  />
+                  <Button onClick={handleAddCategory}>Adicionar</Button>
+                </div>
+                <div className="space-y-2 mt-4 max-h-[300px] overflow-y-auto pr-2">
+                  {categories.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between p-2 border rounded-md"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: c.color }}
+                        />
+                        <span className="font-medium">{c.name}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => deleteCategory(c.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {categories.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground text-sm border border-dashed rounded-md">
+                      Nenhuma categoria cadastrada.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                <Plus className="h-4 w-4 mr-2" /> Nova Transação
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Adicionar Nova Transação</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 py-4">
+                <div className="col-span-2 space-y-2">
+                  <Label>Descrição</Label>
+                  <Input
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Ex: Compra de materiais..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo</Label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(v: 'Entrada' | 'Saída') =>
+                      setFormData({
+                        ...formData,
+                        type: v,
+                        categoryId: v === 'Entrada' ? undefined : formData.categoryId,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Entrada">Entrada</SelectItem>
+                      <SelectItem value="Saída">Saída</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor (R$)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.value || ''}
+                    onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data</Label>
+                  <Input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(v: 'Pendente' | 'Pago') =>
+                      setFormData({ ...formData, status: v })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="Pago">Pago</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label>Projeto Vinculado</Label>
+                  <Select
+                    value={formData.projectId}
+                    onValueChange={(v) => setFormData({ ...formData, projectId: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um projeto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.type === 'Saída' && (
+                  <div className="col-span-2 space-y-2">
+                    <Label>Categoria de Despesa</Label>
+                    <Select
+                      value={formData.categoryId || 'none'}
+                      onValueChange={(v) =>
+                        setFormData({ ...formData, categoryId: v === 'none' ? undefined : v })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sem categoria</SelectItem>
+                        {categories.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: c.color }}
+                              />
+                              {c.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  Salvar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Alert className="bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Os dados inseridos nesta sessão são temporários e serão perdidos ao recarregar a página
-          até que o backend seja integrado.
+          Os dados (categorias, transações) inseridos nesta sessão são temporários e serão perdidos
+          ao recarregar a página. Recomendamos conectar um backend (Supabase ou Skip Cloud) para
+          persistência dos dados.
         </AlertDescription>
       </Alert>
 
@@ -379,6 +492,91 @@ export default function Finance() {
         </Card>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Evolução de Despesas</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Comparativo mensal baseado nos filtros aplicados.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {expensesByMonth.length > 0 ? (
+              <ChartContainer
+                config={{ value: { label: 'Despesas', color: 'hsl(var(--chart-1))' } }}
+                className="h-[250px] w-full"
+              >
+                <BarChart
+                  data={expensesByMonth}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="month"
+                    tickFormatter={(val) => {
+                      const [y, m] = val.split('-')
+                      return `${m}/${y}`
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    tickFormatter={(val) => `R$${val / 1000}k`}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md">
+                Nenhuma despesa para exibir.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Despesas por Categoria</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Distribuição dos gastos baseado nos filtros aplicados.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {expensesByCategory.length > 0 ? (
+              <ChartContainer config={pieChartConfig} className="h-[250px] w-full">
+                <PieChart>
+                  <Pie
+                    data={expensesByCategory}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                  >
+                    {expensesByCategory.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend
+                    content={<ChartLegendContent />}
+                    className="-translate-y-4 flex-wrap"
+                  />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md">
+                Nenhuma categoria vinculada as despesas filtradas.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
         <Select value={selectedProject} onValueChange={setSelectedProject}>
           <SelectTrigger className="w-full sm:w-[220px] bg-white dark:bg-slate-950">
@@ -386,9 +584,9 @@ export default function Finance() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os Projetos</SelectItem>
-            {mockProjects.map((p) => (
-              <SelectItem key={p} value={p}>
-                {p}
+            {projects.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -450,7 +648,7 @@ export default function Finance() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Performance Geral</CardTitle>
+          <CardTitle>Performance de Projetos</CardTitle>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Comparativo financeiro dos projetos baseado nos filtros atuais.
           </p>
@@ -476,7 +674,7 @@ export default function Finance() {
                   </TableRow>
                 ) : (
                   projectPerformance.map((p) => (
-                    <TableRow key={p.name}>
+                    <TableRow key={p.id}>
                       <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                         {p.name}
                       </TableCell>
@@ -525,59 +723,76 @@ export default function Finance() {
               <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
                 <TableRow>
                   <TableHead>Descrição</TableHead>
+                  <TableHead>Categoria</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Valor (R$)</TableHead>
                   <TableHead>Data</TableHead>
-                  <TableHead>Projeto Vinculado</TableHead>
+                  <TableHead>Projeto</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTransactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-slate-500">
+                    <TableCell colSpan={7} className="text-center py-12 text-slate-500">
                       Nenhuma transação encontrada para os filtros selecionados.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredTransactions.map((tx) => (
-                    <TableRow key={tx.id}>
-                      <TableCell className="font-medium">{tx.description}</TableCell>
-                      <TableCell>
-                        {tx.type === 'Entrada' ? (
-                          <span className="inline-flex items-center text-emerald-600 dark:text-emerald-400 font-medium">
-                            <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center text-rose-600 dark:text-rose-400 font-medium">
-                            <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-semibold">{formatCurrency(tx.amount)}</TableCell>
-                      <TableCell>{formatDate(tx.date)}</TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-300">
-                        {tx.project}
-                      </TableCell>
-                      <TableCell>
-                        {tx.status === 'Pago' ? (
-                          <Badge
-                            variant="default"
-                            className="bg-emerald-500 hover:bg-emerald-600 border-transparent text-white"
-                          >
-                            Pago
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-amber-600 border-amber-500 dark:text-amber-400"
-                          >
-                            Pendente
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  filteredTransactions.map((tx) => {
+                    const cat = categories.find((c) => c.id === tx.categoryId)
+                    const proj = projects.find((p) => p.id === tx.projectId)
+                    return (
+                      <TableRow key={tx.id}>
+                        <TableCell className="font-medium">{tx.description}</TableCell>
+                        <TableCell>
+                          {tx.type === 'Saída' && cat ? (
+                            <Badge
+                              variant="outline"
+                              style={{ borderColor: cat.color, color: cat.color }}
+                            >
+                              {cat.name}
+                            </Badge>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {tx.type === 'Entrada' ? (
+                            <span className="inline-flex items-center text-emerald-600 dark:text-emerald-400 font-medium">
+                              <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-rose-600 dark:text-rose-400 font-medium">
+                              <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-semibold">{formatCurrency(tx.value)}</TableCell>
+                        <TableCell>{formatDate(tx.date)}</TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-300">
+                          {proj?.name || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {tx.status === 'Pago' ? (
+                            <Badge
+                              variant="default"
+                              className="bg-emerald-500 hover:bg-emerald-600 border-transparent text-white"
+                            >
+                              Pago
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-amber-600 border-amber-500 dark:text-amber-400"
+                            >
+                              Pendente
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>

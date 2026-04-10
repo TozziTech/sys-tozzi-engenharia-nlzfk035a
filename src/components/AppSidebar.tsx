@@ -9,6 +9,7 @@ import {
   CalendarDays,
   AlertTriangle,
   Clock,
+  History,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Gargalos', href: '/bottlenecks', icon: AlertTriangle },
   { name: 'Timesheet', href: '/timesheet', icon: Clock },
   { name: 'Clientes', href: '/clients', icon: Users },
+  { name: 'Histórico', href: '/history', icon: History },
   { name: 'Relatórios', href: '/reports', icon: FileBarChart },
   { name: 'Configurações', href: '/settings', icon: Settings },
 ]

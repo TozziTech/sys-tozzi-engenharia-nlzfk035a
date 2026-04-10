@@ -1,0 +1,282 @@
+import { useState, useMemo } from 'react'
+import { format, subDays, isAfter } from 'date-fns'
+import { ArrowRight, Search, History as HistoryIcon } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+
+const MOCK_LOGS = [
+  {
+    id: '1',
+    timestamp: new Date().toISOString(),
+    user: {
+      name: 'Eduardo Costa',
+      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
+    },
+    action: 'Update',
+    entityType: 'Projeto',
+    entityName: 'Residencial Aurora',
+    changes: [{ field: 'Status', oldValue: 'Em Andamento', newValue: 'Concluído' }],
+  },
+  {
+    id: '2',
+    timestamp: subDays(new Date(), 1).toISOString(),
+    user: {
+      name: 'Ana Silva',
+      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
+    },
+    action: 'Assign',
+    entityType: 'Equipe',
+    entityName: 'Edifício Comercial Centro',
+    changes: [{ field: 'Engenheiro', oldValue: 'Nenhum', newValue: 'Carlos Mendes' }],
+  },
+  {
+    id: '3',
+    timestamp: subDays(new Date(), 2).toISOString(),
+    user: {
+      name: 'Marcos Paulo',
+      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=3',
+    },
+    action: 'Create',
+    entityType: 'Projeto',
+    entityName: 'Ponte Rio Verde',
+    changes: [{ field: 'Registro', newValue: 'Criado com sucesso' }],
+  },
+  {
+    id: '4',
+    timestamp: subDays(new Date(), 3).toISOString(),
+    user: {
+      name: 'Eduardo Costa',
+      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
+    },
+    action: 'Update',
+    entityType: 'Tarefa',
+    entityName: 'Fundações - Torre A',
+    changes: [{ field: 'Data de Fim', oldValue: '15/05/2026', newValue: '22/05/2026' }],
+  },
+  {
+    id: '5',
+    timestamp: subDays(new Date(), 5).toISOString(),
+    user: {
+      name: 'Julia Martins',
+      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=4',
+    },
+    action: 'Delete',
+    entityType: 'Tarefa',
+    entityName: 'Revisão Elétrica Antiga',
+    changes: [
+      { field: 'Tarefa', oldValue: 'Revisão Elétrica Antiga', newValue: 'Removida do sistema' },
+    ],
+  },
+  {
+    id: '6',
+    timestamp: subDays(new Date(), 8).toISOString(),
+    user: {
+      name: 'Eduardo Costa',
+      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
+    },
+    action: 'Update',
+    entityType: 'Projeto',
+    entityName: 'Hospital São João',
+    changes: [
+      { field: 'Orçamento', oldValue: 'R$ 1.500.000', newValue: 'R$ 1.750.000' },
+      { field: 'Fase', oldValue: 'Planejamento', newValue: 'Execução' },
+    ],
+  },
+]
+
+function ActionBadge({ action }: { action: string }) {
+  const variants: Record<string, { label: string; classes: string }> = {
+    Create: {
+      label: 'Criação',
+      classes:
+        'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800',
+    },
+    Update: {
+      label: 'Edição',
+      classes:
+        'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800',
+    },
+    Delete: {
+      label: 'Exclusão',
+      classes:
+        'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800',
+    },
+    Assign: {
+      label: 'Atribuição',
+      classes:
+        'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400 dark:border-purple-800',
+    },
+  }
+  const config = variants[action] || { label: action, classes: '' }
+  return (
+    <Badge variant="outline" className={config.classes}>
+      {config.label}
+    </Badge>
+  )
+}
+
+export default function History() {
+  const [search, setSearch] = useState('')
+  const [action, setAction] = useState('all')
+  const [period, setPeriod] = useState('all')
+
+  const filteredLogs = useMemo(() => {
+    return MOCK_LOGS.filter((log) => {
+      const matchesSearch =
+        log.user.name.toLowerCase().includes(search.toLowerCase()) ||
+        log.entityName.toLowerCase().includes(search.toLowerCase())
+      const matchesAction = action === 'all' || log.action === action
+      let matchesDate = true
+      if (period === '7d') matchesDate = isAfter(new Date(log.timestamp), subDays(new Date(), 7))
+      if (period === '30d') matchesDate = isAfter(new Date(log.timestamp), subDays(new Date(), 30))
+
+      return matchesSearch && matchesAction && matchesDate
+    })
+  }, [search, action, period])
+
+  return (
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Histórico do Sistema</h2>
+          <p className="text-muted-foreground">Acompanhe todas as modificações e atividades.</p>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <HistoryIcon className="h-5 w-5" />
+                Trilha de Auditoria
+              </CardTitle>
+              <CardDescription>
+                Visualização cronológica de alterações em projetos e tarefas.
+              </CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por usuário ou projeto..."
+                  className="pl-8"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <Select value={action} onValueChange={setAction}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <SelectValue placeholder="Ação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas Ações</SelectItem>
+                  <SelectItem value="Create">Criação</SelectItem>
+                  <SelectItem value="Update">Edição</SelectItem>
+                  <SelectItem value="Delete">Exclusão</SelectItem>
+                  <SelectItem value="Assign">Atribuição</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={period} onValueChange={setPeriod}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todo período</SelectItem>
+                  <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                  <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data & Hora</TableHead>
+                  <TableHead>Usuário</TableHead>
+                  <TableHead>Ação / Entidade</TableHead>
+                  <TableHead>Detalhes da Alteração</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLogs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Nenhum registro encontrado.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredLogs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={log.user.avatar} />
+                            <AvatarFallback>{log.user.name.slice(0, 2)}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">{log.user.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1 items-start">
+                          <ActionBadge action={log.action} />
+                          <span className="text-sm font-medium">{log.entityName}</span>
+                          <span className="text-xs text-muted-foreground">{log.entityType}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-2">
+                          {log.changes.map((change, i) => (
+                            <div key={i} className="flex flex-wrap items-center gap-2 text-sm">
+                              <span className="font-medium text-slate-700 dark:text-slate-300 min-w-[80px]">
+                                {change.field}:
+                              </span>
+                              {change.oldValue && (
+                                <>
+                                  <span className="line-through text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 px-1.5 py-0.5 rounded text-xs">
+                                    {change.oldValue}
+                                  </span>
+                                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                </>
+                              )}
+                              <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded text-xs">
+                                {change.newValue}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

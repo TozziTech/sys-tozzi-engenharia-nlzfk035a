@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Edit2, Eye, Trash2, AlertCircle } from 'lucide-react'
@@ -38,6 +38,7 @@ interface ProjectTableProps {
 export function ProjectTable({ projects }: ProjectTableProps) {
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
+  const navigate = useNavigate()
   const { deleteProject } = useProjectStore()
   const { toast } = useToast()
 
@@ -80,7 +81,8 @@ export function ProjectTable({ projects }: ProjectTableProps) {
           {projects.map((project) => (
             <TableRow
               key={project.id}
-              className={`group transition-colors ${isCritical(project) ? 'bg-red-50/30 hover:bg-red-50/50' : ''}`}
+              className={`group transition-colors cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isCritical(project) ? 'bg-red-50/30 hover:bg-red-50/50' : ''}`}
+              onClick={() => navigate(`/projects/${project.id}`)}
             >
               <TableCell className="font-medium text-slate-900">
                 <div className="flex items-center gap-2">
@@ -115,17 +117,21 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-slate-500 hover:text-indigo-600"
-                    asChild
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigate(`/projects/${project.id}`)
+                    }}
                   >
-                    <Link to={`/projects/${project.id}`}>
-                      <Eye className="h-4 w-4" />
-                    </Link>
+                    <Eye className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-slate-500 hover:text-indigo-600"
-                    onClick={() => setProjectToEdit(project)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setProjectToEdit(project)
+                    }}
                   >
                     <Edit2 className="h-4 w-4" />
                   </Button>
@@ -133,7 +139,10 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-slate-500 hover:text-red-600"
-                    onClick={() => setProjectToDelete(project)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setProjectToDelete(project)
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

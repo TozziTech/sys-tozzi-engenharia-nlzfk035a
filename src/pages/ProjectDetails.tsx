@@ -328,14 +328,62 @@ export default function ProjectDetails() {
                 else if (periodFilter === 'quarter') limitDate = subDays(now, 90)
                 else if (periodFilter === 'year') limitDate = new Date(now.getFullYear(), 0, 1)
 
-                const projectTransactions = transactions.filter((t) => {
-                  if (t.projectId !== project.id) return false
-                  if (limitDate) {
-                    const txDate = new Date(t.date)
-                    if (!isAfter(txDate, limitDate)) return false
-                  }
-                  return true
-                })
+                const storeTransactions = transactions.filter((t) => t.projectId === project.id)
+                const mockTransactions =
+                  storeTransactions.length === 0
+                    ? [
+                        {
+                          id: 'm1',
+                          projectId: project.id,
+                          description: 'Initial Payment',
+                          type: 'Entrada' as const,
+                          value: 5000,
+                          date: new Date().toISOString(),
+                        },
+                        {
+                          id: 'm2',
+                          projectId: project.id,
+                          description: 'Material Purchase',
+                          type: 'Saída' as const,
+                          value: 1200,
+                          date: new Date().toISOString(),
+                        },
+                        {
+                          id: 'm3',
+                          projectId: project.id,
+                          description: 'Consultant Fee',
+                          type: 'Saída' as const,
+                          value: 800,
+                          date: new Date().toISOString(),
+                        },
+                        {
+                          id: 'm4',
+                          projectId: project.id,
+                          description: 'Milestone 1',
+                          type: 'Entrada' as const,
+                          value: 3000,
+                          date: new Date().toISOString(),
+                        },
+                        {
+                          id: 'm5',
+                          projectId: project.id,
+                          description: 'Software Licenses',
+                          type: 'Saída' as const,
+                          value: 500,
+                          date: new Date().toISOString(),
+                        },
+                      ]
+                    : []
+
+                const projectTransactions = [...storeTransactions, ...mockTransactions].filter(
+                  (t) => {
+                    if (limitDate) {
+                      const txDate = new Date(t.date)
+                      if (!isAfter(txDate, limitDate)) return false
+                    }
+                    return true
+                  },
+                )
                 const totalIn = projectTransactions
                   .filter((t) => t.type === 'Entrada')
                   .reduce((acc, curr) => acc + curr.value, 0)

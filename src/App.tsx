@@ -8,6 +8,7 @@ import ProjectDetails from './pages/ProjectDetails'
 import Clients from './pages/Clients'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import Gantt from './pages/Gantt'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/clients" element={<Clients />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/gantt" element={<Gantt />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

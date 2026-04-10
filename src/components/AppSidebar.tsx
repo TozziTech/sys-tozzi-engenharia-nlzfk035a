@@ -1,5 +1,13 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, FolderKanban, Users, FileBarChart, Settings, Home } from 'lucide-react'
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Users,
+  FileBarChart,
+  Settings,
+  Home,
+  CalendarDays,
+} from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Projetos', href: '/projects', icon: FolderKanban },
+  { name: 'Cronograma', href: '/gantt', icon: CalendarDays },
   { name: 'Clientes', href: '/clients', icon: Users },
   { name: 'Relatórios', href: '/reports', icon: FileBarChart },
   { name: 'Configurações', href: '/settings', icon: Settings },

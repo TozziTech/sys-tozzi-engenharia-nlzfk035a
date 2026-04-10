@@ -9,6 +9,7 @@ import Clients from './pages/Clients'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Gantt from './pages/Gantt'
+import Bottlenecks from './pages/Bottlenecks'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/gantt" element={<Gantt />} />
+            <Route path="/bottlenecks" element={<Bottlenecks />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

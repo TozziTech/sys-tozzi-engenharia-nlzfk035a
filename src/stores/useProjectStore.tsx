@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react'
+import { addDays, subDays, format } from 'date-fns'
 import { Project } from '@/types/project'
+
+const today = new Date()
+const fmt = (d: Date) => format(d, 'yyyy-MM-dd')
 
 const MOCK_PROJECTS: Project[] = [
   {
@@ -8,8 +12,8 @@ const MOCK_PROJECTS: Project[] = [
     client: 'Construtora Alfa',
     discipline: 'Arquitetura',
     status: 'Em Andamento',
-    startDate: '2023-10-01',
-    endDate: '2024-06-15',
+    startDate: fmt(subDays(today, 60)),
+    endDate: fmt(addDays(today, 120)),
     progress: 65,
     engineer: 'Eng. Ricardo Silva',
     budget: 150000,
@@ -22,8 +26,8 @@ const MOCK_PROJECTS: Project[] = [
     client: 'Família Silva',
     discipline: 'Estrutural',
     status: 'Concluído',
-    startDate: '2023-11-10',
-    endDate: '2024-02-28',
+    startDate: fmt(subDays(today, 120)),
+    endDate: fmt(subDays(today, 10)),
     progress: 100,
     engineer: 'Eng. Maria Santos',
     budget: 80000,
@@ -35,8 +39,8 @@ const MOCK_PROJECTS: Project[] = [
     client: 'Iguatemi',
     discipline: 'Elétrico',
     status: 'Planejamento',
-    startDate: '2024-01-05',
-    endDate: '2024-12-01',
+    startDate: fmt(addDays(today, 5)),
+    endDate: fmt(addDays(today, 180)),
     progress: 10,
     engineer: 'Eng. Carlos Oliveira',
     budget: 350000,
@@ -48,8 +52,8 @@ const MOCK_PROJECTS: Project[] = [
     client: 'Prefeitura',
     discipline: 'Estrutural',
     status: 'Atrasado',
-    startDate: '2023-05-20',
-    endDate: '2023-12-30',
+    startDate: fmt(subDays(today, 200)),
+    endDate: fmt(subDays(today, 30)),
     progress: 80,
     engineer: 'Eng. Ricardo Silva',
     budget: 1200000,
@@ -61,12 +65,25 @@ const MOCK_PROJECTS: Project[] = [
     client: 'Construtora Beta',
     discipline: 'Hidrossanitário',
     status: 'Em Andamento',
-    startDate: '2024-02-15',
-    endDate: '2024-08-20',
+    startDate: fmt(subDays(today, 30)),
+    endDate: fmt(addDays(today, 90)),
     progress: 30,
     engineer: 'Eng. Maria Santos',
     budget: 45000,
     spent: 15000,
+  },
+  {
+    id: '6',
+    name: 'Hospital São Lucas',
+    client: 'Governo Estadual',
+    discipline: 'Geotecnia',
+    status: 'Em Andamento',
+    startDate: fmt(subDays(today, 90)),
+    endDate: fmt(addDays(today, 4)),
+    progress: 35,
+    engineer: 'Eng. Ana Costa',
+    budget: 500000,
+    spent: 200000,
   },
 ]
 

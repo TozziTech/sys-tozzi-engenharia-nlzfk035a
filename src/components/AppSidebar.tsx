@@ -7,6 +7,7 @@ import {
   Settings,
   Home,
   CalendarDays,
+  AlertTriangle,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Projetos', href: '/projects', icon: FolderKanban },
   { name: 'Cronograma', href: '/gantt', icon: CalendarDays },
+  { name: 'Gargalos', href: '/bottlenecks', icon: AlertTriangle },
   { name: 'Clientes', href: '/clients', icon: Users },
   { name: 'Relatórios', href: '/reports', icon: FileBarChart },
   { name: 'Configurações', href: '/settings', icon: Settings },

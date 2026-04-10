@@ -85,7 +85,7 @@ export function Header() {
           <Input
             type="search"
             placeholder="Buscar projetos..."
-            className="w-full rounded-full bg-slate-100 dark:bg-slate-800 pl-9 md:w-[300px] lg:w-[400px] border-transparent focus-visible:ring-indigo-500"
+            className="w-full rounded-full bg-slate-100 dark:bg-slate-800 pl-9 md:w-[300px] lg:w-[400px] border-transparent focus-visible:ring-primary"
             value={globalSearch}
             onChange={(e) => setGlobalSearch(e.target.value)}
           />
@@ -151,7 +151,7 @@ export function Header() {
                         <div className="flex justify-between items-start gap-3">
                           <Link
                             to={`/projects/${proj.id}`}
-                            className="text-sm font-medium hover:underline hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-tight text-slate-900 dark:text-slate-100"
+                            className="text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight text-slate-900 dark:text-slate-100"
                           >
                             {proj.name}
                           </Link>
@@ -198,7 +198,7 @@ export function Header() {
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm">Notificações</span>
                   {unreadCount > 0 && (
-                    <span className="flex h-5 items-center justify-center rounded-full bg-indigo-100 px-2 text-[10px] font-bold text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400">
+                    <span className="flex h-5 items-center justify-center rounded-full bg-primary/10 px-2 text-[10px] font-bold text-primary">
                       {unreadCount} nova{unreadCount > 1 ? 's' : ''}
                     </span>
                   )}
@@ -207,7 +207,7 @@ export function Header() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto text-xs px-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                    className="h-auto text-xs px-2 text-primary hover:text-primary/80"
                     onClick={markAllNotificationsAsRead}
                   >
                     Marcar todas lidas
@@ -231,18 +231,18 @@ export function Header() {
                       .map((notif) => (
                         <div
                           key={notif.id}
-                          className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group ${!notif.read ? 'bg-indigo-50/40 dark:bg-indigo-900/20 hover:bg-indigo-50/80 dark:hover:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                          className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group ${!notif.read ? 'bg-primary/5 dark:bg-primary/10 hover:bg-primary/10 dark:hover:bg-primary/20' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
                         >
                           <div className="flex justify-between items-start gap-3">
                             <Link
                               to={notif.link || '#'}
                               onClick={() => markNotificationAsRead(notif.id)}
-                              className={`text-sm font-medium hover:underline hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-tight ${!notif.read ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300'}`}
+                              className={`text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight ${!notif.read ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300'}`}
                             >
                               {notif.title}
                             </Link>
                             {!notif.read && (
-                              <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1 shrink-0" />
+                              <div className="w-2 h-2 rounded-full bg-primary mt-1 shrink-0" />
                             )}
                           </div>
                           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
@@ -272,14 +272,14 @@ export function Header() {
           </Popover>
           <Button
             onClick={() => setNewProjectModalOpen(true)}
-            className="hidden md:flex bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-sm transition-transform active:scale-95"
+            className="hidden md:flex bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-sm transition-transform active:scale-95"
           >
             <Plus className="h-4 w-4 mr-2" /> Novo Projeto
           </Button>
           <Button
             onClick={() => setNewProjectModalOpen(true)}
             size="icon"
-            className="md:hidden bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-sm transition-transform active:scale-95"
+            className="md:hidden bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-sm transition-transform active:scale-95"
           >
             <Plus className="h-4 w-4" />
           </Button>

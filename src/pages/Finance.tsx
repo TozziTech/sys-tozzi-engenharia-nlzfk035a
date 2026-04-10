@@ -285,7 +285,7 @@ export default function Finance() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-3">
-            <Wallet className="h-8 w-8 text-indigo-500" />
+            <Wallet className="h-8 w-8 text-primary" />
             Financeiro
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
@@ -354,7 +354,7 @@ export default function Finance() {
 
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Plus className="h-4 w-4 mr-2" /> Nova Transação
               </Button>
             </DialogTrigger>
@@ -481,7 +481,7 @@ export default function Finance() {
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   Salvar
                 </Button>
@@ -841,7 +841,7 @@ export default function Finance() {
         <CardContent className="pb-2 border-b mb-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
-              className={`p-4 rounded-lg border border-dashed transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-800'}`}
+              className={`p-4 rounded-lg border border-dashed transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-800'}`}
             >
               <h4 className="text-sm font-medium mb-3 text-slate-700 dark:text-slate-300">
                 Solte aqui para reatribuir Categoria
@@ -869,7 +869,7 @@ export default function Finance() {
               </div>
             </div>
             <div
-              className={`p-4 rounded-lg border border-dashed transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-800'}`}
+              className={`p-4 rounded-lg border border-dashed transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-800'}`}
             >
               <h4 className="text-sm font-medium mb-3 text-slate-700 dark:text-slate-300">
                 Solte aqui para reatribuir Projeto

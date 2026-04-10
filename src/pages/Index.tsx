@@ -55,7 +55,7 @@ export default function Index() {
         <p className="text-muted-foreground">Acompanhe e gerencie todos os projetos da empresa.</p>
       </div>
 
-      <DashboardStats projects={projects} />
+      <DashboardStats />
 
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-end md:items-center">

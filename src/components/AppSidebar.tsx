@@ -12,6 +12,7 @@ import {
   History,
   Activity,
   ClipboardList,
+  Wallet,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -28,6 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Projetos', href: '/projects', icon: FolderKanban },
+  { name: 'Financeiro', href: '/financeiro', icon: Wallet },
   { name: 'Equipe', href: '/team', icon: Users },
   { name: 'Atividades Recentes', href: '/activities', icon: Activity },
   { name: 'Cronograma', href: '/gantt', icon: CalendarDays },

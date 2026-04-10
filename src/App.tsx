@@ -19,6 +19,7 @@ import History from './pages/History'
 import Team from './pages/Team'
 import Activities from './pages/Activities'
 import PendingReport from './pages/PendingReport'
+import Finance from './pages/Finance'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -36,6 +37,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetails />} />
+              <Route path="/financeiro" element={<Finance />} />
               <Route path="/clients" element={<Clients />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />

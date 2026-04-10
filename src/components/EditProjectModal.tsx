@@ -143,7 +143,7 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
 
     toast({
       title: 'Projeto atualizado!',
-      description: `As alterações em ${values.name} foram salvas.`,
+      description: `As alterações em ${values.name} foram salvas localmente. Os dados serão resetados ao recarregar a página.`,
     })
     onOpenChange(false)
   }

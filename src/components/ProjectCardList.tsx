@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -5,13 +6,44 @@ import { Project } from '@/types/project'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from './StatusBadge'
 import { AnimatedProgress } from './AnimatedProgress'
-import { CalendarDays, User, Layers } from 'lucide-react'
+import { CalendarDays, User, Layers, Edit2, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { EditProjectModal } from './EditProjectModal'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import useProjectStore from '@/stores/useProjectStore'
+import { useToast } from '@/hooks/use-toast'
 
 interface ProjectCardListProps {
   projects: Project[]
 }
 
 export function ProjectCardList({ projects }: ProjectCardListProps) {
+  const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
+  const { deleteProject } = useProjectStore()
+  const { toast } = useToast()
+
+  const handleDelete = () => {
+    if (projectToDelete) {
+      deleteProject(projectToDelete.id)
+      toast({
+        title: 'Projeto excluído',
+        description:
+          'O projeto foi removido com sucesso. Nota: os dados serão resetados ao recarregar a página (sem backend).',
+      })
+      setProjectToDelete(null)
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 md:hidden animate-fade-in-up">
       {projects.map((project) => (
@@ -24,9 +56,35 @@ export function ProjectCardList({ projects }: ProjectCardListProps) {
           </Link>
           <CardHeader className="pb-3 bg-slate-50/50">
             <div className="flex justify-between items-start gap-4">
-              <CardTitle className="text-lg font-bold text-slate-900 leading-tight">
-                {project.name}
-              </CardTitle>
+              <div className="flex flex-col gap-1">
+                <CardTitle className="text-lg font-bold text-slate-900 leading-tight">
+                  {project.name}
+                </CardTitle>
+                <div className="flex gap-2 relative z-20 mt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setProjectToEdit(project)
+                    }}
+                  >
+                    <Edit2 className="h-3 w-3 mr-1" /> Editar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setProjectToDelete(project)
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" /> Excluir
+                  </Button>
+                </div>
+              </div>
               <StatusBadge status={project.status} />
             </div>
           </CardHeader>
@@ -55,6 +113,38 @@ export function ProjectCardList({ projects }: ProjectCardListProps) {
           </CardContent>
         </Card>
       ))}
+
+      {projectToEdit && (
+        <EditProjectModal
+          project={projectToEdit}
+          open={!!projectToEdit}
+          onOpenChange={(open) => !open && setProjectToEdit(null)}
+        />
+      )}
+
+      <AlertDialog
+        open={!!projectToDelete}
+        onOpenChange={(open) => !open && setProjectToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente o projeto "
+              {projectToDelete?.name}" do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Excluir Projeto
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

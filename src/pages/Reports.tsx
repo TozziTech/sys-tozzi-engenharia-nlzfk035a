@@ -5,6 +5,7 @@ import useProjectStore from '@/stores/useProjectStore'
 import { ReportsFilters, ReportFiltersState } from '@/components/reports/ReportsFilters'
 import { ReportsAnalytics } from '@/components/reports/ReportsAnalytics'
 import { ReportsTables } from '@/components/reports/ReportsTables'
+import { ProductivityCharts } from '@/components/reports/ProductivityCharts'
 
 export default function Reports() {
   const { projects } = useProjectStore()
@@ -49,6 +50,7 @@ export default function Reports() {
 
       <ReportsFilters filters={filters} setFilters={setFilters} projects={projects} />
       <ReportsAnalytics projects={filteredProjects} overdueCount={overdueProjects.length} />
+      <ProductivityCharts projects={filteredProjects} />
       <ReportsTables projects={filteredProjects} overdueProjects={overdueProjects} />
 
       <style>{`

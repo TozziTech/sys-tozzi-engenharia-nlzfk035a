@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Edit2, Eye } from 'lucide-react'
+import { Edit2, Eye, Trash2 } from 'lucide-react'
 import { Project } from '@/types/project'
 import {
   Table,
@@ -14,12 +15,42 @@ import {
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from './StatusBadge'
 import { AnimatedProgress } from './AnimatedProgress'
+import { EditProjectModal } from './EditProjectModal'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import useProjectStore from '@/stores/useProjectStore'
+import { useToast } from '@/hooks/use-toast'
 
 interface ProjectTableProps {
   projects: Project[]
 }
 
 export function ProjectTable({ projects }: ProjectTableProps) {
+  const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
+  const { deleteProject } = useProjectStore()
+  const { toast } = useToast()
+
+  const handleDelete = () => {
+    if (projectToDelete) {
+      deleteProject(projectToDelete.id)
+      toast({
+        title: 'Projeto excluído',
+        description:
+          'O projeto foi removido com sucesso. Nota: os dados serão resetados ao recarregar a página (sem backend).',
+      })
+      setProjectToDelete(null)
+    }
+  }
+
   return (
     <div className="hidden md:block rounded-xl border bg-white shadow-sm overflow-hidden animate-fade-in-up">
       <Table>
@@ -69,8 +100,17 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                    onClick={() => setProjectToEdit(project)}
                   >
                     <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-slate-500 hover:text-red-600"
+                    onClick={() => setProjectToDelete(project)}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </TableCell>
@@ -78,6 +118,38 @@ export function ProjectTable({ projects }: ProjectTableProps) {
           ))}
         </TableBody>
       </Table>
+
+      {projectToEdit && (
+        <EditProjectModal
+          project={projectToEdit}
+          open={!!projectToEdit}
+          onOpenChange={(open) => !open && setProjectToEdit(null)}
+        />
+      )}
+
+      <AlertDialog
+        open={!!projectToDelete}
+        onOpenChange={(open) => !open && setProjectToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente o projeto "
+              {projectToDelete?.name}" do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Excluir Projeto
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

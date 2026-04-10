@@ -174,6 +174,21 @@ export default function Finance() {
     }
   }, [filteredTransactions])
 
+  const projectPerformance = useMemo(() => {
+    const map = new Map<string, { in: number; out: number }>()
+    filteredTransactions.forEach((tx) => {
+      if (!map.has(tx.project)) map.set(tx.project, { in: 0, out: 0 })
+      if (tx.type === 'Entrada') map.get(tx.project)!.in += tx.amount
+      else map.get(tx.project)!.out += tx.amount
+    })
+    return Array.from(map.entries()).map(([name, data]) => ({
+      name,
+      inflow: data.in,
+      outflow: data.out,
+      profit: data.in - data.out,
+    }))
+  }, [filteredTransactions])
+
   const clearFilters = () => {
     setSelectedProject('all')
     setSelectedMonth('all')
@@ -433,66 +448,142 @@ export default function Finance() {
         </Button>
       </div>
 
-      <div className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden shadow-sm">
-        <Table>
-          <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
-            <TableRow>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Valor (R$)</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Projeto Vinculado</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTransactions.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-slate-500">
-                  Nenhuma transação encontrada para os filtros selecionados.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredTransactions.map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell className="font-medium">{tx.description}</TableCell>
-                  <TableCell>
-                    {tx.type === 'Entrada' ? (
-                      <span className="inline-flex items-center text-emerald-600 dark:text-emerald-400 font-medium">
-                        <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center text-rose-600 dark:text-rose-400 font-medium">
-                        <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-semibold">{formatCurrency(tx.amount)}</TableCell>
-                  <TableCell>{formatDate(tx.date)}</TableCell>
-                  <TableCell className="text-slate-600 dark:text-slate-300">{tx.project}</TableCell>
-                  <TableCell>
-                    {tx.status === 'Pago' ? (
-                      <Badge
-                        variant="default"
-                        className="bg-emerald-500 hover:bg-emerald-600 border-transparent text-white"
-                      >
-                        Pago
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-amber-600 border-amber-500 dark:text-amber-400"
-                      >
-                        Pendente
-                      </Badge>
-                    )}
-                  </TableCell>
+      <Card>
+        <CardHeader>
+          <CardTitle>Performance Geral</CardTitle>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Comparativo financeiro dos projetos baseado nos filtros atuais.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <Table>
+              <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
+                <TableRow>
+                  <TableHead>Projeto</TableHead>
+                  <TableHead className="text-right">Entradas</TableHead>
+                  <TableHead className="text-right">Saídas</TableHead>
+                  <TableHead className="text-right">Lucro Líquido</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {projectPerformance.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                      Nenhum projeto encontrado.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  projectPerformance.map((p) => (
+                    <TableRow key={p.name}>
+                      <TableCell className="font-medium text-slate-900 dark:text-slate-100">
+                        {p.name}
+                      </TableCell>
+                      <TableCell className="text-right text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(p.inflow)}
+                      </TableCell>
+                      <TableCell className="text-right text-rose-600 dark:text-rose-400">
+                        {formatCurrency(p.outflow)}
+                      </TableCell>
+                      <TableCell
+                        className={`text-right font-bold ${p.profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+                      >
+                        {formatCurrency(p.profit)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {p.profit >= 0 ? (
+                          <Badge
+                            variant="default"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                          >
+                            Lucrativo
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive">Déficit</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Histórico de Transações</CardTitle>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Lista de todas as transações de acordo com os filtros.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
+                <TableRow>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Valor (R$)</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Projeto Vinculado</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTransactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-12 text-slate-500">
+                      Nenhuma transação encontrada para os filtros selecionados.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTransactions.map((tx) => (
+                    <TableRow key={tx.id}>
+                      <TableCell className="font-medium">{tx.description}</TableCell>
+                      <TableCell>
+                        {tx.type === 'Entrada' ? (
+                          <span className="inline-flex items-center text-emerald-600 dark:text-emerald-400 font-medium">
+                            <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center text-rose-600 dark:text-rose-400 font-medium">
+                            <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-semibold">{formatCurrency(tx.amount)}</TableCell>
+                      <TableCell>{formatDate(tx.date)}</TableCell>
+                      <TableCell className="text-slate-600 dark:text-slate-300">
+                        {tx.project}
+                      </TableCell>
+                      <TableCell>
+                        {tx.status === 'Pago' ? (
+                          <Badge
+                            variant="default"
+                            className="bg-emerald-500 hover:bg-emerald-600 border-transparent text-white"
+                          >
+                            Pago
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-amber-600 border-amber-500 dark:text-amber-400"
+                          >
+                            Pendente
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

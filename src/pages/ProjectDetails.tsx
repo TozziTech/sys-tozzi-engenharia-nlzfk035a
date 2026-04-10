@@ -18,6 +18,7 @@ import {
   DollarSign,
   TrendingUp,
   TrendingDown,
+  Download,
 } from 'lucide-react'
 import {
   Table,
@@ -311,8 +312,73 @@ export default function ProjectDetails() {
                   .reduce((acc, curr) => acc + curr.value, 0)
                 const profit = totalIn - totalOut
 
+                const handleExportCSV = () => {
+                  const headers = ['Data', 'Descrição', 'Tipo', 'Valor']
+                  const rows = projectTransactions.map((t) => [
+                    new Date(t.date).toLocaleDateString('pt-BR'),
+                    `"${t.description.replace(/"/g, '""')}"`,
+                    t.type,
+                    t.value,
+                  ])
+
+                  const summary = [
+                    ['Resumo Financeiro'],
+                    ['Orçamento Estimado', project.budget || 0],
+                    ['Custo Real', totalOut],
+                    ['Lucro Atual', profit],
+                    [],
+                    headers,
+                  ]
+
+                  const csvContent = [
+                    ...summary.map((r) => r.join(',')),
+                    ...rows.map((r) => r.join(',')),
+                  ].join('\n')
+                  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+                    type: 'text/csv;charset=utf-8;',
+                  })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `Financeiro_${project.name.replace(/\s+/g, '_')}.csv`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }
+
+                const budgetPct =
+                  project.budget && project.budget > 0
+                    ? Math.round((totalOut / project.budget) * 100)
+                    : 0
+                const progressColorClass =
+                  budgetPct > 90
+                    ? '[&>div]:bg-red-500 bg-red-100'
+                    : budgetPct >= 70
+                      ? '[&>div]:bg-yellow-500 bg-yellow-100'
+                      : '[&>div]:bg-blue-500 bg-blue-100'
+
                 return (
                   <>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">Progresso do Orçamento</CardTitle>
+                        <CardDescription>
+                          Custo Real em relação ao Orçamento Estimado
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Orçamento Consumido
+                          </span>
+                          <span className="text-sm font-bold">{budgetPct}%</span>
+                        </div>
+                        <Progress
+                          value={Math.min(budgetPct, 100)}
+                          className={`h-3 ${progressColorClass}`}
+                        />
+                      </CardContent>
+                    </Card>
+
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -350,9 +416,15 @@ export default function ProjectDetails() {
                     </div>
 
                     <Card>
-                      <CardHeader>
-                        <CardTitle>Histórico de Transações</CardTitle>
-                        <CardDescription>Movimentações financeiras do projeto</CardDescription>
+                      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <CardTitle>Histórico de Transações</CardTitle>
+                          <CardDescription>Movimentações financeiras do projeto</CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                          <Download className="w-4 h-4 mr-2" />
+                          Exportar Relatório
+                        </Button>
                       </CardHeader>
                       <CardContent>
                         {projectTransactions.length > 0 ? (

@@ -43,57 +43,87 @@ export function Header() {
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-rose-500 border-2 border-white"></span>
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white border-2 border-white dark:border-slate-900">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0 mr-4 mt-2" align="end">
-              <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50/50 dark:bg-slate-900/50">
-                <span className="font-semibold text-sm">Notificações</span>
+            <PopoverContent
+              className="w-[calc(100vw-2rem)] sm:w-80 p-0 mr-4 mt-2 shadow-lg rounded-xl overflow-hidden"
+              align="end"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50/80 backdrop-blur-sm dark:bg-slate-900/80">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">Notificações</span>
+                  {unreadCount > 0 && (
+                    <span className="flex h-5 items-center justify-center rounded-full bg-indigo-100 px-2 text-[10px] font-bold text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400">
+                      {unreadCount} nova{unreadCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
                 {unreadCount > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto text-xs px-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+                    className="h-auto text-xs px-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
                     onClick={markAllNotificationsAsRead}
                   >
                     Marcar todas lidas
                   </Button>
                 )}
               </div>
-              <ScrollArea className="max-h-[300px]">
+              <ScrollArea className="max-h-[360px]">
                 {notifications.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
-                    <Bell className="h-8 w-8 text-slate-200 dark:text-slate-800" />
-                    <span>Nenhuma notificação</span>
+                  <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
+                    <div className="p-3 bg-slate-100 rounded-full dark:bg-slate-800">
+                      <Check className="h-6 w-6 text-slate-400 dark:text-slate-500" />
+                    </div>
+                    <span>Tudo em dia! Nenhuma notificação.</span>
                   </div>
                 ) : (
                   <div className="flex flex-col">
-                    {notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors ${!notif.read ? 'bg-indigo-50/50 dark:bg-indigo-900/20 hover:bg-indigo-50 dark:hover:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
-                      >
-                        <div className="flex justify-between items-start gap-3">
-                          <Link
-                            to={notif.link || '#'}
-                            onClick={() => markNotificationAsRead(notif.id)}
-                            className="text-sm font-medium hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-tight"
-                          >
-                            {notif.title}
-                          </Link>
-                          {!notif.read && (
-                            <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1 shrink-0" />
-                          )}
+                    {[...notifications]
+                      .sort(
+                        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+                      )
+                      .map((notif) => (
+                        <div
+                          key={notif.id}
+                          className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group ${!notif.read ? 'bg-indigo-50/40 dark:bg-indigo-900/20 hover:bg-indigo-50/80 dark:hover:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                        >
+                          <div className="flex justify-between items-start gap-3">
+                            <Link
+                              to={notif.link || '#'}
+                              onClick={() => markNotificationAsRead(notif.id)}
+                              className={`text-sm font-medium hover:underline hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-tight ${!notif.read ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300'}`}
+                            >
+                              {notif.title}
+                            </Link>
+                            {!notif.read && (
+                              <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1 shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                            {notif.description}
+                          </p>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {new Date(notif.timestamp).toLocaleString(undefined, {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            {notif.read && (
+                              <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Lida
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                          {notif.description}
-                        </p>
-                        <span className="text-[10px] text-slate-400 font-medium mt-1">
-                          {new Date(notif.timestamp).toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 )}
               </ScrollArea>

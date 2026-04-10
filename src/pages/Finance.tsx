@@ -40,6 +40,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import useProjectStore from '@/stores/useProjectStore'
 import { Transaction } from '@/types/project'
+import { subDays, isAfter } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts'
 import {
   ChartContainer,
@@ -66,10 +67,20 @@ const months = [
 ]
 
 export default function Finance() {
-  const { projects, transactions, addTransaction, categories, addCategory, deleteCategory } =
-    useProjectStore()
+  const {
+    projects,
+    transactions,
+    addTransaction,
+    updateTransaction,
+    categories,
+    addCategory,
+    deleteCategory,
+  } = useProjectStore()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [periodFilter, setPeriodFilter] = useState<string>('all')
+  const [draggedTx, setDraggedTx] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
   const [isCatModalOpen, setIsCatModalOpen] = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#6366f1')
@@ -106,6 +117,12 @@ export default function Finance() {
   }, [transactions])
 
   const filteredTransactions = useMemo(() => {
+    const now = new Date()
+    let limitDate: Date | null = null
+    if (periodFilter === '30d') limitDate = subDays(now, 30)
+    else if (periodFilter === 'quarter') limitDate = subDays(now, 90)
+    else if (periodFilter === 'year') limitDate = new Date(now.getFullYear(), 0, 1)
+
     return transactions.filter((tx) => {
       const txYear = tx.date.substring(0, 4)
       const txMonth = tx.date.substring(5, 7)
@@ -114,9 +131,15 @@ export default function Finance() {
       if (selectedMonth !== 'all' && txMonth !== selectedMonth) return false
       if (selectedYear !== 'all' && txYear !== selectedYear) return false
       if (selectedType !== 'all' && tx.type !== selectedType) return false
+
+      if (limitDate) {
+        const txDate = new Date(tx.date)
+        if (!isAfter(txDate, limitDate)) return false
+      }
+
       return true
     })
-  }, [transactions, selectedProject, selectedMonth, selectedYear, selectedType])
+  }, [transactions, selectedProject, selectedMonth, selectedYear, selectedType, periodFilter])
 
   const { totalIn, totalOut, balance } = useMemo(() => {
     let inFlow = 0
@@ -194,6 +217,7 @@ export default function Finance() {
     setSelectedMonth('all')
     setSelectedYear('all')
     setSelectedType('all')
+    setPeriodFilter('all')
   }
 
   const handleSubmit = () => {
@@ -631,6 +655,18 @@ export default function Finance() {
           </SelectContent>
         </Select>
 
+        <Select value={periodFilter} onValueChange={setPeriodFilter}>
+          <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
+            <SelectValue placeholder="Período" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todo Período</SelectItem>
+            <SelectItem value="30d">Últimos 30 dias</SelectItem>
+            <SelectItem value="quarter">Trimestre</SelectItem>
+            <SelectItem value="year">Este Ano</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Button
           variant="outline"
           onClick={clearFilters}
@@ -639,7 +675,8 @@ export default function Finance() {
             selectedProject === 'all' &&
             selectedMonth === 'all' &&
             selectedYear === 'all' &&
-            selectedType === 'all'
+            selectedType === 'all' &&
+            periodFilter === 'all'
           }
         >
           <FilterX className="h-4 w-4 mr-2" /> Limpar
@@ -714,9 +751,69 @@ export default function Finance() {
         <CardHeader>
           <CardTitle>Histórico de Transações</CardTitle>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Lista de todas as transações de acordo com os filtros.
+            Lista de todas as transações de acordo com os filtros. Arraste uma transação para os
+            painéis abaixo para reatribuí-la.
           </p>
         </CardHeader>
+        <CardContent className="pb-2 border-b mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div
+              className={`p-4 rounded-lg border border-dashed transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-800'}`}
+            >
+              <h4 className="text-sm font-medium mb-3 text-slate-700 dark:text-slate-300">
+                Solte aqui para reatribuir Categoria
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((c) => (
+                  <Badge
+                    key={c.id}
+                    variant="outline"
+                    className="cursor-pointer py-1.5"
+                    style={{ borderColor: c.color, color: c.color }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      if (draggedTx) {
+                        updateTransaction(draggedTx, { categoryId: c.id, type: 'Saída' })
+                        setDraggedTx(null)
+                        setIsDragging(false)
+                      }
+                    }}
+                  >
+                    {c.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <div
+              className={`p-4 rounded-lg border border-dashed transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-800'}`}
+            >
+              <h4 className="text-sm font-medium mb-3 text-slate-700 dark:text-slate-300">
+                Solte aqui para reatribuir Projeto
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {projects.map((p) => (
+                  <Badge
+                    key={p.id}
+                    variant="secondary"
+                    className="cursor-pointer py-1.5"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      if (draggedTx) {
+                        updateTransaction(draggedTx, { projectId: p.id })
+                        setDraggedTx(null)
+                        setIsDragging(false)
+                      }
+                    }}
+                  >
+                    {p.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardContent>
         <CardContent>
           <div className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden shadow-sm">
             <Table>
@@ -743,7 +840,20 @@ export default function Finance() {
                     const cat = categories.find((c) => c.id === tx.categoryId)
                     const proj = projects.find((p) => p.id === tx.projectId)
                     return (
-                      <TableRow key={tx.id}>
+                      <TableRow
+                        key={tx.id}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedTx(tx.id)
+                          setIsDragging(true)
+                          e.dataTransfer.effectAllowed = 'move'
+                        }}
+                        onDragEnd={() => {
+                          setDraggedTx(null)
+                          setIsDragging(false)
+                        }}
+                        className="cursor-grab active:cursor-grabbing hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                      >
                         <TableCell className="font-medium">{tx.description}</TableCell>
                         <TableCell>
                           {tx.type === 'Saída' && cat ? (

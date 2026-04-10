@@ -283,6 +283,7 @@ interface ProjectStore {
   assignTask: (projectName: string, taskName: string, assigneeName: string) => void
   transactions: Transaction[]
   addTransaction: (t: Omit<Transaction, 'id'>) => void
+  updateTransaction: (id: string, data: Partial<Transaction>) => void
   deleteTransaction: (id: string) => void
 
   categories: ExpenseCategory[]
@@ -310,6 +311,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const addTransaction = (t: Omit<Transaction, 'id'>) => {
     setTransactions((prev) => [{ ...t, id: `tr-${Date.now()}` }, ...prev])
+  }
+
+  const updateTransaction = (id: string, data: Partial<Transaction>) => {
+    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)))
   }
 
   const deleteTransaction = (id: string) => {
@@ -555,6 +560,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         assignTask,
         transactions,
         addTransaction,
+        updateTransaction,
         deleteTransaction,
         categories,
         addCategory,

@@ -15,6 +15,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart'
+import { subDays, isAfter } from 'date-fns'
 import {
   ArrowLeft,
   Calendar,
@@ -28,6 +29,13 @@ import {
   TrendingDown,
   Download,
 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -82,11 +90,14 @@ const MOCK_HISTORY = [
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { projects, deleteProject, transactions, categories } = useProjectStore()
+  const { projects, deleteProject, transactions, updateTransaction, categories } = useProjectStore()
   const { toast } = useToast()
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [periodFilter, setPeriodFilter] = useState<string>('all')
+  const [draggedTx, setDraggedTx] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
 
@@ -311,7 +322,20 @@ export default function ProjectDetails() {
 
             <TabsContent value="finance" className="mt-4 space-y-6">
               {(() => {
-                const projectTransactions = transactions.filter((t) => t.projectId === project.id)
+                const now = new Date()
+                let limitDate: Date | null = null
+                if (periodFilter === '30d') limitDate = subDays(now, 30)
+                else if (periodFilter === 'quarter') limitDate = subDays(now, 90)
+                else if (periodFilter === 'year') limitDate = new Date(now.getFullYear(), 0, 1)
+
+                const projectTransactions = transactions.filter((t) => {
+                  if (t.projectId !== project.id) return false
+                  if (limitDate) {
+                    const txDate = new Date(t.date)
+                    if (!isAfter(txDate, limitDate)) return false
+                  }
+                  return true
+                })
                 const totalIn = projectTransactions
                   .filter((t) => t.type === 'Entrada')
                   .reduce((acc, curr) => acc + curr.value, 0)
@@ -404,6 +428,20 @@ export default function ProjectDetails() {
 
                 return (
                   <>
+                    <div className="flex justify-end mb-4">
+                      <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                        <SelectTrigger className="w-[200px] bg-white dark:bg-slate-950">
+                          <SelectValue placeholder="Período" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todo Período</SelectItem>
+                          <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                          <SelectItem value="quarter">Trimestre</SelectItem>
+                          <SelectItem value="year">Este Ano</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-lg">Progresso do Orçamento</CardTitle>
@@ -556,13 +594,49 @@ export default function ProjectDetails() {
                       <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                           <CardTitle>Histórico de Transações</CardTitle>
-                          <CardDescription>Movimentações financeiras do projeto</CardDescription>
+                          <CardDescription>
+                            Movimentações financeiras do projeto. Arraste uma transação para as
+                            categorias abaixo para reatribuir.
+                          </CardDescription>
                         </div>
                         <Button variant="outline" size="sm" onClick={handleExportCSV}>
                           <Download className="w-4 h-4 mr-2" />
                           Exportar Relatório
                         </Button>
                       </CardHeader>
+                      <CardContent className="pb-2 border-b mb-4">
+                        <div
+                          className={`p-4 rounded-lg border border-dashed transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-800'}`}
+                        >
+                          <h4 className="text-sm font-medium mb-3 text-slate-700 dark:text-slate-300">
+                            Solte aqui para reatribuir Categoria (apenas Saídas)
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {categories.map((c) => (
+                              <Badge
+                                key={c.id}
+                                variant="outline"
+                                className="cursor-pointer py-1.5"
+                                style={{ borderColor: c.color, color: c.color }}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => {
+                                  e.preventDefault()
+                                  if (draggedTx) {
+                                    updateTransaction(draggedTx, {
+                                      categoryId: c.id,
+                                      type: 'Saída',
+                                    })
+                                    setDraggedTx(null)
+                                    setIsDragging(false)
+                                  }
+                                }}
+                              >
+                                {c.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
                       <CardContent>
                         {projectTransactions.length > 0 ? (
                           <div className="rounded-md border overflow-x-auto">
@@ -582,7 +656,20 @@ export default function ProjectDetails() {
                                     (c) => c.id === transaction.categoryId,
                                   )
                                   return (
-                                    <TableRow key={transaction.id}>
+                                    <TableRow
+                                      key={transaction.id}
+                                      draggable
+                                      onDragStart={(e) => {
+                                        setDraggedTx(transaction.id)
+                                        setIsDragging(true)
+                                        e.dataTransfer.effectAllowed = 'move'
+                                      }}
+                                      onDragEnd={() => {
+                                        setDraggedTx(null)
+                                        setIsDragging(false)
+                                      }}
+                                      className="cursor-grab active:cursor-grabbing hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                                    >
                                       <TableCell className="whitespace-nowrap">
                                         {new Date(transaction.date).toLocaleDateString('pt-BR')}
                                       </TableCell>

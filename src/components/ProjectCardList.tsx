@@ -6,8 +6,10 @@ import { Project } from '@/types/project'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from './StatusBadge'
 import { AnimatedProgress } from './AnimatedProgress'
-import { CalendarDays, User, Layers, Edit2, Trash2 } from 'lucide-react'
+import { CalendarDays, User, Layers, Edit2, Trash2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { differenceInDays, startOfDay } from 'date-fns'
 import { EditProjectModal } from './EditProjectModal'
 import {
   AlertDialog,
@@ -32,6 +34,14 @@ export function ProjectCardList({ projects }: ProjectCardListProps) {
   const { deleteProject } = useProjectStore()
   const { toast } = useToast()
 
+  const isCritical = (project: Project) => {
+    if (project.status === 'Concluído') return false
+    const end = startOfDay(new Date(project.endDate))
+    const today = startOfDay(new Date())
+    const diff = differenceInDays(end, today)
+    return diff <= 3
+  }
+
   const handleDelete = () => {
     if (projectToDelete) {
       deleteProject(projectToDelete.id)
@@ -49,17 +59,32 @@ export function ProjectCardList({ projects }: ProjectCardListProps) {
       {projects.map((project) => (
         <Card
           key={project.id}
-          className="overflow-hidden border-slate-200 shadow-sm relative hover:border-slate-300 transition-colors"
+          className={`overflow-hidden shadow-sm relative transition-colors ${
+            isCritical(project)
+              ? 'border-red-300 bg-red-50/10 hover:border-red-400'
+              : 'border-slate-200 hover:border-slate-300'
+          }`}
         >
           <Link to={`/projects/${project.id}`} className="absolute inset-0 z-10">
             <span className="sr-only">Ver detalhes do projeto {project.name}</span>
           </Link>
-          <CardHeader className="pb-3 bg-slate-50/50">
+          <CardHeader className={`pb-3 ${isCritical(project) ? 'bg-red-50/50' : 'bg-slate-50/50'}`}>
             <div className="flex justify-between items-start gap-4">
               <div className="flex flex-col gap-1">
-                <CardTitle className="text-lg font-bold text-slate-900 leading-tight">
-                  {project.name}
-                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg font-bold text-slate-900 leading-tight">
+                    {project.name}
+                  </CardTitle>
+                  {isCritical(project) && (
+                    <Badge
+                      variant="destructive"
+                      className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-red-500 hover:bg-red-600"
+                    >
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      Crítico
+                    </Badge>
+                  )}
+                </div>
                 <div className="flex gap-2 relative z-20 mt-1">
                   <Button
                     variant="outline"

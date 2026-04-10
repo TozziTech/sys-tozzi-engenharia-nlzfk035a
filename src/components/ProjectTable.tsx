@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Edit2, Eye, Trash2 } from 'lucide-react'
+import { Edit2, Eye, Trash2, AlertCircle } from 'lucide-react'
 import { Project } from '@/types/project'
+import { Badge } from '@/components/ui/badge'
+import { differenceInDays, startOfDay } from 'date-fns'
 import {
   Table,
   TableBody,
@@ -39,6 +41,14 @@ export function ProjectTable({ projects }: ProjectTableProps) {
   const { deleteProject } = useProjectStore()
   const { toast } = useToast()
 
+  const isCritical = (project: Project) => {
+    if (project.status === 'Concluído') return false
+    const end = startOfDay(new Date(project.endDate))
+    const today = startOfDay(new Date())
+    const diff = differenceInDays(end, today)
+    return diff <= 3
+  }
+
   const handleDelete = () => {
     if (projectToDelete) {
       deleteProject(projectToDelete.id)
@@ -68,8 +78,23 @@ export function ProjectTable({ projects }: ProjectTableProps) {
         </TableHeader>
         <TableBody>
           {projects.map((project) => (
-            <TableRow key={project.id} className="group transition-colors">
-              <TableCell className="font-medium text-slate-900">{project.name}</TableCell>
+            <TableRow
+              key={project.id}
+              className={`group transition-colors ${isCritical(project) ? 'bg-red-50/30 hover:bg-red-50/50' : ''}`}
+            >
+              <TableCell className="font-medium text-slate-900">
+                <div className="flex items-center gap-2">
+                  {project.name}
+                  {isCritical(project) && (
+                    <Badge
+                      variant="destructive"
+                      className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-red-500 hover:bg-red-600"
+                    >
+                      Crítico
+                    </Badge>
+                  )}
+                </div>
+              </TableCell>
               <TableCell className="text-slate-600">{project.discipline}</TableCell>
               <TableCell className="text-slate-600">{project.client}</TableCell>
               <TableCell className="text-slate-600">

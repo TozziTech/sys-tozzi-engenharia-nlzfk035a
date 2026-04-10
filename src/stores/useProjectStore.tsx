@@ -92,8 +92,8 @@ const MOCK_PROJECTS: Project[] = [
     client: 'Iguatemi',
     discipline: 'Elétrico',
     status: 'Planejamento',
-    startDate: fmt(addDays(today, 5)),
-    endDate: fmt(addDays(today, 1)), // Vence em 1 dia
+    startDate: fmt(subDays(today, 10)),
+    endDate: fmt(addDays(today, 1)), // Vence em 1 dia (Crítico)
     progress: 10,
     engineer: 'Eng. Carlos Oliveira',
     budget: 350000,
@@ -106,7 +106,7 @@ const MOCK_PROJECTS: Project[] = [
     discipline: 'Estrutural',
     status: 'Atrasado',
     startDate: fmt(subDays(today, 200)),
-    endDate: fmt(subDays(today, 30)), // Atrasado
+    endDate: fmt(subDays(today, 30)), // Atrasado (Crítico)
     progress: 80,
     engineer: 'Eng. Ricardo Silva',
     budget: 1200000,
@@ -119,7 +119,7 @@ const MOCK_PROJECTS: Project[] = [
     discipline: 'Hidrossanitário',
     status: 'Em Andamento',
     startDate: fmt(subDays(today, 30)),
-    endDate: fmt(subDays(today, 2)), // Ultrapassou o prazo
+    endDate: fmt(addDays(today, 2)), // Vence em 2 dias (Crítico)
     progress: 30,
     engineer: 'Eng. Maria Santos',
     budget: 45000,
@@ -277,28 +277,30 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
       // Upcoming Deadline
-      if (diffDays === 1 || diffDays === 2) {
+      if (diffDays >= 0 && diffDays <= 3) {
         addNotification({
-          title: 'Prazo Próximo',
-          description: `Prazo próximo: O projeto ${p.name} vence em ${diffDays} dia(s).`,
+          title: 'Prazo Crítico',
+          description: `Atenção: O projeto ${p.name} vence em ${diffDays} dia(s) (${format(new Date(p.endDate), 'dd/MM/yyyy')}).`,
           link: `/projects/${p.id}`,
         })
         const localUrl = localStorage.getItem('slackWebhookUrl') || ''
         sendSlackNotification(
           localUrl,
-          '⚠️ Alerta de Prazo Próximo',
+          '⚠️ Alerta de Prazo Crítico',
           `O projeto *${p.name}* tem uma entrega se aproximando em ${diffDays} dia(s) (Data de Entrega: ${p.endDate}).`,
         )
       }
       // Delayed Projects
-      else if (diffDays < 0 && p.status !== 'Atrasado') {
+      else if (diffDays < 0) {
+        if (p.status !== 'Atrasado') {
+          projectsToUpdate.push({ id: p.id, changes: { status: 'Atrasado' } })
+          updatedProjects = true
+        }
         addNotification({
           title: 'Projeto Atrasado',
-          description: `Projeto atrasado: ${p.name} ultrapassou o prazo.`,
+          description: `Alerta: O projeto ${p.name} está atrasado em ${Math.abs(diffDays)} dia(s).`,
           link: `/projects/${p.id}`,
         })
-        projectsToUpdate.push({ id: p.id, changes: { status: 'Atrasado' } })
-        updatedProjects = true
       }
     })
 

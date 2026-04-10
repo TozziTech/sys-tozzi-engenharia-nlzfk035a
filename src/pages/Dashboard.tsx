@@ -100,6 +100,45 @@ export default function Dashboard() {
     count: { label: 'Projetos Atribuídos', color: '#6366f1' },
   }
 
+  const performanceData = useMemo(() => {
+    const managersStats: Record<
+      string,
+      { active: number; completed: number; tasksCompleted: number; tasksPending: number }
+    > = {}
+
+    filteredProjects.forEach((p) => {
+      const eng = p.engineer || 'Não Atribuído'
+      if (!managersStats[eng]) {
+        managersStats[eng] = { active: 0, completed: 0, tasksCompleted: 0, tasksPending: 0 }
+      }
+
+      if (p.status === 'Concluído') {
+        managersStats[eng].completed += 1
+      } else {
+        managersStats[eng].active += 1
+      }
+
+      const totalTasks = 10
+      const completed = Math.round((p.progress / 100) * totalTasks)
+      const pending = totalTasks - completed
+
+      managersStats[eng].tasksCompleted += completed
+      managersStats[eng].tasksPending += pending
+    })
+
+    return Object.entries(managersStats).map(([name, stats]) => ({
+      name: name.replace('Eng. ', ''),
+      ...stats,
+    }))
+  }, [filteredProjects])
+
+  const performanceConfig = {
+    tasksCompleted: { label: 'Tarefas Concluídas', color: '#10b981' },
+    tasksPending: { label: 'Tarefas Pendentes', color: '#f59e0b' },
+    active: { label: 'Projetos Ativos', color: '#3b82f6' },
+    completed: { label: 'Projetos Concluídos', color: '#10b981' },
+  }
+
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6">
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8 gap-4">
@@ -232,7 +271,7 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card
               className="col-span-1 shadow-sm border-slate-200 animate-fade-in-up"
               style={{ animationDelay: '400ms' }}
@@ -265,31 +304,83 @@ export default function Dashboard() {
             </Card>
 
             <Card
-              className="col-span-1 shadow-sm border-slate-200 animate-fade-in-up"
+              className="col-span-1 lg:col-span-2 shadow-sm border-slate-200 animate-fade-in-up"
               style={{ animationDelay: '500ms' }}
             >
               <CardHeader>
-                <CardTitle className="text-lg">Carga de Trabalho da Equipe</CardTitle>
-                <CardDescription>Projetos atribuídos por engenheiro/responsável</CardDescription>
+                <CardTitle className="text-lg">Performance e Produtividade</CardTitle>
+                <CardDescription>
+                  Tarefas Concluídas vs. Pendentes por Membro da Equipe
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={workloadConfig} className="h-[300px] w-full aspect-auto">
+                <ChartContainer config={performanceConfig} className="h-[300px] w-full aspect-auto">
                   <BarChart
-                    data={workloadData}
-                    margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                    data={performanceData}
+                    margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
                   >
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
                     <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
                     <ChartTooltip
                       cursor={{ fill: 'var(--color-muted)', opacity: 0.2 }}
-                      content={<ChartTooltipContent hideLabel />}
+                      content={<ChartTooltipContent />}
                     />
-                    <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={50}>
-                      {workloadData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar
+                      dataKey="tasksCompleted"
+                      stackId="a"
+                      fill="var(--color-tasksCompleted)"
+                      maxBarSize={50}
+                    />
+                    <Bar
+                      dataKey="tasksPending"
+                      stackId="a"
+                      fill="var(--color-tasksPending)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={50}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="col-span-1 lg:col-span-3 shadow-sm border-slate-200 animate-fade-in-up"
+              style={{ animationDelay: '600ms' }}
+            >
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  Status de Alocação (Projetos Ativos x Concluídos)
+                </CardTitle>
+                <CardDescription>Comparativo de capacidade por gerente/responsável</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={performanceConfig} className="h-[300px] w-full aspect-auto">
+                  <BarChart
+                    data={performanceData}
+                    margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
+                  >
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
+                    <ChartTooltip
+                      cursor={{ fill: 'var(--color-muted)', opacity: 0.2 }}
+                      content={<ChartTooltipContent />}
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar
+                      dataKey="active"
+                      fill="var(--color-active)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={50}
+                    />
+                    <Bar
+                      dataKey="completed"
+                      fill="var(--color-completed)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={50}
+                    />
                   </BarChart>
                 </ChartContainer>
               </CardContent>

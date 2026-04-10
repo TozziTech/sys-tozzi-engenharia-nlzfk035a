@@ -1,7 +1,8 @@
-import { useMemo, useState, useEffect } from 'react'
-import { Briefcase, AlertTriangle, Activity, CheckCircle2, DollarSign } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
+import React, { useState, useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import useProjectStore from '@/stores/useProjectStore'
+import { GripVertical, AlertTriangle, TrendingUp, DollarSign, Briefcase } from 'lucide-react'
+import { CartesianGrid, XAxis, YAxis, LineChart, Line } from 'recharts'
 import {
   ChartContainer,
   ChartTooltip,
@@ -9,439 +10,280 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import useProjectStore from '@/stores/useProjectStore'
+import { Badge } from '@/components/ui/badge'
+import { Project, Transaction } from '@/types/project'
 
-const statusColors: Record<string, string> = {
-  Planejamento: '#64748b',
-  'Em Andamento': '#3b82f6',
-  Atrasado: '#ef4444',
-  Concluído: '#10b981',
+interface WidgetProps {
+  projects: Project[]
+  transactions: Transaction[]
 }
 
-export default function Dashboard() {
-  const { projects, timeLogs } = useProjectStore()
+function PerformanceWidget({ projects, transactions }: WidgetProps) {
+  const totalProjects = projects.length
+  const activeProjects = projects.filter((p) => p.status === 'Em Andamento').length
 
-  const [periodFilter, setPeriodFilter] = useState('all')
-  const [dbTotalSpent, setDbTotalSpent] = useState<number | null>(null)
+  const { totalIn, totalOut } = transactions.reduce(
+    (acc, tx) => {
+      if (tx.type === 'Entrada') acc.totalIn += tx.value
+      else acc.totalOut += tx.value
+      return acc
+    },
+    { totalIn: 0, totalOut: 0 },
+  )
 
-  useEffect(() => {
-    const fetchTotalSpent = async () => {
-      try {
-        const { supabase } = await import('@/lib/supabase')
-        const { data, error } = await supabase
-          .from('time_entries')
-          .select('hours')
-          .eq('status', 'Approved')
+  const profit = totalIn - totalOut
 
-        if (!error && data) {
-          const HOURLY_RATE = 150
-          const total = data.reduce((acc, row) => acc + row.hours * HOURLY_RATE, 0)
-          setDbTotalSpent(total)
-        } else {
-          throw new Error('Fallback')
-        }
-      } catch (err) {
-        const HOURLY_RATE = 150
-        const total = (timeLogs || [])
-          .filter((l: any) => l.status === 'Approved')
-          .reduce((acc: number, row: any) => acc + row.hours * HOURLY_RATE, 0)
-        setDbTotalSpent(total)
-      }
-    }
-    fetchTotalSpent()
-  }, [timeLogs])
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
-  const [managerFilter, setManagerFilter] = useState('all')
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-1 p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+        <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+          <Briefcase className="h-4 w-4" /> Projetos Ativos
+        </p>
+        <p className="text-2xl font-bold">
+          {activeProjects}{' '}
+          <span className="text-sm font-normal text-slate-400">/ {totalProjects}</span>
+        </p>
+      </div>
+      <div className="space-y-1 p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+        <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" /> Receita Total
+        </p>
+        <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+          {formatCurrency(totalIn)}
+        </p>
+      </div>
+      <div className="space-y-1 p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 col-span-2">
+        <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+          <DollarSign className="h-4 w-4" /> Lucro Estimado
+        </p>
+        <p
+          className={`text-2xl font-bold ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+        >
+          {formatCurrency(profit)}
+        </p>
+      </div>
+    </div>
+  )
+}
 
-  const managers = useMemo(() => {
-    return Array.from(new Set(projects.map((p) => p.engineer))).filter(Boolean)
-  }, [projects])
-
-  const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
-      const matchesManager = managerFilter === 'all' || p.engineer === managerFilter
-      let matchesPeriod = true
-
-      if (periodFilter === 'current_month') {
-        const date = new Date(p.startDate)
-        const now = new Date()
-        matchesPeriod =
-          date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-      } else if (periodFilter === 'last_6_months') {
-        const date = new Date(p.startDate)
-        const now = new Date()
-        const sixMonthsAgo = new Date()
-        sixMonthsAgo.setMonth(now.getMonth() - 6)
-        matchesPeriod = date >= sixMonthsAgo && date <= now
-      }
-
-      return matchesManager && matchesPeriod
+function TrendWidget({ transactions }: WidgetProps) {
+  const chartData = useMemo(() => {
+    const data: Record<string, { in: number; out: number }> = {}
+    transactions.forEach((tx) => {
+      const month = tx.date.substring(0, 7)
+      if (!data[month]) data[month] = { in: 0, out: 0 }
+      if (tx.type === 'Entrada') data[month].in += tx.value
+      else data[month].out += tx.value
     })
-  }, [projects, managerFilter, periodFilter])
+    return Object.entries(data)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([month, vals]) => ({ month, Receitas: vals.in, Despesas: vals.out }))
+  }, [transactions])
 
-  const stats = useMemo(() => {
-    const total = filteredProjects.length
-    const completed = filteredProjects.filter((p) => p.status === 'Concluído').length
-    const inProgress = filteredProjects.filter((p) => p.status === 'Em Andamento').length
-    const overdue = filteredProjects.filter(
-      (p) =>
-        p.status === 'Atrasado' || (new Date(p.endDate) < new Date() && p.status !== 'Concluído'),
-    ).length
-
-    const totalSpent =
-      dbTotalSpent !== null
-        ? dbTotalSpent
-        : filteredProjects.reduce((acc, p) => acc + (p.spent || 0), 0)
-
-    return { total, completed, inProgress, overdue, totalSpent }
-  }, [filteredProjects, dbTotalSpent])
-
-  const statusData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    filteredProjects.forEach((p) => {
-      counts[p.status] = (counts[p.status] || 0) + 1
-    })
-    return Object.entries(counts).map(([name, value]) => ({
-      name,
-      value,
-      fill: statusColors[name] || '#cbd5e1',
-    }))
-  }, [filteredProjects])
-
-  const workloadData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    filteredProjects.forEach((p) => {
-      counts[p.engineer] = (counts[p.engineer] || 0) + 1
-    })
-    return Object.entries(counts).map(([name, count]) => ({
-      name,
-      count,
-      fill: '#6366f1',
-    }))
-  }, [filteredProjects])
-
-  const statusConfig = {
-    value: { label: 'Projetos', color: '#3b82f6' },
-  }
-  const workloadConfig = {
-    count: { label: 'Projetos Atribuídos', color: '#6366f1' },
-  }
-
-  const performanceData = useMemo(() => {
-    const managersStats: Record<
-      string,
-      { active: number; completed: number; tasksCompleted: number; tasksPending: number }
-    > = {}
-
-    filteredProjects.forEach((p) => {
-      const eng = p.engineer || 'Não Atribuído'
-      if (!managersStats[eng]) {
-        managersStats[eng] = { active: 0, completed: 0, tasksCompleted: 0, tasksPending: 0 }
-      }
-
-      if (p.status === 'Concluído') {
-        managersStats[eng].completed += 1
-      } else {
-        managersStats[eng].active += 1
-      }
-
-      const totalTasks = 10
-      const completed = Math.round((p.progress / 100) * totalTasks)
-      const pending = totalTasks - completed
-
-      managersStats[eng].tasksCompleted += completed
-      managersStats[eng].tasksPending += pending
-    })
-
-    return Object.entries(managersStats).map(([name, stats]) => ({
-      name: name.replace('Eng. ', ''),
-      ...stats,
-    }))
-  }, [filteredProjects])
-
-  const performanceConfig = {
-    tasksCompleted: { label: 'Tarefas Concluídas', color: '#10b981' },
-    tasksPending: { label: 'Tarefas Pendentes', color: '#f59e0b' },
-    active: { label: 'Projetos Ativos', color: '#3b82f6' },
-    completed: { label: 'Projetos Concluídos', color: '#10b981' },
+  if (chartData.length === 0) {
+    return (
+      <div className="h-[200px] flex items-center justify-center text-sm text-slate-500">
+        Sem dados suficientes
+      </div>
+    )
   }
 
   return (
-    <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6">
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
-            Dashboard de Projetos
-          </h1>
-          <p className="text-muted-foreground">
-            Monitoramento global de desempenho e alocação da equipe.
-          </p>
-        </div>
+    <ChartContainer
+      config={{
+        Receitas: { label: 'Receitas', color: 'hsl(var(--chart-1))' },
+        Despesas: { label: 'Despesas', color: 'hsl(var(--chart-2))' },
+      }}
+      className="h-[250px] w-full"
+    >
+      <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <XAxis
+          dataKey="month"
+          tickFormatter={(val) => {
+            const [y, m] = val.split('-')
+            return `${m}/${y}`
+          }}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis tickFormatter={(val) => `R$${val / 1000}k`} tickLine={false} axisLine={false} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartLegend content={<ChartLegendContent />} />
+        <Line
+          type="monotone"
+          dataKey="Receitas"
+          stroke="var(--color-Receitas)"
+          strokeWidth={2}
+          dot={{ r: 4 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="Despesas"
+          stroke="var(--color-Despesas)"
+          strokeWidth={2}
+          dot={{ r: 4 }}
+        />
+      </LineChart>
+    </ChartContainer>
+  )
+}
 
-        <div className="flex flex-wrap items-center gap-3 bg-card p-3 rounded-xl border shadow-sm">
-          <Select value={periodFilter} onValueChange={setPeriodFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todo o período</SelectItem>
-              <SelectItem value="current_month">Mês atual</SelectItem>
-              <SelectItem value="last_6_months">Últimos 6 meses</SelectItem>
-            </SelectContent>
-          </Select>
+function AlertsWidget({ projects }: WidgetProps) {
+  const alerts = projects.filter((p) => {
+    const isLate = p.status === 'Atrasado'
+    const overBudget = p.spent && p.budget && p.spent > p.budget
+    return isLate || overBudget
+  })
 
-          <Select value={managerFilter} onValueChange={setManagerFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Gerente/Responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos Gerentes</SelectItem>
-              {managers.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+  if (alerts.length === 0) {
+    return (
+      <div className="h-[200px] flex items-center justify-center text-sm text-slate-500 border border-dashed rounded-md bg-slate-50/50 dark:bg-slate-900/20">
+        Nenhum alerta crítico no momento.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2">
+      {alerts.map((p) => {
+        const isLate = p.status === 'Atrasado'
+        const overBudget = p.spent && p.budget && p.spent > p.budget
+
+        return (
+          <div
+            key={p.id}
+            className="flex flex-col gap-2 p-3 rounded-lg border border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/20"
+          >
+            <div className="flex justify-between items-start">
+              <span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-rose-500" />
+                {p.name}
+              </span>
+              <div className="flex gap-1">
+                {isLate && (
+                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5">
+                    Atrasado
+                  </Badge>
+                )}
+                {overBudget && (
+                  <Badge
+                    variant="destructive"
+                    className="text-[10px] px-1.5 py-0 h-5 bg-amber-500 hover:bg-amber-600"
+                  >
+                    Orçamento Estourado
+                  </Badge>
+                )}
+              </div>
+            </div>
+            {overBudget && p.spent && p.budget && (
+              <div className="text-xs text-slate-600 dark:text-slate-400">
+                Gasto: R$ {p.spent.toLocaleString()} / Orçamento: R$ {p.budget.toLocaleString()}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+const WIDGETS_DATA = [
+  { id: 'perf', title: 'Performance Geral', component: PerformanceWidget },
+  { id: 'trend', title: 'Gráficos de Tendência', component: TrendWidget },
+  { id: 'alerts', title: 'Alertas de Orçamento', component: AlertsWidget },
+]
+
+export default function Dashboard() {
+  const { projects, transactions } = useProjectStore()
+  const [widgets, setWidgets] = useState(WIDGETS_DATA.map((w) => w.id))
+  const [draggedOverId, setDraggedOverId] = useState<string | null>(null)
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData('text/plain', id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    setDraggedOverId(null)
+    const draggedId = e.dataTransfer.getData('text/plain')
+    if (draggedId && draggedId !== targetId) {
+      setWidgets((prev) => {
+        const newOrder = [...prev]
+        const draggedIdx = newOrder.indexOf(draggedId)
+        const targetIdx = newOrder.indexOf(targetId)
+
+        newOrder.splice(draggedIdx, 1)
+        newOrder.splice(targetIdx, 0, draggedId)
+
+        return newOrder
+      })
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (draggedOverId !== id) {
+      setDraggedOverId(id)
+    }
+  }
+
+  const handleDragLeave = () => {
+    setDraggedOverId(null)
+  }
+
+  return (
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in-up">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          Dashboard Geral
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">
+          Visão consolidada de suas métricas. Arraste os painéis para personalizar seu layout.
+        </p>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3 text-sm flex items-center gap-2 mb-6">
-        <AlertTriangle className="h-4 w-4 shrink-0" />
-        <span>
-          Os dados exibidos são temporários e mockados. Conecte um backend (Skip Cloud ou Supabase)
-          para persistência permanente.
-        </span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {widgets.map((id) => {
+          const widgetInfo = WIDGETS_DATA.find((w) => w.id === id)!
+          const WidgetComponent = widgetInfo.component
+
+          return (
+            <div
+              key={id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, id)}
+              onDrop={(e) => handleDrop(e, id)}
+              onDragOver={(e) => handleDragOver(e, id)}
+              onDragLeave={handleDragLeave}
+              className={`col-span-1 ${id === 'trend' ? 'md:col-span-2' : ''} transition-transform duration-200`}
+            >
+              <Card
+                className={`h-full border bg-white dark:bg-slate-950 shadow-sm transition-all hover:shadow-md ${
+                  draggedOverId === id
+                    ? 'border-indigo-500 ring-2 ring-indigo-500/20 opacity-70 scale-[0.99]'
+                    : 'border-slate-200 dark:border-slate-800'
+                }`}
+              >
+                <CardHeader className="flex flex-row items-center justify-between pb-2 cursor-grab active:cursor-grabbing border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/20 rounded-t-xl">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <GripVertical className="h-4 w-4 text-slate-400" />
+                    {widgetInfo.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <WidgetComponent projects={projects} transactions={transactions} />
+                </CardContent>
+              </Card>
+            </div>
+          )
+        })}
       </div>
-
-      {filteredProjects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
-          <img
-            src="https://img.usecurling.com/p/300/300?q=dashboard%20empty&color=gray"
-            alt="No projects"
-            className="w-64 h-64 object-cover rounded-full mb-6 opacity-80"
-          />
-          <h3 className="text-xl font-semibold text-slate-900 mb-2">Nenhum projeto encontrado</h3>
-          <p className="text-muted-foreground max-w-md">
-            Ajuste os filtros ou adicione novos projetos para visualizar as métricas.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <Card
-              className="border-none shadow-sm animate-fade-in-up"
-              style={{ animationDelay: `0ms` }}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total de Projetos
-                </CardTitle>
-                <div className="p-2 rounded-lg bg-indigo-100">
-                  <Briefcase className="h-4 w-4 text-indigo-600" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="border-none shadow-sm animate-fade-in-up"
-              style={{ animationDelay: `100ms` }}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Projetos Concluídos
-                </CardTitle>
-                <div className="p-2 rounded-lg bg-emerald-100">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-slate-900">{stats.completed}</div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="border-none shadow-sm animate-fade-in-up"
-              style={{ animationDelay: `200ms` }}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Em Andamento
-                </CardTitle>
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Activity className="h-4 w-4 text-blue-600" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-slate-900">{stats.inProgress}</div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="border-none shadow-sm animate-fade-in-up"
-              style={{ animationDelay: `300ms` }}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Projetos Atrasados
-                </CardTitle>
-                <div className="p-2 rounded-lg bg-red-100">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-slate-900">{stats.overdue}</div>
-              </CardContent>
-            </Card>
-            <Card
-              className="border-none shadow-sm animate-fade-in-up"
-              style={{ animationDelay: `400ms` }}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Custo Real Total
-                </CardTitle>
-                <div className="p-2 rounded-lg bg-emerald-100">
-                  <DollarSign className="h-4 w-4 text-emerald-600" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-slate-900">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    stats.totalSpent,
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card
-              className="col-span-1 shadow-sm border-slate-200 animate-fade-in-up"
-              style={{ animationDelay: '400ms' }}
-            >
-              <CardHeader>
-                <CardTitle className="text-lg">Distribuição por Status</CardTitle>
-                <CardDescription>Quantidade de projetos por fase atual</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer config={statusConfig} className="h-[300px] w-full aspect-auto">
-                  <PieChart>
-                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                    <Pie
-                      data={statusData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={65}
-                      outerRadius={100}
-                      strokeWidth={2}
-                      paddingAngle={2}
-                    >
-                      {statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <ChartLegend content={<ChartLegendContent />} />
-                  </PieChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="col-span-1 lg:col-span-2 shadow-sm border-slate-200 animate-fade-in-up"
-              style={{ animationDelay: '500ms' }}
-            >
-              <CardHeader>
-                <CardTitle className="text-lg">Performance e Produtividade</CardTitle>
-                <CardDescription>
-                  Tarefas Concluídas vs. Pendentes por Membro da Equipe
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer config={performanceConfig} className="h-[300px] w-full aspect-auto">
-                  <BarChart
-                    data={performanceData}
-                    margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                    <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
-                    <ChartTooltip
-                      cursor={{ fill: 'var(--color-muted)', opacity: 0.2 }}
-                      content={<ChartTooltipContent />}
-                    />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Bar
-                      dataKey="tasksCompleted"
-                      stackId="a"
-                      fill="var(--color-tasksCompleted)"
-                      maxBarSize={50}
-                    />
-                    <Bar
-                      dataKey="tasksPending"
-                      stackId="a"
-                      fill="var(--color-tasksPending)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={50}
-                    />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="col-span-1 lg:col-span-3 shadow-sm border-slate-200 animate-fade-in-up"
-              style={{ animationDelay: '600ms' }}
-            >
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  Status de Alocação (Projetos Ativos x Concluídos)
-                </CardTitle>
-                <CardDescription>Comparativo de capacidade por gerente/responsável</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer config={performanceConfig} className="h-[300px] w-full aspect-auto">
-                  <BarChart
-                    data={performanceData}
-                    margin={{ top: 20, right: 20, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                    <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
-                    <ChartTooltip
-                      cursor={{ fill: 'var(--color-muted)', opacity: 0.2 }}
-                      content={<ChartTooltipContent />}
-                    />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Bar
-                      dataKey="active"
-                      fill="var(--color-active)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={50}
-                    />
-                    <Bar
-                      dataKey="completed"
-                      fill="var(--color-completed)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={50}
-                    />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Briefcase, AlertTriangle, Activity, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
@@ -9,6 +9,13 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import useProjectStore from '@/stores/useProjectStore'
 
 const statusColors: Record<string, string> = {
@@ -21,21 +28,50 @@ const statusColors: Record<string, string> = {
 export default function Dashboard() {
   const { projects } = useProjectStore()
 
+  const [periodFilter, setPeriodFilter] = useState('all')
+  const [managerFilter, setManagerFilter] = useState('all')
+
+  const managers = useMemo(() => {
+    return Array.from(new Set(projects.map((p) => p.engineer))).filter(Boolean)
+  }, [projects])
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter((p) => {
+      const matchesManager = managerFilter === 'all' || p.engineer === managerFilter
+      let matchesPeriod = true
+
+      if (periodFilter === 'current_month') {
+        const date = new Date(p.startDate)
+        const now = new Date()
+        matchesPeriod =
+          date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+      } else if (periodFilter === 'last_6_months') {
+        const date = new Date(p.startDate)
+        const now = new Date()
+        const sixMonthsAgo = new Date()
+        sixMonthsAgo.setMonth(now.getMonth() - 6)
+        matchesPeriod = date >= sixMonthsAgo && date <= now
+      }
+
+      return matchesManager && matchesPeriod
+    })
+  }, [projects, managerFilter, periodFilter])
+
   const stats = useMemo(() => {
-    const total = projects.length
-    const completed = projects.filter((p) => p.status === 'Concluído').length
-    const inProgress = projects.filter((p) => p.status === 'Em Andamento').length
-    const overdue = projects.filter(
+    const total = filteredProjects.length
+    const completed = filteredProjects.filter((p) => p.status === 'Concluído').length
+    const inProgress = filteredProjects.filter((p) => p.status === 'Em Andamento').length
+    const overdue = filteredProjects.filter(
       (p) =>
         p.status === 'Atrasado' || (new Date(p.endDate) < new Date() && p.status !== 'Concluído'),
     ).length
 
     return { total, completed, inProgress, overdue }
-  }, [projects])
+  }, [filteredProjects])
 
   const statusData = useMemo(() => {
     const counts: Record<string, number> = {}
-    projects.forEach((p) => {
+    filteredProjects.forEach((p) => {
       counts[p.status] = (counts[p.status] || 0) + 1
     })
     return Object.entries(counts).map(([name, value]) => ({
@@ -43,11 +79,11 @@ export default function Dashboard() {
       value,
       fill: statusColors[name] || '#cbd5e1',
     }))
-  }, [projects])
+  }, [filteredProjects])
 
   const workloadData = useMemo(() => {
     const counts: Record<string, number> = {}
-    projects.forEach((p) => {
+    filteredProjects.forEach((p) => {
       counts[p.engineer] = (counts[p.engineer] || 0) + 1
     })
     return Object.entries(counts).map(([name, count]) => ({
@@ -55,7 +91,7 @@ export default function Dashboard() {
       count,
       fill: '#6366f1',
     }))
-  }, [projects])
+  }, [filteredProjects])
 
   const statusConfig = {
     value: { label: 'Projetos', color: '#3b82f6' },
@@ -66,16 +102,53 @@ export default function Dashboard() {
 
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
-          Dashboard de Projetos
-        </h1>
-        <p className="text-muted-foreground">
-          Monitoramento global de desempenho e alocação da equipe.
-        </p>
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+            Dashboard de Projetos
+          </h1>
+          <p className="text-muted-foreground">
+            Monitoramento global de desempenho e alocação da equipe.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 bg-card p-3 rounded-xl border shadow-sm">
+          <Select value={periodFilter} onValueChange={setPeriodFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todo o período</SelectItem>
+              <SelectItem value="current_month">Mês atual</SelectItem>
+              <SelectItem value="last_6_months">Últimos 6 meses</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={managerFilter} onValueChange={setManagerFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Gerente/Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Gerentes</SelectItem>
+              {managers.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {projects.length === 0 ? (
+      <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3 text-sm flex items-center gap-2 mb-6">
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+        <span>
+          Os dados exibidos são temporários e mockados. Conecte um backend (Skip Cloud ou Supabase)
+          para persistência permanente.
+        </span>
+      </div>
+
+      {filteredProjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <img
             src="https://img.usecurling.com/p/300/300?q=dashboard%20empty&color=gray"
@@ -84,7 +157,7 @@ export default function Dashboard() {
           />
           <h3 className="text-xl font-semibold text-slate-900 mb-2">Nenhum projeto encontrado</h3>
           <p className="text-muted-foreground max-w-md">
-            Adicione novos projetos para visualizar as métricas e gráficos de desempenho.
+            Ajuste os filtros ou adicione novos projetos para visualizar as métricas.
           </p>
         </div>
       ) : (

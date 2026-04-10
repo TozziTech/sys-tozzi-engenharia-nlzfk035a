@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Project } from '@/types/project'
@@ -14,7 +15,13 @@ export function ProjectCardList({ projects }: ProjectCardListProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:hidden animate-fade-in-up">
       {projects.map((project) => (
-        <Card key={project.id} className="overflow-hidden border-slate-200 shadow-sm">
+        <Card
+          key={project.id}
+          className="overflow-hidden border-slate-200 shadow-sm relative hover:border-slate-300 transition-colors"
+        >
+          <Link to={`/projects/${project.id}`} className="absolute inset-0 z-10">
+            <span className="sr-only">Ver detalhes do projeto {project.name}</span>
+          </Link>
           <CardHeader className="pb-3 bg-slate-50/50">
             <div className="flex justify-between items-start gap-4">
               <CardTitle className="text-lg font-bold text-slate-900 leading-tight">

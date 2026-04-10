@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Edit2, Eye } from 'lucide-react'
@@ -53,13 +54,16 @@ export function ProjectTable({ projects }: ProjectTableProps) {
                 <AnimatedProgress value={project.progress} />
               </TableCell>
               <TableCell className="text-right">
-                <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                    asChild
                   >
-                    <Eye className="h-4 w-4" />
+                    <Link to={`/projects/${project.id}`}>
+                      <Eye className="h-4 w-4" />
+                    </Link>
                   </Button>
                   <Button
                     variant="ghost"

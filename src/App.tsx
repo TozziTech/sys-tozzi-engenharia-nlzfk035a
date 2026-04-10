@@ -5,6 +5,9 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ProjectProvider } from '@/stores/useProjectStore'
 import Index from './pages/Index'
 import ProjectDetails from './pages/ProjectDetails'
+import Clients from './pages/Clients'
+import Reports from './pages/Reports'
+import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -17,12 +20,11 @@ const App = () => (
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
-            {/* Nav links just point to dashboard for this demo context */}
             <Route path="/projects" element={<Index />} />
             <Route path="/projects/:id" element={<ProjectDetails />} />
-            <Route path="/clients" element={<Index />} />
-            <Route path="/reports" element={<Index />} />
-            <Route path="/settings" element={<Index />} />
+            <Route path="/clients" element={<Clients />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

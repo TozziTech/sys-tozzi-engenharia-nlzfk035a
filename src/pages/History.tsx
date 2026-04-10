@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
@@ -36,8 +35,7 @@ import useProjectStore from '@/stores/useProjectStore'
 import { useToast } from '@/hooks/use-toast'
 import { AuditTrailDialog } from '@/components/timesheet/AuditTrailDialog'
 import { MOCK_LOGS } from '@/lib/mock-logs'
-import { exportExcel } from '@/lib/export'
-import { PrintReport } from '@/components/PrintReport'
+import { exportAuditLogsCSV } from '@/lib/export'
 import { TimeEntryForm } from '@/components/timesheet/TimeEntryForm'
 
 function ActionBadge({ action }: { action: string }) {
@@ -102,15 +100,15 @@ export default function History() {
 
   const handleExportPDF = () => {
     const originalTitle = document.title
-    document.title = `System_Report_${format(new Date(), 'yyyy-MM-dd')}`
+    document.title = `Relatorio_Auditoria_${format(new Date(), 'yyyy-MM-dd')}`
     window.print()
     setTimeout(() => {
       document.title = originalTitle
     }, 100)
   }
 
-  const handleExportExcel = () => {
-    exportExcel(filteredLogs, projects.length)
+  const handleExportCSV = () => {
+    exportAuditLogsCSV(filteredLogs)
   }
 
   const handleStatusChange = async (log: any, newStatus: 'Approved' | 'Rejected') => {
@@ -167,7 +165,63 @@ export default function History() {
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 relative">
-      <PrintReport logs={filteredLogs} userName={currentUser} />
+      {/* Print Layout */}
+      <div className="hidden print:block p-4 sm:p-8 bg-white text-black w-full min-h-screen">
+        <div className="mb-6 border-b border-gray-200 pb-4">
+          <h1 className="text-3xl font-bold mb-2">Relatório de Auditoria</h1>
+          <div className="flex justify-between text-sm text-gray-600">
+            <p>Gerado em: {format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+            <p>Gerado por: {currentUser}</p>
+          </div>
+        </div>
+        <table className="w-full text-sm text-left border-collapse">
+          <thead>
+            <tr className="border-b-2 border-gray-300">
+              <th className="py-2 pr-4 font-semibold text-left">Data / Hora</th>
+              <th className="py-2 pr-4 font-semibold text-left">Usuário</th>
+              <th className="py-2 pr-4 font-semibold text-left">Ação Realizada</th>
+              <th className="py-2 pr-4 font-semibold text-left">
+                Alteração de Status (Antigo → Novo)
+              </th>
+              <th className="py-2 font-semibold text-left">Entidade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredLogs.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-4 text-center text-gray-500">
+                  Nenhum registro encontrado.
+                </td>
+              </tr>
+            ) : (
+              filteredLogs.map((log) => (
+                <tr key={log.id} className="border-b border-gray-100">
+                  <td className="py-2 pr-4 whitespace-nowrap align-top">
+                    {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}
+                  </td>
+                  <td className="py-2 pr-4 align-top">{log.user.name}</td>
+                  <td className="py-2 pr-4 align-top">{log.action}</td>
+                  <td className="py-2 pr-4 align-top">
+                    {log.changes.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {log.changes.map((c, i) => (
+                          <div key={i} className="text-xs">
+                            <span className="font-medium">{c.field}:</span> {c.oldValue || 'N/A'}{' '}
+                            &rarr; {c.newValue}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="py-2 text-gray-600 align-top">{log.entityName}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 print:hidden">
         <div>
@@ -206,11 +260,11 @@ export default function History() {
           </Dialog>
           <Button variant="outline" onClick={handleExportPDF} className="flex-1 sm:flex-none">
             <FileText className="h-4 w-4 mr-2" />
-            PDF
+            Exportar PDF
           </Button>
-          <Button variant="outline" onClick={handleExportExcel} className="flex-1 sm:flex-none">
+          <Button variant="outline" onClick={handleExportCSV} className="flex-1 sm:flex-none">
             <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Excel
+            Exportar CSV
           </Button>
         </div>
       </div>
@@ -294,13 +348,7 @@ export default function History() {
                             {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={log.user.avatar} />
-                                <AvatarFallback>{log.user.name.slice(0, 2)}</AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm font-medium">{log.user.name}</span>
-                            </div>
+                            <span className="text-sm font-medium">{log.user.name}</span>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1 items-start">
@@ -391,13 +439,9 @@ export default function History() {
                                 {format(new Date(log.date), 'dd/MM/yyyy')}
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarImage src={user?.avatar} />
-                                    <AvatarFallback>{user?.name.slice(0, 2)}</AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-sm font-medium">{user?.name}</span>
-                                </div>
+                                <span className="text-sm font-medium">
+                                  {user?.name || 'Desconhecido'}
+                                </span>
                               </TableCell>
                               <TableCell className="font-medium">
                                 {project?.name || 'Projeto Excluído'}

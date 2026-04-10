@@ -42,6 +42,45 @@ export function exportProjectsCSV(projects: Project[]) {
   URL.revokeObjectURL(url)
 }
 
+export function exportAuditLogsCSV(logs: Log[]) {
+  const headers = [
+    'Data/Hora',
+    'Usuário',
+    'Ação Realizada',
+    'Alteração de Status (Antigo -> Novo)',
+    'Entidade',
+  ]
+
+  const rows = logs.map((log) => {
+    const date = format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')
+    const user = `"${log.user.name.replace(/"/g, '""')}"`
+    const action = `"${log.action}"`
+    const entity = `"${log.entityName.replace(/"/g, '""')}"`
+
+    const changes =
+      log.changes.length > 0
+        ? log.changes
+            .map((c: any) => `${c.field}: ${c.oldValue || 'N/A'} -> ${c.newValue || 'N/A'}`)
+            .join(' | ')
+        : 'N/A'
+    const changeStr = `"${changes.replace(/"/g, '""')}"`
+
+    return [date, user, action, changeStr, entity]
+  })
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Auditoria_Export_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportExcel(logs: Log[], totalProjects: number) {
   const escapeXml = (unsafe: string) =>
     unsafe.replace(/[<>&'"]/g, (c) => {

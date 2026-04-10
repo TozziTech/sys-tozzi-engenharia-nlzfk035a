@@ -15,6 +15,7 @@ import {
   AppNotification,
   TimeLog as BaseTimeLog,
   Task,
+  Transaction,
 } from '@/types/project'
 import { sendSlackNotification } from '@/lib/slack'
 
@@ -58,6 +59,49 @@ export const MOCK_TASKS: Task[] = [
   { id: 't3', projectId: '2', name: 'Cálculo Estrutural' },
   { id: 't4', projectId: '3', name: 'Projeto Luminotécnico' },
   { id: 't5', projectId: '4', name: 'Análise de Solo' },
+]
+
+export const MOCK_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'tr1',
+    projectId: '1',
+    description: 'Pagamento Inicial do Cliente',
+    type: 'Entrada',
+    value: 50000,
+    date: new Date().toISOString(),
+  },
+  {
+    id: 'tr2',
+    projectId: '1',
+    description: 'Compra de Materiais Diversos',
+    type: 'Saída',
+    value: 15000,
+    date: subDays(new Date(), 2).toISOString(),
+  },
+  {
+    id: 'tr3',
+    projectId: '1',
+    description: 'Contratação de Topografia',
+    type: 'Saída',
+    value: 5000,
+    date: subDays(new Date(), 5).toISOString(),
+  },
+  {
+    id: 'tr4',
+    projectId: '2',
+    description: 'Sinal de Aprovação',
+    type: 'Entrada',
+    value: 30000,
+    date: subDays(new Date(), 10).toISOString(),
+  },
+  {
+    id: 'tr5',
+    projectId: '2',
+    description: 'Taxas e Licenças',
+    type: 'Saída',
+    value: 2000,
+    date: subDays(new Date(), 8).toISOString(),
+  },
 ]
 
 export const MOCK_TIME_LOGS: AppTimeLog[] = [
@@ -222,6 +266,7 @@ interface ProjectStore {
   slackWebhookUrl: string
   setSlackWebhookUrl: (url: string) => void
   assignTask: (projectName: string, taskName: string, assigneeName: string) => void
+  transactions: Transaction[]
 }
 
 const ProjectContext = createContext<ProjectStore | undefined>(undefined)
@@ -238,6 +283,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [slackWebhookUrl, setSlackWebhookUrlState] = useState(
     () => localStorage.getItem('slackWebhookUrl') || '',
   )
+  const [transactions] = useState<Transaction[]>(MOCK_TRANSACTIONS)
   const hasCheckedAutomations = useRef(false)
 
   const setSlackWebhookUrl = (url: string) => {
@@ -469,6 +515,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         slackWebhookUrl,
         setSlackWebhookUrl,
         assignTask,
+        transactions,
       },
     },
     children,

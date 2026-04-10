@@ -7,7 +7,26 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Calendar, User, Briefcase, Clock, Edit2, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  Calendar,
+  User,
+  Briefcase,
+  Clock,
+  Edit2,
+  Trash2,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+} from 'lucide-react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
 import { KanbanBoard } from '@/components/KanbanBoard'
@@ -54,7 +73,7 @@ const MOCK_HISTORY = [
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { projects, deleteProject } = useProjectStore()
+  const { projects, deleteProject, transactions } = useProjectStore()
   const { toast } = useToast()
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -204,11 +223,22 @@ export default function ProjectDetails() {
           </Card>
 
           <Tabs defaultValue="tasks" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="tasks">Tarefas</TabsTrigger>
-              <TabsTrigger value="team">Equipe</TabsTrigger>
-              <TabsTrigger value="history">Histórico</TabsTrigger>
-              <TabsTrigger value="comments">Comentários</TabsTrigger>
+            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-5 p-1">
+              <TabsTrigger value="tasks" className="flex-1">
+                Tarefas
+              </TabsTrigger>
+              <TabsTrigger value="team" className="flex-1">
+                Equipe
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex-1">
+                Histórico
+              </TabsTrigger>
+              <TabsTrigger value="comments" className="flex-1">
+                Comentários
+              </TabsTrigger>
+              <TabsTrigger value="finance" className="flex-1">
+                Financeiro
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="tasks" className="mt-4">
@@ -268,6 +298,120 @@ export default function ProjectDetails() {
 
             <TabsContent value="comments" className="mt-4">
               <ProjectComments projectId={project.id} />
+            </TabsContent>
+
+            <TabsContent value="finance" className="mt-4 space-y-6">
+              {(() => {
+                const projectTransactions = transactions.filter((t) => t.projectId === project.id)
+                const totalIn = projectTransactions
+                  .filter((t) => t.type === 'Entrada')
+                  .reduce((acc, curr) => acc + curr.value, 0)
+                const totalOut = projectTransactions
+                  .filter((t) => t.type === 'Saída')
+                  .reduce((acc, curr) => acc + curr.value, 0)
+                const profit = totalIn - totalOut
+
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Orçamento Estimado</CardTitle>
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">
+                            {formatCurrency(project.budget || 0)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Custo Real</CardTitle>
+                          <TrendingDown className="h-4 w-4 text-red-500" />
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{formatCurrency(totalOut)}</div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Lucro Atual</CardTitle>
+                          <TrendingUp className="h-4 w-4 text-emerald-500" />
+                        </CardHeader>
+                        <CardContent>
+                          <div
+                            className={`text-2xl font-bold ${profit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}
+                          >
+                            {formatCurrency(profit)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Histórico de Transações</CardTitle>
+                        <CardDescription>Movimentações financeiras do projeto</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {projectTransactions.length > 0 ? (
+                          <div className="rounded-md border overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Data</TableHead>
+                                  <TableHead>Descrição</TableHead>
+                                  <TableHead>Tipo</TableHead>
+                                  <TableHead className="text-right">Valor</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {projectTransactions.map((transaction) => (
+                                  <TableRow key={transaction.id}>
+                                    <TableCell className="whitespace-nowrap">
+                                      {new Date(transaction.date).toLocaleDateString('pt-BR')}
+                                    </TableCell>
+                                    <TableCell>{transaction.description}</TableCell>
+                                    <TableCell>
+                                      <Badge
+                                        variant={
+                                          transaction.type === 'Entrada' ? 'default' : 'destructive'
+                                        }
+                                        className={
+                                          transaction.type === 'Entrada'
+                                            ? 'bg-emerald-500 hover:bg-emerald-600'
+                                            : ''
+                                        }
+                                      >
+                                        {transaction.type}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell
+                                      className={`text-right font-medium whitespace-nowrap ${
+                                        transaction.type === 'Entrada'
+                                          ? 'text-emerald-500'
+                                          : 'text-red-500'
+                                      }`}
+                                    >
+                                      {transaction.type === 'Entrada' ? '+' : '-'}
+                                      {formatCurrency(transaction.value)}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
+                            Nenhuma transação registrada para este projeto.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </>
+                )
+              })()}
             </TabsContent>
           </Tabs>
         </div>

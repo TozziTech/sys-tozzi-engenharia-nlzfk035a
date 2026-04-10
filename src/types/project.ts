@@ -66,6 +66,15 @@ export interface AppNotification {
   link?: string
 }
 
+export interface Transaction {
+  id: string
+  projectId: string
+  description: string
+  type: 'Entrada' | 'Saída'
+  value: number
+  date: string
+}
+
 export interface Project {
   id: string
   name: string

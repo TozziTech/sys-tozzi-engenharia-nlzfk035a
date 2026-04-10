@@ -37,7 +37,7 @@ export function TimeEntryForm() {
 
   const filteredTasks = tasks.filter((t) => t.projectId === projectId)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!projectId || !taskId || !date || !hours) {
       toast({
@@ -57,18 +57,50 @@ export function TimeEntryForm() {
       return
     }
 
+    const newLogId = crypto.randomUUID()
+
     addTimeLog({
+      id: newLogId,
       projectId,
       taskId,
       userId: currentUser.id,
       date,
       hours: Number(hours),
       description,
+      status: 'Pending',
     })
+
+    const auditEntry = {
+      id: crypto.randomUUID(),
+      time_entry_id: newLogId,
+      action: 'Created',
+      performed_by: currentUser.name,
+      timestamp: new Date().toISOString(),
+    }
+
+    try {
+      const { supabase } = await import('@/lib/supabase')
+
+      await supabase.from('time_entries').insert({
+        id: newLogId,
+        project_id: projectId,
+        task_id: taskId,
+        user_id: currentUser.id,
+        date,
+        hours: Number(hours),
+        description,
+        status: 'Pending',
+      })
+
+      await supabase.from('audit_logs').insert(auditEntry)
+    } catch (err) {
+      const all = JSON.parse(localStorage.getItem('mock_audit_logs') || '[]')
+      localStorage.setItem('mock_audit_logs', JSON.stringify([auditEntry, ...all]))
+    }
 
     toast({
       title: 'Registro salvo com sucesso',
-      description: `${hours}h registradas para a data ${date}. O custo do projeto foi atualizado.`,
+      description: `${hours}h registradas para a data ${date}.`,
     })
 
     // Reset form

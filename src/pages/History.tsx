@@ -33,6 +33,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import useProjectStore from '@/stores/useProjectStore'
+import { useToast } from '@/hooks/use-toast'
+import { AuditTrailDialog } from '@/components/timesheet/AuditTrailDialog'
 import { MOCK_LOGS } from '@/lib/mock-logs'
 import { exportExcel } from '@/lib/export'
 import { PrintReport } from '@/components/PrintReport'
@@ -76,6 +78,7 @@ export default function History() {
   const [activeTab, setActiveTab] = useState('system')
 
   const { projects, users, timeLogs, tasks, approveTimeLog, rejectTimeLog } = useProjectStore()
+  const { toast } = useToast()
 
   const [currentUserId, setCurrentUserId] = useState(users[0]?.id)
   const currentUserObj = users.find((u) => u.id === currentUserId) || users[0]
@@ -108,6 +111,58 @@ export default function History() {
 
   const handleExportExcel = () => {
     exportExcel(filteredLogs, projects.length)
+  }
+
+  const handleStatusChange = async (log: any, newStatus: 'Approved' | 'Rejected') => {
+    if (newStatus === 'Approved') {
+      approveTimeLog(log.id)
+    } else {
+      rejectTimeLog(log.id)
+    }
+
+    const auditEntry = {
+      id: crypto.randomUUID(),
+      time_entry_id: log.id,
+      action: newStatus,
+      performed_by: currentUser,
+      timestamp: new Date().toISOString(),
+    }
+
+    try {
+      const { supabase } = await import('@/lib/supabase')
+
+      await supabase.from('time_entries').update({ status: newStatus }).eq('id', log.id)
+
+      await supabase.from('audit_logs').insert(auditEntry)
+
+      toast({
+        title: 'Sucesso',
+        description: `Status atualizado para ${newStatus === 'Approved' ? 'Aprovado' : 'Rejeitado'} e salvo no banco de dados.`,
+      })
+    } catch (err) {
+      const all = JSON.parse(localStorage.getItem('mock_audit_logs') || '[]')
+      localStorage.setItem('mock_audit_logs', JSON.stringify([auditEntry, ...all]))
+
+      toast({
+        title: 'Status Atualizado (Offline)',
+        description: `O banco de dados não está conectado. Status salvo localmente.`,
+      })
+    }
+
+    const project = projects.find((p) => p.id === log.projectId)
+    const task = tasks.find((t) => t.id === log.taskId)
+
+    const notificationEvent = new CustomEvent('add-notification', {
+      detail: {
+        id: crypto.randomUUID(),
+        title: newStatus === 'Approved' ? 'Horas Aprovadas' : 'Horas Rejeitadas',
+        description: `Suas horas (${log.hours}h) no projeto "${project?.name || 'Desconhecido'}" - tarefa "${task?.name || 'N/A'}" foram ${newStatus === 'Approved' ? 'aprovadas' : 'rejeitadas'} por ${currentUser}.`,
+        read: false,
+        timestamp: new Date().toISOString(),
+        link: '/history',
+      },
+    })
+    window.dispatchEvent(notificationEvent)
   }
 
   return (
@@ -310,13 +365,14 @@ export default function History() {
                       <TableHead>Tarefa</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Horas</TableHead>
+                      <TableHead className="text-center w-[120px]">Auditoria</TableHead>
                       {isManager && <TableHead className="text-right w-[100px]">Ações</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {timeLogs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={isManager ? 7 : 6} className="h-24 text-center">
+                        <TableCell colSpan={isManager ? 8 : 7} className="h-24 text-center">
                           Nenhum registro de hora encontrado.
                         </TableCell>
                       </TableRow>
@@ -376,6 +432,9 @@ export default function History() {
                               <TableCell className="text-right font-medium text-emerald-600 dark:text-emerald-400">
                                 {log.hours}h
                               </TableCell>
+                              <TableCell className="text-center">
+                                <AuditTrailDialog logId={log.id} />
+                              </TableCell>
                               {isManager && (
                                 <TableCell className="text-right">
                                   {status === 'Pending' ? (
@@ -384,7 +443,7 @@ export default function History() {
                                         size="icon"
                                         variant="ghost"
                                         className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/50"
-                                        onClick={() => approveTimeLog(log.id)}
+                                        onClick={() => handleStatusChange(log, 'Approved')}
                                       >
                                         <Check className="h-4 w-4" />
                                       </Button>
@@ -392,7 +451,7 @@ export default function History() {
                                         size="icon"
                                         variant="ghost"
                                         className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/50"
-                                        onClick={() => rejectTimeLog(log.id)}
+                                        onClick={() => handleStatusChange(log, 'Rejected')}
                                       >
                                         <X className="h-4 w-4" />
                                       </Button>

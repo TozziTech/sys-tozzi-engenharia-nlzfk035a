@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Briefcase, AlertTriangle, Activity, CheckCircle2, DollarSign } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
@@ -26,9 +26,38 @@ const statusColors: Record<string, string> = {
 }
 
 export default function Dashboard() {
-  const { projects } = useProjectStore()
+  const { projects, timeLogs } = useProjectStore()
 
   const [periodFilter, setPeriodFilter] = useState('all')
+  const [dbTotalSpent, setDbTotalSpent] = useState<number | null>(null)
+
+  useEffect(() => {
+    const fetchTotalSpent = async () => {
+      try {
+        const { supabase } = await import('@/lib/supabase')
+        const { data, error } = await supabase
+          .from('time_entries')
+          .select('hours')
+          .eq('status', 'Approved')
+
+        if (!error && data) {
+          const HOURLY_RATE = 150
+          const total = data.reduce((acc, row) => acc + row.hours * HOURLY_RATE, 0)
+          setDbTotalSpent(total)
+        } else {
+          throw new Error('Fallback')
+        }
+      } catch (err) {
+        const HOURLY_RATE = 150
+        const total = (timeLogs || [])
+          .filter((l: any) => l.status === 'Approved')
+          .reduce((acc: number, row: any) => acc + row.hours * HOURLY_RATE, 0)
+        setDbTotalSpent(total)
+      }
+    }
+    fetchTotalSpent()
+  }, [timeLogs])
+
   const [managerFilter, setManagerFilter] = useState('all')
 
   const managers = useMemo(() => {
@@ -65,10 +94,14 @@ export default function Dashboard() {
       (p) =>
         p.status === 'Atrasado' || (new Date(p.endDate) < new Date() && p.status !== 'Concluído'),
     ).length
-    const totalSpent = filteredProjects.reduce((acc, p) => acc + (p.spent || 0), 0)
+
+    const totalSpent =
+      dbTotalSpent !== null
+        ? dbTotalSpent
+        : filteredProjects.reduce((acc, p) => acc + (p.spent || 0), 0)
 
     return { total, completed, inProgress, overdue, totalSpent }
-  }, [filteredProjects])
+  }, [filteredProjects, dbTotalSpent])
 
   const statusData = useMemo(() => {
     const counts: Record<string, number> = {}

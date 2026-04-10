@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useState, useEffect } from 'react'
 import useProjectStore from '@/stores/useProjectStore'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -16,12 +17,35 @@ export function Header() {
     globalSearch,
     setGlobalSearch,
     setNewProjectModalOpen,
-    notifications,
-    markNotificationAsRead,
-    markAllNotificationsAsRead,
+    notifications: initialNotifications,
+    markNotificationAsRead: storeMarkRead,
+    markAllNotificationsAsRead: storeMarkAllRead,
   } = useProjectStore()
 
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const [localNotifications, setLocalNotifications] = useState<any[]>([])
+
+  useEffect(() => {
+    const handleAddNotification = (e: any) => {
+      setLocalNotifications((prev) => [e.detail, ...prev])
+    }
+    window.addEventListener('add-notification', handleAddNotification)
+    return () => window.removeEventListener('add-notification', handleAddNotification)
+  }, [])
+
+  const allNotifications = [...localNotifications, ...initialNotifications]
+  const unreadCount = allNotifications.filter((n) => !n.read).length
+
+  const markNotificationAsRead = (id: string) => {
+    setLocalNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    if (initialNotifications.some((n: any) => n.id === id)) {
+      storeMarkRead(id)
+    }
+  }
+
+  const markAllNotificationsAsRead = () => {
+    setLocalNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    storeMarkAllRead()
+  }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -191,7 +215,7 @@ export function Header() {
                 )}
               </div>
               <ScrollArea className="max-h-[360px]">
-                {notifications.length === 0 ? (
+                {allNotifications.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
                     <div className="p-3 bg-slate-100 rounded-full dark:bg-slate-800">
                       <Check className="h-6 w-6 text-slate-400 dark:text-slate-500" />
@@ -200,7 +224,7 @@ export function Header() {
                   </div>
                 ) : (
                   <div className="flex flex-col">
-                    {[...notifications]
+                    {[...allNotifications]
                       .sort(
                         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
                       )

@@ -9,6 +9,7 @@ import React, {
 } from 'react'
 import { addDays, subDays, format } from 'date-fns'
 import { Project, User, Comment, AppNotification } from '@/types/project'
+import { sendSlackNotification } from '@/lib/slack'
 
 const today = new Date()
 const fmt = (d: Date) => format(d, 'yyyy-MM-dd')
@@ -155,6 +156,10 @@ interface ProjectStore {
   setNewProjectModalOpen: (open: boolean) => void
   globalSearch: string
   setGlobalSearch: (s: string) => void
+
+  slackWebhookUrl: string
+  setSlackWebhookUrl: (url: string) => void
+  assignTask: (projectName: string, taskName: string, assigneeName: string) => void
 }
 
 const ProjectContext = createContext<ProjectStore | undefined>(undefined)
@@ -165,7 +170,15 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS)
   const [isNewProjectModalOpen, setNewProjectModalOpen] = useState(false)
   const [globalSearch, setGlobalSearch] = useState('')
+  const [slackWebhookUrl, setSlackWebhookUrlState] = useState(
+    () => localStorage.getItem('slackWebhookUrl') || '',
+  )
   const hasCheckedAutomations = useRef(false)
+
+  const setSlackWebhookUrl = (url: string) => {
+    setSlackWebhookUrlState(url)
+    localStorage.setItem('slackWebhookUrl', url)
+  }
 
   const addNotification = useCallback((n: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => {
     const newNotif: AppNotification = {
@@ -182,7 +195,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
-  const addProject = (p: Project) => setProjects((prev) => [p, ...prev])
+  const addProject = (p: Project) => {
+    setProjects((prev) => [p, ...prev])
+    sendSlackNotification(
+      slackWebhookUrl,
+      '🚀 Novo Projeto Criado',
+      `O projeto *${p.name}* foi criado por *${p.engineer}*.`,
+    )
+  }
 
   const updateProject = (id: string, p: Partial<Project>) => {
     setProjects((prev) => {
@@ -194,6 +214,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           description: `O projeto ${oldProject.name} mudou o status para ${p.status}.`,
           link: `/projects/${id}`,
         })
+        sendSlackNotification(
+          slackWebhookUrl,
+          '🔄 Atualização de Status',
+          `O projeto *${oldProject.name}* mudou de status: \n*Anterior:* ${oldProject.status} \n*Novo:* ${p.status}`,
+        )
       }
       return prev.map((proj) => (proj.id === id ? { ...proj, ...p } : proj))
     })
@@ -202,6 +227,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const deleteProject = (id: string) => setProjects((prev) => prev.filter((proj) => proj.id !== id))
 
   const addComment = (c: Comment) => setComments((prev) => [...prev, c])
+
+  const assignTask = (projectName: string, taskName: string, assigneeName: string) => {
+    addNotification({
+      title: 'Nova Tarefa Atribuída',
+      description: `${assigneeName} foi atribuído à tarefa: ${taskName}`,
+      link: '/projects',
+    })
+    sendSlackNotification(
+      slackWebhookUrl,
+      '📋 Nova Tarefa Atribuída',
+      `*${assigneeName}* foi atribuído à tarefa *${taskName}* no projeto *${projectName}*.`,
+    )
+  }
 
   const markNotificationAsRead = (id: string) =>
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
@@ -230,12 +268,18 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
       // Upcoming Deadline
-      if (diffDays === 1) {
+      if (diffDays === 1 || diffDays === 2) {
         addNotification({
           title: 'Prazo Próximo',
-          description: `Prazo próximo: O projeto ${p.name} vence em 1 dia.`,
+          description: `Prazo próximo: O projeto ${p.name} vence em ${diffDays} dia(s).`,
           link: `/projects/${p.id}`,
         })
+        const localUrl = localStorage.getItem('slackWebhookUrl') || ''
+        sendSlackNotification(
+          localUrl,
+          '⚠️ Alerta de Prazo Próximo',
+          `O projeto *${p.name}* tem uma entrega se aproximando em ${diffDays} dia(s) (Data de Entrega: ${p.endDate}).`,
+        )
       }
       // Delayed Projects
       else if (diffDays < 0 && p.status !== 'Atrasado') {
@@ -265,6 +309,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         description: 'Nova tarefa atribuída: Revisão de Estrutura de Concreto',
         link: '/projects/1',
       })
+      const localUrl = localStorage.getItem('slackWebhookUrl') || ''
+      sendSlackNotification(
+        localUrl,
+        '📋 Nova Tarefa Atribuída',
+        `*Eng. Ricardo Silva* foi atribuído à tarefa *Revisão de Estrutura de Concreto* no projeto *Edifício Aurora*.`,
+      )
     }, 3000)
 
     return () => clearTimeout(taskTimer)
@@ -288,6 +338,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setNewProjectModalOpen,
         globalSearch,
         setGlobalSearch,
+        slackWebhookUrl,
+        setSlackWebhookUrl,
+        assignTask,
       },
     },
     children,

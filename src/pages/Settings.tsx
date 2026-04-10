@@ -3,8 +3,23 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { useState } from 'react'
+import useProjectStore from '@/stores/useProjectStore'
+import { useToast } from '@/hooks/use-toast'
 
 export default function Settings() {
+  const { slackWebhookUrl, setSlackWebhookUrl } = useProjectStore()
+  const [webhookInput, setWebhookInput] = useState(slackWebhookUrl)
+  const { toast } = useToast()
+
+  const handleSaveSlack = () => {
+    setSlackWebhookUrl(webhookInput)
+    toast({
+      title: 'Integração atualizada',
+      description: 'A configuração do Webhook do Slack foi salva.',
+    })
+  }
+
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4 md:px-6">
       <div className="mb-8">
@@ -35,6 +50,34 @@ export default function Settings() {
             </div>
             <div className="pt-2">
               <Button>Salvar Alterações</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Integrações</CardTitle>
+            <CardDescription>Configure conexões com aplicativos externos.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <Label className="text-base">Slack Notificações</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Envie alertas automáticos para um canal do Slack.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Input
+                  placeholder="https://hooks.slack.com/services/..."
+                  value={webhookInput}
+                  onChange={(e) => setWebhookInput(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={handleSaveSlack}>Salvar</Button>
+              </div>
             </div>
           </CardContent>
         </Card>

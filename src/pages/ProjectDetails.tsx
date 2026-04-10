@@ -33,10 +33,10 @@ import {
 import { useToast } from '@/hooks/use-toast'
 
 const MOCK_TASKS = [
-  { id: 1, title: 'Levantamento topográfico', status: 'completed' },
-  { id: 2, title: 'Projeto base', status: 'completed' },
-  { id: 3, title: 'Aprovação na prefeitura', status: 'in_progress' },
-  { id: 4, title: 'Início das obras', status: 'pending' },
+  { id: 1, title: 'Levantamento topográfico', status: 'completed', assignee: 'João Carlos' },
+  { id: 2, title: 'Projeto base', status: 'completed', assignee: 'Ana Silva' },
+  { id: 3, title: 'Aprovação na prefeitura', status: 'in_progress', assignee: undefined },
+  { id: 4, title: 'Início das obras', status: 'pending', assignee: undefined },
 ]
 
 const MOCK_TEAM = [
@@ -70,13 +70,24 @@ const MOCK_HISTORY = [
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { projects, deleteProject } = useProjectStore()
+  const { projects, deleteProject, assignTask } = useProjectStore()
   const { toast } = useToast()
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [tasks, setTasks] = useState(MOCK_TASKS)
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
+
+  const handleAssignTask = (taskId: number, taskTitle: string) => {
+    if (!project) return
+    assignTask(project.name, taskTitle, 'Você')
+    setTasks(tasks.map((t) => (t.id === taskId ? { ...t, assignee: 'Você' } : t)))
+    toast({
+      title: 'Tarefa atribuída',
+      description: 'A notificação foi disparada.',
+    })
+  }
 
   if (!project) {
     return (
@@ -223,7 +234,7 @@ export default function ProjectDetails() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {MOCK_TASKS.map((task) => (
+                    {tasks.map((task) => (
                       <div
                         key={task.id}
                         className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -236,23 +247,45 @@ export default function ProjectDetails() {
                           ) : (
                             <Circle className="h-5 w-5 text-muted-foreground" />
                           )}
-                          <span
-                            className={
-                              task.status === 'completed'
-                                ? 'line-through text-muted-foreground'
-                                : 'font-medium'
-                            }
-                          >
-                            {task.title}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={
+                                task.status === 'completed'
+                                  ? 'line-through text-muted-foreground'
+                                  : 'font-medium'
+                              }
+                            >
+                              {task.title}
+                            </span>
+                            {task.assignee && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs font-normal text-muted-foreground"
+                              >
+                                {task.assignee}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        <Badge variant="secondary" className="capitalize">
-                          {task.status === 'completed'
-                            ? 'Concluído'
-                            : task.status === 'in_progress'
-                              ? 'Em andamento'
-                              : 'Pendente'}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          {!task.assignee && task.status !== 'completed' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() => handleAssignTask(task.id, task.title)}
+                            >
+                              Atribuir a mim
+                            </Button>
+                          )}
+                          <Badge variant="secondary" className="capitalize">
+                            {task.status === 'completed'
+                              ? 'Concluído'
+                              : task.status === 'in_progress'
+                                ? 'Em andamento'
+                                : 'Pendente'}
+                          </Badge>
+                        </div>
                       </div>
                     ))}
                   </div>

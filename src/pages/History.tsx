@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { format, subDays, isAfter } from 'date-fns'
-import { ArrowRight, Search, History as HistoryIcon } from 'lucide-react'
+import { ArrowRight, Search, History as HistoryIcon, FileText, FileSpreadsheet } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Table,
@@ -20,86 +20,11 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-
-const MOCK_LOGS = [
-  {
-    id: '1',
-    timestamp: new Date().toISOString(),
-    user: {
-      name: 'Eduardo Costa',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
-    },
-    action: 'Update',
-    entityType: 'Projeto',
-    entityName: 'Residencial Aurora',
-    changes: [{ field: 'Status', oldValue: 'Em Andamento', newValue: 'Concluído' }],
-  },
-  {
-    id: '2',
-    timestamp: subDays(new Date(), 1).toISOString(),
-    user: {
-      name: 'Ana Silva',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
-    },
-    action: 'Assign',
-    entityType: 'Equipe',
-    entityName: 'Edifício Comercial Centro',
-    changes: [{ field: 'Engenheiro', oldValue: 'Nenhum', newValue: 'Carlos Mendes' }],
-  },
-  {
-    id: '3',
-    timestamp: subDays(new Date(), 2).toISOString(),
-    user: {
-      name: 'Marcos Paulo',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=3',
-    },
-    action: 'Create',
-    entityType: 'Projeto',
-    entityName: 'Ponte Rio Verde',
-    changes: [{ field: 'Registro', newValue: 'Criado com sucesso' }],
-  },
-  {
-    id: '4',
-    timestamp: subDays(new Date(), 3).toISOString(),
-    user: {
-      name: 'Eduardo Costa',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
-    },
-    action: 'Update',
-    entityType: 'Tarefa',
-    entityName: 'Fundações - Torre A',
-    changes: [{ field: 'Data de Fim', oldValue: '15/05/2026', newValue: '22/05/2026' }],
-  },
-  {
-    id: '5',
-    timestamp: subDays(new Date(), 5).toISOString(),
-    user: {
-      name: 'Julia Martins',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=4',
-    },
-    action: 'Delete',
-    entityType: 'Tarefa',
-    entityName: 'Revisão Elétrica Antiga',
-    changes: [
-      { field: 'Tarefa', oldValue: 'Revisão Elétrica Antiga', newValue: 'Removida do sistema' },
-    ],
-  },
-  {
-    id: '6',
-    timestamp: subDays(new Date(), 8).toISOString(),
-    user: {
-      name: 'Eduardo Costa',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
-    },
-    action: 'Update',
-    entityType: 'Projeto',
-    entityName: 'Hospital São João',
-    changes: [
-      { field: 'Orçamento', oldValue: 'R$ 1.500.000', newValue: 'R$ 1.750.000' },
-      { field: 'Fase', oldValue: 'Planejamento', newValue: 'Execução' },
-    ],
-  },
-]
+import { Button } from '@/components/ui/button'
+import useProjectStore from '@/stores/useProjectStore'
+import { MOCK_LOGS } from '@/lib/mock-logs'
+import { exportExcel } from '@/lib/export'
+import { PrintReport } from '@/components/PrintReport'
 
 function ActionBadge({ action }: { action: string }) {
   const variants: Record<string, { label: string; classes: string }> = {
@@ -136,6 +61,9 @@ export default function History() {
   const [search, setSearch] = useState('')
   const [action, setAction] = useState('all')
   const [period, setPeriod] = useState('all')
+  const { projects, users } = useProjectStore()
+
+  const currentUser = users[0]?.name || 'Admin User'
 
   const filteredLogs = useMemo(() => {
     return MOCK_LOGS.filter((log) => {
@@ -151,16 +79,41 @@ export default function History() {
     })
   }, [search, action, period])
 
+  const handleExportPDF = () => {
+    const originalTitle = document.title
+    document.title = `System_Report_${format(new Date(), 'yyyy-MM-dd')}`
+    window.print()
+    setTimeout(() => {
+      document.title = originalTitle
+    }, 100)
+  }
+
+  const handleExportExcel = () => {
+    exportExcel(filteredLogs, projects.length)
+  }
+
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 relative">
+      <PrintReport logs={filteredLogs} userName={currentUser} />
+
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 print:hidden">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Histórico do Sistema</h2>
           <p className="text-muted-foreground">Acompanhe todas as modificações e atividades.</p>
         </div>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={handleExportPDF} className="flex-1 sm:flex-none">
+            <FileText className="h-4 w-4 mr-2" />
+            Exportar PDF
+          </Button>
+          <Button variant="outline" onClick={handleExportExcel} className="flex-1 sm:flex-none">
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Exportar Excel
+          </Button>
+        </div>
       </div>
 
-      <Card>
+      <Card className="print:hidden">
         <CardHeader>
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div>

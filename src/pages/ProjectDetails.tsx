@@ -7,19 +7,10 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  ArrowLeft,
-  Calendar,
-  User,
-  Briefcase,
-  CheckCircle2,
-  Circle,
-  Clock,
-  Edit2,
-  Trash2,
-} from 'lucide-react'
+import { ArrowLeft, Calendar, User, Briefcase, Clock, Edit2, Trash2 } from 'lucide-react'
 import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
+import { KanbanBoard } from '@/components/KanbanBoard'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,13 +22,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
-
-const MOCK_TASKS = [
-  { id: 1, title: 'Levantamento topográfico', status: 'completed', assignee: 'João Carlos' },
-  { id: 2, title: 'Projeto base', status: 'completed', assignee: 'Ana Silva' },
-  { id: 3, title: 'Aprovação na prefeitura', status: 'in_progress', assignee: undefined },
-  { id: 4, title: 'Início das obras', status: 'pending', assignee: undefined },
-]
 
 const MOCK_TEAM = [
   {
@@ -70,24 +54,13 @@ const MOCK_HISTORY = [
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { projects, deleteProject, assignTask } = useProjectStore()
+  const { projects, deleteProject } = useProjectStore()
   const { toast } = useToast()
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [tasks, setTasks] = useState(MOCK_TASKS)
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
-
-  const handleAssignTask = (taskId: number, taskTitle: string) => {
-    if (!project) return
-    assignTask(project.name, taskTitle, 'Você')
-    setTasks(tasks.map((t) => (t.id === taskId ? { ...t, assignee: 'Você' } : t)))
-    toast({
-      title: 'Tarefa atribuída',
-      description: 'A notificação foi disparada.',
-    })
-  }
 
   if (!project) {
     return (
@@ -239,69 +212,7 @@ export default function ProjectDetails() {
             </TabsList>
 
             <TabsContent value="tasks" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Tarefas do Projeto</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          {task.status === 'completed' ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
-                          ) : task.status === 'in_progress' ? (
-                            <Clock className="h-5 w-5 text-amber-500" />
-                          ) : (
-                            <Circle className="h-5 w-5 text-muted-foreground" />
-                          )}
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={
-                                task.status === 'completed'
-                                  ? 'line-through text-muted-foreground'
-                                  : 'font-medium'
-                              }
-                            >
-                              {task.title}
-                            </span>
-                            {task.assignee && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs font-normal text-muted-foreground"
-                              >
-                                {task.assignee}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {!task.assignee && task.status !== 'completed' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs h-7"
-                              onClick={() => handleAssignTask(task.id, task.title)}
-                            >
-                              Atribuir a mim
-                            </Button>
-                          )}
-                          <Badge variant="secondary" className="capitalize">
-                            {task.status === 'completed'
-                              ? 'Concluído'
-                              : task.status === 'in_progress'
-                                ? 'Em andamento'
-                                : 'Pendente'}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <KanbanBoard projectName={project.name} teamMembers={MOCK_TEAM} />
             </TabsContent>
 
             <TabsContent value="team" className="mt-4">

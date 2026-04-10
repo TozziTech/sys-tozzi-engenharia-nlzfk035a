@@ -27,5 +27,6 @@ export interface Project {
   description?: string
   engineer: string
   budget?: number
+  spent?: number
   observations?: string
 }

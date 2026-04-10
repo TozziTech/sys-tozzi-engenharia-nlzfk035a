@@ -13,6 +13,7 @@ const MOCK_PROJECTS: Project[] = [
     progress: 65,
     engineer: 'Eng. Ricardo Silva',
     budget: 150000,
+    spent: 45000,
     description: 'Projeto arquitetônico completo.',
   },
   {
@@ -26,6 +27,7 @@ const MOCK_PROJECTS: Project[] = [
     progress: 100,
     engineer: 'Eng. Maria Santos',
     budget: 80000,
+    spent: 80000,
   },
   {
     id: '3',
@@ -38,6 +40,7 @@ const MOCK_PROJECTS: Project[] = [
     progress: 10,
     engineer: 'Eng. Carlos Oliveira',
     budget: 350000,
+    spent: 10000,
   },
   {
     id: '4',
@@ -50,6 +53,7 @@ const MOCK_PROJECTS: Project[] = [
     progress: 80,
     engineer: 'Eng. Ricardo Silva',
     budget: 1200000,
+    spent: 950000,
   },
   {
     id: '5',
@@ -62,12 +66,15 @@ const MOCK_PROJECTS: Project[] = [
     progress: 30,
     engineer: 'Eng. Maria Santos',
     budget: 45000,
+    spent: 15000,
   },
 ]
 
 interface ProjectStore {
   projects: Project[]
   addProject: (p: Project) => void
+  updateProject: (id: string, p: Partial<Project>) => void
+  deleteProject: (id: string) => void
   isNewProjectModalOpen: boolean
   setNewProjectModalOpen: (open: boolean) => void
   globalSearch: string
@@ -82,6 +89,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [globalSearch, setGlobalSearch] = useState('')
 
   const addProject = (p: Project) => setProjects((prev) => [p, ...prev])
+  const updateProject = (id: string, p: Partial<Project>) =>
+    setProjects((prev) => prev.map((proj) => (proj.id === id ? { ...proj, ...p } : proj)))
+  const deleteProject = (id: string) => setProjects((prev) => prev.filter((proj) => proj.id !== id))
 
   return React.createElement(
     ProjectContext.Provider,
@@ -89,6 +99,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       value: {
         projects,
         addProject,
+        updateProject,
+        deleteProject,
         isNewProjectModalOpen,
         setNewProjectModalOpen,
         globalSearch,

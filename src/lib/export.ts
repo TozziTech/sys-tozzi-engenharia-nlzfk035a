@@ -1,5 +1,46 @@
 import { format } from 'date-fns'
 import { Log } from './mock-logs'
+import { Project } from '@/types/project'
+
+export function exportProjectsCSV(projects: Project[]) {
+  const headers = [
+    'Nome do Projeto',
+    'Status',
+    'Progresso (%)',
+    'Responsável',
+    'Cliente',
+    'Disciplina',
+    'Início',
+    'Fim',
+    'Orçamento',
+    'Gasto',
+  ]
+
+  const rows = projects.map((p) => [
+    `"${p.name.replace(/"/g, '""')}"`,
+    `"${p.status}"`,
+    p.progress,
+    `"${p.engineer.replace(/"/g, '""')}"`,
+    `"${p.client.replace(/"/g, '""')}"`,
+    `"${p.discipline}"`,
+    p.startDate,
+    p.endDate,
+    p.budget || 0,
+    p.spent || 0,
+  ])
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Projetos_Export_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 export function exportExcel(logs: Log[], totalProjects: number) {
   const escapeXml = (unsafe: string) =>

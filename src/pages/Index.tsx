@@ -19,9 +19,15 @@ export default function Index() {
   const [discipline, setDiscipline] = useState<string>('all')
   const [status, setStatus] = useState<string>('all')
   const [client, setClient] = useState<string>('all')
+  const [engineer, setEngineer] = useState<string>('all')
 
   const uniqueClients = useMemo(
     () => Array.from(new Set(projects.map((p) => p.client))),
+    [projects],
+  )
+
+  const uniqueEngineers = useMemo(
+    () => Array.from(new Set(projects.map((p) => p.engineer))),
     [projects],
   )
 
@@ -33,18 +39,21 @@ export default function Index() {
       const matchDisc = discipline === 'all' || p.discipline === discipline
       const matchStatus = status === 'all' || p.status === status
       const matchClient = client === 'all' || p.client === client
+      const matchEngineer = engineer === 'all' || p.engineer === engineer
 
-      return matchSearch && matchDisc && matchStatus && matchClient
+      return matchSearch && matchDisc && matchStatus && matchClient && matchEngineer
     })
-  }, [projects, globalSearch, discipline, status, client])
+  }, [projects, globalSearch, discipline, status, client, engineer])
 
   const clearFilters = () => {
     setDiscipline('all')
     setStatus('all')
     setClient('all')
+    setEngineer('all')
   }
 
-  const hasActiveFilters = discipline !== 'all' || status !== 'all' || client !== 'all'
+  const hasActiveFilters =
+    discipline !== 'all' || status !== 'all' || client !== 'all' || engineer !== 'all'
 
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6">
@@ -63,7 +72,7 @@ export default function Index() {
           <Filter className="h-4 w-4" /> Filtros:
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full md:w-auto md:flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 w-full md:w-auto md:flex-1">
           <Select value={discipline} onValueChange={setDiscipline}>
             <SelectTrigger className="w-full bg-slate-50 border-transparent">
               <SelectValue placeholder="Disciplina" />
@@ -108,6 +117,20 @@ export default function Index() {
               {uniqueClients.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={engineer} onValueChange={setEngineer}>
+            <SelectTrigger className="w-full bg-slate-50 border-transparent">
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos Responsáveis</SelectItem>
+              {uniqueEngineers.map((e) => (
+                <SelectItem key={e} value={e}>
+                  {e}
                 </SelectItem>
               ))}
             </SelectContent>

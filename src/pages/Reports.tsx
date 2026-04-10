@@ -1,11 +1,19 @@
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download } from 'lucide-react'
+import { Download, FileSpreadsheet, FileText } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
 import { ReportsFilters, ReportFiltersState } from '@/components/reports/ReportsFilters'
 import { ReportsAnalytics } from '@/components/reports/ReportsAnalytics'
 import { ReportsTables } from '@/components/reports/ReportsTables'
 import { ProductivityCharts } from '@/components/reports/ProductivityCharts'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useToast } from '@/hooks/use-toast'
+import { exportProjectsCSV } from '@/lib/export'
 
 export default function Reports() {
   const { projects } = useProjectStore()
@@ -34,6 +42,40 @@ export default function Reports() {
     return filteredProjects.filter((p) => p.endDate < today && p.status !== 'Concluído')
   }, [filteredProjects])
 
+  const { toast } = useToast()
+
+  const handleExportCSV = () => {
+    toast({
+      title: 'Gerando CSV...',
+      description: 'Seu arquivo será baixado em instantes.',
+    })
+
+    setTimeout(() => {
+      exportProjectsCSV(filteredProjects)
+      toast({
+        title: 'Exportação Concluída',
+        description:
+          'Nota: Os dados exportados refletem apenas a sessão atual, pois não há banco de dados conectado.',
+      })
+    }, 800)
+  }
+
+  const handleExportPDF = () => {
+    toast({
+      title: 'Preparando PDF...',
+      description: 'Abrindo visualização de impressão.',
+    })
+
+    setTimeout(() => {
+      window.print()
+      toast({
+        title: 'Exportação Concluída',
+        description:
+          'Nota: Os dados exportados refletem apenas a sessão atual, pois não há banco de dados conectado.',
+      })
+    }, 800)
+  }
+
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6 space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -43,9 +85,23 @@ export default function Reports() {
           </h1>
           <p className="text-muted-foreground">Análises, métricas e exportação de dados.</p>
         </div>
-        <Button onClick={() => window.print()} className="gap-2 print:hidden">
-          <Download className="h-4 w-4" /> Exportar PDF
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="gap-2 print:hidden">
+              <Download className="h-4 w-4" /> Exportar
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={handleExportCSV} className="cursor-pointer">
+              <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
+              Exportar como CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportPDF} className="cursor-pointer">
+              <FileText className="mr-2 h-4 w-4 text-rose-600" />
+              Exportar como PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <ReportsFilters filters={filters} setFilters={setFilters} projects={projects} />

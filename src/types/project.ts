@@ -26,6 +26,7 @@ export interface User {
   id: string
   name: string
   avatar: string
+  role?: 'Administrador' | 'Gerente de Projeto' | 'Projetista'
 }
 
 export interface Comment {

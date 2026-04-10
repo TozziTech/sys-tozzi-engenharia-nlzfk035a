@@ -208,13 +208,24 @@ export default function ProjectDetails() {
                   <p className="text-muted-foreground text-sm">{project.description}</p>
                 </div>
               )}
-              {project.observations && (
-                <div className="mt-4 p-3 bg-muted rounded-md border border-border">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground mb-1">
-                    Observações
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Observações</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {project.observations ? (
+                <div className="bg-muted/50 p-4 rounded-lg border border-border">
+                  <p className="text-sm whitespace-pre-wrap text-foreground">
+                    {project.observations}
                   </p>
-                  <p className="text-sm">{project.observations}</p>
                 </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  Nenhuma observação detalhada foi registrada para este projeto.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -369,8 +380,8 @@ export default function ProjectDetails() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Financeiro</CardTitle>
-              <CardDescription>Orçamento vs Gasto real</CardDescription>
+              <CardTitle className="text-lg">Dados Financeiros</CardTitle>
+              <CardDescription>Orçamento vs Despesas reais</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -378,15 +389,13 @@ export default function ProjectDetails() {
                   <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
                     Orçamento Estimado
                   </p>
-                  <p className="text-2xl font-bold">{formatCurrency(budget)}</p>
+                  <p className="text-2xl font-bold text-foreground">{formatCurrency(budget)}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                    Valor Gasto
+                    Despesas Registradas
                   </p>
-                  <p className="text-xl font-semibold text-muted-foreground">
-                    {formatCurrency(spent)}
-                  </p>
+                  <p className="text-xl font-semibold text-foreground">{formatCurrency(spent)}</p>
                 </div>
                 <div className="pt-2">
                   <div className="flex justify-between text-xs mb-1.5 text-muted-foreground font-medium">
@@ -397,6 +406,11 @@ export default function ProjectDetails() {
                     className={`h-2 ${budgetPercentage > 100 ? 'bg-red-100 [&>div]:bg-red-500' : budgetPercentage > 80 ? 'bg-amber-100 [&>div]:bg-amber-500' : ''}`}
                   />
                 </div>
+                {budgetPercentage > 100 && (
+                  <div className="p-3 bg-red-50 text-red-700 text-sm font-medium rounded-md border border-red-200">
+                    Atenção: O projeto ultrapassou o orçamento planejado.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

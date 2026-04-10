@@ -19,16 +19,19 @@ export const MOCK_USERS: User[] = [
     id: '1',
     name: 'João Carlos',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
+    role: 'Gerente de Projeto',
   },
   {
     id: '2',
     name: 'Ana Silva',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
+    role: 'Projetista',
   },
   {
     id: '3',
     name: 'Marcos Paulo',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=3',
+    role: 'Administrador',
   },
 ]
 
@@ -151,6 +154,7 @@ interface ProjectStore {
   markAllNotificationsAsRead: () => void
 
   users: User[]
+  updateUserRole: (id: string, role: User['role']) => void
 
   isNewProjectModalOpen: boolean
   setNewProjectModalOpen: (open: boolean) => void
@@ -166,6 +170,7 @@ const ProjectContext = createContext<ProjectStore | undefined>(undefined)
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS)
+  const [users, setUsers] = useState<User[]>(MOCK_USERS)
   const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS)
   const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS)
   const [isNewProjectModalOpen, setNewProjectModalOpen] = useState(false)
@@ -246,6 +251,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const markAllNotificationsAsRead = () =>
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+
+  const updateUserRole = (id: string, role: User['role']) => {
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)))
+  }
 
   // Automated Event Triggers
   useEffect(() => {
@@ -333,7 +342,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         notifications,
         markNotificationAsRead,
         markAllNotificationsAsRead,
-        users: MOCK_USERS,
+        users,
+        updateUserRole,
         isNewProjectModalOpen,
         setNewProjectModalOpen,
         globalSearch,

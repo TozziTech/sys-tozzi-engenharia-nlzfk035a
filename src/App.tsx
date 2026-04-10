@@ -14,6 +14,8 @@ import Gantt from './pages/Gantt'
 import Bottlenecks from './pages/Bottlenecks'
 import Timesheet from './pages/Timesheet'
 import History from './pages/History'
+import Team from './pages/Team'
+import Activities from './pages/Activities'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -37,6 +39,8 @@ const App = () => (
             <Route path="/bottlenecks" element={<Bottlenecks />} />
             <Route path="/timesheet" element={<Timesheet />} />
             <Route path="/history" element={<History />} />
+            <Route path="/team" element={<Team />} />
+            <Route path="/activities" element={<Activities />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

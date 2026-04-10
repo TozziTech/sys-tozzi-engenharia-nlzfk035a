@@ -128,6 +128,7 @@ export default function Finance() {
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [selectedYear, setSelectedYear] = useState<string>('all')
+  const [selectedType, setSelectedType] = useState<string>('all')
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
@@ -154,9 +155,10 @@ export default function Finance() {
       if (selectedProject !== 'all' && tx.project !== selectedProject) return false
       if (selectedMonth !== 'all' && txMonth !== selectedMonth) return false
       if (selectedYear !== 'all' && txYear !== selectedYear) return false
+      if (selectedType !== 'all' && tx.type !== selectedType) return false
       return true
     })
-  }, [transactions, selectedProject, selectedMonth, selectedYear])
+  }, [transactions, selectedProject, selectedMonth, selectedYear, selectedType])
 
   const { totalIn, totalOut, balance } = useMemo(() => {
     let inFlow = 0
@@ -176,6 +178,7 @@ export default function Finance() {
     setSelectedProject('all')
     setSelectedMonth('all')
     setSelectedYear('all')
+    setSelectedType('all')
   }
 
   const handleSubmit = () => {
@@ -321,21 +324,6 @@ export default function Finance() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Saldo Atual
-            </CardTitle>
-            <Wallet className="h-4 w-4 text-indigo-500" />
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${balance >= 0 ? 'text-slate-900 dark:text-slate-100' : 'text-rose-600 dark:text-rose-400'}`}
-            >
-              {formatCurrency(balance)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
               Total de Entradas
             </CardTitle>
             <ArrowUpRight className="h-4 w-4 text-emerald-500" />
@@ -359,9 +347,24 @@ export default function Finance() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+              Saldo Atual
+            </CardTitle>
+            <Wallet className="h-4 w-4 text-indigo-500" />
+          </CardHeader>
+          <CardContent>
+            <div
+              className={`text-2xl font-bold ${balance > 0 ? 'text-emerald-600 dark:text-emerald-400' : balance < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}
+            >
+              {formatCurrency(balance)}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row gap-4 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
         <Select value={selectedProject} onValueChange={setSelectedProject}>
           <SelectTrigger className="w-full sm:w-[220px] bg-white dark:bg-slate-950">
             <SelectValue placeholder="Filtrar por Projeto" />
@@ -404,11 +407,27 @@ export default function Finance() {
           </SelectContent>
         </Select>
 
+        <Select value={selectedType} onValueChange={setSelectedType}>
+          <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
+            <SelectValue placeholder="Filtrar por Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Tipos</SelectItem>
+            <SelectItem value="Entrada">Entrada</SelectItem>
+            <SelectItem value="Saída">Saída</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Button
           variant="outline"
           onClick={clearFilters}
           className="w-full sm:w-auto ml-auto bg-white dark:bg-slate-950"
-          disabled={selectedProject === 'all' && selectedMonth === 'all' && selectedYear === 'all'}
+          disabled={
+            selectedProject === 'all' &&
+            selectedMonth === 'all' &&
+            selectedYear === 'all' &&
+            selectedType === 'all'
+          }
         >
           <FilterX className="h-4 w-4 mr-2" /> Limpar
         </Button>

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, AlertCircle, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, AlertCircle, ArrowUpRight, ArrowDownRight, Wallet, FilterX } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 type Transaction = {
   id: string
@@ -44,6 +45,21 @@ const mockProjects = [
   'Manutenção Preventiva',
   'Reforma Escritório Centro',
   'Nova Filial Sul',
+]
+
+const months = [
+  { value: '1', label: 'Janeiro' },
+  { value: '2', label: 'Fevereiro' },
+  { value: '3', label: 'Março' },
+  { value: '4', label: 'Abril' },
+  { value: '5', label: 'Maio' },
+  { value: '6', label: 'Junho' },
+  { value: '7', label: 'Julho' },
+  { value: '8', label: 'Agosto' },
+  { value: '9', label: 'Setembro' },
+  { value: '10', label: 'Outubro' },
+  { value: '11', label: 'Novembro' },
+  { value: '12', label: 'Dezembro' },
 ]
 
 const initialData: Transaction[] = [
@@ -97,6 +113,8 @@ const initialData: Transaction[] = [
 export default function Finance() {
   const [transactions, setTransactions] = useState<Transaction[]>(initialData)
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Form State
   const [formData, setFormData] = useState<Partial<Transaction>>({
     type: 'Entrada',
     status: 'Pendente',
@@ -106,12 +124,58 @@ export default function Finance() {
     project: '',
   })
 
+  // Filter State
+  const [selectedProject, setSelectedProject] = useState<string>('all')
+  const [selectedMonth, setSelectedMonth] = useState<string>('all')
+  const [selectedYear, setSelectedYear] = useState<string>('all')
+
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-'
     const [y, m, d] = dateStr.split('-')
     return `${d}/${m}/${y}`
+  }
+
+  const availableYears = useMemo(() => {
+    const years = new Set<string>()
+    years.add(new Date().getFullYear().toString())
+    transactions.forEach((tx) => years.add(tx.date.split('-')[0]))
+    return Array.from(years).sort().reverse()
+  }, [transactions])
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((tx) => {
+      const [y, m] = tx.date.split('-')
+      const txMonth = parseInt(m, 10).toString()
+      const txYear = y
+
+      if (selectedProject !== 'all' && tx.project !== selectedProject) return false
+      if (selectedMonth !== 'all' && txMonth !== selectedMonth) return false
+      if (selectedYear !== 'all' && txYear !== selectedYear) return false
+      return true
+    })
+  }, [transactions, selectedProject, selectedMonth, selectedYear])
+
+  const { totalIn, totalOut, balance } = useMemo(() => {
+    let inFlow = 0
+    let outFlow = 0
+    filteredTransactions.forEach((tx) => {
+      if (tx.type === 'Entrada') inFlow += tx.amount
+      else outFlow += tx.amount
+    })
+    return {
+      totalIn: inFlow,
+      totalOut: outFlow,
+      balance: inFlow - outFlow,
+    }
+  }, [filteredTransactions])
+
+  const clearFilters = () => {
+    setSelectedProject('all')
+    setSelectedMonth('all')
+    setSelectedYear('all')
   }
 
   const handleSubmit = () => {
@@ -253,6 +317,103 @@ export default function Finance() {
         </AlertDescription>
       </Alert>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+              Saldo Atual
+            </CardTitle>
+            <Wallet className="h-4 w-4 text-indigo-500" />
+          </CardHeader>
+          <CardContent>
+            <div
+              className={`text-2xl font-bold ${balance >= 0 ? 'text-slate-900 dark:text-slate-100' : 'text-rose-600 dark:text-rose-400'}`}
+            >
+              {formatCurrency(balance)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+              Total de Entradas
+            </CardTitle>
+            <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {formatCurrency(totalIn)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+              Total de Saídas
+            </CardTitle>
+            <ArrowDownRight className="h-4 w-4 text-rose-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+              {formatCurrency(totalOut)}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+        <Select value={selectedProject} onValueChange={setSelectedProject}>
+          <SelectTrigger className="w-full sm:w-[220px] bg-white dark:bg-slate-950">
+            <SelectValue placeholder="Filtrar por Projeto" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Projetos</SelectItem>
+            {mockProjects.map((p) => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-full sm:w-[180px] bg-white dark:bg-slate-950">
+            <SelectValue placeholder="Filtrar por Mês" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Meses</SelectItem>
+            {months.map((m) => (
+              <SelectItem key={m.value} value={m.value}>
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedYear} onValueChange={setSelectedYear}>
+          <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
+            <SelectValue placeholder="Filtrar por Ano" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Anos</SelectItem>
+            {availableYears.map((y) => (
+              <SelectItem key={y} value={y}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Button
+          variant="outline"
+          onClick={clearFilters}
+          className="w-full sm:w-auto ml-auto bg-white dark:bg-slate-950"
+          disabled={selectedProject === 'all' && selectedMonth === 'all' && selectedYear === 'all'}
+        >
+          <FilterX className="h-4 w-4 mr-2" /> Limpar
+        </Button>
+      </div>
+
       <div className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden shadow-sm">
         <Table>
           <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
@@ -266,14 +427,14 @@ export default function Finance() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.length === 0 ? (
+            {filteredTransactions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                  Nenhuma transação encontrada.
+                <TableCell colSpan={6} className="text-center py-12 text-slate-500">
+                  Nenhuma transação encontrada para os filtros selecionados.
                 </TableCell>
               </TableRow>
             ) : (
-              transactions.map((tx) => (
+              filteredTransactions.map((tx) => (
                 <TableRow key={tx.id}>
                   <TableCell className="font-medium">{tx.description}</TableCell>
                   <TableCell>

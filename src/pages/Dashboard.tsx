@@ -1,0 +1,229 @@
+import { useMemo } from 'react'
+import { Briefcase, AlertTriangle, Activity, CheckCircle2 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@/components/ui/chart'
+import useProjectStore from '@/stores/useProjectStore'
+
+const statusColors: Record<string, string> = {
+  Planejamento: '#64748b',
+  'Em Andamento': '#3b82f6',
+  Atrasado: '#ef4444',
+  Concluído: '#10b981',
+}
+
+export default function Dashboard() {
+  const { projects } = useProjectStore()
+
+  const stats = useMemo(() => {
+    const total = projects.length
+    const completed = projects.filter((p) => p.status === 'Concluído').length
+    const inProgress = projects.filter((p) => p.status === 'Em Andamento').length
+    const overdue = projects.filter(
+      (p) =>
+        p.status === 'Atrasado' || (new Date(p.endDate) < new Date() && p.status !== 'Concluído'),
+    ).length
+
+    return { total, completed, inProgress, overdue }
+  }, [projects])
+
+  const statusData = useMemo(() => {
+    const counts: Record<string, number> = {}
+    projects.forEach((p) => {
+      counts[p.status] = (counts[p.status] || 0) + 1
+    })
+    return Object.entries(counts).map(([name, value]) => ({
+      name,
+      value,
+      fill: statusColors[name] || '#cbd5e1',
+    }))
+  }, [projects])
+
+  const workloadData = useMemo(() => {
+    const counts: Record<string, number> = {}
+    projects.forEach((p) => {
+      counts[p.engineer] = (counts[p.engineer] || 0) + 1
+    })
+    return Object.entries(counts).map(([name, count]) => ({
+      name,
+      count,
+      fill: '#6366f1',
+    }))
+  }, [projects])
+
+  const statusConfig = {
+    value: { label: 'Projetos', color: '#3b82f6' },
+  }
+  const workloadConfig = {
+    count: { label: 'Projetos Atribuídos', color: '#6366f1' },
+  }
+
+  return (
+    <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+          Dashboard de Projetos
+        </h1>
+        <p className="text-muted-foreground">
+          Monitoramento global de desempenho e alocação da equipe.
+        </p>
+      </div>
+
+      {projects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+          <img
+            src="https://img.usecurling.com/p/300/300?q=dashboard%20empty&color=gray"
+            alt="No projects"
+            className="w-64 h-64 object-cover rounded-full mb-6 opacity-80"
+          />
+          <h3 className="text-xl font-semibold text-slate-900 mb-2">Nenhum projeto encontrado</h3>
+          <p className="text-muted-foreground max-w-md">
+            Adicione novos projetos para visualizar as métricas e gráficos de desempenho.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card
+              className="border-none shadow-sm animate-fade-in-up"
+              style={{ animationDelay: `0ms` }}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total de Projetos
+                </CardTitle>
+                <div className="p-2 rounded-lg bg-indigo-100">
+                  <Briefcase className="h-4 w-4 text-indigo-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="border-none shadow-sm animate-fade-in-up"
+              style={{ animationDelay: `100ms` }}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Projetos Concluídos
+                </CardTitle>
+                <div className="p-2 rounded-lg bg-emerald-100">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-slate-900">{stats.completed}</div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="border-none shadow-sm animate-fade-in-up"
+              style={{ animationDelay: `200ms` }}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Em Andamento
+                </CardTitle>
+                <div className="p-2 rounded-lg bg-blue-100">
+                  <Activity className="h-4 w-4 text-blue-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-slate-900">{stats.inProgress}</div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="border-none shadow-sm animate-fade-in-up"
+              style={{ animationDelay: `300ms` }}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Projetos Atrasados
+                </CardTitle>
+                <div className="p-2 rounded-lg bg-red-100">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-slate-900">{stats.overdue}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card
+              className="col-span-1 shadow-sm border-slate-200 animate-fade-in-up"
+              style={{ animationDelay: '400ms' }}
+            >
+              <CardHeader>
+                <CardTitle className="text-lg">Distribuição por Status</CardTitle>
+                <CardDescription>Quantidade de projetos por fase atual</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={statusConfig} className="h-[300px] w-full aspect-auto">
+                  <PieChart>
+                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                    <Pie
+                      data={statusData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={65}
+                      outerRadius={100}
+                      strokeWidth={2}
+                      paddingAngle={2}
+                    >
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="col-span-1 shadow-sm border-slate-200 animate-fade-in-up"
+              style={{ animationDelay: '500ms' }}
+            >
+              <CardHeader>
+                <CardTitle className="text-lg">Carga de Trabalho da Equipe</CardTitle>
+                <CardDescription>Projetos atribuídos por engenheiro/responsável</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={workloadConfig} className="h-[300px] w-full aspect-auto">
+                  <BarChart
+                    data={workloadData}
+                    margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                  >
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
+                    <ChartTooltip
+                      cursor={{ fill: 'var(--color-muted)', opacity: 0.2 }}
+                      content={<ChartTooltipContent hideLabel />}
+                    />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={50}>
+                      {workloadData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

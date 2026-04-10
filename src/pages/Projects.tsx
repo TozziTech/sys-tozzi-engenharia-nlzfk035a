@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Filter, XCircle } from 'lucide-react'
+import { Filter, XCircle, Plus } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
 import {
   Select,
@@ -9,12 +9,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { DashboardStats } from '@/components/DashboardStats'
 import { ProjectTable } from '@/components/ProjectTable'
 import { ProjectCardList } from '@/components/ProjectCardList'
 
-export default function Index() {
-  const { projects, globalSearch } = useProjectStore()
+export default function Projects() {
+  const { projects, globalSearch, setNewProjectModalOpen } = useProjectStore()
 
   const [discipline, setDiscipline] = useState<string>('all')
   const [status, setStatus] = useState<string>('all')
@@ -57,14 +56,19 @@ export default function Index() {
 
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
-          Dashboard de Projetos
-        </h1>
-        <p className="text-muted-foreground">Acompanhe e gerencie todos os projetos da empresa.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+            Lista de Projetos
+          </h1>
+          <p className="text-muted-foreground">
+            Pesquise, filtre e gerencie os detalhes dos projetos.
+          </p>
+        </div>
+        <Button onClick={() => setNewProjectModalOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Novo Projeto
+        </Button>
       </div>
-
-      <DashboardStats />
 
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-end md:items-center">

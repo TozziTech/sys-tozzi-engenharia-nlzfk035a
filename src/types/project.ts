@@ -1,4 +1,18 @@
-export type Discipline = 'Estrutural' | 'Hidrossanitário' | 'Elétrico' | 'Arquitetônico'
+export type Discipline =
+  | 'Estrutural'
+  | 'Hidrossanitário'
+  | 'Elétrico'
+  | 'Prevenção a Incêndio'
+  | 'AVAC'
+  | 'Gás'
+  | 'Infraestrutura'
+  | 'Arquitetura'
+  | 'Geotecnia'
+  | 'Ambiental'
+  | 'Telecomunicações'
+  | 'Design de Interiores'
+  | 'Luminotécnica'
+
 export type Status = 'Planejamento' | 'Em Andamento' | 'Concluído' | 'Atrasado'
 
 export interface Project {
@@ -10,4 +24,8 @@ export interface Project {
   startDate: string
   endDate: string
   progress: number
+  description?: string
+  engineer: string
+  budget?: number
+  observations?: string
 }

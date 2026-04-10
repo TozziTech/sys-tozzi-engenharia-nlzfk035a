@@ -73,7 +73,16 @@ export default function Index() {
               <SelectItem value="Estrutural">Estrutural</SelectItem>
               <SelectItem value="Hidrossanitário">Hidrossanitário</SelectItem>
               <SelectItem value="Elétrico">Elétrico</SelectItem>
-              <SelectItem value="Arquitetônico">Arquitetônico</SelectItem>
+              <SelectItem value="Prevenção a Incêndio">Prevenção a Incêndio</SelectItem>
+              <SelectItem value="AVAC">AVAC</SelectItem>
+              <SelectItem value="Gás">Gás</SelectItem>
+              <SelectItem value="Infraestrutura">Infraestrutura</SelectItem>
+              <SelectItem value="Arquitetura">Arquitetura</SelectItem>
+              <SelectItem value="Geotecnia">Geotecnia</SelectItem>
+              <SelectItem value="Ambiental">Ambiental</SelectItem>
+              <SelectItem value="Telecomunicações">Telecomunicações</SelectItem>
+              <SelectItem value="Design de Interiores">Design de Interiores</SelectItem>
+              <SelectItem value="Luminotécnica">Luminotécnica</SelectItem>
             </SelectContent>
           </Select>
 

@@ -6,11 +6,14 @@ const MOCK_PROJECTS: Project[] = [
     id: '1',
     name: 'Edifício Aurora',
     client: 'Construtora Alfa',
-    discipline: 'Arquitetônico',
+    discipline: 'Arquitetura',
     status: 'Em Andamento',
     startDate: '2023-10-01',
     endDate: '2024-06-15',
     progress: 65,
+    engineer: 'Eng. Ricardo Silva',
+    budget: 150000,
+    description: 'Projeto arquitetônico completo.',
   },
   {
     id: '2',
@@ -21,6 +24,8 @@ const MOCK_PROJECTS: Project[] = [
     startDate: '2023-11-10',
     endDate: '2024-02-28',
     progress: 100,
+    engineer: 'Eng. Maria Santos',
+    budget: 80000,
   },
   {
     id: '3',
@@ -31,6 +36,8 @@ const MOCK_PROJECTS: Project[] = [
     startDate: '2024-01-05',
     endDate: '2024-12-01',
     progress: 10,
+    engineer: 'Eng. Carlos Oliveira',
+    budget: 350000,
   },
   {
     id: '4',
@@ -41,6 +48,8 @@ const MOCK_PROJECTS: Project[] = [
     startDate: '2023-05-20',
     endDate: '2023-12-30',
     progress: 80,
+    engineer: 'Eng. Ricardo Silva',
+    budget: 1200000,
   },
   {
     id: '5',
@@ -51,6 +60,8 @@ const MOCK_PROJECTS: Project[] = [
     startDate: '2024-02-15',
     endDate: '2024-08-20',
     progress: 30,
+    engineer: 'Eng. Maria Santos',
+    budget: 45000,
   },
 ]
 

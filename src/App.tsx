@@ -16,6 +16,7 @@ import Timesheet from './pages/Timesheet'
 import History from './pages/History'
 import Team from './pages/Team'
 import Activities from './pages/Activities'
+import PendingReport from './pages/PendingReport'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/history" element={<History />} />
             <Route path="/team" element={<Team />} />
             <Route path="/activities" element={<Activities />} />
+            <Route path="/pending-report" element={<PendingReport />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

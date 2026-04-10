@@ -21,11 +21,12 @@ import {
 } from '@/components/ui/select'
 import useProjectStore from '@/stores/useProjectStore'
 import { useToast } from '@/hooks/use-toast'
+import { TaskDetailModal } from './TaskDetailModal'
 
-type TaskPriority = 'Baixa' | 'Média' | 'Alta'
-type TaskStatus = 'A Fazer' | 'Em Andamento' | 'Concluído'
+export type TaskPriority = 'Baixa' | 'Média' | 'Alta'
+export type TaskStatus = 'A Fazer' | 'Em Andamento' | 'Concluído'
 
-interface KanbanTask {
+export interface KanbanTask {
   id: string
   title: string
   status: TaskStatus
@@ -90,6 +91,8 @@ export function KanbanBoard({
   const { toast } = useToast()
   const [tasks, setTasks] = useState<KanbanTask[]>(INITIAL_TASKS)
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [newTask, setNewTask] = useState<Partial<KanbanTask>>({
     title: '',
     status: 'A Fazer',
@@ -241,6 +244,10 @@ export function KanbanBoard({
                     key={task.id}
                     draggable
                     onDragStart={(e) => onDragStart(e, task.id)}
+                    onClick={() => {
+                      setSelectedTaskId(task.id)
+                      setIsDetailModalOpen(true)
+                    }}
                     className="bg-card border rounded-lg p-4 cursor-grab active:cursor-grabbing hover:border-primary/50 hover:shadow-md transition-all shadow-sm group"
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -285,6 +292,21 @@ export function KanbanBoard({
           </div>
         ))}
       </div>
+
+      {selectedTaskId && (
+        <TaskDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false)
+            setTimeout(() => setSelectedTaskId(null), 200)
+          }}
+          task={tasks.find((t) => t.id === selectedTaskId)!}
+          teamMembers={teamMembers}
+          onUpdate={(updatedTask) => {
+            setTasks(tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)))
+          }}
+        />
+      )}
     </div>
   )
 }

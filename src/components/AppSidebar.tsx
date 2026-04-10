@@ -11,6 +11,7 @@ import {
   Clock,
   History,
   Activity,
+  ClipboardList,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -34,6 +35,7 @@ const navigation = [
   { name: 'Timesheet', href: '/timesheet', icon: Clock },
   { name: 'Clientes', href: '/clients', icon: Users },
   { name: 'Histórico', href: '/history', icon: History },
+  { name: 'Relatório de Pendências', href: '/pending-report', icon: ClipboardList },
   { name: 'Relatórios', href: '/reports', icon: FileBarChart },
   { name: 'Configurações', href: '/settings', icon: Settings },
 ]

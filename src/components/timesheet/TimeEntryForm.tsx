@@ -12,17 +12,30 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { mockProjects, mockTasks } from '@/data/mockTimesheetData'
+import useProjectStore from '@/stores/useProjectStore'
+import { AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 export function TimeEntryForm() {
   const { toast } = useToast()
+  const { projects, tasks, addTimeLog, users } = useProjectStore()
   const [projectId, setProjectId] = useState('')
   const [taskId, setTaskId] = useState('')
-  const [date, setDate] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [hours, setHours] = useState('')
   const [description, setDescription] = useState('')
 
-  const filteredTasks = mockTasks.filter((t) => t.projectId === projectId)
+  // Simulate currently logged-in user
+  const currentUser = users[0]
+
+  const isAuthorized =
+    currentUser?.assignedProjects?.includes(projectId) || currentUser?.role === 'Administrador'
+
+  const authorizedProjects = projects.filter(
+    (p) => currentUser?.assignedProjects?.includes(p.id) || currentUser?.role === 'Administrador',
+  )
+
+  const filteredTasks = tasks.filter((t) => t.projectId === projectId)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,15 +48,32 @@ export function TimeEntryForm() {
       return
     }
 
+    if (!isAuthorized) {
+      toast({
+        title: 'Acesso Negado',
+        description: 'You are not authorized to register hours for this project.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    addTimeLog({
+      projectId,
+      taskId,
+      userId: currentUser.id,
+      date,
+      hours: Number(hours),
+      description,
+    })
+
     toast({
       title: 'Registro salvo com sucesso',
-      description: `${hours}h registradas para a data ${date}.`,
+      description: `${hours}h registradas para a data ${date}. O custo do projeto foi atualizado.`,
     })
 
     // Reset form
     setProjectId('')
     setTaskId('')
-    setDate('')
     setHours('')
     setDescription('')
   }
@@ -70,11 +100,16 @@ export function TimeEntryForm() {
                   <SelectValue placeholder="Selecione um projeto" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockProjects.map((p) => (
+                  {authorizedProjects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
                     </SelectItem>
                   ))}
+                  {authorizedProjects.length === 0 && (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      Nenhum projeto atribuído
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -127,7 +162,21 @@ export function TimeEntryForm() {
             />
           </div>
 
-          <Button type="submit" className="w-full sm:w-auto">
+          {projectId && !isAuthorized && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Não Autorizado</AlertTitle>
+              <AlertDescription>
+                You are not authorized to register hours for this project.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Button
+            type="submit"
+            className="w-full sm:w-auto"
+            disabled={!isAuthorized && projectId !== ''}
+          >
             Registrar Horas
           </Button>
         </form>

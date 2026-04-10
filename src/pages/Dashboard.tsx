@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Briefcase, AlertTriangle, Activity, CheckCircle2 } from 'lucide-react'
+import { Briefcase, AlertTriangle, Activity, CheckCircle2, DollarSign } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
 import {
@@ -65,8 +65,9 @@ export default function Dashboard() {
       (p) =>
         p.status === 'Atrasado' || (new Date(p.endDate) < new Date() && p.status !== 'Concluído'),
     ).length
+    const totalSpent = filteredProjects.reduce((acc, p) => acc + (p.spent || 0), 0)
 
-    return { total, completed, inProgress, overdue }
+    return { total, completed, inProgress, overdue, totalSpent }
   }, [filteredProjects])
 
   const statusData = useMemo(() => {
@@ -201,7 +202,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <Card
               className="border-none shadow-sm animate-fade-in-up"
               style={{ animationDelay: `0ms` }}
@@ -267,6 +268,26 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-slate-900">{stats.overdue}</div>
+              </CardContent>
+            </Card>
+            <Card
+              className="border-none shadow-sm animate-fade-in-up"
+              style={{ animationDelay: `400ms` }}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Custo Real Total
+                </CardTitle>
+                <div className="p-2 rounded-lg bg-emerald-100">
+                  <DollarSign className="h-4 w-4 text-emerald-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-slate-900">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    stats.totalSpent,
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

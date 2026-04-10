@@ -8,7 +8,7 @@ import React, {
   useRef,
 } from 'react'
 import { addDays, subDays, format } from 'date-fns'
-import { Project, User, Comment, AppNotification } from '@/types/project'
+import { Project, User, Comment, AppNotification, TimeLog, Task } from '@/types/project'
 import { sendSlackNotification } from '@/lib/slack'
 
 const today = new Date()
@@ -20,20 +20,36 @@ export const MOCK_USERS: User[] = [
     name: 'João Carlos',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
     role: 'Gerente de Projeto',
+    hourlyRate: 80,
+    assignedProjects: ['1', '2', '3', '4', '5', '6'],
   },
   {
     id: '2',
     name: 'Ana Silva',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
     role: 'Projetista',
+    hourlyRate: 45,
+    assignedProjects: ['1', '2'],
   },
   {
     id: '3',
     name: 'Marcos Paulo',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=3',
     role: 'Administrador',
+    hourlyRate: 100,
+    assignedProjects: ['1', '3', '4'],
   },
 ]
+
+export const MOCK_TASKS: Task[] = [
+  { id: 't1', projectId: '1', name: 'Levantamento Arquitetônico' },
+  { id: 't2', projectId: '1', name: 'Revisão de Estrutura de Concreto' },
+  { id: 't3', projectId: '2', name: 'Cálculo Estrutural' },
+  { id: 't4', projectId: '3', name: 'Projeto Luminotécnico' },
+  { id: 't5', projectId: '4', name: 'Análise de Solo' },
+]
+
+export const MOCK_TIME_LOGS: TimeLog[] = []
 
 const MOCK_COMMENTS: Comment[] = [
   {
@@ -155,6 +171,12 @@ interface ProjectStore {
 
   users: User[]
   updateUserRole: (id: string, role: User['role']) => void
+  assignUserToProjects: (userId: string, projectIds: string[]) => void
+  updateUserHourlyRate: (userId: string, rate: number) => void
+
+  tasks: Task[]
+  timeLogs: TimeLog[]
+  addTimeLog: (log: Omit<TimeLog, 'id' | 'createdAt'>) => void
 
   isNewProjectModalOpen: boolean
   setNewProjectModalOpen: (open: boolean) => void
@@ -171,6 +193,8 @@ const ProjectContext = createContext<ProjectStore | undefined>(undefined)
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS)
   const [users, setUsers] = useState<User[]>(MOCK_USERS)
+  const [tasks] = useState<Task[]>(MOCK_TASKS)
+  const [timeLogs, setTimeLogs] = useState<TimeLog[]>(MOCK_TIME_LOGS)
   const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS)
   const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS)
   const [isNewProjectModalOpen, setNewProjectModalOpen] = useState(false)
@@ -254,6 +278,34 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const updateUserRole = (id: string, role: User['role']) => {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)))
+  }
+
+  const assignUserToProjects = (userId: string, projectIds: string[]) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, assignedProjects: projectIds } : u)),
+    )
+  }
+
+  const updateUserHourlyRate = (userId: string, rate: number) => {
+    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, hourlyRate: rate } : u)))
+  }
+
+  const addTimeLog = (log: Omit<TimeLog, 'id' | 'createdAt'>) => {
+    const newLog: TimeLog = {
+      ...log,
+      id: `tl-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    }
+    setTimeLogs((prev) => [...prev, newLog])
+
+    // Update real cost on project
+    const user = users.find((u) => u.id === log.userId)
+    const rate = user?.hourlyRate || 0
+    const cost = log.hours * rate
+
+    setProjects((prev) =>
+      prev.map((p) => (p.id === log.projectId ? { ...p, spent: (p.spent || 0) + cost } : p)),
+    )
   }
 
   // Automated Event Triggers
@@ -346,6 +398,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         markAllNotificationsAsRead,
         users,
         updateUserRole,
+        assignUserToProjects,
+        updateUserHourlyRate,
+        tasks,
+        timeLogs,
+        addTimeLog,
         isNewProjectModalOpen,
         setNewProjectModalOpen,
         globalSearch,

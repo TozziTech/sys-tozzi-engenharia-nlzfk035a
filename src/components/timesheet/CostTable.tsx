@@ -7,10 +7,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { mockProjectMetrics } from '@/data/mockTimesheetData'
+import useProjectStore from '@/stores/useProjectStore'
 import { cn } from '@/lib/utils'
 
 export function CostTable() {
+  const { projects } = useProjectStore()
+
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
@@ -25,20 +27,22 @@ export function CostTable() {
           <TableHeader>
             <TableRow>
               <TableHead>Projeto</TableHead>
-              <TableHead className="text-right">Estimado</TableHead>
+              <TableHead className="text-right">Orçamento</TableHead>
               <TableHead className="text-right">Realizado</TableHead>
               <TableHead className="text-right">Diferença</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockProjectMetrics.map((p) => {
-              const diff = p.estimatedCost - p.realCost
+            {projects.map((p) => {
+              const budget = p.budget || 0
+              const spent = p.spent || 0
+              const diff = budget - spent
               const isOverBudget = diff < 0
               return (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(p.estimatedCost)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(p.realCost)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(budget)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(spent)}</TableCell>
                   <TableCell
                     className={cn(
                       'text-right font-medium',

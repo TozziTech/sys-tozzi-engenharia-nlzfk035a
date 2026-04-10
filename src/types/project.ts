@@ -27,6 +27,25 @@ export interface User {
   name: string
   avatar: string
   role?: 'Administrador' | 'Gerente de Projeto' | 'Projetista'
+  hourlyRate?: number
+  assignedProjects?: string[]
+}
+
+export interface TimeLog {
+  id: string
+  projectId: string
+  taskId: string
+  userId: string
+  date: string
+  hours: number
+  description: string
+  createdAt: string
+}
+
+export interface Task {
+  id: string
+  projectId: string
+  name: string
 }
 
 export interface Comment {

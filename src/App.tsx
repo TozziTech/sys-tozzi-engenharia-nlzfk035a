@@ -10,6 +10,7 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Gantt from './pages/Gantt'
 import Bottlenecks from './pages/Bottlenecks'
+import Timesheet from './pages/Timesheet'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/gantt" element={<Gantt />} />
             <Route path="/bottlenecks" element={<Bottlenecks />} />
+            <Route path="/timesheet" element={<Timesheet />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

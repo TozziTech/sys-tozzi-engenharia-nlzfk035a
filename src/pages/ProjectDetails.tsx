@@ -144,16 +144,8 @@ export default function ProjectDetails() {
     toast({ title: 'Documento removido', description: 'O arquivo foi excluído.' })
   }
 
-  if (!project) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
-        <h2 className="text-2xl font-bold mb-4">Projeto não encontrado</h2>
-        <Button onClick={() => navigate('/projects')}>Voltar para Projetos</Button>
-      </div>
-    )
-  }
-
   const handleDelete = () => {
+    if (!project) return
     deleteProject(project.id)
     toast({
       title: 'Projeto deletado',
@@ -168,11 +160,12 @@ export default function ProjectDetails() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
   }
 
-  const budget = project.budget || 0
-  const spent = project.spent || 0
+  const budget = project?.budget || 0
+  const spent = project?.spent || 0
   const budgetPercentage = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0
 
   const projectTimeLogs = useMemo(() => {
+    if (!project) return []
     return timeLogs
       .filter((log) => log.projectId === project.id)
       .map((log) => ({
@@ -180,17 +173,28 @@ export default function ProjectDetails() {
         user: users.find((u) => u.id === log.userId) || { name: 'Desconhecido' },
         task: tasks.find((t) => t.id === log.taskId),
       }))
-  }, [timeLogs, project.id, users, tasks])
+  }, [timeLogs, project?.id, users, tasks])
 
   const totalActualHours = projectTimeLogs.reduce((acc, log) => acc + log.hours, 0)
-  const estimatedHours = project.estimatedHours || 100
+  const estimatedHours = project?.estimatedHours || 100
 
   const handleExportCSV = () => {
+    if (!project) return
     exportProjectHoursCSV(projectTimeLogs, project.name)
   }
 
   const handleExportPDF = () => {
+    if (!project) return
     exportProjectHoursPDF(projectTimeLogs, project, 'Usuário Logado')
+  }
+
+  if (!project) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <h2 className="text-2xl font-bold mb-4">Projeto não encontrado</h2>
+        <Button onClick={() => navigate('/projects')}>Voltar para Projetos</Button>
+      </div>
+    )
   }
 
   return (
@@ -754,7 +758,7 @@ export default function ProjectDetails() {
                   .reduce((acc, curr) => acc + curr.value, 0)
                 const profit = totalIn - totalOut
 
-                const expensesByMonth = useMemo(() => {
+                const expensesByMonth = (() => {
                   const data: Record<string, number> = {}
                   projectTransactions.forEach((tx) => {
                     if (tx.type === 'Saída') {
@@ -765,9 +769,9 @@ export default function ProjectDetails() {
                   return Object.entries(data)
                     .sort((a, b) => a[0].localeCompare(b[0]))
                     .map(([month, value]) => ({ month, value }))
-                }, [projectTransactions])
+                })()
 
-                const expensesByCategory = useMemo(() => {
+                const expensesByCategory = (() => {
                   const data: Record<string, number> = {}
                   projectTransactions.forEach((tx) => {
                     if (tx.type === 'Saída' && tx.categoryId) {
@@ -782,15 +786,15 @@ export default function ProjectDetails() {
                       fill: cat?.color || 'hsl(var(--muted))',
                     }
                   })
-                }, [projectTransactions])
+                })()
 
-                const pieChartConfig = useMemo(() => {
+                const pieChartConfig = (() => {
                   const config: any = { value: { label: 'Valor' } }
                   categories.forEach((cat) => {
                     config[cat.name] = { label: cat.name, color: cat.color }
                   })
                   return config
-                }, [])
+                })()
 
                 const handleExportCSV = () => {
                   const headers = ['Data', 'Descrição', 'Tipo', 'Valor']

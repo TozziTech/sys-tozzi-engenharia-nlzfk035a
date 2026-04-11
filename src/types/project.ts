@@ -29,6 +29,17 @@ export interface User {
   role?: 'Administrador' | 'Gerente de Projeto' | 'Projetista'
   hourlyRate?: number
   assignedProjects?: string[]
+  specialty?: string
+  crea?: string
+  address?: string
+  phone?: string
+  email?: string
+  bankData?: {
+    bank: string
+    agency: string
+    account: string
+    pix: string
+  }
 }
 
 export interface TimeLog {

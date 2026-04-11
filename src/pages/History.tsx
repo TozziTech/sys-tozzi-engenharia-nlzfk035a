@@ -9,7 +9,14 @@ import {
   Clock,
   Check,
   X,
+  Download,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Table,
@@ -271,14 +278,24 @@ export default function History() {
               <TimeEntryForm />
             </DialogContent>
           </Dialog>
-          <Button variant="outline" onClick={handleExportPDF} className="flex-1 sm:flex-none">
-            <FileText className="h-4 w-4 mr-2" />
-            Exportar PDF
-          </Button>
-          <Button variant="outline" onClick={handleExportCSV} className="flex-1 sm:flex-none">
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Exportar CSV
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex-1 sm:flex-none">
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleExportPDF} className="cursor-pointer">
+                <FileText className="h-4 w-4 mr-2" />
+                Exportar PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV} className="cursor-pointer">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Exportar CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

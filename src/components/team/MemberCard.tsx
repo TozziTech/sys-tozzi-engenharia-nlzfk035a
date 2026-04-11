@@ -38,6 +38,7 @@ import {
   FileDown,
   Info,
   TrendingUp,
+  User as UserIcon,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { exportUserPDF } from '@/lib/exportPdf'
@@ -94,7 +95,7 @@ export function MemberCard({ user, onUpdate }: { user: User; onUpdate: (user: Us
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-4">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b border-border/50 pb-2">
-                          <User className="h-3.5 w-3.5" /> Informações Pessoais
+                          <UserIcon className="h-3.5 w-3.5" /> Informações Pessoais
                         </h4>
                         <div className="text-sm space-y-3">
                           <div className="flex items-center gap-3 text-muted-foreground">

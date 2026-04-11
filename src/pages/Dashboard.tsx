@@ -10,6 +10,7 @@ import {
   DollarSign,
   Briefcase,
   ArrowRight,
+  AlertCircle,
 } from 'lucide-react'
 import { CartesianGrid, XAxis, YAxis, LineChart, Line } from 'recharts'
 import {
@@ -246,6 +247,20 @@ export default function Dashboard() {
     setDraggedOverId(null)
   }
 
+  const { totalBalance } = useMemo(() => {
+    return transactions.reduce(
+      (acc, tx) => {
+        if (tx.type === 'Entrada') acc.totalBalance += tx.value
+        else acc.totalBalance -= tx.value
+        return acc
+      },
+      { totalBalance: 0 },
+    )
+  }, [transactions])
+
+  const SAFETY_LIMIT = 5000
+  const isLowBalance = totalBalance < SAFETY_LIMIT
+
   const suspiciousLogs = useMemo(() => {
     return (auditLogs || []).filter((log) => {
       if (log.action === 'Delete') return true
@@ -274,6 +289,26 @@ export default function Dashboard() {
           Visão consolidada de suas métricas. Arraste os painéis para personalizar seu layout.
         </p>
       </div>
+
+      {isLowBalance && (
+        <Alert className="bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/50 dark:border-amber-900/50 dark:text-amber-200">
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+          <AlertTitle className="text-base font-semibold">
+            Alerta de Fluxo de Caixa (Saldo Baixo)
+          </AlertTitle>
+          <AlertDescription className="mt-1">
+            O saldo atual (
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+              totalBalance,
+            )}
+            ) está abaixo do limite de segurança recomendado (
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+              SAFETY_LIMIT,
+            )}
+            ).
+          </AlertDescription>
+        </Alert>
+      )}
 
       {suspiciousLogs.length > 0 && (
         <Alert

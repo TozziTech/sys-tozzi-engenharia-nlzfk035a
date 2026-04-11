@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/form'
 import { DatePicker } from './DatePicker'
 import useProjectStore from '@/stores/useProjectStore'
-import { Discipline, Project, Status } from '@/types/project'
+import type { Discipline, Project, Status } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
 
 const formSchema = z

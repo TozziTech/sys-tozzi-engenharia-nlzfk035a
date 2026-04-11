@@ -40,7 +40,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import useProjectStore from '@/stores/useProjectStore'
-import { Transaction } from '@/types/project'
+import type { Transaction } from '@/types/project'
 import { subDays, isAfter } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts'
 import {

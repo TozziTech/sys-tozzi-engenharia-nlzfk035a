@@ -97,20 +97,26 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     try {
       let newCodigo = 'PER-001'
       try {
-        const result = await pb.collection('users').getList(1, 1, {
-          sort: '-codigo',
+        const records = await pb.collection('users').getFullList({
           filter: 'codigo ~ "PER-"',
+          fields: 'codigo',
         })
-        if (result.items.length > 0) {
-          const lastCodigo = result.items[0].codigo
-          const match = lastCodigo.match(/PER-(\d+)/)
+
+        let maxNum = 0
+        for (const record of records) {
+          const match = record.codigo.match(/PER-(\d+)/)
           if (match) {
-            const nextNum = parseInt(match[1], 10) + 1
-            newCodigo = `PER-${nextNum.toString().padStart(3, '0')}`
+            const num = parseInt(match[1], 10)
+            if (num > maxNum) {
+              maxNum = num
+            }
           }
         }
+
+        const nextNum = maxNum + 1
+        newCodigo = `PER-${nextNum.toString().padStart(3, '0')}`
       } catch (e) {
-        console.error('Error fetching highest codigo', e)
+        console.error('Error fetching codigos', e)
       }
 
       const createdRecord = await pb.collection('users').create({

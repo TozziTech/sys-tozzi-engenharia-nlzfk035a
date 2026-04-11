@@ -337,7 +337,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           description: r.description,
         })),
       )
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const loadTransactions = async () => {
@@ -355,7 +357,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           status: 'Pago',
         })),
       )
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const loadTasks = async () => {
@@ -368,7 +372,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           name: r.title,
         })),
       )
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   useEffect(() => {
@@ -400,7 +406,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         project_id: t.projectId,
         date: new Date(t.date).toISOString(),
       })
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const updateTransaction = async (id: string, data: Partial<Transaction>) => {
@@ -414,13 +422,17 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (data.date !== undefined) payload.date = new Date(data.date).toISOString()
 
       await pb.collection('financial_records').update(id, payload)
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const deleteTransaction = async (id: string) => {
     try {
       await pb.collection('financial_records').delete(id)
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const addCategory = (c: Omit<ExpenseCategory, 'id'>) => {

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -19,195 +21,192 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import { User } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Loader2 } from 'lucide-react'
 import { maskCPF, maskRG, maskPhone, validateCPF } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
-import { getErrorMessage, extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
+import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
+
+const formSchema = z
+  .object({
+    name: z.string().min(1, 'O nome do membro é obrigatório.'),
+    codigo: z.string().min(1, 'O código é obrigatório.'),
+    role: z.string().default('Projetista'),
+    status: z.string().default('Ativo'),
+    crea: z.string().optional().default(''),
+    formacaoSelect: z.string().default('Engenheiro Civil'),
+    formacaoCustom: z.string().optional().default(''),
+    email: z.string().email('Email inválido.').or(z.literal('')).default(''),
+    phone: z.string().optional().default(''),
+    altPhone: z.string().optional().default(''),
+    logradouro: z.string().optional().default(''),
+    numero: z.string().optional().default(''),
+    bairro: z.string().optional().default(''),
+    cidade: z.string().optional().default(''),
+    uf: z.string().optional().default(''),
+    cep: z.string().optional().default(''),
+    cpf: z.string().optional().default(''),
+    rg: z.string().optional().default(''),
+    birthDate: z.string().optional().default(''),
+    bank_bank: z.string().optional().default(''),
+    bank_agency: z.string().optional().default(''),
+    bank_account: z.string().optional().default(''),
+    bank_pix: z.string().optional().default(''),
+  })
+  .refine(
+    (data) => {
+      if (data.formacaoSelect === 'Outros' && !data.formacaoCustom) return false
+      return true
+    },
+    {
+      message: 'Especifique a formação.',
+      path: ['formacaoCustom'],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.cpf && data.cpf.replace(/\D/g, '').length > 0 && !validateCPF(data.cpf)) return false
+      return true
+    },
+    {
+      message: 'O CPF informado é inválido.',
+      path: ['cpf'],
+    },
+  )
+
+type FormValues = z.infer<typeof formSchema>
 
 export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const { toast } = useToast()
 
-  const [formData, setFormData] = useState<Partial<User> & Record<string, any>>({
-    codigo: '',
-    name: '',
-    role: 'Projetista',
-    crea: '',
-    logradouro: '',
-    numero: '',
-    bairro: '',
-    cidade: '',
-    uf: '',
-    cep: '',
-    phone: '',
-    email: '',
-    cpf: '',
-    rg: '',
-    birthDate: '',
-    altPhone: '',
-    status: 'Ativo',
-    bankData: { bank: '', agency: '', account: '', pix: '' },
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: '',
+      codigo: '',
+      role: 'Projetista',
+      status: 'Ativo',
+      crea: '',
+      formacaoSelect: 'Engenheiro Civil',
+      formacaoCustom: '',
+      email: '',
+      phone: '',
+      altPhone: '',
+      logradouro: '',
+      numero: '',
+      bairro: '',
+      cidade: '',
+      uf: '',
+      cep: '',
+      cpf: '',
+      rg: '',
+      birthDate: '',
+      bank_bank: '',
+      bank_agency: '',
+      bank_account: '',
+      bank_pix: '',
+    },
   })
-
-  const [formacaoSelect, setFormacaoSelect] = useState('Engenheiro Civil')
-  const [formacaoCustom, setFormacaoCustom] = useState('')
 
   useEffect(() => {
     if (open) {
       const fetchNextCodigo = async () => {
         try {
-          const records = await pb.collection('users').getFullList({
-            filter: 'codigo ~ "PER-"',
-            fields: 'codigo',
-          })
-
+          const records = await pb
+            .collection('users')
+            .getFullList({ filter: 'codigo ~ "PER-"', fields: 'codigo' })
           let maxNum = 0
           for (const record of records) {
             const match = record.codigo.match(/PER-(\d+)/)
             if (match) {
               const num = parseInt(match[1], 10)
-              if (num > maxNum) {
-                maxNum = num
-              }
+              if (num > maxNum) maxNum = num
             }
           }
-
           const nextNum = maxNum + 1
-          setFormData((prev) => ({
-            ...prev,
-            codigo: `PER-${nextNum.toString().padStart(3, '0')}`,
-          }))
+          form.setValue('codigo', `PER-${nextNum.toString().padStart(3, '0')}`)
         } catch (e) {
           console.error('Error fetching codigos', e)
         }
       }
-
-      if (!formData.codigo) {
-        fetchNextCodigo()
-      }
+      if (!form.getValues('codigo')) fetchNextCodigo()
     } else {
-      setFormData({
-        codigo: '',
-        name: '',
-        role: 'Projetista',
-        crea: '',
-        logradouro: '',
-        numero: '',
-        bairro: '',
-        cidade: '',
-        uf: '',
-        cep: '',
-        phone: '',
-        email: '',
-        cpf: '',
-        rg: '',
-        birthDate: '',
-        altPhone: '',
-        status: 'Ativo',
-        bankData: { bank: '', agency: '', account: '', pix: '' },
-      })
-      setFormacaoSelect('Engenheiro Civil')
-      setFormacaoCustom('')
-      setFieldErrors({})
+      form.reset()
     }
-  }, [open])
+  }, [open, form])
 
-  const handleChange = (field: string, value: string) => {
-    setFieldErrors((prev) => ({ ...prev, [field]: undefined }))
-    let maskedValue = value
-    if (field === 'cpf') maskedValue = maskCPF(value)
-    else if (field === 'rg') maskedValue = maskRG(value)
-    else if (field === 'phone' || field === 'altPhone') maskedValue = maskPhone(value)
-
-    if (field.startsWith('bank_')) {
-      const bankField = field.replace('bank_', '')
-      setFormData((prev) => ({
-        ...prev,
-        bankData: { ...prev.bankData!, [bankField]: maskedValue },
-      }))
-    } else {
-      setFormData((prev) => ({ ...prev, [field]: maskedValue }))
-    }
-  }
-
-  const handleSave = async () => {
-    setFieldErrors({})
-
-    if (!formData.name) {
-      toast({
-        title: 'Atenção',
-        description: 'O nome do membro é obrigatório.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    if (formData.cpf && !validateCPF(formData.cpf)) {
-      toast({
-        title: 'Atenção',
-        description: 'O CPF informado é inválido.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    if (!formData.codigo) {
-      setFieldErrors((prev) => ({ ...prev, codigo: 'O código é obrigatório.' }))
-      return
-    }
-
-    const finalFormacao = formacaoSelect === 'Outros' ? formacaoCustom : formacaoSelect
+  const onSubmit = async (data: FormValues) => {
     setLoading(true)
+    const finalFormacao =
+      data.formacaoSelect === 'Outros' ? data.formacaoCustom : data.formacaoSelect
 
     try {
       try {
-        const existing = await pb
-          .collection('users')
-          .getFirstListItem(`codigo = "${formData.codigo}"`)
+        const existing = await pb.collection('users').getFirstListItem(`codigo = "${data.codigo}"`)
         if (existing) {
-          setFieldErrors((prev) => ({
-            ...prev,
-            codigo: 'Este código já está em uso por outro colaborador',
-          }))
+          form.setError('codigo', { type: 'manual', message: 'Este código já está em uso.' })
           setLoading(false)
           return
         }
-      } catch (_) {
-        // Not found, safe to proceed
+      } catch (_) {}
+
+      if (data.email) {
+        try {
+          const existingEmail = await pb
+            .collection('users')
+            .getFirstListItem(`email = "${data.email}"`)
+          if (existingEmail) {
+            form.setError('email', { type: 'manual', message: 'Este e-mail já está cadastrado.' })
+            setLoading(false)
+            return
+          }
+        } catch (_) {}
       }
 
       const createdRecord = await pb.collection('users').create({
-        email: formData.email || `temp_${Date.now()}@example.com`,
+        email: data.email || `temp_${Date.now()}@example.com`,
         password: 'password123',
         passwordConfirm: 'password123',
-        name: formData.name,
-        codigo: formData.codigo,
+        name: data.name,
+        codigo: data.codigo,
         formacao: finalFormacao,
-        logradouro: formData.logradouro,
-        numero: formData.numero,
-        bairro: formData.bairro,
-        cidade: formData.cidade,
-        uf: formData.uf,
-        cep: formData.cep,
-        crea: formData.crea,
-        cpf: formData.cpf,
-        rg: formData.rg,
-        phone: formData.phone,
-        status: formData.status,
+        logradouro: data.logradouro,
+        numero: data.numero,
+        bairro: data.bairro,
+        cidade: data.cidade,
+        uf: data.uf,
+        cep: data.cep,
+        crea: data.crea,
+        cpf: data.cpf,
+        rg: data.rg,
+        phone: data.phone,
+        status: data.status,
       })
 
       const newUser: any = {
         ...createdRecord,
         specialty: finalFormacao,
-        address: `${formData.logradouro}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.uf}`,
-        birthDate: formData.birthDate,
-        altPhone: formData.altPhone,
-        status: formData.status,
-        bankData: formData.bankData as User['bankData'],
+        address: `${data.logradouro}, ${data.numero} - ${data.bairro}, ${data.cidade} - ${data.uf}`,
+        birthDate: data.birthDate,
+        altPhone: data.altPhone,
+        status: data.status,
+        bankData: {
+          bank: data.bank_bank,
+          agency: data.bank_agency,
+          account: data.bank_account,
+          pix: data.bank_pix,
+        },
         assignedProjects: [],
       }
 
@@ -216,29 +215,41 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       setOpen(false)
     } catch (err: any) {
       const errors = extractFieldErrors(err)
+      let hasFieldError = false
+
       if (errors.codigo || err.response?.data?.codigo?.code === 'validation_not_unique') {
-        setFieldErrors((prev) => ({
-          ...prev,
-          codigo: 'Este código já está em uso por outro colaborador',
-        }))
-      } else if (errors.email) {
-        toast({
-          title: 'Email inválido ou já cadastrado',
-          description: errors.email,
-          variant: 'destructive',
-        })
-      } else {
+        form.setError('codigo', { type: 'manual', message: 'Este código já está em uso.' })
+        hasFieldError = true
+      }
+      if (
+        errors.email ||
+        err.response?.data?.email?.code === 'validation_invalid_email' ||
+        err.response?.data?.email?.code === 'validation_not_unique'
+      ) {
+        form.setError('email', { type: 'manual', message: 'Este e-mail já está cadastrado.' })
+        hasFieldError = true
+      }
+
+      for (const [key, msg] of Object.entries(errors)) {
+        if (key !== 'codigo' && key !== 'email' && key in data) {
+          form.setError(key as keyof FormValues, { type: 'manual', message: msg as string })
+          hasFieldError = true
+        }
+      }
+
+      if (!hasFieldError) {
         toast({
           title: 'Erro ao salvar',
           description: getErrorMessage(err),
           variant: 'destructive',
         })
-        setFieldErrors(errors)
       }
     } finally {
       setLoading(false)
     }
   }
+
+  const formacaoSelectValue = form.watch('formacaoSelect')
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -257,270 +268,429 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
           </DialogHeader>
         </div>
 
-        <ScrollArea className="flex-1 px-6">
-          <div className="grid gap-6 py-4 pb-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 col-span-2 sm:col-span-1">
-                <Label>Nome Completo</Label>
-                <Input
-                  value={formData.name || ''}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                  placeholder="Ex: João da Silva"
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex-1 overflow-hidden flex flex-col"
+          >
+            <ScrollArea className="flex-1 px-6">
+              <div className="grid gap-6 py-4 pb-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2 sm:col-span-1">
+                        <FormLabel>Nome Completo</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: João da Silva" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="codigo"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2 sm:col-span-1">
+                        <FormLabel>Código (ID)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: PER-001" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem className="col-span-3 sm:col-span-1">
+                        <FormLabel>Cargo</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Cargo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Administrador">Administrador</SelectItem>
+                            <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                            <SelectItem value="Projetista">Projetista</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem className="col-span-3 sm:col-span-1">
+                        <FormLabel>Status</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Ativo">Ativo</SelectItem>
+                            <SelectItem value="Inativo">Inativo</SelectItem>
+                            <SelectItem value="Em Férias">Em Férias</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="crea"
+                    render={({ field }) => (
+                      <FormItem className="col-span-3 sm:col-span-1">
+                        <FormLabel>CREA</FormLabel>
+                        <FormControl>
+                          <Input placeholder="123456/UF" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="formacaoSelect"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2 sm:col-span-1">
+                        <FormLabel>Formação</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Engenheiro Civil">Engenheiro Civil</SelectItem>
+                            <SelectItem value="Engenheiro Elétrico">Engenheiro Elétrico</SelectItem>
+                            <SelectItem value="Engenheiro Mecânico">Engenheiro Mecânico</SelectItem>
+                            <SelectItem value="Arquiteto">Arquiteto</SelectItem>
+                            <SelectItem value="Topógrafo">Topógrafo</SelectItem>
+                            <SelectItem value="Outros">Outros</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {formacaoSelectValue === 'Outros' ? (
+                    <FormField
+                      control={form.control}
+                      name="formacaoCustom"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2 sm:col-span-1 animate-in fade-in zoom-in duration-200">
+                          <FormLabel>Especifique a Formação</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Sua formação..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : (
+                    <div className="hidden sm:block col-span-1"></div>
+                  )}
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="contato@exemplo.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-2 col-span-2 sm:col-span-1">
-                <Label>Código (ID)</Label>
-                <Input
-                  value={formData.codigo || ''}
-                  onChange={(e) => handleChange('codigo', e.target.value)}
-                  placeholder="Ex: PER-001"
-                  className={
-                    fieldErrors.codigo ? 'border-destructive focus-visible:ring-destructive' : ''
-                  }
-                />
-                {fieldErrors.codigo && (
-                  <p className="text-xs text-destructive mt-1 font-medium">{fieldErrors.codigo}</p>
-                )}
-              </div>
-            </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2 col-span-3 sm:col-span-1">
-                <Label>Cargo</Label>
-                <Select value={formData.role} onValueChange={(v) => handleChange('role', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o cargo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Administrador">Administrador</SelectItem>
-                    <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
-                    <SelectItem value="Projetista">Projetista</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 col-span-3 sm:col-span-1">
-                <Label>Status</Label>
-                <Select value={formData.status} onValueChange={(v) => handleChange('status', v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ativo">Ativo</SelectItem>
-                    <SelectItem value="Inativo">Inativo</SelectItem>
-                    <SelectItem value="Em Férias">Em Férias</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 col-span-3 sm:col-span-1">
-                <Label>CREA</Label>
-                <Input
-                  value={formData.crea || ''}
-                  onChange={(e) => handleChange('crea', e.target.value)}
-                  placeholder="123456/UF"
-                />
-              </div>
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2 sm:col-span-1">
+                        <FormLabel>Telefone</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="(00) 00000-0000"
+                            maxLength={15}
+                            {...field}
+                            onChange={(e) => field.onChange(maskPhone(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="altPhone"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2 sm:col-span-1">
+                        <FormLabel>Telefone Alternativo</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="(00) 00000-0000"
+                            maxLength={15}
+                            {...field}
+                            onChange={(e) => field.onChange(maskPhone(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 col-span-2 sm:col-span-1">
-                <Label>Formação</Label>
-                <Select value={formacaoSelect} onValueChange={setFormacaoSelect}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Engenheiro Civil">Engenheiro Civil</SelectItem>
-                    <SelectItem value="Engenheiro Elétrico">Engenheiro Elétrico</SelectItem>
-                    <SelectItem value="Engenheiro Mecânico">Engenheiro Mecânico</SelectItem>
-                    <SelectItem value="Arquiteto">Arquiteto</SelectItem>
-                    <SelectItem value="Topógrafo">Topógrafo</SelectItem>
-                    <SelectItem value="Outros">Outros</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {formacaoSelect === 'Outros' ? (
-                <div className="space-y-2 col-span-2 sm:col-span-1 animate-in fade-in zoom-in duration-200">
-                  <Label>Especifique a Formação</Label>
-                  <Input
-                    value={formacaoCustom}
-                    onChange={(e) => setFormacaoCustom(e.target.value)}
-                    placeholder="Sua formação..."
-                  />
+                <div className="mt-2 pt-6 border-t border-border/50">
+                  <h4 className="font-semibold text-sm mb-4">Endereço</h4>
+                  <div className="grid grid-cols-12 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="logradouro"
+                      render={({ field }) => (
+                        <FormItem className="col-span-12 sm:col-span-8">
+                          <FormLabel>Logradouro</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Rua, Avenida..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="numero"
+                      render={({ field }) => (
+                        <FormItem className="col-span-12 sm:col-span-4">
+                          <FormLabel>Número</FormLabel>
+                          <FormControl>
+                            <Input placeholder="123" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="bairro"
+                      render={({ field }) => (
+                        <FormItem className="col-span-12 sm:col-span-5">
+                          <FormLabel>Bairro</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Centro" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="cidade"
+                      render={({ field }) => (
+                        <FormItem className="col-span-12 sm:col-span-4">
+                          <FormLabel>Cidade</FormLabel>
+                          <FormControl>
+                            <Input placeholder="São Paulo" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="uf"
+                      render={({ field }) => (
+                        <FormItem className="col-span-12 sm:col-span-3">
+                          <FormLabel>UF</FormLabel>
+                          <FormControl>
+                            <Input placeholder="SP" maxLength={2} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="cep"
+                      render={({ field }) => (
+                        <FormItem className="col-span-12 sm:col-span-4">
+                          <FormLabel>CEP</FormLabel>
+                          <FormControl>
+                            <Input placeholder="00000-000" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
-              ) : (
-                <div className="hidden sm:block col-span-1"></div>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={formData.email || ''}
-                onChange={(e) => handleChange('email', e.target.value)}
-                placeholder="contato@exemplo.com"
-              />
-            </div>
+                <div className="mt-2 pt-6 border-t border-border/50">
+                  <h4 className="font-semibold text-sm mb-4">Dados Pessoais</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="cpf"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2 sm:col-span-1">
+                          <FormLabel>CPF</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="000.000.000-00"
+                              maxLength={14}
+                              {...field}
+                              onChange={(e) => field.onChange(maskCPF(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="rg"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2 sm:col-span-1">
+                          <FormLabel>RG</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="00.000.000-0"
+                              maxLength={12}
+                              {...field}
+                              onChange={(e) => field.onChange(maskRG(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="birthDate"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2 sm:col-span-1">
+                          <FormLabel>Data de Nascimento</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 col-span-2 sm:col-span-1">
-                <Label>Telefone</Label>
-                <Input
-                  value={formData.phone || ''}
-                  onChange={(e) => handleChange('phone', e.target.value)}
-                  placeholder="(00) 00000-0000"
-                  maxLength={15}
-                />
-              </div>
-              <div className="space-y-2 col-span-2 sm:col-span-1">
-                <Label>Telefone Alternativo</Label>
-                <Input
-                  value={formData.altPhone || ''}
-                  onChange={(e) => handleChange('altPhone', e.target.value)}
-                  placeholder="(00) 00000-0000"
-                  maxLength={15}
-                />
-              </div>
-            </div>
-
-            <div className="mt-2 pt-6 border-t border-border/50">
-              <h4 className="font-semibold text-sm mb-4">Endereço</h4>
-              <div className="grid grid-cols-12 gap-4">
-                <div className="space-y-2 col-span-12 sm:col-span-8">
-                  <Label>Logradouro</Label>
-                  <Input
-                    value={formData.logradouro || ''}
-                    onChange={(e) => handleChange('logradouro', e.target.value)}
-                    placeholder="Rua, Avenida..."
-                  />
-                </div>
-                <div className="space-y-2 col-span-12 sm:col-span-4">
-                  <Label>Número</Label>
-                  <Input
-                    value={formData.numero || ''}
-                    onChange={(e) => handleChange('numero', e.target.value)}
-                    placeholder="123"
-                  />
-                </div>
-                <div className="space-y-2 col-span-12 sm:col-span-5">
-                  <Label>Bairro</Label>
-                  <Input
-                    value={formData.bairro || ''}
-                    onChange={(e) => handleChange('bairro', e.target.value)}
-                    placeholder="Centro"
-                  />
-                </div>
-                <div className="space-y-2 col-span-12 sm:col-span-4">
-                  <Label>Cidade</Label>
-                  <Input
-                    value={formData.cidade || ''}
-                    onChange={(e) => handleChange('cidade', e.target.value)}
-                    placeholder="São Paulo"
-                  />
-                </div>
-                <div className="space-y-2 col-span-12 sm:col-span-3">
-                  <Label>UF</Label>
-                  <Input
-                    value={formData.uf || ''}
-                    onChange={(e) => handleChange('uf', e.target.value)}
-                    placeholder="SP"
-                    maxLength={2}
-                  />
-                </div>
-                <div className="space-y-2 col-span-12 sm:col-span-4">
-                  <Label>CEP</Label>
-                  <Input
-                    value={formData.cep || ''}
-                    onChange={(e) => handleChange('cep', e.target.value)}
-                    placeholder="00000-000"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-2 pt-6 border-t border-border/50">
-              <h4 className="font-semibold text-sm mb-4">Dados Pessoais</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                  <Label>CPF</Label>
-                  <Input
-                    value={formData.cpf || ''}
-                    onChange={(e) => handleChange('cpf', e.target.value)}
-                    placeholder="000.000.000-00"
-                    maxLength={14}
-                  />
-                </div>
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                  <Label>RG</Label>
-                  <Input
-                    value={formData.rg || ''}
-                    onChange={(e) => handleChange('rg', e.target.value)}
-                    placeholder="00.000.000-0"
-                    maxLength={12}
-                  />
-                </div>
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                  <Label>Data de Nascimento</Label>
-                  <Input
-                    type="date"
-                    value={formData.birthDate || ''}
-                    onChange={(e) => handleChange('birthDate', e.target.value)}
-                  />
+                <div className="mt-2 pt-6 border-t border-border/50">
+                  <h4 className="font-semibold text-sm mb-4">Dados Bancários</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="bank_bank"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2 sm:col-span-1">
+                          <FormLabel>Banco</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: Itaú, Nubank" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="bank_agency"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2 sm:col-span-1">
+                          <FormLabel>Agência</FormLabel>
+                          <FormControl>
+                            <Input placeholder="0000" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="bank_account"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2 sm:col-span-1">
+                          <FormLabel>Conta Corrente</FormLabel>
+                          <FormControl>
+                            <Input placeholder="00000-0" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="bank_pix"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2 sm:col-span-1">
+                          <FormLabel>Chave PIX</FormLabel>
+                          <FormControl>
+                            <Input placeholder="CPF, Email ou Celular" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            </ScrollArea>
 
-            <div className="mt-2 pt-6 border-t border-border/50">
-              <h4 className="font-semibold text-sm mb-4">Dados Bancários</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                  <Label>Banco</Label>
-                  <Input
-                    value={formData.bankData?.bank}
-                    onChange={(e) => handleChange('bank_bank', e.target.value)}
-                    placeholder="Ex: Itaú, Nubank"
-                  />
-                </div>
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                  <Label>Agência</Label>
-                  <Input
-                    value={formData.bankData?.agency}
-                    onChange={(e) => handleChange('bank_agency', e.target.value)}
-                    placeholder="0000"
-                  />
-                </div>
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                  <Label>Conta Corrente</Label>
-                  <Input
-                    value={formData.bankData?.account}
-                    onChange={(e) => handleChange('bank_account', e.target.value)}
-                    placeholder="00000-0"
-                  />
-                </div>
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                  <Label>Chave PIX</Label>
-                  <Input
-                    value={formData.bankData?.pix}
-                    onChange={(e) => handleChange('bank_pix', e.target.value)}
-                    placeholder="CPF, Email ou Celular"
-                  />
-                </div>
-              </div>
+            <div className="p-6 pt-4 border-t border-border/50 bg-muted/10">
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  disabled={loading}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Salvar Membro
+                </Button>
+              </DialogFooter>
             </div>
-          </div>
-        </ScrollArea>
-
-        <div className="p-6 pt-4 border-t border-border/50 bg-muted/10">
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar Membro
-            </Button>
-          </DialogFooter>
-        </div>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   )

@@ -59,6 +59,20 @@ import {
 import { exportUserPDF } from '@/lib/exportPdf'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Bar, BarChart } from 'recharts'
+import { cn } from '@/lib/utils'
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'Ativo':
+      return 'bg-green-500/15 text-green-700 border-green-500/30'
+    case 'Inativo':
+      return 'bg-gray-500/15 text-gray-700 border-gray-500/30'
+    case 'Em Férias':
+      return 'bg-orange-500/15 text-orange-700 border-orange-500/30'
+    default:
+      return 'bg-green-500/15 text-green-700 border-green-500/30'
+  }
+}
 
 const mockFinancialData = [
   { month: 'Jan', amount: 4500 },
@@ -115,6 +129,15 @@ export function MemberCard({
                     </Badge>
                   )}
                   <span className="truncate">{user.name}</span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'ml-2 text-[10px] font-semibold border shrink-0',
+                      getStatusColor(u.status || 'Ativo'),
+                    )}
+                  >
+                    {u.status || 'Ativo'}
+                  </Badge>
                 </button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[800px] h-[85vh] flex flex-col p-0 overflow-hidden bg-background">
@@ -130,6 +153,15 @@ export function MemberCard({
                         </Badge>
                       )}
                       <span>{user.name}</span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'ml-2 text-xs font-semibold border shrink-0',
+                          getStatusColor(u.status || 'Ativo'),
+                        )}
+                      >
+                        {u.status || 'Ativo'}
+                      </Badge>
                     </DialogTitle>
                     <DialogDescription className="text-base font-medium text-primary mt-1 flex items-center gap-2">
                       <Briefcase className="h-4 w-4" /> {formacaoDisplay}
@@ -475,6 +507,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         crea: formData.crea,
         cpf: formData.cpf,
         rg: formData.rg,
+        status: formData.status || 'Ativo',
       })
       toast({ title: 'Sucesso', description: 'Membro atualizado com sucesso.' })
       onSave(updatedUser)
@@ -668,6 +701,22 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
               )}
 
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={formData.status || 'Ativo'}
+                    onValueChange={(v) => handleChange('status', v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ativo">Ativo</SelectItem>
+                      <SelectItem value="Inativo">Inativo</SelectItem>
+                      <SelectItem value="Em Férias">Em Férias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label>Cargo no Sistema</Label>
                   <Select

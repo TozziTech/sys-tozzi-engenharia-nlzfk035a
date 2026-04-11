@@ -15,6 +15,14 @@ import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { PieChart, Pie, Cell } from 'recharts'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@/components/ui/chart'
 
 export default function Team() {
   const [dbUsers, setDbUsers] = useState<any[]>([])
@@ -43,6 +51,31 @@ export default function Team() {
     const forms = new Set(dbUsers.map((m) => m.formacao || m.specialty).filter(Boolean))
     return Array.from(forms) as string[]
   }, [dbUsers])
+
+  const formacaoData = useMemo(() => {
+    const counts: Record<string, number> = {}
+    dbUsers.forEach((u) => {
+      const f = u.formacao || u.specialty || 'Não Informada'
+      counts[f] = (counts[f] || 0) + 1
+    })
+    return Object.entries(counts)
+      .map(([name, value], index) => ({
+        name,
+        value,
+        key: `chart${index + 1}`,
+      }))
+      .sort((a, b) => b.value - a.value)
+  }, [dbUsers])
+
+  const chartConfig = useMemo(() => {
+    const config: Record<string, any> = {
+      value: { label: 'Profissionais' },
+    }
+    formacaoData.forEach((item, i) => {
+      config[item.key] = { label: item.name, color: `hsl(var(--chart-${(i % 5) + 1}))` }
+    })
+    return config
+  }, [formacaoData])
 
   const filteredMembers = useMemo(() => {
     return dbUsers.filter((m) => {
@@ -76,6 +109,40 @@ export default function Team() {
         </div>
         <MemberForm onAdd={() => {}} />
       </div>
+
+      <Card className="p-6 flex flex-col items-center shadow-sm w-full bg-card">
+        <h2 className="text-lg font-semibold w-full text-left mb-4">
+          Distribuição da Equipe por Formação
+        </h2>
+        {formacaoData.length > 0 ? (
+          <div className="h-[250px] w-full max-w-[500px]">
+            <ChartContainer config={chartConfig} className="h-full w-full">
+              <PieChart>
+                <Pie
+                  data={formacaoData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={2}
+                >
+                  {formacaoData.map((entry) => (
+                    <Cell key={entry.key} fill={`var(--color-${entry.key})`} />
+                  ))}
+                </Pie>
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
+              </PieChart>
+            </ChartContainer>
+          </div>
+        ) : (
+          <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">
+            Nenhum dado disponível.
+          </div>
+        )}
+      </Card>
 
       <div className="flex flex-col sm:flex-row gap-4 items-center bg-card p-4 rounded-lg border shadow-sm">
         <div className="relative w-full sm:w-[320px]">

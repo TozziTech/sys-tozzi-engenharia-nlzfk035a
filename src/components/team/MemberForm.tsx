@@ -48,6 +48,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     rg: '',
     birthDate: '',
     altPhone: '',
+    status: 'Ativo',
     bankData: { bank: '', agency: '', account: '', pix: '' },
   })
 
@@ -129,6 +130,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
         cpf: formData.cpf,
         rg: formData.rg,
         phone: formData.phone,
+        status: formData.status,
       })
 
       const newUser: any = {
@@ -137,6 +139,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
         address: `${formData.logradouro}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.uf}`,
         birthDate: formData.birthDate,
         altPhone: formData.altPhone,
+        status: formData.status,
         bankData: formData.bankData as User['bankData'],
         assignedProjects: [],
       }
@@ -161,6 +164,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
         rg: '',
         birthDate: '',
         altPhone: '',
+        status: 'Ativo',
         bankData: { bank: '', agency: '', account: '', pix: '' },
       })
       setFormacaoSelect('Engenheiro Civil')
@@ -223,8 +227,8 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 col-span-2 sm:col-span-1">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2 col-span-3 sm:col-span-1">
                 <Label>Cargo</Label>
                 <Select value={formData.role} onValueChange={(v) => handleChange('role', v)}>
                   <SelectTrigger>
@@ -237,7 +241,20 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 col-span-2 sm:col-span-1">
+              <div className="space-y-2 col-span-3 sm:col-span-1">
+                <Label>Status</Label>
+                <Select value={formData.status} onValueChange={(v) => handleChange('status', v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                    <SelectItem value="Em Férias">Em Férias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 col-span-3 sm:col-span-1">
                 <Label>CREA</Label>
                 <Input
                   value={formData.crea || ''}

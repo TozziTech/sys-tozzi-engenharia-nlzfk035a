@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-11T08:19:34.471Z",
+  "generatedAt": "2026-04-11T21:36:58.628Z",
   "collections": [
     {
       "name": "users",
@@ -110,6 +110,19 @@
           "required": false,
           "system": false,
           "selectValues": ["Ativo", "Inativo", "Em Férias"]
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Administrador",
+            "Gerente de Projeto",
+            "Projetista",
+            "Estagiário",
+            "Visitante"
+          ]
         }
       ],
       "indexes": [

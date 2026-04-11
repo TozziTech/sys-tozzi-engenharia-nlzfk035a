@@ -15,6 +15,8 @@ import {
 import { Search, Users, Download } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useAuth } from '@/hooks/use-auth'
+import { RoleManagementModal } from '@/components/team/RoleManagementModal'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { PieChart, Pie, Cell } from 'recharts'
@@ -31,6 +33,7 @@ export default function Team() {
   const [formacaoFilter, setFormacaoFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const { toast } = useToast()
+  const { user } = useAuth()
 
   const loadUsers = async () => {
     try {
@@ -119,6 +122,9 @@ export default function Team() {
           <Button variant="outline" onClick={() => exportTeamCSV(filteredMembers)}>
             <Download className="mr-2 h-4 w-4" /> Exportar
           </Button>
+          {user?.role === 'Administrador' && (
+            <RoleManagementModal users={dbUsers} onUpdate={loadUsers} />
+          )}
           <MemberForm onAdd={() => {}} />
         </div>
       </div>

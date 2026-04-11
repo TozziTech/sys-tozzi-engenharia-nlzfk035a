@@ -76,21 +76,29 @@ export function exportAuditLogsPDF(logs: any[], currentUser: string) {
             </tr>
           </thead>
           <tbody>
-            ${logs.map((log: any) => {
-              const changes = log.changes.length > 0
-                ? log.changes.map((c: any) => \`\${c.field}: \${c.oldValue || 'N/A'} &rarr; \${c.newValue || 'N/A'}\`).join('<br/>')
-                : 'N/A';
-              const description = \`<strong>\${log.entityName}</strong><br/>\${changes}\`;
-              
-              return \`
+            ${logs
+              .map((log: any) => {
+                const changes =
+                  log.changes.length > 0
+                    ? log.changes
+                        .map(
+                          (c: any) =>
+                            `${c.field}: ${c.oldValue || 'N/A'} &rarr; ${c.newValue || 'N/A'}`,
+                        )
+                        .join('<br/>')
+                    : 'N/A'
+                const description = `<strong>${log.entityName}</strong><br/>${changes}`
+
+                return `
                 <tr>
-                  <td>\${log.action}</td>
-                  <td>\${log.user.name}</td>
-                  <td>\${description}</td>
-                  <td style="white-space: nowrap;">\${format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}</td>
+                  <td>${log.action}</td>
+                  <td>${log.user.name}</td>
+                  <td>${description}</td>
+                  <td style="white-space: nowrap;">${format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}</td>
                 </tr>
-              \`;
-            }).join('')}
+              `
+              })
+              .join('')}
           </tbody>
         </table>
         

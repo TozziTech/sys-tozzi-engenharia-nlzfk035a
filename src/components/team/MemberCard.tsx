@@ -64,13 +64,13 @@ import { cn } from '@/lib/utils'
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'Ativo':
-      return 'bg-green-500/15 text-green-700 border-green-500/30'
+      return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
     case 'Inativo':
-      return 'bg-gray-500/15 text-gray-700 border-gray-500/30'
+      return 'bg-slate-500/10 text-slate-500 border-slate-500/20'
     case 'Em Férias':
-      return 'bg-orange-500/15 text-orange-700 border-orange-500/30'
+      return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
     default:
-      return 'bg-green-500/15 text-green-700 border-green-500/30'
+      return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
   }
 }
 
@@ -113,251 +113,29 @@ export function MemberCard({
   const formacaoDisplay = u.formacao || user.specialty || 'Sem Formação'
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md border-border/60 group">
-      <CardHeader className="flex flex-col pb-4 relative border-b border-border/40">
-        <div className="flex justify-between items-start gap-4">
-          <div className="flex-1 space-y-1">
-            <Dialog>
-              <DialogTrigger asChild>
-                <button className="text-xl leading-tight font-bold text-left hover:underline text-primary transition-colors cursor-pointer flex items-center gap-2 w-full">
-                  {u.codigo && (
-                    <Badge
-                      variant="default"
-                      className="text-sm px-2 py-0.5 shrink-0 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
-                    >
-                      {u.codigo}
-                    </Badge>
-                  )}
-                  <span className="truncate">{user.name}</span>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'ml-2 text-[10px] font-semibold border shrink-0',
-                      getStatusColor(u.status || 'Ativo'),
-                    )}
-                  >
-                    {u.status || 'Ativo'}
-                  </Badge>
-                </button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[800px] h-[85vh] flex flex-col p-0 overflow-hidden bg-background">
-                <div className="p-6 pb-4 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/10 shrink-0">
-                  <div>
-                    <DialogTitle className="text-2xl font-bold flex items-center gap-3">
-                      {u.codigo && (
-                        <Badge
-                          variant="default"
-                          className="text-sm px-2.5 py-0.5 bg-primary/10 text-primary border-primary/20"
-                        >
-                          {u.codigo}
-                        </Badge>
-                      )}
-                      <span>{user.name}</span>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'ml-2 text-xs font-semibold border shrink-0',
-                          getStatusColor(u.status || 'Ativo'),
-                        )}
-                      >
-                        {u.status || 'Ativo'}
-                      </Badge>
-                    </DialogTitle>
-                    <DialogDescription className="text-base font-medium text-primary mt-1 flex items-center gap-2">
-                      <Briefcase className="h-4 w-4" /> {formacaoDisplay}
-                    </DialogDescription>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 shrink-0 bg-background"
-                    onClick={() => exportUserPDF(user, userProjects)}
-                  >
-                    <FileDown className="h-4 w-4" />
-                    Exportar PDF
-                  </Button>
-                </div>
+    <Card className="flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-border/40 bg-card rounded-2xl group relative">
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                <ScrollArea className="flex-1 p-6">
-                  <div className="space-y-8 pb-8">
-                    {/* Contact & Basics */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b border-border/50 pb-2">
-                          <UserIcon className="h-3.5 w-3.5" /> Informações Pessoais
-                        </h4>
-                        <div className="text-sm space-y-3">
-                          <div className="flex items-center gap-3 text-muted-foreground">
-                            <Mail className="h-4 w-4 shrink-0" />
-                            <span className="font-medium text-foreground truncate">
-                              {user.email || 'Não informado'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 text-muted-foreground">
-                            <Phone className="h-4 w-4 shrink-0" />
-                            <span className="font-medium text-foreground">
-                              {user.phone || 'Não informado'}
-                            </span>
-                          </div>
-                          <div className="flex items-start gap-3 text-muted-foreground">
-                            <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
-                            <span className="font-medium text-foreground line-clamp-2">
-                              {addrStr}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 text-muted-foreground pt-1">
-                            <FileText className="h-4 w-4 shrink-0" />
-                            <span className="font-medium text-foreground">
-                              CREA: {user.crea || 'N/A'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bank Details */}
-                      <div className="space-y-4">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b border-border/50 pb-2">
-                          <Wallet className="h-3.5 w-3.5" /> Dados Bancários
-                        </h4>
-                        <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-lg border border-border/40">
-                          <div>
-                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
-                              Banco
-                            </span>
-                            <span className="font-medium text-sm">
-                              {user.bankData?.bank || '-'}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
-                              Agência
-                            </span>
-                            <span className="font-medium text-sm">
-                              {user.bankData?.agency || '-'}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
-                              Conta
-                            </span>
-                            <span className="font-medium text-sm">
-                              {user.bankData?.account || '-'}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
-                              PIX
-                            </span>
-                            <span
-                              className="font-medium text-sm truncate block"
-                              title={user.bankData?.pix}
-                            >
-                              {user.bankData?.pix || '-'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Projects */}
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between border-b border-border/50 pb-2">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-3.5 w-3.5" /> Projetos Associados
-                        </div>
-                        <Badge variant="secondary" className="h-5 px-2 text-xs rounded-full">
-                          {userProjects.length}
-                        </Badge>
-                      </h4>
-                      {userProjects.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {userProjects.map((p) => (
-                            <div
-                              key={p.id}
-                              className="flex justify-between items-center bg-muted/10 border border-border/60 p-3 rounded-lg shadow-sm"
-                            >
-                              <div className="flex flex-col truncate pr-2">
-                                <span className="font-medium text-sm truncate">{p.name}</span>
-                                <span className="text-xs text-muted-foreground">{p.client}</span>
-                              </div>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] whitespace-nowrap bg-background"
-                              >
-                                {p.status}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="bg-muted/10 border border-dashed border-border p-6 rounded-lg text-center">
-                          <p className="text-sm text-muted-foreground font-medium">
-                            Nenhum projeto associado no momento.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Financial Performance */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                          <TrendingUp className="h-3.5 w-3.5" /> Desempenho Financeiro
-                        </h4>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-5 w-5 rounded-full hover:bg-transparent"
-                            >
-                              <Info className="h-4 w-4 text-muted-foreground/50 hover:text-foreground transition-colors" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="left" className="max-w-[250px] text-xs">
-                            Valores baseados em horas aprovadas multiplicadas pelo valor hora do
-                            profissional. Dados ilustrativos no momento.
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <ChartContainer
-                        config={{ amount: { label: 'Recebido', color: 'hsl(var(--primary))' } }}
-                        className="h-[150px] w-full"
-                      >
-                        <BarChart
-                          data={mockFinancialData}
-                          margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
-                        >
-                          <ChartTooltip
-                            cursor={{ fill: 'hsl(var(--muted))' }}
-                            content={<ChartTooltipContent />}
-                          />
-                          <Bar
-                            dataKey="amount"
-                            fill="var(--color-amount)"
-                            radius={[4, 4, 0, 0]}
-                            maxBarSize={40}
-                          />
-                        </BarChart>
-                      </ChartContainer>
-                    </div>
-
-                    {/* Dashboard */}
-                    <div className="pt-4">
-                      <ProjetistaDashboard user={user} />
-                    </div>
-                  </div>
-                </ScrollArea>
-              </DialogContent>
-            </Dialog>
-
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="font-medium bg-primary/10 text-primary">
-                {user.role || 'Sem Cargo'}
-              </Badge>
-            </div>
+      <CardContent className="p-6 flex-1 flex flex-col">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              className="font-mono text-[10px] sm:text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-primary/10 rounded-md shadow-sm"
+            >
+              {u.codigo || 'S/N'}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[10px] font-bold uppercase tracking-wider rounded-md border px-2 py-0.5',
+                getStatusColor(u.status),
+              )}
+            >
+              {u.status || 'Ativo'}
+            </Badge>
           </div>
-          <div className="flex gap-1.5 items-center shrink-0">
+          <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
             <MemberEditDialog
               user={user}
               onSave={onUpdate}
@@ -398,28 +176,252 @@ export function MemberCard({
             )}
           </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="flex-1 pt-4 space-y-4 bg-card/50">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Briefcase className="h-4 w-4 shrink-0 text-primary/70" />
+        <div className="mb-6 flex-1">
+          <Dialog>
+            <DialogTrigger asChild>
+              <button className="text-left w-full group/title mb-1.5 focus:outline-none rounded-md focus-visible:ring-2 focus-visible:ring-ring">
+                <h3 className="text-xl font-bold leading-tight text-foreground group-hover/title:text-primary transition-colors line-clamp-2">
+                  {user.name}
+                </h3>
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[800px] h-[85vh] flex flex-col p-0 overflow-hidden bg-background">
+              <div className="p-6 pb-4 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/10 shrink-0">
+                <div>
+                  <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+                    {u.codigo && (
+                      <Badge
+                        variant="default"
+                        className="text-sm px-2.5 py-0.5 bg-primary/10 text-primary border-primary/20"
+                      >
+                        {u.codigo}
+                      </Badge>
+                    )}
+                    <span>{user.name}</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'ml-2 text-xs font-semibold border shrink-0',
+                        getStatusColor(u.status || 'Ativo'),
+                      )}
+                    >
+                      {u.status || 'Ativo'}
+                    </Badge>
+                  </DialogTitle>
+                  <DialogDescription className="text-base font-medium text-primary mt-1 flex items-center gap-2">
+                    <Briefcase className="h-4 w-4" /> {formacaoDisplay}
+                  </DialogDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 shrink-0 bg-background"
+                  onClick={() => exportUserPDF(user, userProjects)}
+                >
+                  <FileDown className="h-4 w-4" />
+                  Exportar PDF
+                </Button>
+              </div>
+
+              <ScrollArea className="flex-1 p-6">
+                <div className="space-y-8 pb-8">
+                  {/* Contact & Basics */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                        <UserIcon className="h-3.5 w-3.5" /> Informações Pessoais
+                      </h4>
+                      <div className="text-sm space-y-3">
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <Mail className="h-4 w-4 shrink-0" />
+                          <span className="font-medium text-foreground truncate">
+                            {user.email || 'Não informado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <Phone className="h-4 w-4 shrink-0" />
+                          <span className="font-medium text-foreground">
+                            {user.phone || 'Não informado'}
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-3 text-muted-foreground">
+                          <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
+                          <span className="font-medium text-foreground line-clamp-2">
+                            {addrStr}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-muted-foreground pt-1">
+                          <FileText className="h-4 w-4 shrink-0" />
+                          <span className="font-medium text-foreground">
+                            CREA: {user.crea || 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bank Details */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                        <Wallet className="h-3.5 w-3.5" /> Dados Bancários
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-lg border border-border/40">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
+                            Banco
+                          </span>
+                          <span className="font-medium text-sm">{user.bankData?.bank || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
+                            Agência
+                          </span>
+                          <span className="font-medium text-sm">
+                            {user.bankData?.agency || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
+                            Conta
+                          </span>
+                          <span className="font-medium text-sm">
+                            {user.bankData?.account || '-'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
+                            PIX
+                          </span>
+                          <span
+                            className="font-medium text-sm truncate block"
+                            title={user.bankData?.pix}
+                          >
+                            {user.bankData?.pix || '-'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Projects */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between border-b border-border/50 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5" /> Projetos Associados
+                      </div>
+                      <Badge variant="secondary" className="h-5 px-2 text-xs rounded-full">
+                        {userProjects.length}
+                      </Badge>
+                    </h4>
+                    {userProjects.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {userProjects.map((p) => (
+                          <div
+                            key={p.id}
+                            className="flex justify-between items-center bg-muted/10 border border-border/60 p-3 rounded-lg shadow-sm"
+                          >
+                            <div className="flex flex-col truncate pr-2">
+                              <span className="font-medium text-sm truncate">{p.name}</span>
+                              <span className="text-xs text-muted-foreground">{p.client}</span>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] whitespace-nowrap bg-background"
+                            >
+                              {p.status}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-muted/10 border border-dashed border-border p-6 rounded-lg text-center">
+                        <p className="text-sm text-muted-foreground font-medium">
+                          Nenhum projeto associado no momento.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Financial Performance */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                        <TrendingUp className="h-3.5 w-3.5" /> Desempenho Financeiro
+                      </h4>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 rounded-full hover:bg-transparent"
+                          >
+                            <Info className="h-4 w-4 text-muted-foreground/50 hover:text-foreground transition-colors" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-[250px] text-xs">
+                          Valores baseados em horas aprovadas multiplicadas pelo valor hora do
+                          profissional. Dados ilustrativos no momento.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <ChartContainer
+                      config={{ amount: { label: 'Recebido', color: 'hsl(var(--primary))' } }}
+                      className="h-[150px] w-full"
+                    >
+                      <BarChart
+                        data={mockFinancialData}
+                        margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                      >
+                        <ChartTooltip
+                          cursor={{ fill: 'hsl(var(--muted))' }}
+                          content={<ChartTooltipContent />}
+                        />
+                        <Bar
+                          dataKey="amount"
+                          fill="var(--color-amount)"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+
+                  {/* Dashboard */}
+                  <div className="pt-4">
+                    <ProjetistaDashboard user={user} />
+                  </div>
+                </div>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+          <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 line-clamp-1 mt-2">
+            <Briefcase className="h-4 w-4 text-primary/60 shrink-0" />
             <span className="truncate">{formacaoDisplay}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Mail className="h-4 w-4 shrink-0 text-primary/70" />
-            <span className="truncate">{user.email || 'Email não informado'}</span>
-          </div>
+          </p>
         </div>
 
-        <div className="pt-3 border-t border-border/50 flex items-center justify-between">
-          <div className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">{userProjects.length}</span>{' '}
-            {userProjects.length === 1 ? 'Projeto' : 'Projetos'}
+        <div className="mt-auto pt-4 border-t border-border/40 space-y-3">
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground/80">
+            <Mail className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+            <span className="truncate">{user.email || 'Email não informado'}</span>
           </div>
-          <Badge variant="outline" className="text-[10px] bg-background border-border/80">
-            {user.crea ? `CREA: ${user.crea}` : 'Sem CREA'}
-          </Badge>
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Building2 className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+              <span className="font-semibold text-foreground">{userProjects.length}</span> Projetos
+            </div>
+            {user.crea && (
+              <Badge
+                variant="outline"
+                className="text-[10px] font-mono text-muted-foreground border-border/40 rounded-md bg-muted/20"
+              >
+                CREA:{' '}
+                <span className="truncate max-w-[80px] ml-1" title={user.crea}>
+                  {user.crea}
+                </span>
+              </Badge>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

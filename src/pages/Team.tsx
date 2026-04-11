@@ -97,7 +97,7 @@ export default function Team() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="container mx-auto p-4 md:p-8 max-w-7xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -110,56 +110,91 @@ export default function Team() {
         <MemberForm onAdd={() => {}} />
       </div>
 
-      <Card className="p-6 flex flex-col items-center shadow-sm w-full bg-card">
-        <h2 className="text-lg font-semibold w-full text-left mb-4">
-          Distribuição da Equipe por Formação
-        </h2>
-        {formacaoData.length > 0 ? (
-          <div className="h-[250px] w-full max-w-[500px]">
-            <ChartContainer config={chartConfig} className="h-full w-full">
-              <PieChart>
-                <Pie
-                  data={formacaoData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={2}
-                >
-                  {formacaoData.map((entry) => (
-                    <Cell key={entry.key} fill={`var(--color-${entry.key})`} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <ChartLegend content={<ChartLegendContent />} />
-              </PieChart>
-            </ChartContainer>
+      <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/40 bg-gradient-to-br from-card to-card/50 overflow-hidden">
+        <div className="flex flex-col md:flex-row items-center gap-8">
+          <div className="flex-1 space-y-6 text-center md:text-left">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Distribuição da Equipe</h2>
+              <p className="text-sm text-muted-foreground">
+                Membros agrupados por área de formação ou especialidade.
+              </p>
+            </div>
+
+            <div className="flex justify-center md:justify-start gap-8">
+              <div className="space-y-1">
+                <p className="text-4xl font-bold tracking-tight">{dbUsers.length}</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
+                  Total
+                </p>
+              </div>
+              <div className="w-px bg-border/60"></div>
+              <div className="space-y-1">
+                <p className="text-4xl font-bold tracking-tight text-emerald-600">
+                  {dbUsers.filter((u) => u.status !== 'Inativo').length}
+                </p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
+                  Ativos
+                </p>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">
-            Nenhum dado disponível.
+
+          <div className="h-[220px] w-full md:w-[400px] shrink-0">
+            {formacaoData.length > 0 ? (
+              <ChartContainer config={chartConfig} className="h-full w-full">
+                <PieChart>
+                  <Pie
+                    data={formacaoData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={65}
+                    outerRadius={95}
+                    paddingAngle={3}
+                    stroke="none"
+                  >
+                    {formacaoData.map((entry) => (
+                      <Cell
+                        key={entry.key}
+                        fill={`var(--color-${entry.key})`}
+                        className="drop-shadow-sm"
+                      />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend
+                    content={<ChartLegendContent />}
+                    className="-translate-y-2 flex-wrap"
+                  />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground text-sm border border-dashed border-border/50 rounded-xl">
+                Nenhum dado disponível.
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </Card>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center bg-card p-4 rounded-lg border shadow-sm">
-        <div className="relative w-full sm:w-[320px]">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+      <div className="bg-card p-2 rounded-2xl border border-border/40 shadow-sm flex flex-col sm:flex-row gap-2 items-center">
+        <div className="relative w-full flex-1">
+          <Search className="absolute left-4 top-3 h-5 w-5 text-muted-foreground/60" />
           <Input
-            placeholder="Buscar por nome ou código..."
-            className="pl-9 bg-background"
+            placeholder="Buscar profissional por nome ou código..."
+            className="pl-12 h-11 bg-transparent border-none shadow-none focus-visible:ring-0 text-base"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="w-full sm:w-[260px]">
+        <div className="w-px h-8 bg-border/50 hidden sm:block mx-1"></div>
+        <div className="w-full sm:w-[280px] shrink-0">
           <Select value={formacaoFilter} onValueChange={setFormacaoFilter}>
-            <SelectTrigger className="bg-background">
+            <SelectTrigger className="h-11 bg-transparent border-none shadow-none focus:ring-0 focus:ring-offset-0 px-4 font-medium">
               <SelectValue placeholder="Filtrar por Formação" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-xl">
               <SelectItem value="all">Todas as Formações</SelectItem>
               {formacoes.map((form) => (
                 <SelectItem key={form} value={form}>
@@ -168,10 +203,6 @@ export default function Team() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="sm:ml-auto text-sm font-medium text-muted-foreground">
-          {filteredMembers.length} {filteredMembers.length === 1 ? 'membro' : 'membros'} encontrado
-          {filteredMembers.length !== 1 && 's'}
         </div>
       </div>
 
@@ -187,9 +218,9 @@ export default function Team() {
           ))}
         </div>
       ) : (
-        <Card className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center border-dashed bg-muted/10">
-          <div className="bg-background p-4 rounded-full mb-4 shadow-sm border border-border/50">
-            <Users className="h-10 w-10 text-muted-foreground/60" />
+        <Card className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center border-dashed bg-muted/10 rounded-2xl">
+          <div className="bg-background p-5 rounded-full mb-4 shadow-sm border border-border/50">
+            <Users className="h-10 w-10 text-muted-foreground/50" />
           </div>
           <p className="text-lg font-semibold text-foreground">Nenhum membro encontrado</p>
           <p className="text-sm mt-1">

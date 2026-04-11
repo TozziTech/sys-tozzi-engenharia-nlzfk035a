@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { isValid } from 'date-fns'
 import {
   Dialog,
   DialogContent,
@@ -123,8 +124,20 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
         budget: project.budget !== undefined ? (String(project.budget) as any) : undefined,
         spent: project.spent !== undefined ? (String(project.spent) as any) : undefined,
         progress: String(project.progress) as any,
-        startDate: new Date(project.startDate + 'T00:00:00'),
-        endDate: new Date(project.endDate + 'T00:00:00'),
+        startDate: (() => {
+          if (!project.startDate) return new Date()
+          const d = new Date(
+            project.startDate.includes('T') ? project.startDate : `${project.startDate}T00:00:00`,
+          )
+          return isValid(d) ? d : new Date()
+        })(),
+        endDate: (() => {
+          if (!project.endDate) return new Date()
+          const d = new Date(
+            project.endDate.includes('T') ? project.endDate : `${project.endDate}T00:00:00`,
+          )
+          return isValid(d) ? d : new Date()
+        })(),
         cno: project.cno || '',
         cnpj: project.cnpj || '',
       })

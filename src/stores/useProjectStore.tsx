@@ -7,7 +7,7 @@ import React, {
   useCallback,
   useRef,
 } from 'react'
-import { addDays, subDays, format } from 'date-fns'
+import { addDays, subDays, format, isValid } from 'date-fns'
 import {
   Project,
   User,
@@ -328,8 +328,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           client: r.client || 'Cliente Desconhecido',
           discipline: r.discipline || 'Geral',
           status: r.status || 'Planejamento',
-          startDate: r.start_date ? r.start_date.substring(0, 10) : new Date().toISOString(),
-          endDate: r.end_date ? r.end_date.substring(0, 10) : new Date().toISOString(),
+          startDate:
+            r.start_date && isValid(new Date(r.start_date))
+              ? r.start_date.substring(0, 10)
+              : new Date().toISOString().substring(0, 10),
+          endDate:
+            r.end_date && isValid(new Date(r.end_date))
+              ? r.end_date.substring(0, 10)
+              : new Date().toISOString().substring(0, 10),
           progress: r.progress || 0,
           engineer: r.engineer || 'Não atribuído',
           budget: r.budget || 0,
@@ -469,8 +475,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         engineer: p.engineer,
         budget: p.budget,
         spent: p.spent,
-        start_date: new Date(p.startDate).toISOString(),
-        end_date: new Date(p.endDate).toISOString(),
+        start_date:
+          p.startDate && isValid(new Date(p.startDate))
+            ? new Date(p.startDate).toISOString()
+            : new Date().toISOString(),
+        end_date:
+          p.endDate && isValid(new Date(p.endDate))
+            ? new Date(p.endDate).toISOString()
+            : new Date().toISOString(),
         description: p.description,
       }
       await pb.collection('projects').create(payload)
@@ -495,8 +507,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (p.engineer !== undefined) payload.engineer = p.engineer
       if (p.budget !== undefined) payload.budget = p.budget
       if (p.spent !== undefined) payload.spent = p.spent
-      if (p.startDate !== undefined) payload.start_date = new Date(p.startDate).toISOString()
-      if (p.endDate !== undefined) payload.end_date = new Date(p.endDate).toISOString()
+      if (p.startDate !== undefined) {
+        const d = new Date(p.startDate)
+        if (isValid(d)) payload.start_date = d.toISOString()
+      }
+      if (p.endDate !== undefined) {
+        const d = new Date(p.endDate)
+        if (isValid(d)) payload.end_date = d.toISOString()
+      }
       if (p.description !== undefined) payload.description = p.description
 
       await pb.collection('projects').update(id, payload)
@@ -612,6 +630,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (p.status === 'Concluído') return
 
       const endDate = new Date(p.endDate)
+      if (!isValid(endDate)) return
+
       endDate.setHours(0, 0, 0, 0)
 
       const diffTime = endDate.getTime() - now.getTime()
@@ -620,14 +640,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (diffDays >= 0 && diffDays <= 3) {
         addNotification({
           title: 'Prazo Crítico',
-          description: `Atenção: O projeto ${p.name} vence em ${diffDays} dia(s) (${format(new Date(p.endDate), 'dd/MM/yyyy')}).`,
+          description: `Atenção: O projeto ${p.name} vence em ${diffDays} dia(s) (${format(endDate, 'dd/MM/yyyy')}).`,
           link: `/projects/${p.id}`,
         })
         const localUrl = localStorage.getItem('slackWebhookUrl') || ''
         sendSlackNotification(
           localUrl,
           '⚠️ Alerta de Prazo Crítico',
-          `O projeto *${p.name}* tem uma entrega se aproximando em ${diffDays} dia(s) (Data de Entrega: ${p.endDate}).`,
+          `O projeto *${p.name}* tem uma entrega se aproximando em ${diffDays} dia(s) (Data de Entrega: ${format(endDate, 'dd/MM/yyyy')}).`,
         )
       } else if (diffDays < 0) {
         if (p.status !== 'Atrasado') {

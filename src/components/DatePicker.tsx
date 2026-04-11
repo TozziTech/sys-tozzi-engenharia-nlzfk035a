@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { format } from 'date-fns'
+import { format, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Calendar as CalendarIcon } from 'lucide-react'
 
@@ -26,7 +26,7 @@ export function DatePicker({ date, setDate, label = 'Selecione uma data' }: Date
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, 'PPP', { locale: ptBR }) : <span>{label}</span>}
+          {date && isValid(date) ? format(date, 'PPP', { locale: ptBR }) : <span>{label}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

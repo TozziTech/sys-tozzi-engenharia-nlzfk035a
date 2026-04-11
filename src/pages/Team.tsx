@@ -19,7 +19,7 @@ export default function Team() {
   const [localUsers, setLocalUsers] = useState<User[]>([])
   const [editedUsers, setEditedUsers] = useState<Record<string, User>>({})
   const [deletedUsers, setDeletedUsers] = useState<Set<string>>(new Set())
-  const [specialtyFilter, setSpecialtyFilter] = useState<string>('all')
+  const [formacaoFilter, setFormacaoFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   const allMembers = useMemo(() => {
@@ -27,19 +27,21 @@ export default function Team() {
     return [...storeMembers, ...localUsers]
   }, [users, localUsers, editedUsers])
 
-  const specialties = useMemo(() => {
-    const specs = new Set(allMembers.map((m) => m.specialty).filter(Boolean))
-    return Array.from(specs) as string[]
+  const formacoes = useMemo(() => {
+    const forms = new Set(allMembers.map((m) => (m as any).formacao || m.specialty).filter(Boolean))
+    return Array.from(forms) as string[]
   }, [allMembers])
 
   const filteredMembers = useMemo(() => {
     return allMembers.filter((m) => {
       if (deletedUsers.has(m.id)) return false
-      const matchesSpec = specialtyFilter === 'all' || m.specialty === specialtyFilter
-      const matchesSearch = !searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesSpec && matchesSearch
+      const mFormacao = (m as any).formacao || m.specialty
+      const matchesFormacao = formacaoFilter === 'all' || mFormacao === formacaoFilter
+      const searchString = `${(m as any).codigo || ''} ${m.name}`.toLowerCase()
+      const matchesSearch = !searchQuery || searchString.includes(searchQuery.toLowerCase())
+      return matchesFormacao && matchesSearch
     })
-  }, [allMembers, specialtyFilter, searchQuery, deletedUsers])
+  }, [allMembers, formacaoFilter, searchQuery, deletedUsers])
 
   const handleAddMember = (user: User) => {
     setLocalUsers((prev) => [...prev, user])
@@ -82,22 +84,22 @@ export default function Team() {
         <div className="relative w-full sm:w-[320px]">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nome..."
+            placeholder="Buscar por nome ou código..."
             className="pl-9 bg-background"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <div className="w-full sm:w-[260px]">
-          <Select value={specialtyFilter} onValueChange={setSpecialtyFilter}>
+          <Select value={formacaoFilter} onValueChange={setFormacaoFilter}>
             <SelectTrigger className="bg-background">
-              <SelectValue placeholder="Filtrar por Especialidade" />
+              <SelectValue placeholder="Filtrar por Formação" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas as Especialidades</SelectItem>
-              {specialties.map((spec) => (
-                <SelectItem key={spec} value={spec}>
-                  {spec}
+              <SelectItem value="all">Todas as Formações</SelectItem>
+              {formacoes.map((form) => (
+                <SelectItem key={form} value={form}>
+                  {form}
                 </SelectItem>
               ))}
             </SelectContent>

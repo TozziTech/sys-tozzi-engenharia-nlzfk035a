@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import useProjectStore from '@/stores/useProjectStore'
 import { ProjetistaDashboard } from './ProjetistaDashboard'
+import pb from '@/lib/pocketbase/client'
 import {
   Edit2,
   Mail,
@@ -79,6 +80,21 @@ export function MemberCard({
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
+  const u = user as any
+  let addrStr = ''
+  if (u.logradouro) {
+    addrStr += u.logradouro
+    if (u.numero) addrStr += `, ${u.numero}`
+    if (u.bairro) addrStr += ` - ${u.bairro}`
+    if (u.cidade) addrStr += `, ${u.cidade}`
+    if (u.uf) addrStr += ` - ${u.uf}`
+    if (u.cep) addrStr += ` (CEP: ${u.cep})`
+  } else {
+    addrStr = user.address || 'Não informado'
+  }
+
+  const formacaoDisplay = u.formacao || user.specialty || 'Sem Formação'
+
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md border-border/60 group">
       <CardHeader className="flex flex-col pb-4 relative border-b border-border/40">
@@ -87,15 +103,19 @@ export function MemberCard({
             <Dialog>
               <DialogTrigger asChild>
                 <button className="text-xl leading-tight font-bold text-left hover:underline text-primary transition-colors cursor-pointer block w-full truncate">
+                  {u.codigo ? `${u.codigo} - ` : ''}
                   {user.name}
                 </button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[800px] h-[85vh] flex flex-col p-0 overflow-hidden bg-background">
                 <div className="p-6 pb-4 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/10 shrink-0">
                   <div>
-                    <DialogTitle className="text-2xl font-bold">{user.name}</DialogTitle>
+                    <DialogTitle className="text-2xl font-bold">
+                      {u.codigo ? `${u.codigo} - ` : ''}
+                      {user.name}
+                    </DialogTitle>
                     <DialogDescription className="text-base font-medium text-primary mt-1 flex items-center gap-2">
-                      <Briefcase className="h-4 w-4" /> {user.specialty || 'Sem Especialidade'}
+                      <Briefcase className="h-4 w-4" /> {formacaoDisplay}
                     </DialogDescription>
                   </div>
                   <Button
@@ -133,7 +153,7 @@ export function MemberCard({
                           <div className="flex items-start gap-3 text-muted-foreground">
                             <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
                             <span className="font-medium text-foreground line-clamp-2">
-                              {user.address || 'Não informado'}
+                              {addrStr}
                             </span>
                           </div>
                           <div className="flex items-center gap-3 text-muted-foreground pt-1">
@@ -335,7 +355,7 @@ export function MemberCard({
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Briefcase className="h-4 w-4 shrink-0 text-primary/70" />
-            <span className="truncate">{user.specialty || 'Sem especialidade'}</span>
+            <span className="truncate">{formacaoDisplay}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Mail className="h-4 w-4 shrink-0 text-primary/70" />
@@ -359,8 +379,35 @@ export function MemberCard({
 
 function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
   const { projects } = useProjectStore()
-  const [formData, setFormData] = useState<Partial<User>>(user)
+  const [formData, setFormData] = useState<Partial<User> & Record<string, any>>(user)
   const [selectedProjects, setSelectedProjects] = useState<string[]>(user.assignedProjects || [])
+
+  const [formacaoSelect, setFormacaoSelect] = useState(() => {
+    const f = (user as any).formacao || user.specialty || ''
+    const predefined = [
+      'Engenheiro Civil',
+      'Engenheiro Elétrico',
+      'Engenheiro Mecânico',
+      'Arquiteto',
+      'Topógrafo',
+    ]
+    if (!f) return 'Engenheiro Civil'
+    if (predefined.includes(f)) return f
+    return 'Outros'
+  })
+
+  const [formacaoCustom, setFormacaoCustom] = useState(() => {
+    const f = (user as any).formacao || user.specialty || ''
+    const predefined = [
+      'Engenheiro Civil',
+      'Engenheiro Elétrico',
+      'Engenheiro Mecânico',
+      'Arquiteto',
+      'Topógrafo',
+    ]
+    if (f && !predefined.includes(f)) return f
+    return ''
+  })
 
   const handleChange = (field: string, value: any) => {
     if (field.startsWith('bank_')) {
@@ -383,8 +430,35 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
     )
   }
 
-  const handleSave = () => {
-    onSave({ ...user, ...formData, assignedProjects: selectedProjects })
+  const handleSave = async () => {
+    const finalFormacao = formacaoSelect === 'Outros' ? formacaoCustom : formacaoSelect
+    const updatedUser = {
+      ...user,
+      ...formData,
+      formacao: finalFormacao,
+      specialty: finalFormacao,
+      assignedProjects: selectedProjects,
+    }
+
+    try {
+      await pb.collection('users').update(user.id, {
+        codigo: formData.codigo,
+        formacao: finalFormacao,
+        logradouro: formData.logradouro,
+        numero: formData.numero,
+        bairro: formData.bairro,
+        cidade: formData.cidade,
+        uf: formData.uf,
+        cep: formData.cep,
+        name: formData.name,
+        phone: formData.phone,
+        crea: formData.crea,
+      })
+    } catch (err) {
+      console.error('Failed to update in PocketBase', err)
+    }
+
+    onSave(updatedUser)
     onOpenChange(false)
   }
 
@@ -435,12 +509,22 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
 
           <ScrollArea className="flex-1 px-6 mt-6">
             <TabsContent value="personal" className="space-y-4 m-0 pb-6">
-              <div className="space-y-2">
-                <Label>Nome Completo</Label>
-                <Input
-                  value={formData.name || ''}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                />
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-2 col-span-3">
+                  <Label>Nome Completo</Label>
+                  <Input
+                    value={formData.name || ''}
+                    onChange={(e) => handleChange('name', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2 col-span-1">
+                  <Label>Código</Label>
+                  <Input
+                    value={formData.codigo || ''}
+                    onChange={(e) => handleChange('codigo', e.target.value)}
+                    placeholder="PROJ-001"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -459,24 +543,76 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Endereço Completo</Label>
-                <Input
-                  value={formData.address || ''}
-                  onChange={(e) => handleChange('address', e.target.value)}
-                />
+
+              <div className="pt-4 border-t border-border/50 mt-6">
+                <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" /> Endereço
+                </h4>
+                <div className="grid grid-cols-12 gap-4">
+                  <div className="space-y-2 col-span-12 sm:col-span-8">
+                    <Label>Logradouro</Label>
+                    <Input
+                      value={formData.logradouro || ''}
+                      onChange={(e) => handleChange('logradouro', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-12 sm:col-span-4">
+                    <Label>Número</Label>
+                    <Input
+                      value={formData.numero || ''}
+                      onChange={(e) => handleChange('numero', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-12 sm:col-span-5">
+                    <Label>Bairro</Label>
+                    <Input
+                      value={formData.bairro || ''}
+                      onChange={(e) => handleChange('bairro', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-12 sm:col-span-4">
+                    <Label>Cidade</Label>
+                    <Input
+                      value={formData.cidade || ''}
+                      onChange={(e) => handleChange('cidade', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-12 sm:col-span-3">
+                    <Label>UF</Label>
+                    <Input
+                      value={formData.uf || ''}
+                      onChange={(e) => handleChange('uf', e.target.value)}
+                      maxLength={2}
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-12 sm:col-span-4">
+                    <Label>CEP</Label>
+                    <Input
+                      value={formData.cep || ''}
+                      onChange={(e) => handleChange('cep', e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
             <TabsContent value="professional" className="space-y-4 m-0 pb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Especialidade</Label>
-                  <Input
-                    value={formData.specialty || ''}
-                    onChange={(e) => handleChange('specialty', e.target.value)}
-                    placeholder="Ex: Engenheiro Civil"
-                  />
+                  <Label>Formação</Label>
+                  <Select value={formacaoSelect} onValueChange={setFormacaoSelect}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Engenheiro Civil">Engenheiro Civil</SelectItem>
+                      <SelectItem value="Engenheiro Elétrico">Engenheiro Elétrico</SelectItem>
+                      <SelectItem value="Engenheiro Mecânico">Engenheiro Mecânico</SelectItem>
+                      <SelectItem value="Arquiteto">Arquiteto</SelectItem>
+                      <SelectItem value="Topógrafo">Topógrafo</SelectItem>
+                      <SelectItem value="Outros">Outros</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>CREA</Label>
@@ -486,15 +622,19 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Valor Hora (R$)</Label>
+
+              {formacaoSelect === 'Outros' && (
+                <div className="space-y-2 animate-in fade-in zoom-in duration-200">
+                  <Label>Especifique a Formação</Label>
                   <Input
-                    type="number"
-                    value={formData.hourlyRate || ''}
-                    onChange={(e) => handleChange('hourlyRate', Number(e.target.value))}
+                    value={formacaoCustom}
+                    onChange={(e) => setFormacaoCustom(e.target.value)}
+                    placeholder="Sua formação..."
                   />
                 </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Cargo no Sistema</Label>
                   <Select

@@ -23,17 +23,23 @@ import { User } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
 import { Plus } from 'lucide-react'
 import { maskCPF, maskRG, maskPhone, validateCPF } from '@/lib/utils'
+import pb from '@/lib/pocketbase/client'
 
 export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
-  const [formData, setFormData] = useState<Partial<User>>({
+  const [formData, setFormData] = useState<Partial<User> & Record<string, any>>({
+    codigo: '',
     name: '',
-    specialty: '',
     role: 'Projetista',
     crea: '',
-    address: '',
+    logradouro: '',
+    numero: '',
+    bairro: '',
+    cidade: '',
+    uf: '',
+    cep: '',
     phone: '',
     email: '',
     cpf: '',
@@ -42,6 +48,9 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     altPhone: '',
     bankData: { bank: '', agency: '', account: '', pix: '' },
   })
+
+  const [formacaoSelect, setFormacaoSelect] = useState('Engenheiro Civil')
+  const [formacaoCustom, setFormacaoCustom] = useState('')
 
   const handleChange = (field: string, value: string) => {
     let maskedValue = value
@@ -60,7 +69,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name) {
       toast({
         title: 'Atenção',
@@ -79,14 +88,24 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       return
     }
 
-    const newUser: User = {
+    const finalFormacao = formacaoSelect === 'Outros' ? formacaoCustom : formacaoSelect
+
+    const newUser: any = {
       id: Math.random().toString(36).substr(2, 9),
       name: formData.name,
+      codigo: formData.codigo,
       avatar: '',
       role: formData.role as any,
-      specialty: formData.specialty,
+      formacao: finalFormacao,
+      specialty: finalFormacao, // keep for backwards compatibility if needed
       crea: formData.crea,
-      address: formData.address,
+      logradouro: formData.logradouro,
+      numero: formData.numero,
+      bairro: formData.bairro,
+      cidade: formData.cidade,
+      uf: formData.uf,
+      cep: formData.cep,
+      address: `${formData.logradouro}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.uf}`, // fallback
       phone: formData.phone,
       email: formData.email,
       cpf: formData.cpf,
@@ -97,15 +116,42 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       assignedProjects: [],
     }
 
-    onAdd(newUser)
+    try {
+      const createdRecord = await pb.collection('users').create({
+        email: formData.email || `temp_${Date.now()}@example.com`,
+        password: 'password123',
+        passwordConfirm: 'password123',
+        name: formData.name,
+        codigo: formData.codigo,
+        formacao: finalFormacao,
+        logradouro: formData.logradouro,
+        numero: formData.numero,
+        bairro: formData.bairro,
+        cidade: formData.cidade,
+        uf: formData.uf,
+        cep: formData.cep,
+        crea: formData.crea,
+        phone: formData.phone,
+      })
+      newUser.id = createdRecord.id
+    } catch (err) {
+      console.error('Failed to create in PocketBase', err)
+    }
+
+    onAdd(newUser as User)
     toast({ title: 'Sucesso', description: 'Membro adicionado à equipe com sucesso.' })
     setOpen(false)
     setFormData({
+      codigo: '',
       name: '',
-      specialty: '',
       role: 'Projetista',
       crea: '',
-      address: '',
+      logradouro: '',
+      numero: '',
+      bairro: '',
+      cidade: '',
+      uf: '',
+      cep: '',
       phone: '',
       email: '',
       cpf: '',
@@ -114,6 +160,8 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       altPhone: '',
       bankData: { bank: '', agency: '', account: '', pix: '' },
     })
+    setFormacaoSelect('Engenheiro Civil')
+    setFormacaoCustom('')
   }
 
   return (
@@ -139,11 +187,22 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
               <div className="space-y-2 col-span-2 sm:col-span-1">
                 <Label>Nome Completo</Label>
                 <Input
-                  value={formData.name}
+                  value={formData.name || ''}
                   onChange={(e) => handleChange('name', e.target.value)}
                   placeholder="Ex: João da Silva"
                 />
               </div>
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label>Código (ID)</Label>
+                <Input
+                  value={formData.codigo || ''}
+                  onChange={(e) => handleChange('codigo', e.target.value)}
+                  placeholder="Ex: PROJ-001"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2 col-span-2 sm:col-span-1">
                 <Label>Cargo</Label>
                 <Select value={formData.role} onValueChange={(v) => handleChange('role', v)}>
@@ -157,32 +216,52 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 col-span-2 sm:col-span-1">
-                <Label>Especialidade</Label>
-                <Input
-                  value={formData.specialty}
-                  onChange={(e) => handleChange('specialty', e.target.value)}
-                  placeholder="Ex: Engenheiro Civil"
-                />
-              </div>
               <div className="space-y-2 col-span-2 sm:col-span-1">
                 <Label>CREA</Label>
                 <Input
-                  value={formData.crea}
+                  value={formData.crea || ''}
                   onChange={(e) => handleChange('crea', e.target.value)}
                   placeholder="123456/UF"
                 />
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label>Formação</Label>
+                <Select value={formacaoSelect} onValueChange={setFormacaoSelect}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Engenheiro Civil">Engenheiro Civil</SelectItem>
+                    <SelectItem value="Engenheiro Elétrico">Engenheiro Elétrico</SelectItem>
+                    <SelectItem value="Engenheiro Mecânico">Engenheiro Mecânico</SelectItem>
+                    <SelectItem value="Arquiteto">Arquiteto</SelectItem>
+                    <SelectItem value="Topógrafo">Topógrafo</SelectItem>
+                    <SelectItem value="Outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formacaoSelect === 'Outros' ? (
+                <div className="space-y-2 col-span-2 sm:col-span-1 animate-in fade-in zoom-in duration-200">
+                  <Label>Especifique a Formação</Label>
+                  <Input
+                    value={formacaoCustom}
+                    onChange={(e) => setFormacaoCustom(e.target.value)}
+                    placeholder="Sua formação..."
+                  />
+                </div>
+              ) : (
+                <div className="hidden sm:block col-span-1"></div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Email</Label>
               <Input
                 type="email"
-                value={formData.email}
+                value={formData.email || ''}
                 onChange={(e) => handleChange('email', e.target.value)}
                 placeholder="contato@exemplo.com"
               />
@@ -192,7 +271,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
               <div className="space-y-2 col-span-2 sm:col-span-1">
                 <Label>Telefone</Label>
                 <Input
-                  value={formData.phone}
+                  value={formData.phone || ''}
                   onChange={(e) => handleChange('phone', e.target.value)}
                   placeholder="(00) 00000-0000"
                   maxLength={15}
@@ -209,13 +288,59 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Endereço</Label>
-              <Input
-                value={formData.address}
-                onChange={(e) => handleChange('address', e.target.value)}
-                placeholder="Rua, Número, Bairro, Cidade - UF"
-              />
+            <div className="mt-2 pt-6 border-t border-border/50">
+              <h4 className="font-semibold text-sm mb-4">Endereço</h4>
+              <div className="grid grid-cols-12 gap-4">
+                <div className="space-y-2 col-span-12 sm:col-span-8">
+                  <Label>Logradouro</Label>
+                  <Input
+                    value={formData.logradouro || ''}
+                    onChange={(e) => handleChange('logradouro', e.target.value)}
+                    placeholder="Rua, Avenida..."
+                  />
+                </div>
+                <div className="space-y-2 col-span-12 sm:col-span-4">
+                  <Label>Número</Label>
+                  <Input
+                    value={formData.numero || ''}
+                    onChange={(e) => handleChange('numero', e.target.value)}
+                    placeholder="123"
+                  />
+                </div>
+                <div className="space-y-2 col-span-12 sm:col-span-5">
+                  <Label>Bairro</Label>
+                  <Input
+                    value={formData.bairro || ''}
+                    onChange={(e) => handleChange('bairro', e.target.value)}
+                    placeholder="Centro"
+                  />
+                </div>
+                <div className="space-y-2 col-span-12 sm:col-span-4">
+                  <Label>Cidade</Label>
+                  <Input
+                    value={formData.cidade || ''}
+                    onChange={(e) => handleChange('cidade', e.target.value)}
+                    placeholder="São Paulo"
+                  />
+                </div>
+                <div className="space-y-2 col-span-12 sm:col-span-3">
+                  <Label>UF</Label>
+                  <Input
+                    value={formData.uf || ''}
+                    onChange={(e) => handleChange('uf', e.target.value)}
+                    placeholder="SP"
+                    maxLength={2}
+                  />
+                </div>
+                <div className="space-y-2 col-span-12 sm:col-span-4">
+                  <Label>CEP</Label>
+                  <Input
+                    value={formData.cep || ''}
+                    onChange={(e) => handleChange('cep', e.target.value)}
+                    placeholder="00000-000"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="mt-2 pt-6 border-t border-border/50">

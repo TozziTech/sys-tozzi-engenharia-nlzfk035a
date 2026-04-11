@@ -26,7 +26,32 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import useProjectStore from '@/stores/useProjectStore'
 import { ProjetistaDashboard } from './ProjetistaDashboard'
-import { Edit2, Mail, Phone, MapPin, Building2, Wallet, Briefcase, FileText } from 'lucide-react'
+import {
+  Edit2,
+  Mail,
+  Phone,
+  MapPin,
+  Building2,
+  Wallet,
+  Briefcase,
+  FileText,
+  FileDown,
+  Info,
+  TrendingUp,
+} from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { exportUserPDF } from '@/lib/exportPdf'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { Bar, BarChart } from 'recharts'
+
+const mockFinancialData = [
+  { month: 'Jan', amount: 4500 },
+  { month: 'Fev', amount: 5200 },
+  { month: 'Mar', amount: 4800 },
+  { month: 'Abr', amount: 6100 },
+  { month: 'Mai', amount: 5900 },
+  { month: 'Jun', amount: 7200 },
+]
 
 export function MemberCard({ user, onUpdate }: { user: User; onUpdate: (user: User) => void }) {
   const { projects } = useProjectStore()
@@ -46,12 +71,32 @@ export function MemberCard({ user, onUpdate }: { user: User; onUpdate: (user: Us
               </CardDescription>
             </div>
           </div>
-          <MemberEditDialog
-            user={user}
-            onSave={onUpdate}
-            open={isEditOpen}
-            onOpenChange={setIsEditOpen}
-          />
+          <div className="flex gap-1.5 items-center shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 gap-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  onClick={() => exportUserPDF(user, userProjects)}
+                >
+                  <FileDown className="h-4 w-4" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline-block">
+                    PDF
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Exportar PDF (Dados Temporários)</p>
+              </TooltipContent>
+            </Tooltip>
+            <MemberEditDialog
+              user={user}
+              onSave={onUpdate}
+              open={isEditOpen}
+              onOpenChange={setIsEditOpen}
+            />
+          </div>
         </div>
 
         <div className="flex gap-2 mt-4 items-center">
@@ -176,6 +221,46 @@ export function MemberCard({ user, onUpdate }: { user: User; onUpdate: (user: Us
               <p className="text-xs text-muted-foreground font-medium">Nenhum projeto associado</p>
             </div>
           )}
+        </div>
+
+        <div className="space-y-3 pt-3 border-t border-border/50">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-3.5 w-3.5" /> Desempenho Financeiro
+            </h4>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 rounded-full hover:bg-transparent"
+                >
+                  <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-foreground transition-colors" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-[220px] text-xs">
+                Valores baseados em projetos concluídos. Os dados apresentados são temporários
+                enquanto não há conexão com o banco de dados.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <ChartContainer
+            config={{ amount: { label: 'Recebido', color: 'hsl(var(--primary))' } }}
+            className="h-[80px] w-full"
+          >
+            <BarChart data={mockFinancialData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <ChartTooltip
+                cursor={{ fill: 'hsl(var(--muted))' }}
+                content={<ChartTooltipContent hideLabel />}
+              />
+              <Bar
+                dataKey="amount"
+                fill="var(--color-amount)"
+                radius={[2, 2, 0, 0]}
+                maxBarSize={30}
+              />
+            </BarChart>
+          </ChartContainer>
         </div>
 
         <ProjetistaDashboard user={user} />

@@ -1,0 +1,160 @@
+import { User, Project } from '@/types/project'
+
+export function exportUserPDF(user: User, projects: Project[]) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório Profissional - ${user.name}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            line-height: 1.5; 
+            color: #1a1a1a; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
+          
+          .section { margin-bottom: 30px; page-break-inside: avoid; }
+          .section h2 { 
+            font-size: 16px; 
+            color: #374151; 
+            border-bottom: 1px solid #e5e7eb; 
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+          
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+          .field { margin-bottom: 10px; }
+          .label { font-weight: 600; font-size: 12px; color: #6b7280; text-transform: uppercase; }
+          .value { font-size: 14px; color: #111827; margin-top: 2px; }
+          
+          .project-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          .project-table th, .project-table td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+          }
+          .project-table th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          
+          .footer { 
+            margin-top: 50px; 
+            padding-top: 20px; 
+            border-top: 1px dashed #e5e7eb; 
+            font-size: 12px; 
+            color: #9ca3af; 
+            text-align: center; 
+          }
+          
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> Este é um relatório temporário gerado a partir de dados em memória. A impressão iniciará automaticamente.
+        </div>
+      
+        <div class="header">
+          <h1>${user.name}</h1>
+          <p>${user.specialty || 'Profissional'} • ${user.role || 'Membro da Equipe'}</p>
+        </div>
+        
+        <div class="section">
+          <h2>Dados Pessoais e Profissionais</h2>
+          <div class="grid">
+            <div class="field"><div class="label">Nome Completo</div><div class="value">${user.name}</div></div>
+            <div class="field"><div class="label">CREA</div><div class="value">${user.crea || 'N/A'}</div></div>
+            <div class="field"><div class="label">Cargo</div><div class="value">${user.role || 'N/A'}</div></div>
+            <div class="field"><div class="label">Especialidade</div><div class="value">${user.specialty || 'N/A'}</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Contato</h2>
+          <div class="grid">
+            <div class="field"><div class="label">Email</div><div class="value">${user.email || 'N/A'}</div></div>
+            <div class="field"><div class="label">Telefone</div><div class="value">${user.phone || 'N/A'}</div></div>
+            <div class="field" style="grid-column: span 2;"><div class="label">Endereço</div><div class="value">${user.address || 'N/A'}</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Dados Bancários</h2>
+          <div class="grid">
+            <div class="field"><div class="label">Banco</div><div class="value">${user.bankData?.bank || 'N/A'}</div></div>
+            <div class="field"><div class="label">Agência</div><div class="value">${user.bankData?.agency || 'N/A'}</div></div>
+            <div class="field"><div class="label">Conta</div><div class="value">${user.bankData?.account || 'N/A'}</div></div>
+            <div class="field"><div class="label">Chave PIX</div><div class="value">${user.bankData?.pix || 'N/A'}</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Projetos Associados (${projects.length})</h2>
+          ${
+            projects.length > 0
+              ? `
+            <table class="project-table">
+              <thead>
+                <tr>
+                  <th>Projeto</th>
+                  <th>Cliente</th>
+                  <th>Disciplina</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${projects
+                  .map(
+                    (p) => `
+                  <tr>
+                    <td style="font-weight: 500;">${p.name}</td>
+                    <td>${p.client}</td>
+                    <td>${p.discipline}</td>
+                    <td>${p.status}</td>
+                  </tr>
+                `,
+                  )
+                  .join('')}
+              </tbody>
+            </table>
+          `
+              : '<p style="color: #6b7280; font-size: 14px;">Nenhum projeto associado no momento.</p>'
+          }
+        </div>
+        
+        <div class="footer">
+          Documento gerado pelo Sistema de Gerenciamento de Projetos.<br/>
+          Gerado em: ${new Date().toLocaleString('pt-BR')}
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}

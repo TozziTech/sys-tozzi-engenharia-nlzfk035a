@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Plus, Loader2 } from 'lucide-react'
 import { maskCPF, maskRG, maskPhone, validateCPF } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
 
 export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
@@ -94,12 +94,30 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     setLoading(true)
 
     try {
+      let newCodigo = 'PER-001'
+      try {
+        const result = await pb.collection('users').getList(1, 1, {
+          sort: '-codigo',
+          filter: 'codigo ~ "PER-"',
+        })
+        if (result.items.length > 0) {
+          const lastCodigo = result.items[0].codigo
+          const match = lastCodigo.match(/PER-(\d+)/)
+          if (match) {
+            const nextNum = parseInt(match[1], 10) + 1
+            newCodigo = `PER-${nextNum.toString().padStart(3, '0')}`
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching highest codigo', e)
+      }
+
       const createdRecord = await pb.collection('users').create({
         email: formData.email || `temp_${Date.now()}@example.com`,
         password: 'password123',
         passwordConfirm: 'password123',
         name: formData.name,
-        codigo: formData.codigo,
+        codigo: newCodigo,
         formacao: finalFormacao,
         logradouro: formData.logradouro,
         numero: formData.numero,
@@ -147,12 +165,21 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       })
       setFormacaoSelect('Engenheiro Civil')
       setFormacaoCustom('')
-    } catch (err) {
-      toast({
-        title: 'Erro ao salvar',
-        description: getErrorMessage(err),
-        variant: 'destructive',
-      })
+    } catch (err: any) {
+      const fieldErrors = extractFieldErrors(err)
+      if (fieldErrors.email) {
+        toast({
+          title: 'Email inválido ou já cadastrado',
+          description: fieldErrors.email,
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Erro ao salvar',
+          description: getErrorMessage(err),
+          variant: 'destructive',
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -189,9 +216,9 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
               <div className="space-y-2 col-span-2 sm:col-span-1">
                 <Label>Código (ID)</Label>
                 <Input
-                  value={formData.codigo || ''}
-                  onChange={(e) => handleChange('codigo', e.target.value)}
-                  placeholder="Ex: PROJ-001"
+                  value="Gerado automaticamente"
+                  disabled
+                  className="bg-muted text-muted-foreground"
                 />
               </div>
             </div>

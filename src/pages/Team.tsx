@@ -24,7 +24,7 @@ export default function Team() {
 
   const loadUsers = async () => {
     try {
-      const records = await pb.collection('users').getFullList({ sort: '-created' })
+      const records = await pb.collection('users').getFullList({ sort: '+codigo' })
       setDbUsers(records)
     } catch (error) {
       console.error('Failed to load users', error)

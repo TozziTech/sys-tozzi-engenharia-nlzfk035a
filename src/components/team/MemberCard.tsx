@@ -28,7 +28,7 @@ import useProjectStore from '@/stores/useProjectStore'
 import { ProjetistaDashboard } from './ProjetistaDashboard'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
 import {
   Edit2,
   Mail,
@@ -105,17 +105,31 @@ export function MemberCard({
           <div className="flex-1 space-y-1">
             <Dialog>
               <DialogTrigger asChild>
-                <button className="text-xl leading-tight font-bold text-left hover:underline text-primary transition-colors cursor-pointer block w-full truncate">
-                  {u.codigo ? `${u.codigo} - ` : ''}
-                  {user.name}
+                <button className="text-xl leading-tight font-bold text-left hover:underline text-primary transition-colors cursor-pointer flex items-center gap-2 w-full">
+                  {u.codigo && (
+                    <Badge
+                      variant="default"
+                      className="text-sm px-2 py-0.5 shrink-0 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                    >
+                      {u.codigo}
+                    </Badge>
+                  )}
+                  <span className="truncate">{user.name}</span>
                 </button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[800px] h-[85vh] flex flex-col p-0 overflow-hidden bg-background">
                 <div className="p-6 pb-4 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/10 shrink-0">
                   <div>
-                    <DialogTitle className="text-2xl font-bold">
-                      {u.codigo ? `${u.codigo} - ` : ''}
-                      {user.name}
+                    <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+                      {u.codigo && (
+                        <Badge
+                          variant="default"
+                          className="text-sm px-2.5 py-0.5 bg-primary/10 text-primary border-primary/20"
+                        >
+                          {u.codigo}
+                        </Badge>
+                      )}
+                      <span>{user.name}</span>
                     </DialogTitle>
                     <DialogDescription className="text-base font-medium text-primary mt-1 flex items-center gap-2">
                       <Briefcase className="h-4 w-4" /> {formacaoDisplay}
@@ -465,8 +479,17 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
       toast({ title: 'Sucesso', description: 'Membro atualizado com sucesso.' })
       onSave(updatedUser)
       onOpenChange(false)
-    } catch (err) {
-      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    } catch (err: any) {
+      const fieldErrors = extractFieldErrors(err)
+      if (fieldErrors.email) {
+        toast({
+          title: 'Email inválido ou já cadastrado',
+          description: fieldErrors.email,
+          variant: 'destructive',
+        })
+      } else {
+        toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+      }
     } finally {
       setLoading(false)
     }
@@ -531,8 +554,8 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                   <Label>Código</Label>
                   <Input
                     value={formData.codigo || ''}
-                    onChange={(e) => handleChange('codigo', e.target.value)}
-                    placeholder="PROJ-001"
+                    disabled
+                    className="bg-muted text-muted-foreground"
                   />
                 </div>
               </div>

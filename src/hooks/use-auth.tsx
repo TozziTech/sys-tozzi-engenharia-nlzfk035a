@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import pb from '@/lib/pocketbase/client'
+import { ClientResponseError } from 'pocketbase'
 
 interface AuthContextType {
   user: any
@@ -31,7 +32,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           await pb.collection('users').authWithPassword('tozziengenharia@hotmail.com', 'Skip@Pass')
         } catch (error) {
-          console.error('Auto login failed', error)
+          if (error instanceof ClientResponseError) {
+            console.error(
+              'Auto login failed with ClientResponseError:',
+              error.status,
+              error.message,
+            )
+          } else {
+            console.error('Auto login failed', error)
+          }
           pb.authStore.clear()
           setUser(null)
         }

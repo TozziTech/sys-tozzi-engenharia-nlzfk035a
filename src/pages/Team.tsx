@@ -210,12 +210,7 @@ export default function Team() {
 
         <TabsContent value="designers" className="mt-6 space-y-6">
           <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-semibold">Projetistas Parceiros</h2>
-              <p className="text-sm text-muted-foreground">
-                Gerencie os projetistas terceirizados ou da equipe interna.
-              </p>
-            </div>
+            <div></div>
             <ProjetistaForm onAdd={handleAddDesigner} />
           </div>
 

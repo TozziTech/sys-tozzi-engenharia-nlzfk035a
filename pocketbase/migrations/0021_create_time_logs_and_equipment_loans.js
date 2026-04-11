@@ -1,5 +1,9 @@
 migrate(
   (app) => {
+    const usersId = app.findCollectionByNameOrId('_pb_users_auth_').id
+    const projectsId = app.findCollectionByNameOrId('projects').id
+    const equipmentsId = app.findCollectionByNameOrId('equipments').id
+
     const timeLogs = new Collection({
       name: 'time_logs',
       type: 'base',
@@ -9,17 +13,11 @@ migrate(
       updateRule: "@request.auth.id != ''",
       deleteRule: "@request.auth.id != ''",
       fields: [
-        {
-          name: 'user_id',
-          type: 'relation',
-          collectionId: '_pb_users_auth_',
-          required: true,
-          maxSelect: 1,
-        },
+        { name: 'user_id', type: 'relation', collectionId: usersId, required: true, maxSelect: 1 },
         {
           name: 'project_id',
           type: 'relation',
-          collectionId: 'projects',
+          collectionId: projectsId,
           required: true,
           maxSelect: 1,
         },
@@ -43,20 +41,20 @@ migrate(
         {
           name: 'equipment_id',
           type: 'relation',
-          collectionId: 'equipments',
+          collectionId: equipmentsId,
           required: true,
           maxSelect: 1,
         },
-        {
-          name: 'user_id',
-          type: 'relation',
-          collectionId: '_pb_users_auth_',
-          required: true,
-          maxSelect: 1,
-        },
+        { name: 'user_id', type: 'relation', collectionId: usersId, required: true, maxSelect: 1 },
         { name: 'loan_date', type: 'date', required: true },
         { name: 'return_date', type: 'date', required: false },
-        { name: 'status', type: 'select', values: ['Ativo', 'Devolvido'], required: true },
+        {
+          name: 'status',
+          type: 'select',
+          values: ['Ativo', 'Devolvido'],
+          required: true,
+          maxSelect: 1,
+        },
         { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
         { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
       ],

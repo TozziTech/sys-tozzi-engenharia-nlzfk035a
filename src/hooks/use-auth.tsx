@@ -22,21 +22,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const unsubscribe = pb.authStore.onChange((_token, record) => {
+      setUser(record)
+    })
+
     const initAuth = async () => {
       if (!pb.authStore.isValid) {
         try {
           await pb.collection('users').authWithPassword('tozziengenharia@hotmail.com', 'Skip@Pass')
         } catch (error) {
           console.error('Auto login failed', error)
+          pb.authStore.clear()
         }
       }
       setLoading(false)
     }
     initAuth()
 
-    const unsubscribe = pb.authStore.onChange((_token, record) => {
-      setUser(record)
-    })
     return () => {
       unsubscribe()
     }

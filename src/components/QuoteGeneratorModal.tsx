@@ -22,9 +22,23 @@ import {
   TableFooter,
 } from '@/components/ui/table'
 import { DatePicker } from '@/components/DatePicker'
-import { Plus, Trash, ArrowLeft, Check, InfoIcon, Eye, X, FileDown } from 'lucide-react'
+import {
+  Plus,
+  Trash,
+  ArrowLeft,
+  Check,
+  InfoIcon,
+  Eye,
+  X,
+  FileDown,
+  Paperclip,
+  File as FileIcon,
+  Loader2,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 
 export type QuoteItem = {
   id: string
@@ -47,18 +61,21 @@ export type QuoteData = {
   notIncludedItems?: string
   observations?: string
   items: QuoteItem[]
+  attachments?: (string | File)[]
 }
 
 interface QuoteGeneratorModalProps {
   children?: React.ReactNode
   initialData?: QuoteData
-  onSave?: (data: QuoteData) => void
+  onSave?: (data: QuoteData) => void | Promise<void>
 }
 
 export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGeneratorModalProps) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [isPreview, setIsPreview] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [clientName, setClientName] = useState(initialData?.clientName || '')
   const [clientEmail, setClientEmail] = useState(initialData?.clientEmail || '')
@@ -68,6 +85,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
   const [observations, setObservations] = useState(initialData?.observations || '')
   const [deadline, setDeadline] = useState<Date | undefined>(initialData?.deadline)
   const [paymentMethod, setPaymentMethod] = useState(initialData?.paymentMethod || '')
+  const [attachments, setAttachments] = useState<(string | File)[]>(initialData?.attachments || [])
 
   const [items, setItems] = useState<QuoteItem[]>(
     initialData?.items || [{ id: '1', description: '', quantity: 1, unitPrice: 0 }],
@@ -83,6 +101,8 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
       setObservations(initialData?.observations || '')
       setDeadline(initialData?.deadline)
       setPaymentMethod(initialData?.paymentMethod || '')
+      setAttachments(initialData?.attachments || [])
+      setFieldErrors({})
       setItems(
         initialData?.items || [
           { id: Math.random().toString(), description: '', quantity: 1, unitPrice: 0 },
@@ -111,6 +131,17 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
     setItems(items.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setAttachments((prev) => [...prev, ...Array.from(e.target.files!)])
+    }
+    e.target.value = ''
+  }
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const total = useMemo(
     () => items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0),
     [items],
@@ -121,6 +152,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
     if (!newOpen) {
       setTimeout(() => {
         setIsPreview(false)
+        setIsSaving(false)
       }, 300)
     }
   }
@@ -132,24 +164,53 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
     })
   }
 
-  const handleFinalize = () => {
+  const handleFinalize = async () => {
     if (onSave) {
-      onSave({
-        id: initialData?.id,
-        clientName,
-        clientEmail,
-        projectName,
-        deadline,
-        paymentMethod,
-        includedItems,
-        notIncludedItems,
-        observations,
-        items,
-        status: initialData?.status || 'Pendente',
-        date: initialData?.date || format(new Date(), 'dd/MM/yyyy'),
-      })
+      setIsSaving(true)
+      setFieldErrors({})
+      try {
+        const result = onSave({
+          id: initialData?.id,
+          clientName,
+          clientEmail,
+          projectName,
+          deadline,
+          paymentMethod,
+          includedItems,
+          notIncludedItems,
+          observations,
+          items,
+          attachments,
+          status: initialData?.status || 'Pendente',
+          date: initialData?.date || format(new Date(), 'dd/MM/yyyy'),
+        })
+        if (result instanceof Promise) {
+          await result
+        }
+        setOpen(false)
+      } catch (err) {
+        const errors = extractFieldErrors(err)
+        setFieldErrors(errors)
+        if (Object.keys(errors).length > 0) {
+          setIsPreview(false)
+          toast({
+            variant: 'destructive',
+            title: 'Erro de Validação',
+            description: errors.attachments || 'Verifique os dados preenchidos no formulário.',
+          })
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Erro Inesperado',
+            description: 'Ocorreu um erro ao salvar o orçamento.',
+          })
+        }
+      } finally {
+        setIsSaving(false)
+      }
+    } else {
+      setOpen(false)
     }
-    setOpen(false)
   }
 
   return (
@@ -294,6 +355,45 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                   </Table>
                 </div>
               </div>
+
+              {attachments.length > 0 && (
+                <div className="pt-2">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center">
+                    <Paperclip className="w-4 h-4 mr-1" /> Documentos Anexos
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
+                    {attachments.map((att, i) => {
+                      const isFile = att instanceof File
+                      const name = isFile ? att.name : att
+                      const url = isFile
+                        ? URL.createObjectURL(att)
+                        : initialData?.id
+                          ? pb.files.getUrl(
+                              {
+                                id: initialData.id,
+                                collectionId: 'quotes',
+                                collectionName: 'quotes',
+                              } as any,
+                              att as string,
+                            )
+                          : '#'
+
+                      return (
+                        <a
+                          key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm transition-colors shadow-sm"
+                        >
+                          <FileIcon className="w-4 h-4 mr-2 text-slate-400" />
+                          <span className="truncate max-w-[200px] font-medium">{name}</span>
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {observations && (
                 <div className="pt-2">
@@ -498,6 +598,59 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
               </div>
 
               <div className="space-y-3">
+                <Label className="text-sm font-semibold text-foreground/90 flex items-center gap-2">
+                  <Paperclip className="w-4 h-4 text-slate-500" /> Anexos do Orçamento
+                </Label>
+                <div className="border rounded-md p-4 bg-muted/20">
+                  <Input
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    className="file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 file:text-xs hover:file:bg-primary/90 file:font-medium cursor-pointer"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Formatos suportados: PDF, Imagens, Documentos. Tamanho máximo: 10MB por arquivo.
+                  </p>
+
+                  {attachments.length > 0 && (
+                    <ul className="mt-4 space-y-2">
+                      {attachments.map((att, i) => {
+                        const isFile = att instanceof File
+                        const name = isFile ? att.name : att
+                        return (
+                          <li
+                            key={i}
+                            className="flex items-center justify-between bg-background px-3 py-2 rounded-md border shadow-sm text-sm"
+                          >
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="truncate font-medium">{name}</span>
+                              {isFile && (
+                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold ml-2 shrink-0">
+                                  NOVO
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 ml-2"
+                              onClick={() => handleRemoveAttachment(i)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                  {fieldErrors.attachments && (
+                    <p className="text-sm text-destructive mt-2">{fieldErrors.attachments}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
                 <Label className="text-sm font-semibold text-foreground/90">
                   Observações Gerais
                 </Label>
@@ -519,6 +672,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                 <Button
                   variant="outline"
                   onClick={() => setIsPreview(false)}
+                  disabled={isSaving}
                   className="w-full sm:w-auto"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Edição
@@ -527,13 +681,22 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                   <Button
                     variant="outline"
                     onClick={handleExport}
+                    disabled={isSaving}
                     className="w-full sm:w-auto text-blue-600 border-blue-200 hover:bg-blue-50"
                   >
                     <FileDown className="w-4 h-4 mr-2" /> Exportar PDF
                   </Button>
-                  <Button onClick={handleFinalize} className="w-full sm:w-auto">
-                    <Check className="w-4 h-4 mr-2" />{' '}
-                    {initialData ? 'Salvar Alterações' : 'Finalizar Orçamento'}
+                  <Button onClick={handleFinalize} disabled={isSaving} className="w-full sm:w-auto">
+                    {isSaving ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4 mr-2" />
+                    )}
+                    {isSaving
+                      ? 'Salvando...'
+                      : initialData
+                        ? 'Salvar Alterações'
+                        : 'Finalizar Orçamento'}
                   </Button>
                 </div>
               </>

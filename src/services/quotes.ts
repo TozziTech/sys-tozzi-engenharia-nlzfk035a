@@ -19,6 +19,7 @@ export const quotesService = {
         includedItems: r.included_items,
         notIncludedItems: r.not_included_items,
         observations: r.observations,
+        attachments: r.attachments || [],
       }))
     } catch (e) {
       console.warn('PocketBase fetch failed', e)
@@ -27,27 +28,38 @@ export const quotesService = {
   },
 
   async saveQuote(quote: QuoteData): Promise<QuoteData> {
-    const payload = {
-      client_name: quote.clientName,
-      client_email: quote.clientEmail,
-      project_name: quote.projectName,
-      items: quote.items,
-      total_amount: quote.value,
-      status: quote.status,
-      date: quote.date,
-      deadline: quote.deadline ? quote.deadline.toISOString() : null,
-      payment_method: quote.paymentMethod,
-      included_items: quote.includedItems,
-      not_included_items: quote.notIncludedItems,
-      observations: quote.observations,
+    const formData = new FormData()
+
+    formData.append('client_name', quote.clientName)
+    if (quote.clientEmail) formData.append('client_email', quote.clientEmail)
+    if (quote.projectName) formData.append('project_name', quote.projectName)
+
+    formData.append('items', JSON.stringify(quote.items || []))
+
+    if (quote.value !== undefined) formData.append('total_amount', quote.value.toString())
+    if (quote.status) formData.append('status', quote.status)
+    if (quote.date) formData.append('date', quote.date)
+    if (quote.deadline) formData.append('deadline', quote.deadline.toISOString())
+    if (quote.paymentMethod) formData.append('payment_method', quote.paymentMethod)
+    if (quote.includedItems) formData.append('included_items', quote.includedItems)
+    if (quote.notIncludedItems) formData.append('not_included_items', quote.notIncludedItems)
+    if (quote.observations) formData.append('observations', quote.observations)
+
+    if (quote.attachments && quote.attachments.length > 0) {
+      quote.attachments.forEach((att) => {
+        formData.append('attachments', att)
+      })
+    } else {
+      // Clear attachments field if empty
+      formData.append('attachments', '')
     }
 
     if (quote.id && !quote.id.startsWith('ORC-')) {
-      const record = await pb.collection('quotes').update(quote.id, payload)
-      return { ...quote, id: record.id }
+      const record = await pb.collection('quotes').update(quote.id, formData)
+      return { ...quote, id: record.id, attachments: record.attachments }
     } else {
-      const record = await pb.collection('quotes').create(payload)
-      return { ...quote, id: record.id }
+      const record = await pb.collection('quotes').create(formData)
+      return { ...quote, id: record.id, attachments: record.attachments }
     }
   },
 

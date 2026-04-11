@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   format,
   parseISO,
@@ -41,6 +41,14 @@ export default function Gantt() {
   const { toast } = useToast()
 
   const [zoom, setZoom] = useState<Zoom>('week')
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [hasDragged, setHasDragged] = useState(false)
+  const [startX, setStartX] = useState(0)
+  const [startY, setStartY] = useState(0)
+  const [scrollLeft, setScrollLeft] = useState(0)
+  const [scrollTop, setScrollTop] = useState(0)
   const [disc, setDisc] = useState<string>('all')
   const [stat, setStat] = useState<string>('all')
   const [eng, setEng] = useState<string>('all')
@@ -111,8 +119,58 @@ export default function Gantt() {
   }
 
   const handleProjectClick = (p: Project) => {
+    if (hasDragged) return
     setSelectedProject(p)
     setIsEditModalOpen(true)
+  }
+
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0 && Math.abs(e.deltaX) === 0 && !e.shiftKey) {
+        e.preventDefault()
+        el.scrollLeft += e.deltaY
+      }
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return
+    setIsDragging(true)
+    setHasDragged(false)
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft)
+    setStartY(e.pageY - scrollContainerRef.current.offsetTop)
+    setScrollLeft(scrollContainerRef.current.scrollLeft)
+    setScrollTop(scrollContainerRef.current.scrollTop)
+  }
+
+  const handleMouseLeave = () => {
+    setIsDragging(false)
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return
+    e.preventDefault()
+    const x = e.pageX - scrollContainerRef.current.offsetLeft
+    const y = e.pageY - scrollContainerRef.current.offsetTop
+    const walkX = x - startX
+    const walkY = y - startY
+
+    if (Math.abs(walkX) > 5 || Math.abs(walkY) > 5) {
+      setHasDragged(true)
+    }
+
+    scrollContainerRef.current.scrollLeft = scrollLeft - walkX * 1.5
+    scrollContainerRef.current.scrollTop = scrollTop - walkY * 1.5
   }
 
   return (
@@ -251,7 +309,17 @@ export default function Gantt() {
           </Select>
         </div>
 
-        <div className="flex-1 border rounded-xl bg-card shadow-sm overflow-auto relative z-0 min-h-0">
+        <div
+          ref={scrollContainerRef}
+          className={cn(
+            'flex-1 border rounded-xl bg-card shadow-sm overflow-auto relative z-0 min-h-0 select-none',
+            isDragging ? 'cursor-grabbing' : 'cursor-grab',
+          )}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+        >
           <div className="flex min-w-max w-full">
             {/* Left sticky column */}
             <div className="w-72 flex-shrink-0 sticky left-0 z-30 bg-card border-r shadow-[4px_0_12px_rgba(0,0,0,0.03)]">

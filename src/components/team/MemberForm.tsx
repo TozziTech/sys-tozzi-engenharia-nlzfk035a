@@ -22,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { User } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
 import { Plus } from 'lucide-react'
+import { maskCPF, maskRG, maskPhone } from '@/lib/utils'
 
 export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
@@ -43,14 +44,19 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   })
 
   const handleChange = (field: string, value: string) => {
+    let maskedValue = value
+    if (field === 'cpf') maskedValue = maskCPF(value)
+    else if (field === 'rg') maskedValue = maskRG(value)
+    else if (field === 'phone' || field === 'altPhone') maskedValue = maskPhone(value)
+
     if (field.startsWith('bank_')) {
       const bankField = field.replace('bank_', '')
       setFormData((prev) => ({
         ...prev,
-        bankData: { ...prev.bankData!, [bankField]: value },
+        bankData: { ...prev.bankData!, [bankField]: maskedValue },
       }))
     } else {
-      setFormData((prev) => ({ ...prev, [field]: value }))
+      setFormData((prev) => ({ ...prev, [field]: maskedValue }))
     }
   }
 
@@ -173,13 +179,25 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
-                placeholder="(00) 00000-0000"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label>Telefone</Label>
+                <Input
+                  value={formData.phone}
+                  onChange={(e) => handleChange('phone', e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+              </div>
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label>Telefone Alternativo</Label>
+                <Input
+                  value={formData.altPhone || ''}
+                  onChange={(e) => handleChange('altPhone', e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -193,13 +211,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
 
             <div className="mt-2 pt-6 border-t border-border/50">
               <h4 className="font-semibold text-sm mb-4">Dados Pessoais</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div className="space-y-2 col-span-2 sm:col-span-1">
                   <Label>CPF</Label>
                   <Input
                     value={formData.cpf || ''}
                     onChange={(e) => handleChange('cpf', e.target.value)}
                     placeholder="000.000.000-00"
+                    maxLength={14}
                   />
                 </div>
                 <div className="space-y-2 col-span-2 sm:col-span-1">
@@ -208,6 +227,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                     value={formData.rg || ''}
                     onChange={(e) => handleChange('rg', e.target.value)}
                     placeholder="00.000.000-0"
+                    maxLength={12}
                   />
                 </div>
                 <div className="space-y-2 col-span-2 sm:col-span-1">
@@ -216,14 +236,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                     type="date"
                     value={formData.birthDate || ''}
                     onChange={(e) => handleChange('birthDate', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                  <Label>Telefone Alternativo</Label>
-                  <Input
-                    value={formData.altPhone || ''}
-                    onChange={(e) => handleChange('altPhone', e.target.value)}
-                    placeholder="(00) 00000-0000"
                   />
                 </div>
               </div>

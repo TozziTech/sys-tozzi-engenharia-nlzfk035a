@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,11 +24,12 @@ import { useToast } from '@/hooks/use-toast'
 import { Plus, Loader2 } from 'lucide-react'
 import { maskCPF, maskRG, maskPhone, validateCPF } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
-import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
+import { getErrorMessage, extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
 
 export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const { toast } = useToast()
 
   const [formData, setFormData] = useState<Partial<User> & Record<string, any>>({
@@ -55,7 +56,68 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [formacaoSelect, setFormacaoSelect] = useState('Engenheiro Civil')
   const [formacaoCustom, setFormacaoCustom] = useState('')
 
+  useEffect(() => {
+    if (open) {
+      const fetchNextCodigo = async () => {
+        try {
+          const records = await pb.collection('users').getFullList({
+            filter: 'codigo ~ "PER-"',
+            fields: 'codigo',
+          })
+
+          let maxNum = 0
+          for (const record of records) {
+            const match = record.codigo.match(/PER-(\d+)/)
+            if (match) {
+              const num = parseInt(match[1], 10)
+              if (num > maxNum) {
+                maxNum = num
+              }
+            }
+          }
+
+          const nextNum = maxNum + 1
+          setFormData((prev) => ({
+            ...prev,
+            codigo: `PER-${nextNum.toString().padStart(3, '0')}`,
+          }))
+        } catch (e) {
+          console.error('Error fetching codigos', e)
+        }
+      }
+
+      if (!formData.codigo) {
+        fetchNextCodigo()
+      }
+    } else {
+      setFormData({
+        codigo: '',
+        name: '',
+        role: 'Projetista',
+        crea: '',
+        logradouro: '',
+        numero: '',
+        bairro: '',
+        cidade: '',
+        uf: '',
+        cep: '',
+        phone: '',
+        email: '',
+        cpf: '',
+        rg: '',
+        birthDate: '',
+        altPhone: '',
+        status: 'Ativo',
+        bankData: { bank: '', agency: '', account: '', pix: '' },
+      })
+      setFormacaoSelect('Engenheiro Civil')
+      setFormacaoCustom('')
+      setFieldErrors({})
+    }
+  }, [open])
+
   const handleChange = (field: string, value: string) => {
+    setFieldErrors((prev) => ({ ...prev, [field]: undefined }))
     let maskedValue = value
     if (field === 'cpf') maskedValue = maskCPF(value)
     else if (field === 'rg') maskedValue = maskRG(value)
@@ -73,6 +135,8 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   }
 
   const handleSave = async () => {
+    setFieldErrors({})
+
     if (!formData.name) {
       toast({
         title: 'Atenção',
@@ -91,32 +155,29 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       return
     }
 
+    if (!formData.codigo) {
+      setFieldErrors((prev) => ({ ...prev, codigo: 'O código é obrigatório.' }))
+      return
+    }
+
     const finalFormacao = formacaoSelect === 'Outros' ? formacaoCustom : formacaoSelect
     setLoading(true)
 
     try {
-      let newCodigo = 'PER-001'
       try {
-        const records = await pb.collection('users').getFullList({
-          filter: 'codigo ~ "PER-"',
-          fields: 'codigo',
-        })
-
-        let maxNum = 0
-        for (const record of records) {
-          const match = record.codigo.match(/PER-(\d+)/)
-          if (match) {
-            const num = parseInt(match[1], 10)
-            if (num > maxNum) {
-              maxNum = num
-            }
-          }
+        const existing = await pb
+          .collection('users')
+          .getFirstListItem(`codigo = "${formData.codigo}"`)
+        if (existing) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            codigo: 'Este código já está em uso por outro colaborador',
+          }))
+          setLoading(false)
+          return
         }
-
-        const nextNum = maxNum + 1
-        newCodigo = `PER-${nextNum.toString().padStart(3, '0')}`
-      } catch (e) {
-        console.error('Error fetching codigos', e)
+      } catch (_) {
+        // Not found, safe to proceed
       }
 
       const createdRecord = await pb.collection('users').create({
@@ -124,7 +185,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
         password: 'password123',
         passwordConfirm: 'password123',
         name: formData.name,
-        codigo: newCodigo,
+        codigo: formData.codigo,
         formacao: finalFormacao,
         logradouro: formData.logradouro,
         numero: formData.numero,
@@ -153,34 +214,17 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       onAdd(newUser as User)
       toast({ title: 'Sucesso', description: 'Membro adicionado à equipe com sucesso.' })
       setOpen(false)
-      setFormData({
-        codigo: '',
-        name: '',
-        role: 'Projetista',
-        crea: '',
-        logradouro: '',
-        numero: '',
-        bairro: '',
-        cidade: '',
-        uf: '',
-        cep: '',
-        phone: '',
-        email: '',
-        cpf: '',
-        rg: '',
-        birthDate: '',
-        altPhone: '',
-        status: 'Ativo',
-        bankData: { bank: '', agency: '', account: '', pix: '' },
-      })
-      setFormacaoSelect('Engenheiro Civil')
-      setFormacaoCustom('')
     } catch (err: any) {
-      const fieldErrors = extractFieldErrors(err)
-      if (fieldErrors.email) {
+      const errors = extractFieldErrors(err)
+      if (errors.codigo || err.response?.data?.codigo?.code === 'validation_not_unique') {
+        setFieldErrors((prev) => ({
+          ...prev,
+          codigo: 'Este código já está em uso por outro colaborador',
+        }))
+      } else if (errors.email) {
         toast({
           title: 'Email inválido ou já cadastrado',
-          description: fieldErrors.email,
+          description: errors.email,
           variant: 'destructive',
         })
       } else {
@@ -189,6 +233,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
           description: getErrorMessage(err),
           variant: 'destructive',
         })
+        setFieldErrors(errors)
       }
     } finally {
       setLoading(false)
@@ -226,10 +271,16 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
               <div className="space-y-2 col-span-2 sm:col-span-1">
                 <Label>Código (ID)</Label>
                 <Input
-                  value="Gerado automaticamente"
-                  disabled
-                  className="bg-muted text-muted-foreground"
+                  value={formData.codigo || ''}
+                  onChange={(e) => handleChange('codigo', e.target.value)}
+                  placeholder="Ex: PER-001"
+                  className={
+                    fieldErrors.codigo ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }
                 />
+                {fieldErrors.codigo && (
+                  <p className="text-xs text-destructive mt-1 font-medium">{fieldErrors.codigo}</p>
+                )}
               </div>
             </div>
 

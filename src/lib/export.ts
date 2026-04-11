@@ -2,6 +2,31 @@ import { format } from 'date-fns'
 import { Log } from './mock-logs'
 import { Project } from '@/types/project'
 
+export function exportTeamCSV(users: any[]) {
+  const headers = ['Código', 'Nome', 'Formação', 'Status', 'Cidade', 'UF']
+
+  const rows = users.map((u) => [
+    `"${u.codigo || ''}"`,
+    `"${(u.name || '').replace(/"/g, '""')}"`,
+    `"${(u.formacao || u.specialty || '').replace(/"/g, '""')}"`,
+    `"${u.status || ''}"`,
+    `"${(u.cidade || '').replace(/"/g, '""')}"`,
+    `"${(u.uf || '').replace(/"/g, '""')}"`,
+  ])
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Equipe_Export_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportProjectsCSV(projects: Project[]) {
   const headers = [
     'Nome do Projeto',

@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/card'
 import { MemberCard } from '@/components/team/MemberCard'
 import { MemberForm } from '@/components/team/MemberForm'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { exportTeamCSV } from '@/lib/export'
 import {
   Select,
   SelectContent,
@@ -10,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, Users } from 'lucide-react'
+import { Search, Users, Download } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
@@ -78,12 +80,18 @@ export default function Team() {
   }, [formacaoData])
 
   const filteredMembers = useMemo(() => {
-    return dbUsers.filter((m) => {
+    const filtered = dbUsers.filter((m) => {
       const mFormacao = m.formacao || m.specialty
       const matchesFormacao = formacaoFilter === 'all' || mFormacao === formacaoFilter
       const searchString = `${m.codigo || ''} ${m.name}`.toLowerCase()
       const matchesSearch = !searchQuery || searchString.includes(searchQuery.toLowerCase())
       return matchesFormacao && matchesSearch
+    })
+
+    return filtered.sort((a, b) => {
+      const codeA = a.codigo || ''
+      const codeB = b.codigo || ''
+      return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' })
     })
   }, [dbUsers, formacaoFilter, searchQuery])
 
@@ -107,7 +115,12 @@ export default function Team() {
             Gerencie os membros da equipe, especialidades, acessos e dados financeiros.
           </p>
         </div>
-        <MemberForm onAdd={() => {}} />
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => exportTeamCSV(filteredMembers)}>
+            <Download className="mr-2 h-4 w-4" /> Exportar
+          </Button>
+          <MemberForm onAdd={() => {}} />
+        </div>
       </div>
 
       <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/40 bg-gradient-to-br from-card to-card/50 overflow-hidden">

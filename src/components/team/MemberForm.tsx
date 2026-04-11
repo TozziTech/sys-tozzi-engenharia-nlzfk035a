@@ -220,10 +220,20 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
         }
       }
 
-      if (!hasFieldError) {
+      if (!hasFieldError || errors.codigo || errors.email) {
+        const errorMsg = getErrorMessage(err)
+        const isDuplicate =
+          err.status === 400 &&
+          (errors.codigo ||
+            errors.email ||
+            errorMsg.toLowerCase().includes('failed to create') ||
+            errorMsg.toLowerCase().includes('validation'))
+
         toast({
           title: 'Erro ao salvar',
-          description: getErrorMessage(err),
+          description: isDuplicate
+            ? 'Verifique os dados: Este e-mail ou código já está em uso.'
+            : errorMsg,
           variant: 'destructive',
         })
       }

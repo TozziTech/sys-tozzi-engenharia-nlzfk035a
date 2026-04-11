@@ -687,10 +687,20 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         }
       }
 
-      if (!hasFieldError) {
+      if (!hasFieldError || fieldErrors.codigo || fieldErrors.email) {
+        const errorMsg = getErrorMessage(err)
+        const isDuplicate =
+          err.status === 400 &&
+          (fieldErrors.codigo ||
+            fieldErrors.email ||
+            errorMsg.toLowerCase().includes('failed to update') ||
+            errorMsg.toLowerCase().includes('validation'))
+
         toast({
           title: 'Erro ao salvar',
-          description: getErrorMessage(err),
+          description: isDuplicate
+            ? 'Verifique os dados: Este e-mail ou código já está em uso.'
+            : errorMsg,
           variant: 'destructive',
         })
       }

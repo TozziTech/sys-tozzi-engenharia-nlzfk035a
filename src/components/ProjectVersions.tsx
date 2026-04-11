@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Download, Plus, Circle } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
 export interface ProjectVersion {
   id: string
@@ -53,6 +54,7 @@ const INITIAL_VERSIONS: ProjectVersion[] = [
 export function ProjectVersions({ projectId }: { projectId: string }) {
   const [versions, setVersions] = useState<ProjectVersion[]>(INITIAL_VERSIONS)
   const [isOpen, setIsOpen] = useState(false)
+  const { toast } = useToast()
 
   const [formData, setFormData] = useState({
     version: '',
@@ -70,6 +72,12 @@ export function ProjectVersions({ projectId }: { projectId: string }) {
     }
     setVersions([newVersion, ...versions])
     setIsOpen(false)
+
+    toast({
+      title: 'Nova versão registrada com sucesso!',
+      description: `A versão ${formData.version} foi adicionada ao histórico.`,
+    })
+
     setFormData({
       version: '',
       revision: '',

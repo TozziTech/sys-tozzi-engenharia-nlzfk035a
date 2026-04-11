@@ -130,20 +130,57 @@ export default function DesignerPanel() {
   const { toast } = useToast()
 
   const [hoursLog, setHoursLog] = useState({
-    hours: '',
+    startTime: '',
+    endTime: '',
     description: '',
     date: format(new Date(), 'yyyy-MM-dd'),
   })
   const [isHoursDialogOpen, setIsHoursDialogOpen] = useState(false)
   const [selectedProjectForHours, setSelectedProjectForHours] = useState<string | null>(null)
+  const [projectHours, setProjectHours] = useState<Record<string, number>>({})
 
   const handleLogHours = () => {
+    if (!hoursLog.date || !hoursLog.startTime || !hoursLog.endTime || !hoursLog.description) {
+      toast({
+        title: 'Erro de validação',
+        description: 'Por favor, preencha todos os campos obrigatórios.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const start = new Date(`2000-01-01T${hoursLog.startTime}`)
+    const end = new Date(`2000-01-01T${hoursLog.endTime}`)
+
+    if (end <= start) {
+      toast({
+        title: 'Horário inválido',
+        description: 'O horário de término deve ser posterior ao horário de início.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+
+    if (selectedProjectForHours) {
+      setProjectHours((prev) => ({
+        ...prev,
+        [selectedProjectForHours]: (prev[selectedProjectForHours] || 0) + durationHours,
+      }))
+    }
+
     toast({
       title: 'Horas registradas com sucesso!',
-      description: `${hoursLog.hours}h registradas no projeto.`,
+      description: `${durationHours.toFixed(1)}h registradas no projeto.`,
     })
     setIsHoursDialogOpen(false)
-    setHoursLog({ hours: '', description: '', date: format(new Date(), 'yyyy-MM-dd') })
+    setHoursLog({
+      startTime: '',
+      endTime: '',
+      description: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+    })
     setSelectedProjectForHours(null)
   }
 
@@ -269,6 +306,14 @@ export default function DesignerPanel() {
                     {project.lastActivity}
                   </span>
                 </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 text-indigo-500" /> Horas Registradas
+                  </span>
+                  <span className="font-medium text-indigo-600 dark:text-indigo-400">
+                    {projectHours[project.id] ? `${projectHours[project.id].toFixed(1)}h` : '0h'}
+                  </span>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm font-medium">
@@ -371,7 +416,16 @@ export default function DesignerPanel() {
           </DialogHeader>
           <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <Label htmlFor="date">Data da Atividade</Label>
+              <Label>Projeto</Label>
+              <Input
+                value={MOCK_PROJECTS.find((p) => p.id === selectedProjectForHours)?.name || ''}
+                readOnly
+                disabled
+                className="bg-slate-50 dark:bg-slate-800 font-medium"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="date">Data da Atividade *</Label>
               <Input
                 id="date"
                 type="date"
@@ -379,19 +433,28 @@ export default function DesignerPanel() {
                 onChange={(e) => setHoursLog({ ...hoursLog, date: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="hours">Horas Trabalhadas (Ex: 2.5)</Label>
-              <Input
-                id="hours"
-                type="number"
-                step="0.5"
-                placeholder="0.0"
-                value={hoursLog.hours}
-                onChange={(e) => setHoursLog({ ...hoursLog, hours: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Hora de Início *</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={hoursLog.startTime}
+                  onChange={(e) => setHoursLog({ ...hoursLog, startTime: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endTime">Hora de Término *</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={hoursLog.endTime}
+                  onChange={(e) => setHoursLog({ ...hoursLog, endTime: e.target.value })}
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Descrição da Atividade</Label>
+              <Label htmlFor="description">Descrição da Atividade *</Label>
               <Textarea
                 id="description"
                 placeholder="Descreva brevemente o que foi realizado..."
@@ -400,14 +463,16 @@ export default function DesignerPanel() {
                 onChange={(e) => setHoursLog({ ...hoursLog, description: e.target.value })}
               />
             </div>
+            <p className="text-xs text-muted-foreground italic">
+              * Nota: Estes dados são mockados no estado local e serão perdidos ao recarregar a
+              página.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsHoursDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleLogHours} disabled={!hoursLog.hours || !hoursLog.description}>
-              Salvar Registro
-            </Button>
+            <Button onClick={handleLogHours}>Salvar Registro</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

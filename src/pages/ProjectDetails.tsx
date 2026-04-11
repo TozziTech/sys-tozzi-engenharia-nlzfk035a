@@ -28,6 +28,8 @@ import {
   TrendingUp,
   TrendingDown,
   Download,
+  UploadCloud,
+  File,
 } from 'lucide-react'
 import {
   Select,
@@ -101,8 +103,32 @@ export default function ProjectDetails() {
   const [isDragging, setIsDragging] = useState(false)
   const [projectTeam, setProjectTeam] = useState(MOCK_TEAM)
   const [memberToRemove, setMemberToRemove] = useState<number | null>(null)
+  const [documents, setDocuments] = useState<
+    { id: string; name: string; date: string; size: string }[]
+  >([])
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newDocs = Array.from(e.target.files).map((file) => ({
+        id: crypto.randomUUID(),
+        name: file.name,
+        date: new Date().toLocaleDateString('pt-BR'),
+        size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+      }))
+      setDocuments((prev) => [...prev, ...newDocs])
+      toast({
+        title: 'Documentos anexados',
+        description: `${newDocs.length} arquivo(s) adicionado(s) com sucesso.`,
+      })
+    }
+  }
+
+  const handleDeleteDoc = (docId: string) => {
+    setDocuments((prev) => prev.filter((d) => d.id !== docId))
+    toast({ title: 'Documento removido', description: 'O arquivo foi excluído.' })
+  }
 
   if (!project) {
     return (
@@ -268,12 +294,15 @@ export default function ProjectDetails() {
           </Card>
 
           <Tabs defaultValue="tasks" className="w-full">
-            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-6 p-1">
+            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-7 p-1">
               <TabsTrigger value="tasks" className="flex-1">
                 Tarefas
               </TabsTrigger>
               <TabsTrigger value="team" className="flex-1">
                 Equipe
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="flex-1">
+                Documentos
               </TabsTrigger>
               <TabsTrigger value="comments" className="flex-1">
                 Comentários
@@ -288,6 +317,82 @@ export default function ProjectDetails() {
                 Histórico
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="documents" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Documentos do Projeto</CardTitle>
+                  <CardDescription>
+                    Faça o upload e gerencie os arquivos relacionados a este projeto. (Os dados
+                    serão perdidos ao recarregar a página)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div
+                    className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer"
+                    onClick={() => document.getElementById('file-upload')?.click()}
+                  >
+                    <div className="p-3 bg-primary/10 rounded-full mb-4">
+                      <UploadCloud className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="text-sm font-semibold mb-1">
+                      Clique ou arraste arquivos para cá
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      PDF, DOCX, XLSX, JPG, PNG (Max 10MB)
+                    </p>
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      multiple
+                      onChange={handleFileUpload}
+                    />
+                  </div>
+
+                  {documents.length > 0 ? (
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nome do Arquivo</TableHead>
+                            <TableHead>Data de Adição</TableHead>
+                            <TableHead>Tamanho</TableHead>
+                            <TableHead className="w-[100px] text-right">Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {documents.map((doc) => (
+                            <TableRow key={doc.id}>
+                              <TableCell className="font-medium flex items-center gap-2 whitespace-nowrap">
+                                <File className="h-4 w-4 text-muted-foreground" />
+                                {doc.name}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">{doc.date}</TableCell>
+                              <TableCell className="whitespace-nowrap">{doc.size}</TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteDoc(doc.id)}
+                                  className="hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
+                      Nenhum documento anexado ainda.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             <TabsContent value="tasks" className="mt-4">
               <KanbanBoard projectName={project.name} teamMembers={projectTeam} />

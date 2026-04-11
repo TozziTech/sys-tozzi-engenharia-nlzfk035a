@@ -159,7 +159,9 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
           setLoading(false)
           return
         }
-      } catch (_) {}
+      } catch (_) {
+        // ignore if not found
+      }
 
       if (data.email) {
         try {
@@ -171,7 +173,9 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
             setLoading(false)
             return
           }
-        } catch (_) {}
+        } catch (_) {
+          // ignore if not found
+        }
       }
 
       const createdRecord = await pb.collection('users').create({

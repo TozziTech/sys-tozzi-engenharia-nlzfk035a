@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Calendar as CalendarIcon, Search, Plus, MoreHorizontal } from 'lucide-react'
+import { Calendar as CalendarIcon, Search, Plus, MoreHorizontal, Pencil, Trash } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -23,8 +23,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Select,
   SelectContent,
@@ -75,16 +90,20 @@ export default function GestaoCentral() {
 
   const [items, setItems] = useState(initialData)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const [formData, setFormData] = useState({
+  const defaultFormData = {
     equipamento: '',
     localAtual: '',
     envio: '',
     retornoPrevisto: '',
     responsavel: '',
     status: 'Disponível',
-  })
+  }
+
+  const [formData, setFormData] = useState(defaultFormData)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -95,12 +114,51 @@ export default function GestaoCentral() {
     setFormData((prev) => ({ ...prev, status: value }))
   }
 
+  const parseDateForInput = (dateStr: string) => {
+    if (!dateStr || dateStr === '-') return ''
+    const parts = dateStr.split('/')
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`
+    }
+    return ''
+  }
+
+  const openCreateDialog = () => {
+    setEditingId(null)
+    setFormData(defaultFormData)
+    setIsDialogOpen(true)
+  }
+
+  const openEditDialog = (item: (typeof items)[0]) => {
+    setEditingId(item.id)
+    setFormData({
+      equipamento: item.equipamento === '-' ? '' : item.equipamento,
+      localAtual: item.localAtual === '-' ? '' : item.localAtual,
+      envio: parseDateForInput(item.envio),
+      retornoPrevisto: parseDateForInput(item.retornoPrevisto),
+      responsavel: item.responsavel === '-' ? '' : item.responsavel,
+      status: item.atrasado ? 'Atrasado' : item.status,
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (itemToDelete) {
+      setItems(items.filter((item) => item.id !== itemToDelete))
+      toast({
+        title: 'Equipamento excluído',
+        description: 'O equipamento foi removido com sucesso.',
+      })
+    }
+    setItemToDelete(null)
+  }
+
   const handleSave = () => {
     const isAtrasado = formData.status === 'Atrasado'
     const finalStatus = isAtrasado ? 'Em Uso' : formData.status
 
-    const newItem = {
-      id: `EQ-${String(items.length + 1).padStart(3, '0')}`,
+    const updatedItem = {
+      id: editingId || `EQ-${String(items.length + 1).padStart(3, '0')}`,
       equipamento: formData.equipamento || '-',
       localAtual: formData.localAtual || '-',
       envio: formData.envio ? format(parseISO(formData.envio), 'dd/MM/yyyy') : '-',
@@ -112,21 +170,23 @@ export default function GestaoCentral() {
       atrasado: isAtrasado,
     }
 
-    setItems([...items, newItem])
-    setIsDialogOpen(false)
-    setFormData({
-      equipamento: '',
-      localAtual: '',
-      envio: '',
-      retornoPrevisto: '',
-      responsavel: '',
-      status: 'Disponível',
-    })
+    if (editingId) {
+      setItems(items.map((item) => (item.id === editingId ? updatedItem : item)))
+      toast({
+        title: 'Equipamento atualizado',
+        description: 'Os dados do equipamento foram atualizados com sucesso.',
+      })
+    } else {
+      setItems([...items, updatedItem])
+      toast({
+        title: 'Equipamento registrado',
+        description: 'O novo equipamento foi adicionado com sucesso.',
+      })
+    }
 
-    toast({
-      title: 'Equipamento registrado',
-      description: 'O novo equipamento foi adicionado com sucesso.',
-    })
+    setIsDialogOpen(false)
+    setEditingId(null)
+    setFormData(defaultFormData)
   }
 
   return (
@@ -143,93 +203,116 @@ export default function GestaoCentral() {
           <Button variant="ghost">Relatório</Button>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> Novo
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[550px]">
-            <DialogHeader>
-              <DialogTitle>Novo Equipamento</DialogTitle>
-              <DialogDescription>
-                Preencha os dados abaixo para registrar um novo equipamento no sistema.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="equipamento">Equipamento</Label>
-                <Input
-                  id="equipamento"
-                  name="equipamento"
-                  placeholder="Ex: Betoneira"
-                  value={formData.equipamento}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="localAtual">Local Atual</Label>
-                <Input
-                  id="localAtual"
-                  name="localAtual"
-                  placeholder="Ex: Obra Alpha"
-                  value={formData.localAtual}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="envio">Data de Envio</Label>
-                <Input
-                  id="envio"
-                  type="date"
-                  name="envio"
-                  value={formData.envio}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="retornoPrevisto">Retorno Previsto</Label>
-                <Input
-                  id="retornoPrevisto"
-                  type="date"
-                  name="retornoPrevisto"
-                  value={formData.retornoPrevisto}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="responsavel">Responsável</Label>
-                <Input
-                  id="responsavel"
-                  name="responsavel"
-                  placeholder="Ex: João Silva"
-                  value={formData.responsavel}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={handleSelectChange}>
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Disponível">Disponível</SelectItem>
-                    <SelectItem value="Em Uso">Em Uso</SelectItem>
-                    <SelectItem value="Atrasado">Atrasado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSave}>Salvar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={openCreateDialog}>
+          <Plus className="mr-2 h-4 w-4" /> Novo
+        </Button>
       </div>
+
+      {/* Form Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>{editingId ? 'Editar Equipamento' : 'Novo Equipamento'}</DialogTitle>
+            <DialogDescription>
+              {editingId
+                ? 'Altere os dados abaixo para atualizar o equipamento no sistema.'
+                : 'Preencha os dados abaixo para registrar um novo equipamento no sistema.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="equipamento">Equipamento</Label>
+              <Input
+                id="equipamento"
+                name="equipamento"
+                placeholder="Ex: Betoneira"
+                value={formData.equipamento}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="localAtual">Local Atual</Label>
+              <Input
+                id="localAtual"
+                name="localAtual"
+                placeholder="Ex: Obra Alpha"
+                value={formData.localAtual}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="envio">Data de Envio</Label>
+              <Input
+                id="envio"
+                type="date"
+                name="envio"
+                value={formData.envio}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="retornoPrevisto">Retorno Previsto</Label>
+              <Input
+                id="retornoPrevisto"
+                type="date"
+                name="retornoPrevisto"
+                value={formData.retornoPrevisto}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="responsavel">Responsável</Label>
+              <Input
+                id="responsavel"
+                name="responsavel"
+                placeholder="Ex: João Silva"
+                value={formData.responsavel}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={handleSelectChange}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Disponível">Disponível</SelectItem>
+                  <SelectItem value="Em Uso">Em Uso</SelectItem>
+                  <SelectItem value="Atrasado">Atrasado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este equipamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O equipamento será permanentemente removido da lista.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Filter Section */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-4 py-4">
@@ -329,9 +412,27 @@ export default function GestaoCentral() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Abrir menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEditDialog(item)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+                        onClick={() => setItemToDelete(item.id)}
+                      >
+                        <Trash className="mr-2 h-4 w-4" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}

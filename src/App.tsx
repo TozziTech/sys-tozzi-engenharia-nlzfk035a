@@ -26,43 +26,48 @@ import Quotes from './pages/Quotes'
 import GestaoCentral from './pages/GestaoCentral'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
+import Equipments from './pages/Equipments'
+import { AuthProvider } from './hooks/use-auth'
 
 const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-    <ProjectProvider>
-      <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-        <TooltipProvider>
-          <RealtimeSync />
-          <Toaster />
-          <Sonner />
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/designer-panel" element={<DesignerPanel />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/:id" element={<ProjectDetails />} />
-              <Route path="/financial" element={<Financial />} />
-              <Route path="/financeiro" element={<Finance />} />
-              <Route path="/clients" element={<Clients />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/gantt" element={<Gantt />} />
-              <Route path="/bottlenecks" element={<Bottlenecks />} />
-              <Route path="/timesheet" element={<Timesheet />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/team" element={<Team />} />
-              <Route path="/activities" element={<Activities />} />
-              <Route path="/pending-report" element={<PendingReport />} />
-              <Route path="/performance" element={<Performance />} />
-              <Route path="/quotes" element={<Quotes />} />
-              <Route path="/gestao-central" element={<GestaoCentral />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </TooltipProvider>
-      </BrowserRouter>
-    </ProjectProvider>
+    <AuthProvider>
+      <ProjectProvider>
+        <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+          <TooltipProvider>
+            <RealtimeSync />
+            <Toaster />
+            <Sonner />
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/designer-panel" element={<DesignerPanel />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/projects/:id" element={<ProjectDetails />} />
+                <Route path="/financial" element={<Financial />} />
+                <Route path="/financeiro" element={<Finance />} />
+                <Route path="/clients" element={<Clients />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/gantt" element={<Gantt />} />
+                <Route path="/bottlenecks" element={<Bottlenecks />} />
+                <Route path="/timesheet" element={<Timesheet />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/team" element={<Team />} />
+                <Route path="/activities" element={<Activities />} />
+                <Route path="/pending-report" element={<PendingReport />} />
+                <Route path="/performance" element={<Performance />} />
+                <Route path="/quotes" element={<Quotes />} />
+                <Route path="/gestao-central" element={<GestaoCentral />} />
+                <Route path="/equipments" element={<Equipments />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </TooltipProvider>
+        </BrowserRouter>
+      </ProjectProvider>
+    </AuthProvider>
   </ThemeProvider>
 )
 

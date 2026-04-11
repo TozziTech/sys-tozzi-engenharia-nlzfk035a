@@ -118,12 +118,38 @@ export function exportAuditLogsPDF(logs: any[], currentUser: string) {
   }, 250)
 }
 
-export function exportQuotePDF(quote: any, currentUser: string = 'Usuário') {
+export function exportQuotePDF(quote: any, currentUser: string = 'Usuário', settings: any = null) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+  const headerHtml = settings
+    ? `
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 30px;">
+      <div>
+        ${logoUrl ? `<img src="${logoUrl}" style="max-height: 60px; margin-bottom: 10px;" />` : ''}
+        <h1 style="margin: 0; color: #111827; font-size: 24px;">${settings.company_name || 'Proposta Comercial'}</h1>
+        ${settings.cnpj ? `<p style="margin: 2px 0 0; color: #6b7280; font-size: 12px;">CNPJ: ${settings.cnpj}</p>` : ''}
+        ${settings.address ? `<p style="margin: 2px 0 0; color: #6b7280; font-size: 12px;">${settings.address}</p>` : ''}
+        ${settings.phone ? `<p style="margin: 2px 0 0; color: #6b7280; font-size: 12px;">${settings.phone}</p>` : ''}
+      </div>
+      <div style="text-align: right;">
+        <p style="margin: 0; color: #6b7280; font-size: 14px;"><strong>Ref:</strong> ${quote.id || 'N/A'}</p>
+        <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;"><strong>Data:</strong> ${quote.date || 'N/A'}</p>
+      </div>
+    </div>
+  `
+    : `
+    <div class="header">
+      <h1>Proposta Comercial</h1>
+      <p><strong>Ref:</strong> ${quote.id || 'N/A'} &bull; <strong>Data:</strong> ${quote.date || 'N/A'}</p>
+    </div>
+  `
 
   const html = `
     <!DOCTYPE html>
@@ -194,10 +220,7 @@ export function exportQuotePDF(quote: any, currentUser: string = 'Usuário') {
           <strong>Nota:</strong> A impressão iniciará automaticamente.
         </div>
       
-        <div class="header">
-          <h1>Proposta Comercial</h1>
-          <p><strong>Ref:</strong> ${quote.id || 'N/A'} &bull; <strong>Data:</strong> ${quote.date || 'N/A'}</p>
-        </div>
+        ${headerHtml}
         
         <div class="info-grid">
           <div class="info-item">

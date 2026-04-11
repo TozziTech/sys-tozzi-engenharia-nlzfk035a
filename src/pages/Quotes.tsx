@@ -52,6 +52,9 @@ import {
 } from '@/components/ui/chart'
 import { exportQuotePDF } from '@/lib/exportPdf'
 import { quotesService } from '@/services/quotes'
+import { CompanySettingsModal } from '@/components/CompanySettingsModal'
+import { useRealtime } from '@/hooks/use-realtime'
+import pb from '@/lib/pocketbase/client'
 
 export default function Quotes() {
   const [quotes, setQuotes] = useState<QuoteData[]>([])
@@ -63,24 +66,29 @@ export default function Quotes() {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [emailForm, setEmailForm] = useState({ to: '', subject: '', message: '' })
 
-  useEffect(() => {
-    const loadQuotes = async () => {
-      try {
-        const data = await quotesService.getQuotes()
-        setQuotes(data)
-      } catch (error) {
-        console.error('Failed to load quotes:', error)
-        toast({
-          title: 'Erro',
-          description: 'Não foi possível carregar as propostas.',
-          variant: 'destructive',
-        })
-      } finally {
-        setIsLoading(false)
-      }
+  const loadQuotes = async () => {
+    try {
+      const data = await quotesService.getQuotes()
+      setQuotes(data)
+    } catch (error) {
+      console.error('Failed to load quotes:', error)
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar as propostas.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
     }
+  }
+
+  useEffect(() => {
     loadQuotes()
   }, [toast])
+
+  useRealtime('quotes', () => {
+    loadQuotes()
+  })
 
   const formatCurrency = (value: number | undefined) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
@@ -111,8 +119,16 @@ export default function Quotes() {
     return matchesSearch && matchesStatus
   })
 
-  const handleDownload = (quote: QuoteData) => {
-    exportQuotePDF(quote)
+  const handleDownload = async (quote: QuoteData) => {
+    let settings = null
+    try {
+      const records = await pb.collection('company_settings').getFullList()
+      if (records.length > 0) settings = records[0]
+    } catch (e) {
+      console.error(e)
+    }
+
+    exportQuotePDF(quote, 'Administrador', settings)
     toast({
       title: 'Download iniciado',
       description: 'O orçamento está sendo baixado em PDF.',
@@ -258,11 +274,14 @@ export default function Quotes() {
             </p>
           </div>
         </div>
-        <QuoteGeneratorModal onSave={handleSave}>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" /> Nova Proposta
-          </Button>
-        </QuoteGeneratorModal>
+        <div className="flex gap-2">
+          <CompanySettingsModal />
+          <QuoteGeneratorModal onSave={handleSave}>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Nova Proposta
+            </Button>
+          </QuoteGeneratorModal>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 mt-6">

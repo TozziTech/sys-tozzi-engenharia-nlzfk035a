@@ -298,10 +298,13 @@ interface ProjectStore {
 
 const ProjectContext = createContext<ProjectStore | undefined>(undefined)
 
+import { useRealtime } from '@/hooks/use-realtime'
+import pb from '@/lib/pocketbase/client'
+
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS)
+  const [projects, setProjects] = useState<Project[]>([])
   const [users, setUsers] = useState<User[]>(MOCK_USERS)
-  const [tasks] = useState<Task[]>(MOCK_TASKS)
+  const [tasks, setTasks] = useState<Task[]>([])
   const [timeLogs, setTimeLogs] = useState<AppTimeLog[]>(MOCK_TIME_LOGS)
   const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS)
   const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS)
@@ -310,10 +313,73 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [slackWebhookUrl, setSlackWebhookUrlState] = useState(
     () => localStorage.getItem('slackWebhookUrl') || '',
   )
-  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
   const [categories, setCategories] = useState<ExpenseCategory[]>(MOCK_CATEGORIES)
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const hasCheckedAutomations = useRef(false)
+
+  const loadProjects = async () => {
+    try {
+      const records = await pb.collection('projects').getFullList({ sort: '-created' })
+      setProjects(
+        records.map((r) => ({
+          id: r.id,
+          name: r.name,
+          client: r.client || 'Cliente Desconhecido',
+          discipline: r.discipline || 'Geral',
+          status: r.status || 'Planejamento',
+          startDate: r.start_date ? r.start_date.substring(0, 10) : new Date().toISOString(),
+          endDate: r.end_date ? r.end_date.substring(0, 10) : new Date().toISOString(),
+          progress: r.progress || 0,
+          engineer: r.engineer || 'Não atribuído',
+          budget: r.budget || 0,
+          spent: r.spent || 0,
+          description: r.description,
+        })),
+      )
+    } catch (e) {}
+  }
+
+  const loadTransactions = async () => {
+    try {
+      const records = await pb.collection('financial_records').getFullList({ sort: '-created' })
+      setTransactions(
+        records.map((r) => ({
+          id: r.id,
+          projectId: r.project_id || '',
+          description: r.description,
+          type: r.type,
+          value: r.amount,
+          date: r.date ? r.date.substring(0, 10) : new Date().toISOString(),
+          categoryId: r.category,
+          status: 'Pago',
+        })),
+      )
+    } catch (e) {}
+  }
+
+  const loadTasks = async () => {
+    try {
+      const records = await pb.collection('tasks').getFullList({ sort: '-created' })
+      setTasks(
+        records.map((r) => ({
+          id: r.id,
+          projectId: r.project || '',
+          name: r.title,
+        })),
+      )
+    } catch (e) {}
+  }
+
+  useEffect(() => {
+    loadProjects()
+    loadTransactions()
+    loadTasks()
+  }, [])
+
+  useRealtime('projects', () => loadProjects())
+  useRealtime('financial_records', () => loadTransactions())
+  useRealtime('tasks', () => loadTasks())
 
   const addAuditLog = useCallback((log: Omit<AuditLog, 'id' | 'timestamp'>) => {
     const newLog: AuditLog = {
@@ -324,64 +390,37 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setAuditLogs((prev) => [newLog, ...prev])
   }, [])
 
-  const addTransaction = (t: Omit<Transaction, 'id'>) => {
-    const id = `tr-${Date.now()}`
-    setTransactions((prev) => [{ ...t, id }, ...prev])
-    addAuditLog({
-      user: { name: 'Admin User' },
-      action: 'Create',
-      entityType: 'Transaction',
-      entityName: t.description,
-      changes: [
-        { field: 'Valor', newValue: String(t.value) },
-        { field: 'Tipo', newValue: t.type },
-      ],
-    })
+  const addTransaction = async (t: Omit<Transaction, 'id'>) => {
+    try {
+      await pb.collection('financial_records').create({
+        description: t.description,
+        amount: t.value,
+        type: t.type,
+        category: t.categoryId,
+        project_id: t.projectId,
+        date: new Date(t.date).toISOString(),
+      })
+    } catch (e) {}
   }
 
-  const updateTransaction = (id: string, data: Partial<Transaction>) => {
-    setTransactions((prev) => {
-      const oldTr = prev.find((t) => t.id === id)
-      if (oldTr) {
-        const changes: AuditLogChange[] = []
-        Object.keys(data).forEach((k) => {
-          const key = k as keyof Transaction
-          if (data[key] !== oldTr[key] && data[key] !== undefined) {
-            changes.push({
-              field: key,
-              oldValue: String(oldTr[key] || ''),
-              newValue: String(data[key] || ''),
-            })
-          }
-        })
-        if (changes.length > 0) {
-          addAuditLog({
-            user: { name: 'Admin User' },
-            action: 'Update',
-            entityType: 'Transaction',
-            entityName: oldTr.description,
-            changes,
-          })
-        }
-      }
-      return prev.map((t) => (t.id === id ? { ...t, ...data } : t))
-    })
+  const updateTransaction = async (id: string, data: Partial<Transaction>) => {
+    try {
+      const payload: any = {}
+      if (data.description !== undefined) payload.description = data.description
+      if (data.value !== undefined) payload.amount = data.value
+      if (data.type !== undefined) payload.type = data.type
+      if (data.categoryId !== undefined) payload.category = data.categoryId
+      if (data.projectId !== undefined) payload.project_id = data.projectId
+      if (data.date !== undefined) payload.date = new Date(data.date).toISOString()
+
+      await pb.collection('financial_records').update(id, payload)
+    } catch (e) {}
   }
 
-  const deleteTransaction = (id: string) => {
-    setTransactions((prev) => {
-      const oldTr = prev.find((t) => t.id === id)
-      if (oldTr) {
-        addAuditLog({
-          user: { name: 'Admin User' },
-          action: 'Delete',
-          entityType: 'Transaction',
-          entityName: oldTr.description,
-          changes: [],
-        })
-      }
-      return prev.filter((tr) => tr.id !== id)
-    })
+  const deleteTransaction = async (id: string) => {
+    try {
+      await pb.collection('financial_records').delete(id)
+    } catch (e) {}
   }
 
   const addCategory = (c: Omit<ExpenseCategory, 'id'>) => {
@@ -407,81 +446,59 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setNotifications((prev) => [newNotif, ...prev])
   }, [])
 
-  const addProject = (p: Project) => {
-    setProjects((prev) => [p, ...prev])
-    addAuditLog({
-      user: { name: 'Admin User' },
-      action: 'Create',
-      entityType: 'Project',
-      entityName: p.name,
-      changes: [
-        { field: 'Status', newValue: p.status },
-        { field: 'Engenheiro', newValue: p.engineer },
-      ],
-    })
-    sendSlackNotification(
-      slackWebhookUrl,
-      '🚀 Novo Projeto Criado',
-      `O projeto *${p.name}* foi criado por *${p.engineer}*.`,
-    )
+  const addProject = async (p: Project) => {
+    try {
+      const payload = {
+        name: p.name,
+        client: p.client,
+        discipline: p.discipline,
+        status: p.status,
+        progress: p.progress,
+        engineer: p.engineer,
+        budget: p.budget,
+        spent: p.spent,
+        start_date: new Date(p.startDate).toISOString(),
+        end_date: new Date(p.endDate).toISOString(),
+        description: p.description,
+      }
+      await pb.collection('projects').create(payload)
+      sendSlackNotification(
+        slackWebhookUrl,
+        '🚀 Novo Projeto Criado',
+        `O projeto *${p.name}* foi criado por *${p.engineer}*.`,
+      )
+    } catch (e) {
+      console.error(e)
+    }
   }
 
-  const updateProject = (id: string, p: Partial<Project>) => {
-    setProjects((prev) => {
-      const oldProject = prev.find((proj) => proj.id === id)
-      if (oldProject) {
-        const changes: AuditLogChange[] = []
-        Object.keys(p).forEach((k) => {
-          const key = k as keyof Project
-          if (p[key] !== oldProject[key] && p[key] !== undefined) {
-            changes.push({
-              field: key,
-              oldValue: String(oldProject[key] || ''),
-              newValue: String(p[key] || ''),
-            })
-          }
-        })
-        if (changes.length > 0) {
-          addAuditLog({
-            user: { name: 'Admin User' },
-            action: 'Update',
-            entityType: 'Project',
-            entityName: oldProject.name,
-            changes,
-          })
-        }
+  const updateProject = async (id: string, p: Partial<Project>) => {
+    try {
+      const payload: any = {}
+      if (p.name !== undefined) payload.name = p.name
+      if (p.client !== undefined) payload.client = p.client
+      if (p.discipline !== undefined) payload.discipline = p.discipline
+      if (p.status !== undefined) payload.status = p.status
+      if (p.progress !== undefined) payload.progress = p.progress
+      if (p.engineer !== undefined) payload.engineer = p.engineer
+      if (p.budget !== undefined) payload.budget = p.budget
+      if (p.spent !== undefined) payload.spent = p.spent
+      if (p.startDate !== undefined) payload.start_date = new Date(p.startDate).toISOString()
+      if (p.endDate !== undefined) payload.end_date = new Date(p.endDate).toISOString()
+      if (p.description !== undefined) payload.description = p.description
 
-        if (p.status && oldProject.status !== p.status) {
-          addNotification({
-            title: 'Atualização de Status',
-            description: `O projeto ${oldProject.name} mudou o status para ${p.status}.`,
-            link: `/projects/${id}`,
-          })
-          sendSlackNotification(
-            slackWebhookUrl,
-            '🔄 Atualização de Status',
-            `O projeto *${oldProject.name}* mudou de status: \n*Anterior:* ${oldProject.status} \n*Novo:* ${p.status}`,
-          )
-        }
-      }
-      return prev.map((proj) => (proj.id === id ? { ...proj, ...p } : proj))
-    })
+      await pb.collection('projects').update(id, payload)
+    } catch (e) {
+      console.error(e)
+    }
   }
 
-  const deleteProject = (id: string) => {
-    setProjects((prev) => {
-      const oldProject = prev.find((proj) => proj.id === id)
-      if (oldProject) {
-        addAuditLog({
-          user: { name: 'Admin User' },
-          action: 'Delete',
-          entityType: 'Project',
-          entityName: oldProject.name,
-          changes: [],
-        })
-      }
-      return prev.filter((proj) => proj.id !== id)
-    })
+  const deleteProject = async (id: string) => {
+    try {
+      await pb.collection('projects').delete(id)
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const addComment = (c: Comment) => setComments((prev) => [...prev, c])

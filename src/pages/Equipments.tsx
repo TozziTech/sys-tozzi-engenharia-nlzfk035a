@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/use-auth'
 import {
   Table,
   TableBody,
@@ -35,6 +36,7 @@ export default function Equipments() {
   const [equipments, setEquipments] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const { user } = useAuth()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -92,6 +94,36 @@ export default function Equipments() {
       } catch (e) {
         toast({ title: 'Erro ao excluir', variant: 'destructive' })
       }
+    }
+  }
+
+  const handleQuickMaintenance = async (eq: any) => {
+    try {
+      const today = new Date()
+      const next = new Date()
+      next.setMonth(next.getMonth() + 6)
+
+      await pb.collection('equipments').update(eq.id, {
+        last_maintenance: today.toISOString().split('T')[0],
+        next_maintenance: next.toISOString().split('T')[0],
+        condition: 'Bom',
+      })
+
+      if (user) {
+        await pb.collection('audit_logs').create({
+          user_id: user.id,
+          action: 'QUICK_MAINTENANCE',
+          resource: eq.name,
+          details: {
+            equipment_id: eq.id,
+            action: 'Manutenção finalizada rapidamente',
+          },
+        })
+      }
+
+      toast({ title: 'Manutenção finalizada com sucesso!' })
+    } catch (e) {
+      toast({ title: 'Erro ao finalizar manutenção', variant: 'destructive' })
     }
   }
 
@@ -247,6 +279,15 @@ export default function Equipments() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleQuickMaintenance(eq)}
+                      title="Finalizar Manutenção"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                    >
+                      <Wrench className="w-4 h-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => openModal(eq)}>
                       <Pencil className="w-4 h-4" />
                     </Button>

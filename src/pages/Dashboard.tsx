@@ -17,8 +17,14 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Link } from 'react-router-dom'
+import { Printer } from 'lucide-react'
+import { PrintDashboardReport } from '@/components/PrintDashboardReport'
+import { useAuth } from '@/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
 
 const Dashboard = () => {
+  const { user } = useAuth()
+  const { toast } = useToast()
   const [projects, setProjects] = useState<any[]>([])
   const [financials, setFinancials] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,6 +50,15 @@ const Dashboard = () => {
 
   useRealtime('projects', () => loadData())
   useRealtime('financial_records', () => loadData())
+  useRealtime('audit_logs', (e) => {
+    if (e.action === 'create' && e.record.action === 'CRITICAL_BOTTLENECK') {
+      toast({
+        title: 'Gargalo Crítico Detectado',
+        description: `Atenção requerida no projeto: ${e.record.resource}`,
+        variant: 'destructive',
+      })
+    }
+  })
 
   // Calculate bottlenecks
   const bottlenecks = useMemo(() => {
@@ -131,8 +146,23 @@ const Dashboard = () => {
               Gerar Orçamento
             </Button>
           </QuoteGeneratorModal>
+          <Button
+            variant="outline"
+            className="w-full md:w-auto shadow-sm"
+            onClick={() => window.print()}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Exportar Relatório
+          </Button>
         </div>
       </div>
+
+      <PrintDashboardReport
+        projects={projects}
+        financials={financials}
+        bottlenecks={bottlenecks}
+        userName={user?.name || user?.email || 'Administrador'}
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 pt-2">
         <Card className="shadow-sm border-muted/60">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FileDown, MoreHorizontal, Plus, Search, Info } from 'lucide-react'
+import { FileDown, Plus, Search, Info, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -12,53 +12,77 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { QuoteGeneratorModal } from '@/components/QuoteGeneratorModal'
+import { QuoteGeneratorModal, type QuoteData } from '@/components/QuoteGeneratorModal'
 import { useToast } from '@/hooks/use-toast'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
-const MOCK_QUOTES = [
+const INITIAL_QUOTES: QuoteData[] = [
   {
     id: 'ORC-2023-001',
-    client: 'Construtora Alpha',
-    project: 'Reforma Comercial',
+    clientName: 'Construtora Alpha',
+    projectName: 'Reforma Comercial',
     date: '10/05/2023',
     value: 15000,
     status: 'Aprovado',
+    items: [{ id: '1', description: 'Reforma Comercial', quantity: 1, unitPrice: 15000 }],
   },
   {
     id: 'ORC-2023-002',
-    client: 'Residencial Betel',
-    project: 'Projeto Arquitetônico',
+    clientName: 'Residencial Betel',
+    projectName: 'Projeto Arquitetônico',
     date: '12/05/2023',
     value: 8500,
     status: 'Pendente',
+    items: [{ id: '2', description: 'Projeto Arquitetônico', quantity: 1, unitPrice: 8500 }],
   },
   {
     id: 'ORC-2023-003',
-    client: 'Prefeitura Municipal',
-    project: 'Paisagismo Praça Central',
+    clientName: 'Prefeitura Municipal',
+    projectName: 'Paisagismo Praça Central',
     date: '15/05/2023',
     value: 45000,
     status: 'Enviado',
+    items: [{ id: '3', description: 'Paisagismo', quantity: 1, unitPrice: 45000 }],
   },
   {
     id: 'ORC-2023-004',
-    client: 'Clínica Médica Silva',
-    project: 'Adequação de Acessibilidade',
+    clientName: 'Clínica Médica Silva',
+    projectName: 'Adequação de Acessibilidade',
     date: '18/05/2023',
     value: 12000,
     status: 'Pendente',
+    items: [{ id: '4', description: 'Adequação', quantity: 1, unitPrice: 12000 }],
   },
 ]
 
 export default function Quotes() {
+  const [quotes, setQuotes] = useState<QuoteData[]>(INITIAL_QUOTES)
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('Todos')
   const { toast } = useToast()
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+  const formatCurrency = (value: number | undefined) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | undefined) => {
     switch (status) {
       case 'Aprovado':
         return (
@@ -75,17 +99,62 @@ export default function Quotes() {
     }
   }
 
-  const filteredQuotes = MOCK_QUOTES.filter(
-    (q) =>
-      q.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.project.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const filteredQuotes = quotes.filter((q) => {
+    const matchesSearch =
+      q.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      q.projectName.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === 'Todos' || q.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
 
   const handleDownload = () => {
     toast({
       title: 'Download iniciado',
       description: 'O orçamento está sendo baixado em PDF.',
     })
+  }
+
+  const handleDelete = (id: string) => {
+    setQuotes(quotes.filter((q) => q.id !== id))
+    toast({
+      title: 'Proposta excluída',
+      description: 'A proposta foi removida com sucesso.',
+    })
+  }
+
+  const handleSave = (data: QuoteData) => {
+    if (data.id) {
+      setQuotes(
+        quotes.map((q) =>
+          q.id === data.id
+            ? {
+                ...q,
+                ...data,
+                value: data.items.reduce((acc, i) => acc + i.quantity * i.unitPrice, 0),
+              }
+            : q,
+        ),
+      )
+      toast({
+        title: 'Proposta atualizada',
+        description: 'As alterações foram salvas com sucesso.',
+      })
+    } else {
+      const newQuote: QuoteData = {
+        ...data,
+        id: `ORC-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)
+          .toString()
+          .padStart(3, '0')}`,
+        date: new Intl.DateTimeFormat('pt-BR').format(new Date()),
+        status: 'Pendente',
+        value: data.items.reduce((acc, i) => acc + i.quantity * i.unitPrice, 0),
+      }
+      setQuotes([newQuote, ...quotes])
+      toast({
+        title: 'Proposta criada',
+        description: 'Nova proposta adicionada com sucesso.',
+      })
+    }
   }
 
   return (
@@ -109,22 +178,19 @@ export default function Quotes() {
               </Button>
             </TooltipTrigger>
             <TooltipContent className="max-w-[300px]">
-              <p>
-                Os dados atuais são temporários. Conecte um banco de dados (Supabase ou Skip Cloud)
-                para persistência permanente.
-              </p>
+              <p>Os dados atuais são locais e serão perdidos ao recarregar a página.</p>
             </TooltipContent>
           </Tooltip>
         </div>
-        <QuoteGeneratorModal>
+        <QuoteGeneratorModal onSave={handleSave}>
           <Button>
             <Plus className="mr-2 h-4 w-4" /> Nova Proposta
           </Button>
         </QuoteGeneratorModal>
       </div>
 
-      <div className="flex items-center space-x-2 py-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row items-center gap-4 py-4">
+        <div className="relative flex-1 w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por cliente ou projeto..."
@@ -132,6 +198,19 @@ export default function Quotes() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+        <div className="w-full sm:w-[200px]">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filtrar por status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos os Status</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="Enviado">Enviado</SelectItem>
+              <SelectItem value="Aprovado">Aprovado</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -153,7 +232,7 @@ export default function Quotes() {
                 <TableCell colSpan={6} className="h-32 text-center">
                   <div className="flex flex-col items-center justify-center space-y-3">
                     <p className="text-muted-foreground">Nenhuma proposta encontrada.</p>
-                    <QuoteGeneratorModal>
+                    <QuoteGeneratorModal onSave={handleSave}>
                       <Button variant="outline" size="sm">
                         <Plus className="mr-2 h-4 w-4" /> Criar Primeira Proposta
                       </Button>
@@ -164,20 +243,59 @@ export default function Quotes() {
             ) : (
               filteredQuotes.map((quote) => (
                 <TableRow key={quote.id}>
-                  <TableCell className="font-medium">{quote.client}</TableCell>
-                  <TableCell>{quote.project}</TableCell>
+                  <TableCell className="font-medium">{quote.clientName}</TableCell>
+                  <TableCell>{quote.projectName}</TableCell>
                   <TableCell>{quote.date}</TableCell>
                   <TableCell className="text-right font-medium">
                     {formatCurrency(quote.value)}
                   </TableCell>
                   <TableCell>{getStatusBadge(quote.status)}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={handleDownload} title="Baixar PDF">
-                      <FileDown className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" title="Mais opções">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleDownload}
+                        title="Baixar PDF"
+                      >
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                      <QuoteGeneratorModal initialData={quote} onSave={handleSave}>
+                        <Button variant="ghost" size="icon" title="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </QuoteGeneratorModal>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Excluir"
+                            className="text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir Proposta</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir a proposta para{' '}
+                              <strong>{quote.clientName}</strong>? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(quote.id!)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

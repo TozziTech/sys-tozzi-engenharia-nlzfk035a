@@ -33,21 +33,61 @@ export type QuoteItem = {
   unitPrice: number
 }
 
-export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }) {
+export type QuoteData = {
+  id?: string
+  clientName: string
+  projectName: string
+  date?: string
+  value?: number
+  status?: string
+  deadline?: Date
+  paymentMethod?: string
+  includedItems?: string
+  notIncludedItems?: string
+  observations?: string
+  items: QuoteItem[]
+}
+
+interface QuoteGeneratorModalProps {
+  children?: React.ReactNode
+  initialData?: QuoteData
+  onSave?: (data: QuoteData) => void
+}
+
+export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGeneratorModalProps) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [isPreview, setIsPreview] = useState(false)
 
-  const [clientName, setClientName] = useState('')
-  const [includedItems, setIncludedItems] = useState('')
-  const [notIncludedItems, setNotIncludedItems] = useState('')
-  const [observations, setObservations] = useState('')
-  const [deadline, setDeadline] = useState<Date | undefined>(undefined)
-  const [paymentMethod, setPaymentMethod] = useState('')
+  const [clientName, setClientName] = useState(initialData?.clientName || '')
+  const [projectName, setProjectName] = useState(initialData?.projectName || '')
+  const [includedItems, setIncludedItems] = useState(initialData?.includedItems || '')
+  const [notIncludedItems, setNotIncludedItems] = useState(initialData?.notIncludedItems || '')
+  const [observations, setObservations] = useState(initialData?.observations || '')
+  const [deadline, setDeadline] = useState<Date | undefined>(initialData?.deadline)
+  const [paymentMethod, setPaymentMethod] = useState(initialData?.paymentMethod || '')
 
-  const [items, setItems] = useState<QuoteItem[]>([
-    { id: '1', description: '', quantity: 1, unitPrice: 0 },
-  ])
+  const [items, setItems] = useState<QuoteItem[]>(
+    initialData?.items || [{ id: '1', description: '', quantity: 1, unitPrice: 0 }],
+  )
+
+  React.useEffect(() => {
+    if (open) {
+      setClientName(initialData?.clientName || '')
+      setProjectName(initialData?.projectName || '')
+      setIncludedItems(initialData?.includedItems || '')
+      setNotIncludedItems(initialData?.notIncludedItems || '')
+      setObservations(initialData?.observations || '')
+      setDeadline(initialData?.deadline)
+      setPaymentMethod(initialData?.paymentMethod || '')
+      setItems(
+        initialData?.items || [
+          { id: Math.random().toString(), description: '', quantity: 1, unitPrice: 0 },
+        ],
+      )
+      setIsPreview(false)
+    }
+  }, [open, initialData])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -89,6 +129,25 @@ export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }
     })
   }
 
+  const handleFinalize = () => {
+    if (onSave) {
+      onSave({
+        id: initialData?.id,
+        clientName,
+        projectName,
+        deadline,
+        paymentMethod,
+        includedItems,
+        notIncludedItems,
+        observations,
+        items,
+        status: initialData?.status || 'Pendente',
+        date: initialData?.date || format(new Date(), 'dd/MM/yyyy'),
+      })
+    }
+    setOpen(false)
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -124,6 +183,9 @@ export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }
                   <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-tight text-slate-900">
                     Proposta Comercial
                   </h2>
+                  <h3 className="text-lg md:text-xl font-medium text-slate-700 mt-2">
+                    {projectName || 'Sem Título'}
+                  </h3>
                   <p className="text-sm text-slate-500 mt-1">
                     Gerado em {format(new Date(), 'dd/MM/yyyy')}{' '}
                     {clientName && `para ${clientName}`}
@@ -254,16 +316,29 @@ export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }
             </div>
           ) : (
             <div className="space-y-8 bg-background p-1">
-              <div className="space-y-3">
-                <Label htmlFor="clientName" className="text-sm font-semibold text-foreground/90">
-                  Cliente / Empresa
-                </Label>
-                <Input
-                  id="clientName"
-                  placeholder="Nome do cliente ou empresa que receberá a proposta..."
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label htmlFor="clientName" className="text-sm font-semibold text-foreground/90">
+                    Cliente / Empresa
+                  </Label>
+                  <Input
+                    id="clientName"
+                    placeholder="Nome do cliente ou empresa que receberá a proposta..."
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="projectName" className="text-sm font-semibold text-foreground/90">
+                    Título do Projeto
+                  </Label>
+                  <Input
+                    id="projectName"
+                    placeholder="Ex: Reforma Comercial, App Mobile..."
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -452,8 +527,9 @@ export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }
                   >
                     <FileDown className="w-4 h-4 mr-2" /> Exportar PDF
                   </Button>
-                  <Button onClick={() => setOpen(false)} className="w-full sm:w-auto">
-                    <Check className="w-4 h-4 mr-2" /> Finalizar Orçamento
+                  <Button onClick={handleFinalize} className="w-full sm:w-auto">
+                    <Check className="w-4 h-4 mr-2" />{' '}
+                    {initialData ? 'Salvar Alterações' : 'Finalizar Orçamento'}
                   </Button>
                 </div>
               </>

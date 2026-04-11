@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
 
 export default function Equipments() {
   const [equipments, setEquipments] = useState<any[]>([])
@@ -41,8 +42,12 @@ export default function Equipments() {
     name: '',
     category: '',
     status: 'Disponível',
+    condition: 'Bom',
     responsible: '',
     return_date: '',
+    last_maintenance: '',
+    next_maintenance: '',
+    usage_notes: '',
   })
 
   const loadData = async () => {
@@ -94,15 +99,29 @@ export default function Equipments() {
     if (eq) {
       setEditingId(eq.id)
       setForm({
-        name: eq.name,
-        category: eq.category,
-        status: eq.status,
-        responsible: eq.responsible,
+        name: eq.name || '',
+        category: eq.category || '',
+        status: eq.status || 'Disponível',
+        condition: eq.condition || 'Bom',
+        responsible: eq.responsible || '',
         return_date: eq.return_date ? eq.return_date.substring(0, 10) : '',
+        last_maintenance: eq.last_maintenance ? eq.last_maintenance.substring(0, 10) : '',
+        next_maintenance: eq.next_maintenance ? eq.next_maintenance.substring(0, 10) : '',
+        usage_notes: eq.usage_notes || '',
       })
     } else {
       setEditingId(null)
-      setForm({ name: '', category: '', status: 'Disponível', responsible: '', return_date: '' })
+      setForm({
+        name: '',
+        category: '',
+        status: 'Disponível',
+        condition: 'Bom',
+        responsible: '',
+        return_date: '',
+        last_maintenance: '',
+        next_maintenance: '',
+        usage_notes: '',
+      })
     }
     setModalOpen(true)
   }
@@ -120,16 +139,52 @@ export default function Equipments() {
     }
   }
 
+  const getConditionBadge = (condition: string) => {
+    switch (condition) {
+      case 'Novo':
+        return (
+          <Badge variant="outline" className="border-emerald-500 text-emerald-600">
+            Novo
+          </Badge>
+        )
+      case 'Bom':
+        return (
+          <Badge variant="outline" className="border-blue-500 text-blue-600">
+            Bom
+          </Badge>
+        )
+      case 'Necessita Reparo':
+        return (
+          <Badge variant="outline" className="border-yellow-500 text-yellow-600">
+            Necessita Reparo
+          </Badge>
+        )
+      case 'Em Manutenção':
+        return (
+          <Badge variant="outline" className="border-orange-500 text-orange-600">
+            Em Manutenção
+          </Badge>
+        )
+      default:
+        return <Badge variant="outline">{condition || '-'}</Badge>
+    }
+  }
+
+  const isMaintenanceOverdue = (dateStr: string) => {
+    if (!dateStr) return false
+    return new Date(dateStr) < new Date()
+  }
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Equipamentos</h2>
           <p className="text-muted-foreground">
-            Gerencie o inventário de equipamentos do escritório.
+            Gerencie o inventário e as manutenções dos equipamentos.
           </p>
         </div>
-        <Button onClick={() => openModal()}>
+        <Button onClick={() => openModal()} className="w-full md:w-auto">
           <Plus className="w-4 h-4 mr-2" /> Novo Equipamento
         </Button>
       </div>
@@ -140,9 +195,9 @@ export default function Equipments() {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Categoria</TableHead>
+              <TableHead>Condição</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Responsável</TableHead>
-              <TableHead>Data de Devolução</TableHead>
+              <TableHead>Próx. Manutenção</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -162,11 +217,35 @@ export default function Equipments() {
             ) : (
               equipments.map((eq) => (
                 <TableRow key={eq.id}>
-                  <TableCell className="font-medium">{eq.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div>{eq.name}</div>
+                    {eq.responsible && (
+                      <div className="text-xs text-muted-foreground">Resp: {eq.responsible}</div>
+                    )}
+                  </TableCell>
                   <TableCell>{eq.category || '-'}</TableCell>
+                  <TableCell>{getConditionBadge(eq.condition)}</TableCell>
                   <TableCell>{getStatusBadge(eq.status)}</TableCell>
-                  <TableCell>{eq.responsible || '-'}</TableCell>
-                  <TableCell>{eq.return_date ? eq.return_date.substring(0, 10) : '-'}</TableCell>
+                  <TableCell>
+                    {eq.next_maintenance ? (
+                      <span
+                        className={
+                          isMaintenanceOverdue(eq.next_maintenance)
+                            ? 'text-destructive font-semibold flex items-center'
+                            : ''
+                        }
+                      >
+                        {eq.next_maintenance.substring(0, 10).split('-').reverse().join('/')}
+                        {isMaintenanceOverdue(eq.next_maintenance) && (
+                          <span className="ml-2 text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
+                            Atrasada
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => openModal(eq)}>
                       <Pencil className="w-4 h-4" />
@@ -188,11 +267,11 @@ export default function Equipments() {
       </div>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Equipamento' : 'Novo Equipamento'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>Nome</Label>
               <Input
@@ -210,7 +289,7 @@ export default function Equipments() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label>Status Atual</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -219,6 +298,23 @@ export default function Equipments() {
                   <SelectItem value="Disponível">Disponível</SelectItem>
                   <SelectItem value="Em Uso">Em Uso</SelectItem>
                   <SelectItem value="Manutenção">Manutenção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Condição Física</Label>
+              <Select
+                value={form.condition}
+                onValueChange={(v) => setForm({ ...form, condition: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Novo">Novo</SelectItem>
+                  <SelectItem value="Bom">Bom</SelectItem>
+                  <SelectItem value="Necessita Reparo">Necessita Reparo</SelectItem>
+                  <SelectItem value="Em Manutenção">Em Manutenção</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -236,6 +332,31 @@ export default function Equipments() {
                 type="date"
                 value={form.return_date}
                 onChange={(e) => setForm({ ...form, return_date: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Última Manutenção</Label>
+              <Input
+                type="date"
+                value={form.last_maintenance}
+                onChange={(e) => setForm({ ...form, last_maintenance: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Próxima Manutenção</Label>
+              <Input
+                type="date"
+                value={form.next_maintenance}
+                onChange={(e) => setForm({ ...form, next_maintenance: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Histórico / Observações de Uso</Label>
+              <Textarea
+                value={form.usage_notes}
+                onChange={(e) => setForm({ ...form, usage_notes: e.target.value })}
+                placeholder="Anotações sobre avarias, consertos ou detalhes de uso contínuo..."
+                className="min-h-[100px]"
               />
             </div>
           </div>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-11T22:11:13.477Z",
+  "generatedAt": "2026-04-11T22:18:12.402Z",
   "collections": [
     {
       "name": "users",
@@ -186,6 +186,31 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "last_maintenance",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "next_maintenance",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "condition",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Novo", "Bom", "Necessita Reparo", "Em Manutenção"]
+        },
+        {
+          "name": "usage_notes",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

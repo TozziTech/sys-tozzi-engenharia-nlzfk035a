@@ -32,6 +32,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { exportQuotePDF } from '@/lib/exportPdf'
 
 const INITIAL_QUOTES: QuoteData[] = [
   {
@@ -107,12 +109,23 @@ export default function Quotes() {
     return matchesSearch && matchesStatus
   })
 
-  const handleDownload = () => {
+  const handleDownload = (quote: QuoteData) => {
+    exportQuotePDF(quote)
     toast({
       title: 'Download iniciado',
       description: 'O orçamento está sendo baixado em PDF.',
     })
   }
+
+  const totalEmAberto = filteredQuotes
+    .filter((q) => q.status === 'Pendente' || q.status === 'Enviado')
+    .reduce((sum, q) => sum + (q.value || 0), 0)
+
+  const totalAprovado = filteredQuotes
+    .filter((q) => q.status === 'Aprovado')
+    .reduce((sum, q) => sum + (q.value || 0), 0)
+
+  const valorTotalEstimado = filteredQuotes.reduce((sum, q) => sum + (q.value || 0), 0)
 
   const handleDelete = (id: string) => {
     setQuotes(quotes.filter((q) => q.id !== id))
@@ -189,7 +202,34 @@ export default function Quotes() {
         </QuoteGeneratorModal>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center gap-4 py-4">
+      <div className="grid gap-4 md:grid-cols-3 mt-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total em Aberto</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalEmAberto)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Aprovado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalAprovado)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Valor Total Estimado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(valorTotalEstimado)}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center gap-4 py-4 mt-2">
         <div className="relative flex-1 w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -255,8 +295,8 @@ export default function Quotes() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={handleDownload}
-                        title="Baixar PDF"
+                        onClick={() => handleDownload(quote)}
+                        title="Exportar PDF"
                       >
                         <FileDown className="h-4 w-4" />
                       </Button>

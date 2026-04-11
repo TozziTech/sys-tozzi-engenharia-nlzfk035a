@@ -39,7 +39,7 @@ import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
 const formSchema = z
   .object({
     name: z.string().min(1, 'O nome do membro é obrigatório.'),
-    codigo: z.string().min(1, 'O código é obrigatório.'),
+    codigo: z.string().trim().min(1, 'O código é obrigatório.'),
     password: z.string().min(8, 'A senha deve ter no mínimo 8 caracteres.'),
     role: z.string().default('Projetista'),
     status: z.string().default('Ativo'),
@@ -233,6 +233,8 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   }
 
   const formacaoSelectValue = form.watch('formacaoSelect')
+  const codigoValue = form.watch('codigo')
+  const isCodigoValid = !!codigoValue?.trim()
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -277,7 +279,9 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                     name="codigo"
                     render={({ field }) => (
                       <FormItem className="col-span-2 sm:col-span-1">
-                        <FormLabel>Código (ID)</FormLabel>
+                        <FormLabel>
+                          Código (ID) <span className="text-destructive">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Ex: PER-001"
@@ -686,7 +690,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading || !isCodigoValid}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Salvar Membro
                 </Button>

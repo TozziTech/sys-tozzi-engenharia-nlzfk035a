@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-11T08:12:17.455Z",
+  "generatedAt": "2026-04-11T08:19:34.471Z",
   "collections": [
     {
       "name": "users",
@@ -41,7 +41,7 @@
         {
           "name": "codigo",
           "type": "text",
-          "required": false,
+          "required": true,
           "system": false
         },
         {

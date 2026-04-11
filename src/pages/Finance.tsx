@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import useProjectStore from '@/stores/useProjectStore'
 import type { Transaction } from '@/types/project'
@@ -155,6 +155,8 @@ export default function Finance() {
       balance: inFlow - outFlow,
     }
   }, [filteredTransactions])
+
+  const LOW_BALANCE_THRESHOLD = 5000
 
   const projectPerformance = useMemo(() => {
     const map = new Map<string, { in: number; out: number }>()
@@ -499,6 +501,23 @@ export default function Finance() {
           persistência dos dados.
         </AlertDescription>
       </Alert>
+
+      {balance < LOW_BALANCE_THRESHOLD && (
+        <Alert
+          variant="destructive"
+          className="bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/50 dark:border-rose-900 dark:text-rose-200"
+        >
+          <AlertCircle className="h-5 w-5" />
+          <AlertTitle className="text-base font-semibold">
+            Alerta de Fluxo de Caixa Crítico
+          </AlertTitle>
+          <AlertDescription className="mt-1">
+            O saldo atual ({formatCurrency(balance)}) está abaixo do limite de segurança de{' '}
+            {formatCurrency(LOW_BALANCE_THRESHOLD)}. Atenção aos próximos vencimentos para evitar
+            descoberto.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

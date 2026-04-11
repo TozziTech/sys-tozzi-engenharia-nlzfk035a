@@ -35,7 +35,9 @@ import useProjectStore from '@/stores/useProjectStore'
 import { useToast } from '@/hooks/use-toast'
 import { AuditTrailDialog } from '@/components/timesheet/AuditTrailDialog'
 import { exportAuditLogsCSV } from '@/lib/export'
+import { exportAuditLogsPDF } from '@/lib/exportPdf'
 import { TimeEntryForm } from '@/components/timesheet/TimeEntryForm'
+import { AlertTriangle } from 'lucide-react'
 
 function ActionBadge({ action }: { action: string }) {
   const variants: Record<string, { label: string; classes: string }> = {
@@ -99,12 +101,23 @@ export default function History() {
   }, [search, action, period])
 
   const handleExportPDF = () => {
-    const originalTitle = document.title
-    document.title = `Relatorio_Auditoria_${format(new Date(), 'yyyy-MM-dd')}`
-    window.print()
-    setTimeout(() => {
-      document.title = originalTitle
-    }, 100)
+    exportAuditLogsPDF(filteredLogs, currentUser)
+  }
+
+  const isSuspicious = (log: any) => {
+    if (log.action === 'Delete') return true
+    return log.changes.some((c: any) => {
+      const valStr = String(c.newValue || '') + String(c.oldValue || '')
+      if (valStr.includes('R$')) {
+        const numStr = valStr
+          .replace(/\./g, '')
+          .replace(',', '.')
+          .replace(/[^\d.]/g, '')
+        const num = parseFloat(numStr)
+        return num > 20000
+      }
+      return false
+    })
   }
 
   const handleExportCSV = () => {
@@ -346,50 +359,59 @@ export default function History() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredLogs.map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                            {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm font-medium">{log.user.name}</span>
-                          </TableCell>
-                          <TableCell>
-                            <ActionBadge action={log.action} />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-1 items-start">
-                              <span className="text-sm font-medium">{log.entityName}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {log.entityType}
-                              </span>
-                              <div className="flex flex-col gap-2 mt-1">
-                                {log.changes.map((change, i) => (
-                                  <div
-                                    key={i}
-                                    className="flex flex-wrap items-center gap-2 text-xs"
-                                  >
-                                    <span className="font-medium text-slate-700 dark:text-slate-300 min-w-[80px]">
-                                      {change.field}:
-                                    </span>
-                                    {change.oldValue && (
-                                      <>
-                                        <span className="line-through text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 px-1.5 py-0.5 rounded">
-                                          {change.oldValue}
-                                        </span>
-                                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                                      </>
-                                    )}
-                                    <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded">
-                                      {change.newValue}
-                                    </span>
-                                  </div>
-                                ))}
+                      filteredLogs.map((log) => {
+                        const suspicious = isSuspicious(log)
+                        return (
+                          <TableRow
+                            key={log.id}
+                            className={suspicious ? 'bg-rose-50/50 dark:bg-rose-950/20' : ''}
+                          >
+                            <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                {suspicious && <AlertTriangle className="h-4 w-4 text-rose-500" />}
+                                {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}
                               </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm font-medium">{log.user.name}</span>
+                            </TableCell>
+                            <TableCell>
+                              <ActionBadge action={log.action} />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className="text-sm font-medium">{log.entityName}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {log.entityType}
+                                </span>
+                                <div className="flex flex-col gap-2 mt-1">
+                                  {log.changes.map((change, i) => (
+                                    <div
+                                      key={i}
+                                      className="flex flex-wrap items-center gap-2 text-xs"
+                                    >
+                                      <span className="font-medium text-slate-700 dark:text-slate-300 min-w-[80px]">
+                                        {change.field}:
+                                      </span>
+                                      {change.oldValue && (
+                                        <>
+                                          <span className="line-through text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 px-1.5 py-0.5 rounded">
+                                            {change.oldValue}
+                                          </span>
+                                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                        </>
+                                      )}
+                                      <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded">
+                                        {change.newValue}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
                     )}
                   </TableBody>
                 </Table>

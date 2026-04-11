@@ -43,19 +43,12 @@ export function exportProjectsCSV(projects: Project[]) {
 }
 
 export function exportAuditLogsCSV(logs: Log[]) {
-  const headers = [
-    'Data/Hora',
-    'Usuário',
-    'Ação Realizada',
-    'Alteração de Status (Antigo -> Novo)',
-    'Entidade',
-  ]
+  const headers = ['Evento', 'Usuário', 'Descrição', 'Data/Hora']
 
   const rows = logs.map((log) => {
-    const date = format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')
+    const event = `"${log.action}"`
     const user = `"${log.user.name.replace(/"/g, '""')}"`
-    const action = `"${log.action}"`
-    const entity = `"${log.entityName.replace(/"/g, '""')}"`
+    const date = `"${format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}"`
 
     const changes =
       log.changes.length > 0
@@ -63,9 +56,9 @@ export function exportAuditLogsCSV(logs: Log[]) {
             .map((c: any) => `${c.field}: ${c.oldValue || 'N/A'} -> ${c.newValue || 'N/A'}`)
             .join(' | ')
         : 'N/A'
-    const changeStr = `"${changes.replace(/"/g, '""')}"`
+    const description = `"${log.entityName.replace(/"/g, '""')} - ${changes.replace(/"/g, '""')}"`
 
-    return [date, user, action, changeStr, entity]
+    return [event, user, description, date]
   })
 
   const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')

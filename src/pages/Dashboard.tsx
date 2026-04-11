@@ -1,7 +1,16 @@
 import React, { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import useProjectStore from '@/stores/useProjectStore'
-import { GripVertical, AlertTriangle, TrendingUp, DollarSign, Briefcase } from 'lucide-react'
+import {
+  GripVertical,
+  AlertTriangle,
+  TrendingUp,
+  DollarSign,
+  Briefcase,
+  ArrowRight,
+} from 'lucide-react'
 import { CartesianGrid, XAxis, YAxis, LineChart, Line } from 'recharts'
 import {
   ChartContainer,
@@ -198,7 +207,7 @@ const WIDGETS_DATA = [
 ]
 
 export default function Dashboard() {
-  const { projects, transactions } = useProjectStore()
+  const { projects, transactions, auditLogs } = useProjectStore()
   const [widgets, setWidgets] = useState(WIDGETS_DATA.map((w) => w.id))
   const [draggedOverId, setDraggedOverId] = useState<string | null>(null)
 
@@ -237,6 +246,24 @@ export default function Dashboard() {
     setDraggedOverId(null)
   }
 
+  const suspiciousLogs = useMemo(() => {
+    return (auditLogs || []).filter((log) => {
+      if (log.action === 'Delete') return true
+      return log.changes.some((c: any) => {
+        const valStr = String(c.newValue || '') + String(c.oldValue || '')
+        if (valStr.includes('R$')) {
+          const numStr = valStr
+            .replace(/\./g, '')
+            .replace(',', '.')
+            .replace(/[^\d.]/g, '')
+          const num = parseFloat(numStr)
+          return num > 20000
+        }
+        return false
+      })
+    })
+  }, [auditLogs])
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in-up">
       <div>
@@ -247,6 +274,33 @@ export default function Dashboard() {
           Visão consolidada de suas métricas. Arraste os painéis para personalizar seu layout.
         </p>
       </div>
+
+      {suspiciousLogs.length > 0 && (
+        <Alert
+          variant="destructive"
+          className="bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/50 dark:border-rose-900 dark:text-rose-200"
+        >
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle className="text-base font-semibold">
+            Alerta de Atividades Suspeitas
+          </AlertTitle>
+          <AlertDescription className="mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <p>
+              Foram detectadas {suspiciousLogs.length} atividade(s) suspeita(s) (exclusões ou
+              movimentações de alto valor) nos registros de auditoria.
+            </p>
+            <Link to="/history">
+              <Badge
+                variant="outline"
+                className="bg-white/50 hover:bg-white dark:bg-black/50 dark:hover:bg-black text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 flex items-center gap-1 cursor-pointer"
+              >
+                Investigar
+                <ArrowRight className="h-3 w-3" />
+              </Badge>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {widgets.map((id) => {

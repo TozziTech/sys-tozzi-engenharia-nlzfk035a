@@ -97,4 +97,16 @@ export const MOCK_LOGS: Log[] = [
       { field: 'Fase', oldValue: 'Planejamento', newValue: 'Execução' },
     ],
   },
+  {
+    id: '7',
+    timestamp: subDays(new Date(), 1).toISOString(),
+    user: {
+      name: 'Ana Silva',
+      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
+    },
+    action: 'Update',
+    entityType: 'Transação',
+    entityName: 'Pagamento Fornecedor XYZ',
+    changes: [{ field: 'Valor', oldValue: 'R$ 5.000,00', newValue: 'R$ 25.000,00' }],
+  },
 ]

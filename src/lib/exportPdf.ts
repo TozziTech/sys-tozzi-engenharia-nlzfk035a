@@ -1,5 +1,115 @@
 import { User, Project } from '@/types/project'
 
+import { format } from 'date-fns'
+
+export function exportAuditLogsPDF(logs: any[], currentUser: string) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Auditoria</title>
+        <style>
+          @page { margin: 20mm; }
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            line-height: 1.5; 
+            color: #1a1a1a; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
+          
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+            vertical-align: top;
+          }
+          th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          
+          .footer { 
+            margin-top: 50px; 
+            padding-top: 20px; 
+            border-top: 1px dashed #e5e7eb; 
+            font-size: 12px; 
+            color: #9ca3af; 
+            text-align: center; 
+          }
+          
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+      
+        <div class="header">
+          <h1>Relatório de Auditoria</h1>
+          <p><strong>Skip Projetos S/A</strong> &bull; Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Evento</th>
+              <th>Usuário</th>
+              <th>Descrição</th>
+              <th>Data/Hora</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logs.map((log: any) => {
+              const changes = log.changes.length > 0
+                ? log.changes.map((c: any) => \`\${c.field}: \${c.oldValue || 'N/A'} &rarr; \${c.newValue || 'N/A'}\`).join('<br/>')
+                : 'N/A';
+              const description = \`<strong>\${log.entityName}</strong><br/>\${changes}\`;
+              
+              return \`
+                <tr>
+                  <td>\${log.action}</td>
+                  <td>\${log.user.name}</td>
+                  <td>\${description}</td>
+                  <td style="white-space: nowrap;">\${format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}</td>
+                </tr>
+              \`;
+            }).join('')}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          Documento gerado pelo Sistema de Gerenciamento de Projetos.
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
 export function exportUserPDF(user: User, projects: Project[]) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return

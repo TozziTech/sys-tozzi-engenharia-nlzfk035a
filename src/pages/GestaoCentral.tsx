@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Calendar as CalendarIcon, Search, Plus, MoreHorizontal } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 import { Button } from '@/components/ui/button'
@@ -16,9 +16,27 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
+import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
-const mockData = [
+const initialData = [
   {
     id: 'EQ-001',
     equipamento: 'Rompedor 5 Kg',
@@ -55,6 +73,62 @@ export default function GestaoCentral() {
   const [dateFrom, setDateFrom] = useState<Date>()
   const [dateTo, setDateTo] = useState<Date>()
 
+  const [items, setItems] = useState(initialData)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const { toast } = useToast()
+
+  const [formData, setFormData] = useState({
+    equipamento: '',
+    localAtual: '',
+    envio: '',
+    retornoPrevisto: '',
+    responsavel: '',
+    status: 'Disponível',
+  })
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSelectChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, status: value }))
+  }
+
+  const handleSave = () => {
+    const isAtrasado = formData.status === 'Atrasado'
+    const finalStatus = isAtrasado ? 'Em Uso' : formData.status
+
+    const newItem = {
+      id: `EQ-${String(items.length + 1).padStart(3, '0')}`,
+      equipamento: formData.equipamento || '-',
+      localAtual: formData.localAtual || '-',
+      envio: formData.envio ? format(parseISO(formData.envio), 'dd/MM/yyyy') : '-',
+      retornoPrevisto: formData.retornoPrevisto
+        ? format(parseISO(formData.retornoPrevisto), 'dd/MM/yyyy')
+        : '-',
+      responsavel: formData.responsavel || '-',
+      status: finalStatus,
+      atrasado: isAtrasado,
+    }
+
+    setItems([...items, newItem])
+    setIsDialogOpen(false)
+    setFormData({
+      equipamento: '',
+      localAtual: '',
+      envio: '',
+      retornoPrevisto: '',
+      responsavel: '',
+      status: 'Disponível',
+    })
+
+    toast({
+      title: 'Equipamento registrado',
+      description: 'O novo equipamento foi adicionado com sucesso.',
+    })
+  }
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -68,9 +142,93 @@ export default function GestaoCentral() {
           <Button variant="ghost">Visão de Campo</Button>
           <Button variant="ghost">Relatório</Button>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Novo
-        </Button>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Novo
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[550px]">
+            <DialogHeader>
+              <DialogTitle>Novo Equipamento</DialogTitle>
+              <DialogDescription>
+                Preencha os dados abaixo para registrar um novo equipamento no sistema.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="equipamento">Equipamento</Label>
+                <Input
+                  id="equipamento"
+                  name="equipamento"
+                  placeholder="Ex: Betoneira"
+                  value={formData.equipamento}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="localAtual">Local Atual</Label>
+                <Input
+                  id="localAtual"
+                  name="localAtual"
+                  placeholder="Ex: Obra Alpha"
+                  value={formData.localAtual}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="envio">Data de Envio</Label>
+                <Input
+                  id="envio"
+                  type="date"
+                  name="envio"
+                  value={formData.envio}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="retornoPrevisto">Retorno Previsto</Label>
+                <Input
+                  id="retornoPrevisto"
+                  type="date"
+                  name="retornoPrevisto"
+                  value={formData.retornoPrevisto}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="responsavel">Responsável</Label>
+                <Input
+                  id="responsavel"
+                  name="responsavel"
+                  placeholder="Ex: João Silva"
+                  value={formData.responsavel}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select value={formData.status} onValueChange={handleSelectChange}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Disponível">Disponível</SelectItem>
+                    <SelectItem value="Em Uso">Em Uso</SelectItem>
+                    <SelectItem value="Atrasado">Atrasado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSave}>Salvar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Filter Section */}
@@ -143,7 +301,7 @@ export default function GestaoCentral() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockData.map((item) => (
+            {items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.id}</TableCell>
                 <TableCell>

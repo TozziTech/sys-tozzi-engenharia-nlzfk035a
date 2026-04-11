@@ -15,6 +15,7 @@ import {
   Wallet,
   DollarSign,
   HardHat,
+  FileText,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -37,6 +38,7 @@ const navigation = [
   { name: 'Financeiro', href: '/financial', icon: DollarSign },
   { name: 'Projetos', href: '/projects', icon: FolderKanban },
   { name: 'Dashboard Financeiro', href: '/financeiro', icon: Wallet },
+  { name: 'Orçamentos', href: '/quotes', icon: FileText },
   { name: 'Equipe', href: '/team', icon: Users },
   { name: 'Atividades Recentes', href: '/activities', icon: Activity },
   { name: 'Cronograma', href: '/gantt', icon: CalendarDays },

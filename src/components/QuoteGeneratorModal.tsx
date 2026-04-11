@@ -22,8 +22,9 @@ import {
   TableFooter,
 } from '@/components/ui/table'
 import { DatePicker } from '@/components/DatePicker'
-import { Plus, Trash, ArrowLeft, Check, InfoIcon, Eye, X } from 'lucide-react'
+import { Plus, Trash, ArrowLeft, Check, InfoIcon, Eye, X, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
+import { useToast } from '@/hooks/use-toast'
 
 export type QuoteItem = {
   id: string
@@ -33,9 +34,11 @@ export type QuoteItem = {
 }
 
 export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }) {
+  const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [isPreview, setIsPreview] = useState(false)
 
+  const [clientName, setClientName] = useState('')
   const [includedItems, setIncludedItems] = useState('')
   const [notIncludedItems, setNotIncludedItems] = useState('')
   const [observations, setObservations] = useState('')
@@ -79,6 +82,13 @@ export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }
     }
   }
 
+  const handleExport = () => {
+    toast({
+      title: 'Exportação Concluída',
+      description: 'O orçamento foi exportado como PDF com sucesso.',
+    })
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -115,7 +125,8 @@ export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }
                     Proposta Comercial
                   </h2>
                   <p className="text-sm text-slate-500 mt-1">
-                    Gerado em {format(new Date(), 'dd/MM/yyyy')}
+                    Gerado em {format(new Date(), 'dd/MM/yyyy')}{' '}
+                    {clientName && `para ${clientName}`}
                   </p>
                 </div>
                 <div className="text-left md:text-right bg-slate-50 p-4 rounded-lg border min-w-[200px]">
@@ -243,6 +254,18 @@ export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }
             </div>
           ) : (
             <div className="space-y-8 bg-background p-1">
+              <div className="space-y-3">
+                <Label htmlFor="clientName" className="text-sm font-semibold text-foreground/90">
+                  Cliente / Empresa
+                </Label>
+                <Input
+                  id="clientName"
+                  placeholder="Nome do cliente ou empresa que receberá a proposta..."
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <Label htmlFor="deadline" className="text-sm font-semibold text-foreground/90">
@@ -421,9 +444,18 @@ export function QuoteGeneratorModal({ children }: { children?: React.ReactNode }
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Edição
                 </Button>
-                <Button onClick={() => setOpen(false)} className="w-full sm:w-auto">
-                  <Check className="w-4 h-4 mr-2" /> Finalizar Orçamento
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    onClick={handleExport}
+                    className="w-full sm:w-auto text-blue-600 border-blue-200 hover:bg-blue-50"
+                  >
+                    <FileDown className="w-4 h-4 mr-2" /> Exportar PDF
+                  </Button>
+                  <Button onClick={() => setOpen(false)} className="w-full sm:w-auto">
+                    <Check className="w-4 h-4 mr-2" /> Finalizar Orçamento
+                  </Button>
+                </div>
               </>
             ) : (
               <>

@@ -27,6 +27,8 @@ import GestaoCentral from './pages/GestaoCentral'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import Equipments from './pages/Equipments'
+import Audit from './pages/Audit'
+import AccessControl from './pages/AccessControl'
 import { AuthProvider } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
 
@@ -53,6 +55,7 @@ const App = () => (
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/gantt" element={<Gantt />} />
+                  <Route path="/schedule" element={<Gantt />} />
                   <Route path="/bottlenecks" element={<Bottlenecks />} />
                   <Route path="/timesheet" element={<Timesheet />} />
                   <Route path="/history" element={<History />} />
@@ -63,6 +66,9 @@ const App = () => (
                   <Route path="/quotes" element={<Quotes />} />
                   <Route path="/gestao-central" element={<GestaoCentral />} />
                   <Route path="/equipments" element={<Equipments />} />
+                  <Route path="/equipment" element={<Equipments />} />
+                  <Route path="/audit" element={<Audit />} />
+                  <Route path="/access-control" element={<AccessControl />} />
                 </Route>
               </Route>
               <Route path="*" element={<NotFound />} />

@@ -1,17 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import {
-  Building,
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Edit2,
-  Trash2,
-  Plus,
-  Search,
-  Briefcase,
-} from 'lucide-react'
+import { Building, Mail, Phone, MapPin, Edit2, Trash2, Plus, Search, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -34,98 +23,63 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
 
 interface Client {
   id: string
   name: string
-  document: string
-  street: string
-  number: string
-  neighborhood: string
-  city: string
-  state: string
-  zip: string
-  phone: string
-  altPhone?: string
-  contact: string
   email: string
+  phone: string
+  cnpj_cpf: string
+  address: string
 }
 
-const INITIAL_CLIENTS: Client[] = [
-  {
-    id: '1',
-    name: 'Construtora Alpha S.A',
-    document: '12.345.678/0001-90',
-    street: 'Av. Paulista',
-    number: '1000',
-    neighborhood: 'Bela Vista',
-    city: 'São Paulo',
-    state: 'SP',
-    zip: '01310-100',
-    phone: '(11) 98765-4321',
-    altPhone: '(11) 3214-5678',
-    contact: 'Carlos Silva',
-    email: 'carlos@alpha.com',
-  },
-  {
-    id: '2',
-    name: 'Incorporadora Beta Ltda',
-    document: '98.765.432/0001-10',
-    street: 'Rua das Flores',
-    number: '250',
-    neighborhood: 'Jardins',
-    city: 'São Paulo',
-    state: 'SP',
-    zip: '01400-000',
-    phone: '(11) 91234-5678',
-    contact: 'Ana Gomes',
-    email: 'ana@beta.com',
-  },
-]
-
-const EMPTY_CLIENT: Client = {
-  id: '',
+const EMPTY_CLIENT: Partial<Client> = {
   name: '',
-  document: '',
-  street: '',
-  number: '',
-  neighborhood: '',
-  city: '',
-  state: '',
-  zip: '',
-  phone: '',
-  altPhone: '',
-  contact: '',
   email: '',
+  phone: '',
+  cnpj_cpf: '',
+  address: '',
 }
 
 export default function Clients() {
-  const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS)
+  const [clients, setClients] = useState<Client[]>([])
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAlertOpen, setIsAlertOpen] = useState(false)
-  const [editingClient, setEditingClient] = useState<Client>(EMPTY_CLIENT)
+  const [editingClient, setEditingClient] = useState<Partial<Client>>(EMPTY_CLIENT)
   const [clientToDelete, setClientToDelete] = useState<string | null>(null)
   const { toast } = useToast()
+
+  const loadData = async () => {
+    try {
+      const records = await pb.collection('clients').getFullList<Client>({ sort: '-created' })
+      setClients(records)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+  useRealtime('clients', () => loadData())
 
   const filteredClients = clients.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.document.includes(search) ||
-      c.contact.toLowerCase().includes(search.toLowerCase()),
+      c.cnpj_cpf?.includes(search) ||
+      (c.email && c.email.toLowerCase().includes(search.toLowerCase())),
   )
 
   const handleOpenModal = (client?: Client) => {
-    if (client) {
-      setEditingClient(client)
-    } else {
-      setEditingClient(EMPTY_CLIENT)
-    }
+    setEditingClient(client ? { ...client } : { ...EMPTY_CLIENT })
     setIsModalOpen(true)
   }
 
-  const handleSave = () => {
-    if (!editingClient.name || !editingClient.document) {
+  const handleSave = async () => {
+    if (!editingClient.name || !editingClient.cnpj_cpf) {
       toast({
         title: 'Erro de validação',
         description: 'Nome e CNPJ/CPF são obrigatórios.',
@@ -134,20 +88,36 @@ export default function Clients() {
       return
     }
 
-    if (editingClient.id) {
-      setClients((prev) => prev.map((c) => (c.id === editingClient.id ? editingClient : c)))
-      toast({ title: 'Sucesso', description: 'Cliente atualizado com sucesso.' })
-    } else {
-      setClients((prev) => [...prev, { ...editingClient, id: crypto.randomUUID() }])
-      toast({ title: 'Sucesso', description: 'Cliente cadastrado com sucesso.' })
+    try {
+      if (editingClient.id) {
+        await pb.collection('clients').update(editingClient.id, editingClient)
+        toast({ title: 'Sucesso', description: 'Cliente atualizado com sucesso.' })
+      } else {
+        await pb.collection('clients').create(editingClient)
+        toast({ title: 'Sucesso', description: 'Cliente cadastrado com sucesso.' })
+      }
+      setIsModalOpen(false)
+    } catch (e: any) {
+      toast({
+        title: 'Erro',
+        description: e.message || 'Ocorreu um erro ao salvar o cliente.',
+        variant: 'destructive',
+      })
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (clientToDelete) {
-      setClients((prev) => prev.filter((c) => c.id !== clientToDelete))
-      toast({ title: 'Deletado', description: 'Cliente removido com sucesso.' })
+      try {
+        await pb.collection('clients').delete(clientToDelete)
+        toast({ title: 'Deletado', description: 'Cliente removido com sucesso.' })
+      } catch (e: any) {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível remover o cliente.',
+          variant: 'destructive',
+        })
+      }
       setClientToDelete(null)
       setIsAlertOpen(false)
     }
@@ -163,9 +133,7 @@ export default function Clients() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">Clientes</h1>
-          <p className="text-muted-foreground">
-            Gerencie o cadastro completo de clientes da empresa.
-          </p>
+          <p className="text-muted-foreground">Gerencie o cadastro de clientes da empresa.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative w-full sm:w-64">
@@ -195,25 +163,25 @@ export default function Clients() {
                       {client.name}
                     </CardTitle>
                     <CardDescription className="flex items-center gap-1.5 font-medium">
-                      <Briefcase className="h-4 w-4" /> {client.document}
+                      <Briefcase className="h-4 w-4" /> {client.cnpj_cpf}
                     </CardDescription>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      className="h-8 w-8"
                       onClick={() => handleOpenModal(client)}
                     >
-                      <Edit2 className="h-4 w-4" />
+                      <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      className="h-8 w-8"
                       onClick={() => confirmDelete(client.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                     </Button>
                   </div>
                 </div>
@@ -221,23 +189,12 @@ export default function Clients() {
               <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <User className="h-4 w-4 shrink-0 text-primary/70" />
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">
-                        Contato Principal
-                      </span>
-                      <span className="text-foreground font-medium">
-                        {client.contact || 'Não informado'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <Mail className="h-4 w-4 shrink-0 text-primary/70" />
                     <div className="flex flex-col">
                       <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">
                         E-mail
                       </span>
-                      <span className="text-foreground font-medium truncate max-w-[200px]">
+                      <span className="text-foreground font-medium truncate">
                         {client.email || 'Não informado'}
                       </span>
                     </div>
@@ -246,11 +203,10 @@ export default function Clients() {
                     <Phone className="h-4 w-4 shrink-0 text-primary/70" />
                     <div className="flex flex-col">
                       <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">
-                        Telefones
+                        Telefone
                       </span>
                       <span className="text-foreground font-medium">
                         {client.phone || 'Não informado'}
-                        {client.altPhone ? ` / ${client.altPhone}` : ''}
                       </span>
                     </div>
                   </div>
@@ -260,14 +216,10 @@ export default function Clients() {
                     <MapPin className="h-4 w-4 shrink-0 text-primary/70 mt-1" />
                     <div className="flex flex-col">
                       <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">
-                        Endereço Completo
+                        Endereço
                       </span>
                       <span className="text-foreground font-medium line-clamp-3">
-                        {client.street ? `${client.street}, ${client.number}` : 'Não informado'}
-                        {client.neighborhood && ` - ${client.neighborhood}`}
-                        <br />
-                        {client.city && `${client.city} - ${client.state}`}
-                        {client.zip && ` / CEP: ${client.zip}`}
+                        {client.address || 'Não informado'}
                       </span>
                     </div>
                   </div>
@@ -279,113 +231,57 @@ export default function Clients() {
           <div className="col-span-full py-12 text-center bg-muted/20 border border-dashed rounded-lg">
             <Building className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
             <h3 className="text-lg font-medium text-foreground">Nenhum cliente encontrado</h3>
-            <p className="text-muted-foreground">Adicione um novo cliente ou limpe a busca.</p>
+            <p className="text-muted-foreground">Adicione um novo cliente ou ajuste sua busca.</p>
           </div>
         )}
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{editingClient.id ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
-            <DialogDescription>Preencha os dados cadastrais do cliente abaixo.</DialogDescription>
+            <DialogDescription>Preencha as informações do cliente abaixo.</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>Razão Social / Nome</Label>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome / Razão Social</Label>
               <Input
-                value={editingClient.name}
+                value={editingClient.name || ''}
                 onChange={(e) => setEditingClient({ ...editingClient, name: e.target.value })}
-                placeholder="Ex: Construtora Exemplo"
+                placeholder="Ex: Construtora Silva"
               />
             </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
+            <div className="space-y-2">
               <Label>CNPJ / CPF</Label>
               <Input
-                value={editingClient.document}
-                onChange={(e) => setEditingClient({ ...editingClient, document: e.target.value })}
+                value={editingClient.cnpj_cpf || ''}
+                onChange={(e) => setEditingClient({ ...editingClient, cnpj_cpf: e.target.value })}
                 placeholder="Ex: 00.000.000/0000-00"
               />
             </div>
-            <div className="col-span-2 space-y-2 pt-2 border-t border-border/50">
-              <Label className="text-sm font-semibold text-muted-foreground">Endereço</Label>
-            </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>Logradouro (Rua, Av.)</Label>
-              <Input
-                value={editingClient.street}
-                onChange={(e) => setEditingClient({ ...editingClient, street: e.target.value })}
-              />
-            </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>Número / Complemento</Label>
-              <Input
-                value={editingClient.number}
-                onChange={(e) => setEditingClient({ ...editingClient, number: e.target.value })}
-              />
-            </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>Bairro</Label>
-              <Input
-                value={editingClient.neighborhood}
-                onChange={(e) =>
-                  setEditingClient({ ...editingClient, neighborhood: e.target.value })
-                }
-              />
-            </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>CEP</Label>
-              <Input
-                value={editingClient.zip}
-                onChange={(e) => setEditingClient({ ...editingClient, zip: e.target.value })}
-              />
-            </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>Cidade</Label>
-              <Input
-                value={editingClient.city}
-                onChange={(e) => setEditingClient({ ...editingClient, city: e.target.value })}
-              />
-            </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>Estado (UF)</Label>
-              <Input
-                value={editingClient.state}
-                onChange={(e) => setEditingClient({ ...editingClient, state: e.target.value })}
-                placeholder="Ex: SP"
-                maxLength={2}
-              />
-            </div>
-            <div className="col-span-2 space-y-2 pt-2 border-t border-border/50">
-              <Label className="text-sm font-semibold text-muted-foreground">Contato</Label>
-            </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>Nome do Contato Principal</Label>
-              <Input
-                value={editingClient.contact}
-                onChange={(e) => setEditingClient({ ...editingClient, contact: e.target.value })}
-              />
-            </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
+            <div className="space-y-2">
               <Label>E-mail</Label>
               <Input
                 type="email"
-                value={editingClient.email}
+                value={editingClient.email || ''}
                 onChange={(e) => setEditingClient({ ...editingClient, email: e.target.value })}
+                placeholder="contato@empresa.com"
               />
             </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>Telefone Principal</Label>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
               <Input
-                value={editingClient.phone}
+                value={editingClient.phone || ''}
                 onChange={(e) => setEditingClient({ ...editingClient, phone: e.target.value })}
+                placeholder="(11) 99999-9999"
               />
             </div>
-            <div className="col-span-2 sm:col-span-1 space-y-2">
-              <Label>Telefone Alternativo (Opcional)</Label>
+            <div className="space-y-2">
+              <Label>Endereço Completo</Label>
               <Input
-                value={editingClient.altPhone || ''}
-                onChange={(e) => setEditingClient({ ...editingClient, altPhone: e.target.value })}
+                value={editingClient.address || ''}
+                onChange={(e) => setEditingClient({ ...editingClient, address: e.target.value })}
+                placeholder="Rua, Número, Bairro, Cidade - UF"
               />
             </div>
           </div>
@@ -393,7 +289,7 @@ export default function Clients() {
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>Salvar Cliente</Button>
+            <Button onClick={handleSave}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -403,7 +299,7 @@ export default function Clients() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir este cliente? Esta ação não poderá ser desfeita.
+              Esta ação não poderá ser desfeita. O cliente será removido permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -48,9 +48,25 @@ export default function Bottlenecks() {
 
   const criticalProjects = useMemo(() => {
     return projects.filter((p) => {
-      if (p.progress >= 50 || p.status === 'Concluído') return false
-      const daysToDeadline = differenceInDays(new Date(p.endDate), TODAY)
-      return daysToDeadline >= 0 && daysToDeadline <= 7
+      if (p.progress >= 100 || p.status === 'Concluído') return false
+
+      const isOverBudget = p.budget > 0 && p.spent > p.budget
+
+      const startStr = (p as any).start_date || (p as any).startDate || p.created
+      const endStr = (p as any).end_date || p.endDate || p.created
+      const start = startStr ? new Date(startStr).getTime() : TODAY.getTime()
+      const end = endStr ? new Date(endStr).getTime() : TODAY.getTime()
+      const now = TODAY.getTime()
+
+      let expectedProgress = 0
+      if (now >= end) expectedProgress = 100
+      else if (now > start && end > start) {
+        expectedProgress = ((now - start) / (end - start)) * 100
+      }
+
+      const isBehindTimeline = p.progress < expectedProgress - 10
+
+      return isOverBudget || isBehindTimeline
     })
   }, [projects])
 
@@ -94,10 +110,16 @@ export default function Bottlenecks() {
                       <div>
                         <h4 className="font-semibold text-sm">{p.name}</h4>
                         <span className="text-xs text-muted-foreground">
-                          Prazo: {format(new Date(p.endDate), 'dd/MM/yyyy')}
+                          Prazo:{' '}
+                          {format(
+                            new Date((p as any).end_date || p.endDate || new Date()),
+                            'dd/MM/yyyy',
+                          )}
                         </span>
                       </div>
-                      <Badge variant="destructive">Crítico</Badge>
+                      <Badge variant="destructive">
+                        {p.spent > p.budget ? 'Estouro de Orçamento' : 'Atrasado'}
+                      </Badge>
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-xs">

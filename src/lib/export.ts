@@ -42,6 +42,29 @@ export function exportProjectsCSV(projects: Project[]) {
   URL.revokeObjectURL(url)
 }
 
+export function exportProjectHoursCSV(logs: any[], projectName: string) {
+  const headers = ['Data', 'Membro', 'Atividade', 'Horas']
+
+  const rows = logs.map((log) => [
+    `"${format(new Date(log.date), 'dd/MM/yyyy')}"`,
+    `"${log.user.name.replace(/"/g, '""')}"`,
+    `"${log.task?.name?.replace(/"/g, '""') || 'N/A'}"`,
+    log.hours,
+  ])
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Horas_${projectName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportAuditLogsCSV(logs: Log[]) {
   const headers = ['Evento', 'Usuário', 'Descrição', 'Data/Hora']
 

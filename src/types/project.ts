@@ -127,6 +127,7 @@ export interface Project {
   engineer: string
   budget?: number
   spent?: number
+  estimatedHours?: number
   observations?: string
   cno?: string
   cnpj?: string

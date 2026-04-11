@@ -118,6 +118,156 @@ export function exportAuditLogsPDF(logs: any[], currentUser: string) {
   }, 250)
 }
 
+export function exportProjectHoursPDF(logs: any[], project: Project, currentUser: string) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const totalHours = logs.reduce((acc: number, log: any) => acc + log.hours, 0)
+  const estimatedHours = project.estimatedHours || 100
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Horas - ${project.name}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            line-height: 1.5; 
+            color: #1a1a1a; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
+          
+          .summary {
+            display: flex;
+            justify-content: space-around;
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+          }
+          .summary-item {
+            text-align: center;
+          }
+          .summary-label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+          }
+          .summary-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #111827;
+            margin-top: 5px;
+          }
+          
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+            vertical-align: top;
+          }
+          th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          
+          .footer { 
+            margin-top: 50px; 
+            padding-top: 20px; 
+            border-top: 1px dashed #e5e7eb; 
+            font-size: 12px; 
+            color: #9ca3af; 
+            text-align: center; 
+          }
+          
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+      
+        <div class="header">
+          <h1>Relatório de Horas</h1>
+          <p><strong>Projeto:</strong> ${project.name} &bull; <strong>Cliente:</strong> ${project.client}</p>
+          <p>Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+        </div>
+        
+        <div class="summary">
+          <div class="summary-item">
+            <div class="summary-label">Horas Estimadas</div>
+            <div class="summary-value">${estimatedHours}h</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Horas Realizadas</div>
+            <div class="summary-value">${totalHours}h</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Status</div>
+            <div class="summary-value" style="color: ${totalHours > estimatedHours ? '#dc2626' : '#059669'}">
+              ${totalHours > estimatedHours ? 'Acima da Estimativa' : 'Dentro da Estimativa'}
+            </div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Membro</th>
+              <th>Atividade</th>
+              <th style="text-align: right;">Horas</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logs
+              .map(
+                (log: any) => `
+                <tr>
+                  <td style="white-space: nowrap;">${format(new Date(log.date), 'dd/MM/yyyy')}</td>
+                  <td>${log.user.name}</td>
+                  <td>${log.task?.name || 'N/A'}</td>
+                  <td style="text-align: right; font-weight: 500;">${log.hours}h</td>
+                </tr>
+              `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          Documento gerado pelo Sistema de Gerenciamento de Projetos.
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
 export function exportUserPDF(user: User, projects: Project[]) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return

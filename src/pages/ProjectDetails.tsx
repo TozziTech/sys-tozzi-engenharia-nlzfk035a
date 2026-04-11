@@ -15,7 +15,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart'
-import { subDays, isAfter } from 'date-fns'
+import { subDays, isAfter, format } from 'date-fns'
 import {
   ArrowLeft,
   Calendar,
@@ -30,7 +30,12 @@ import {
   Download,
   UploadCloud,
   File,
+  FileSpreadsheet,
+  FileText,
+  AlertTriangle,
 } from 'lucide-react'
+import { exportProjectHoursCSV } from '@/lib/export'
+import { exportProjectHoursPDF } from '@/lib/exportPdf'
 import {
   Select,
   SelectContent,
@@ -93,7 +98,16 @@ const MOCK_HISTORY = [
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { projects, deleteProject, transactions, updateTransaction, categories } = useProjectStore()
+  const {
+    projects,
+    deleteProject,
+    transactions,
+    updateTransaction,
+    categories,
+    timeLogs,
+    users,
+    tasks,
+  } = useProjectStore()
   const { toast } = useToast()
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -157,6 +171,27 @@ export default function ProjectDetails() {
   const budget = project.budget || 0
   const spent = project.spent || 0
   const budgetPercentage = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0
+
+  const projectTimeLogs = useMemo(() => {
+    return timeLogs
+      .filter((log) => log.projectId === project.id)
+      .map((log) => ({
+        ...log,
+        user: users.find((u) => u.id === log.userId) || { name: 'Desconhecido' },
+        task: tasks.find((t) => t.id === log.taskId),
+      }))
+  }, [timeLogs, project.id, users, tasks])
+
+  const totalActualHours = projectTimeLogs.reduce((acc, log) => acc + log.hours, 0)
+  const estimatedHours = project.estimatedHours || 100
+
+  const handleExportCSV = () => {
+    exportProjectHoursCSV(projectTimeLogs, project.name)
+  }
+
+  const handleExportPDF = () => {
+    exportProjectHoursPDF(projectTimeLogs, project, 'Usuário Logado')
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6">
@@ -294,7 +329,7 @@ export default function ProjectDetails() {
           </Card>
 
           <Tabs defaultValue="tasks" className="w-full">
-            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-7 p-1">
+            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-4 md:grid-cols-8 p-1">
               <TabsTrigger value="tasks" className="flex-1">
                 Tarefas
               </TabsTrigger>
@@ -315,6 +350,9 @@ export default function ProjectDetails() {
               </TabsTrigger>
               <TabsTrigger value="history" className="flex-1">
                 Histórico
+              </TabsTrigger>
+              <TabsTrigger value="performance" className="flex-1">
+                Performance
               </TabsTrigger>
             </TabsList>
 
@@ -437,6 +475,178 @@ export default function ProjectDetails() {
                       </p>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="performance" className="mt-4 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Controle de Horas (Performance)</CardTitle>
+                    <CardDescription>
+                      Comparativo de horas estimadas e horas reais apontadas.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center">
+                    <div className="w-full h-[250px]">
+                      <ChartContainer
+                        config={{
+                          estimated: { label: 'Horas Estimadas', color: 'hsl(var(--chart-1))' },
+                          actual: { label: 'Horas Reais', color: 'hsl(var(--chart-2))' },
+                        }}
+                        className="w-full h-full"
+                      >
+                        <BarChart
+                          data={[
+                            {
+                              name: 'Horas do Projeto',
+                              estimated: estimatedHours,
+                              actual: totalActualHours,
+                            },
+                          ]}
+                          margin={{ top: 20, right: 30, left: -20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="name" hide />
+                          <YAxis tickLine={false} axisLine={false} fontSize={12} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <ChartLegend content={<ChartLegendContent />} />
+                          <Bar
+                            dataKey="estimated"
+                            name="Horas Estimadas"
+                            fill="var(--color-estimated)"
+                            radius={[4, 4, 0, 0]}
+                            barSize={60}
+                          />
+                          <Bar
+                            dataKey="actual"
+                            name="Horas Reais"
+                            fill="var(--color-actual)"
+                            radius={[4, 4, 0, 0]}
+                            barSize={60}
+                          />
+                        </BarChart>
+                      </ChartContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Indicadores de Esforço</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
+                            Horas Estimadas
+                          </p>
+                          <p className="text-3xl font-bold">{estimatedHours}h</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
+                            Horas Reais
+                          </p>
+                          <p className="text-3xl font-bold">{totalActualHours}h</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm font-medium">
+                          <span>Esforço Consumido</span>
+                          <span>
+                            {estimatedHours > 0
+                              ? Math.round((totalActualHours / estimatedHours) * 100)
+                              : 0}
+                            %
+                          </span>
+                        </div>
+                        <Progress
+                          value={estimatedHours > 0 ? (totalActualHours / estimatedHours) * 100 : 0}
+                          className={`h-2 ${totalActualHours > estimatedHours ? 'bg-red-100 [&>div]:bg-red-500' : totalActualHours > estimatedHours * 0.8 ? 'bg-amber-100 [&>div]:bg-amber-500' : ''}`}
+                        />
+                      </div>
+
+                      {totalActualHours > estimatedHours && (
+                        <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-sm font-medium rounded-md border border-red-200 dark:border-red-900 flex items-start gap-2">
+                          <AlertTriangle className="h-5 w-5 shrink-0" />
+                          <p>
+                            Atenção: O projeto ultrapassou a estimativa de horas planejada em{' '}
+                            {totalActualHours - estimatedHours}h. Considere revisar o escopo ou
+                            negociar aditivos com o cliente.
+                          </p>
+                        </div>
+                      )}
+                      {totalActualHours <= estimatedHours && (
+                        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium rounded-md border border-emerald-200 dark:border-emerald-900 flex items-start gap-2">
+                          <TrendingUp className="h-5 w-5 shrink-0" />
+                          <p>O projeto está sendo executado dentro do tempo estimado.</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-lg">Histórico de Horas</CardTitle>
+                    <CardDescription>
+                      Registro detalhado de horas apontadas neste projeto.
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Exportar CSV
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Exportar PDF
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {projectTimeLogs.length > 0 ? (
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Data</TableHead>
+                            <TableHead>Membro</TableHead>
+                            <TableHead>Atividade</TableHead>
+                            <TableHead className="text-right">Horas</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {projectTimeLogs
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map((log) => (
+                              <TableRow key={log.id}>
+                                <TableCell className="whitespace-nowrap">
+                                  {format(new Date(log.date), 'dd/MM/yyyy')}
+                                </TableCell>
+                                <TableCell>{log.user.name}</TableCell>
+                                <TableCell>{log.task?.name || 'N/A'}</TableCell>
+                                <TableCell className="text-right font-medium">
+                                  {log.hours}h
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
+                      Nenhuma hora registrada para este projeto ainda.
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-4 text-center">
+                    Nota: Os dados exportados refletem o estado local da sessão atual.
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>

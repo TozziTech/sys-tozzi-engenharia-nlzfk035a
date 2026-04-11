@@ -1,9 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
-import useProjectStore from '@/stores/useProjectStore'
 import { MemberCard } from '@/components/team/MemberCard'
 import { MemberForm } from '@/components/team/MemberForm'
-import { User } from '@/types/project'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -13,57 +11,56 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Search, Users } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useToast } from '@/hooks/use-toast'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function Team() {
-  const { users, updateUserRole } = useProjectStore()
-  const [localUsers, setLocalUsers] = useState<User[]>([])
-  const [editedUsers, setEditedUsers] = useState<Record<string, User>>({})
-  const [deletedUsers, setDeletedUsers] = useState<Set<string>>(new Set())
+  const [dbUsers, setDbUsers] = useState<any[]>([])
   const [formacaoFilter, setFormacaoFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const { toast } = useToast()
 
-  const allMembers = useMemo(() => {
-    const storeMembers = users.map((u) => editedUsers[u.id] || u)
-    return [...storeMembers, ...localUsers]
-  }, [users, localUsers, editedUsers])
-
-  const formacoes = useMemo(() => {
-    const forms = new Set(allMembers.map((m) => (m as any).formacao || m.specialty).filter(Boolean))
-    return Array.from(forms) as string[]
-  }, [allMembers])
-
-  const filteredMembers = useMemo(() => {
-    return allMembers.filter((m) => {
-      if (deletedUsers.has(m.id)) return false
-      const mFormacao = (m as any).formacao || m.specialty
-      const matchesFormacao = formacaoFilter === 'all' || mFormacao === formacaoFilter
-      const searchString = `${(m as any).codigo || ''} ${m.name}`.toLowerCase()
-      const matchesSearch = !searchQuery || searchString.includes(searchQuery.toLowerCase())
-      return matchesFormacao && matchesSearch
-    })
-  }, [allMembers, formacaoFilter, searchQuery, deletedUsers])
-
-  const handleAddMember = (user: User) => {
-    setLocalUsers((prev) => [...prev, user])
-  }
-
-  const handleUpdateMember = (user: User) => {
-    if (localUsers.find((u) => u.id === user.id)) {
-      setLocalUsers((prev) => prev.map((u) => (u.id === user.id ? user : u)))
-    } else {
-      setEditedUsers((prev) => ({ ...prev, [user.id]: user }))
-      if (updateUserRole && user.role) {
-        updateUserRole(user.id, user.role)
-      }
+  const loadUsers = async () => {
+    try {
+      const records = await pb.collection('users').getFullList({ sort: '-created' })
+      setDbUsers(records)
+    } catch (error) {
+      console.error('Failed to load users', error)
     }
   }
 
-  const handleDeleteMember = (id: string) => {
-    setDeletedUsers((prev) => {
-      const newSet = new Set(prev)
-      newSet.add(id)
-      return newSet
+  useEffect(() => {
+    loadUsers()
+  }, [])
+
+  useRealtime('users', () => {
+    loadUsers()
+  })
+
+  const formacoes = useMemo(() => {
+    const forms = new Set(dbUsers.map((m) => m.formacao || m.specialty).filter(Boolean))
+    return Array.from(forms) as string[]
+  }, [dbUsers])
+
+  const filteredMembers = useMemo(() => {
+    return dbUsers.filter((m) => {
+      const mFormacao = m.formacao || m.specialty
+      const matchesFormacao = formacaoFilter === 'all' || mFormacao === formacaoFilter
+      const searchString = `${m.codigo || ''} ${m.name}`.toLowerCase()
+      const matchesSearch = !searchQuery || searchString.includes(searchQuery.toLowerCase())
+      return matchesFormacao && matchesSearch
     })
+  }, [dbUsers, formacaoFilter, searchQuery])
+
+  const handleDeleteMember = async (id: string) => {
+    try {
+      await pb.collection('users').delete(id)
+      toast({ title: 'Sucesso', description: 'Membro removido com sucesso.' })
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    }
   }
 
   return (
@@ -77,7 +74,7 @@ export default function Team() {
             Gerencie os membros da equipe, especialidades, acessos e dados financeiros.
           </p>
         </div>
-        <MemberForm onAdd={handleAddMember} />
+        <MemberForm onAdd={() => {}} />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 items-center bg-card p-4 rounded-lg border shadow-sm">
@@ -117,7 +114,7 @@ export default function Team() {
             <MemberCard
               key={member.id}
               user={member}
-              onUpdate={handleUpdateMember}
+              onUpdate={() => {}}
               onDelete={handleDeleteMember}
             />
           ))}

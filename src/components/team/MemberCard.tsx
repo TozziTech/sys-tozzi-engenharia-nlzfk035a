@@ -27,6 +27,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import useProjectStore from '@/stores/useProjectStore'
 import { ProjetistaDashboard } from './ProjetistaDashboard'
 import pb from '@/lib/pocketbase/client'
+import { useToast } from '@/hooks/use-toast'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   Edit2,
   Mail,
@@ -41,6 +43,7 @@ import {
   TrendingUp,
   User as UserIcon,
   Trash2,
+  Loader2,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -380,6 +383,8 @@ export function MemberCard({
 function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
   const { projects } = useProjectStore()
   const [formData, setFormData] = useState<Partial<User> & Record<string, any>>(user)
+  const [loading, setLoading] = useState(false)
+  const { toast } = useToast()
   const [selectedProjects, setSelectedProjects] = useState<string[]>(user.assignedProjects || [])
 
   const [formacaoSelect, setFormacaoSelect] = useState(() => {
@@ -440,6 +445,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
       assignedProjects: selectedProjects,
     }
 
+    setLoading(true)
     try {
       await pb.collection('users').update(user.id, {
         codigo: formData.codigo,
@@ -453,13 +459,17 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         name: formData.name,
         phone: formData.phone,
         crea: formData.crea,
+        cpf: formData.cpf,
+        rg: formData.rg,
       })
+      toast({ title: 'Sucesso', description: 'Membro atualizado com sucesso.' })
+      onSave(updatedUser)
+      onOpenChange(false)
     } catch (err) {
-      console.error('Failed to update in PocketBase', err)
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    } finally {
+      setLoading(false)
     }
-
-    onSave(updatedUser)
-    onOpenChange(false)
   }
 
   return (
@@ -730,10 +740,13 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
 
         <div className="p-6 pt-4 border-t border-border/50 bg-muted/10">
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>Salvar Alterações</Button>
+            <Button onClick={handleSave} disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar Alterações
+            </Button>
           </DialogFooter>
         </div>
       </DialogContent>

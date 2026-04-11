@@ -21,12 +21,14 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { User } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
-import { Plus } from 'lucide-react'
+import { Plus, Loader2 } from 'lucide-react'
 import { maskCPF, maskRG, maskPhone, validateCPF } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState<Partial<User> & Record<string, any>>({
@@ -89,32 +91,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     }
 
     const finalFormacao = formacaoSelect === 'Outros' ? formacaoCustom : formacaoSelect
-
-    const newUser: any = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: formData.name,
-      codigo: formData.codigo,
-      avatar: '',
-      role: formData.role as any,
-      formacao: finalFormacao,
-      specialty: finalFormacao, // keep for backwards compatibility if needed
-      crea: formData.crea,
-      logradouro: formData.logradouro,
-      numero: formData.numero,
-      bairro: formData.bairro,
-      cidade: formData.cidade,
-      uf: formData.uf,
-      cep: formData.cep,
-      address: `${formData.logradouro}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.uf}`, // fallback
-      phone: formData.phone,
-      email: formData.email,
-      cpf: formData.cpf,
-      rg: formData.rg,
-      birthDate: formData.birthDate,
-      altPhone: formData.altPhone,
-      bankData: formData.bankData as User['bankData'],
-      assignedProjects: [],
-    }
+    setLoading(true)
 
     try {
       const createdRecord = await pb.collection('users').create({
@@ -131,37 +108,54 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
         uf: formData.uf,
         cep: formData.cep,
         crea: formData.crea,
+        cpf: formData.cpf,
+        rg: formData.rg,
         phone: formData.phone,
       })
-      newUser.id = createdRecord.id
-    } catch (err) {
-      console.error('Failed to create in PocketBase', err)
-    }
 
-    onAdd(newUser as User)
-    toast({ title: 'Sucesso', description: 'Membro adicionado à equipe com sucesso.' })
-    setOpen(false)
-    setFormData({
-      codigo: '',
-      name: '',
-      role: 'Projetista',
-      crea: '',
-      logradouro: '',
-      numero: '',
-      bairro: '',
-      cidade: '',
-      uf: '',
-      cep: '',
-      phone: '',
-      email: '',
-      cpf: '',
-      rg: '',
-      birthDate: '',
-      altPhone: '',
-      bankData: { bank: '', agency: '', account: '', pix: '' },
-    })
-    setFormacaoSelect('Engenheiro Civil')
-    setFormacaoCustom('')
+      const newUser: any = {
+        ...createdRecord,
+        specialty: finalFormacao,
+        address: `${formData.logradouro}, ${formData.numero} - ${formData.bairro}, ${formData.cidade} - ${formData.uf}`,
+        birthDate: formData.birthDate,
+        altPhone: formData.altPhone,
+        bankData: formData.bankData as User['bankData'],
+        assignedProjects: [],
+      }
+
+      onAdd(newUser as User)
+      toast({ title: 'Sucesso', description: 'Membro adicionado à equipe com sucesso.' })
+      setOpen(false)
+      setFormData({
+        codigo: '',
+        name: '',
+        role: 'Projetista',
+        crea: '',
+        logradouro: '',
+        numero: '',
+        bairro: '',
+        cidade: '',
+        uf: '',
+        cep: '',
+        phone: '',
+        email: '',
+        cpf: '',
+        rg: '',
+        birthDate: '',
+        altPhone: '',
+        bankData: { bank: '', agency: '', account: '', pix: '' },
+      })
+      setFormacaoSelect('Engenheiro Civil')
+      setFormacaoCustom('')
+    } catch (err) {
+      toast({
+        title: 'Erro ao salvar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -417,10 +411,13 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
 
         <div className="p-6 pt-4 border-t border-border/50 bg-muted/10">
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>Salvar Membro</Button>
+            <Button onClick={handleSave} disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar Membro
+            </Button>
           </DialogFooter>
         </div>
       </DialogContent>

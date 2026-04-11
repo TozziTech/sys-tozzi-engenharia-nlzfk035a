@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -12,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Download, Plus, Circle } from 'lucide-react'
+import { Download, Plus, Circle, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export interface ProjectVersion {
@@ -22,6 +23,7 @@ export interface ProjectVersion {
   date: string
   author: string
   description: string
+  link_arquivos?: string
 }
 
 const INITIAL_VERSIONS: ProjectVersion[] = [
@@ -54,6 +56,7 @@ const INITIAL_VERSIONS: ProjectVersion[] = [
 export function ProjectVersions({ projectId }: { projectId: string }) {
   const [versions, setVersions] = useState<ProjectVersion[]>(INITIAL_VERSIONS)
   const [isOpen, setIsOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -63,20 +66,114 @@ export function ProjectVersions({ projectId }: { projectId: string }) {
     author: '',
     description: '',
   })
+  const [file, setFile] = useState<File | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchVersions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('versoes_projeto')
+          .select('*')
+          .eq('projeto_id', projectId)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+
+        if (data && data.length > 0) {
+          setVersions(
+            data.map((d) => ({
+              id: d.id,
+              version: d.version,
+              revision: d.revision,
+              date: d.date,
+              author: d.author,
+              description: d.description,
+              link_arquivos: d.link_arquivos,
+            })),
+          )
+        }
+      } catch (error) {
+        console.warn('Erro ao carregar versões do Supabase. Usando dados locais.', error)
+      }
+    }
+
+    fetchVersions()
+  }, [projectId])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!file) {
+      toast({
+        title: 'Arquivo obrigatório',
+        description: 'Por favor, selecione um arquivo ZIP ou PDF.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    let link_arquivos = ''
+    let hasError = false
+    let errorMessage = ''
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
+      const filePath = `${projectId}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('versoes_projetos')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('versoes_projetos').getPublicUrl(filePath)
+
+      link_arquivos = publicUrl
+
+      const newVersionData = {
+        projeto_id: projectId,
+        version: formData.version,
+        revision: formData.revision,
+        date: formData.date,
+        author: formData.author,
+        description: formData.description,
+        link_arquivos,
+      }
+
+      const { error: dbError } = await supabase.from('versoes_projeto').insert(newVersionData)
+
+      if (dbError) throw dbError
+    } catch (error: any) {
+      console.warn('Erro na integração com Supabase:', error)
+      hasError = true
+      errorMessage = error.message || 'Ocorreu um erro ao enviar para o servidor.'
+    }
+
+    if (hasError) {
+      toast({
+        title: 'Aviso (Modo Offline/Mock)',
+        description: `Erro ao salvar na nuvem: ${errorMessage}. Mantendo registro apenas local.`,
+      })
+      link_arquivos = URL.createObjectURL(file)
+    } else {
+      toast({
+        title: 'Versão registrada e arquivo enviado com sucesso!',
+        description: `A versão ${formData.version} foi adicionada ao histórico.`,
+      })
+    }
+
     const newVersion: ProjectVersion = {
       id: Math.random().toString(36).substring(2, 9),
       ...formData,
+      link_arquivos,
     }
+
     setVersions([newVersion, ...versions])
     setIsOpen(false)
-
-    toast({
-      title: 'Nova versão registrada com sucesso!',
-      description: `A versão ${formData.version} foi adicionada ao histórico.`,
-    })
 
     setFormData({
       version: '',
@@ -85,6 +182,8 @@ export function ProjectVersions({ projectId }: { projectId: string }) {
       author: '',
       description: '',
     })
+    setFile(null)
+    setIsSubmitting(false)
   }
 
   return (
@@ -157,14 +256,34 @@ export function ProjectVersions({ projectId }: { projectId: string }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="file">Arquivo Anexo</Label>
-                <Input id="file" type="file" />
+                <Label htmlFor="file">Arquivo Anexo (ZIP ou PDF)</Label>
+                <Input
+                  id="file"
+                  type="file"
+                  accept=".zip,.pdf"
+                  required
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
               </div>
               <DialogFooter className="mt-6">
-                <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsOpen(false)}
+                  disabled={isSubmitting}
+                >
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -193,7 +312,22 @@ export function ProjectVersions({ projectId }: { projectId: string }) {
                     {v.description}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="gap-2 shrink-0 md:mt-0 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 shrink-0 md:mt-0 mt-2"
+                  onClick={() => {
+                    if (v.link_arquivos) {
+                      window.open(v.link_arquivos, '_blank')
+                    } else {
+                      toast({
+                        title: 'Arquivo indisponível',
+                        description: 'Esta versão não possui um arquivo anexado.',
+                        variant: 'destructive',
+                      })
+                    }
+                  }}
+                >
                   <Download className="h-4 w-4" />
                   <span>Baixar Arquivos</span>
                 </Button>

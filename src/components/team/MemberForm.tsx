@@ -154,6 +154,34 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       data.formacaoSelect === 'Outros' ? data.formacaoCustom : data.formacaoSelect
 
     try {
+      const existingEmail = await pb
+        .collection('users')
+        .getList(1, 1, { filter: `email="${data.email.replace(/"/g, '')}"` })
+      if (existingEmail.totalItems > 0) {
+        form.setError('email', { type: 'manual', message: 'Este e-mail já está cadastrado.' })
+        toast({
+          title: 'Erro de Validação',
+          description: 'Este e-mail já está cadastrado.',
+          variant: 'destructive',
+        })
+        setLoading(false)
+        return
+      }
+
+      const existingCodigo = await pb
+        .collection('users')
+        .getList(1, 1, { filter: `codigo="${data.codigo.replace(/"/g, '')}"` })
+      if (existingCodigo.totalItems > 0) {
+        form.setError('codigo', { type: 'manual', message: 'Este código já está em uso.' })
+        toast({
+          title: 'Erro de Validação',
+          description: 'Este código já está em uso.',
+          variant: 'destructive',
+        })
+        setLoading(false)
+        return
+      }
+
       const createdRecord = await pb.collection('users').create({
         email: data.email,
         password: data.password,

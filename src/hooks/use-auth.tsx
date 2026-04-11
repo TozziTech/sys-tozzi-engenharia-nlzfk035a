@@ -33,7 +33,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (error) {
           console.error('Auto login failed', error)
           pb.authStore.clear()
+          setUser(null)
         }
+      } else {
+        setUser(pb.authStore.record)
       }
       setLoading(false)
     }

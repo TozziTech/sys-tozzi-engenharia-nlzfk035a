@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Wallet,
   DollarSign,
+  HardHat,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -32,6 +33,7 @@ import { useSettingsStore } from '@/stores/useSettingsStore'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Painel do Projetista', href: '/designer-panel', icon: HardHat },
   { name: 'Financeiro', href: '/financial', icon: DollarSign },
   { name: 'Projetos', href: '/projects', icon: FolderKanban },
   { name: 'Dashboard Financeiro', href: '/financeiro', icon: Wallet },

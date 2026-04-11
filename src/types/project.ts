@@ -68,6 +68,22 @@ export interface Comment {
   attachments?: Attachment[]
 }
 
+export interface AuditLogChange {
+  field: string
+  oldValue?: string
+  newValue: string
+}
+
+export interface AuditLog {
+  id: string
+  timestamp: string
+  user: { name: string; id?: string }
+  action: 'Create' | 'Update' | 'Delete' | 'Assign' | string
+  entityType: string
+  entityName: string
+  changes: AuditLogChange[]
+}
+
 export interface AppNotification {
   id: string
   title: string

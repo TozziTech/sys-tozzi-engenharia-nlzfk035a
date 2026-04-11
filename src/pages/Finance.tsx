@@ -689,9 +689,9 @@ export default function Finance() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todo Período</SelectItem>
-            <SelectItem value="30d">Últimos 30 dias</SelectItem>
-            <SelectItem value="quarter">Trimestre</SelectItem>
-            <SelectItem value="year">Este Ano</SelectItem>
+            <SelectItem value="30d">Mensal</SelectItem>
+            <SelectItem value="quarter">Trimestral</SelectItem>
+            <SelectItem value="year">Anual</SelectItem>
           </SelectContent>
         </Select>
 

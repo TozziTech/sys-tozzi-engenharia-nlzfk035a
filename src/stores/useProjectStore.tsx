@@ -17,6 +17,8 @@ import {
   Task,
   Transaction,
   ExpenseCategory,
+  AuditLog,
+  AuditLogChange,
 } from '@/types/project'
 import { sendSlackNotification } from '@/lib/slack'
 
@@ -289,6 +291,9 @@ interface ProjectStore {
   categories: ExpenseCategory[]
   addCategory: (c: Omit<ExpenseCategory, 'id'>) => void
   deleteCategory: (id: string) => void
+
+  auditLogs: AuditLog[]
+  addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => void
 }
 
 const ProjectContext = createContext<ProjectStore | undefined>(undefined)
@@ -307,18 +312,76 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   )
   const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS)
   const [categories, setCategories] = useState<ExpenseCategory[]>(MOCK_CATEGORIES)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const hasCheckedAutomations = useRef(false)
 
+  const addAuditLog = useCallback((log: Omit<AuditLog, 'id' | 'timestamp'>) => {
+    const newLog: AuditLog = {
+      ...log,
+      id: `al-${Date.now()}-${Math.random()}`,
+      timestamp: new Date().toISOString(),
+    }
+    setAuditLogs((prev) => [newLog, ...prev])
+  }, [])
+
   const addTransaction = (t: Omit<Transaction, 'id'>) => {
-    setTransactions((prev) => [{ ...t, id: `tr-${Date.now()}` }, ...prev])
+    const id = `tr-${Date.now()}`
+    setTransactions((prev) => [{ ...t, id }, ...prev])
+    addAuditLog({
+      user: { name: 'Admin User' },
+      action: 'Create',
+      entityType: 'Transaction',
+      entityName: t.description,
+      changes: [
+        { field: 'Valor', newValue: String(t.value) },
+        { field: 'Tipo', newValue: t.type },
+      ],
+    })
   }
 
   const updateTransaction = (id: string, data: Partial<Transaction>) => {
-    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)))
+    setTransactions((prev) => {
+      const oldTr = prev.find((t) => t.id === id)
+      if (oldTr) {
+        const changes: AuditLogChange[] = []
+        Object.keys(data).forEach((k) => {
+          const key = k as keyof Transaction
+          if (data[key] !== oldTr[key] && data[key] !== undefined) {
+            changes.push({
+              field: key,
+              oldValue: String(oldTr[key] || ''),
+              newValue: String(data[key] || ''),
+            })
+          }
+        })
+        if (changes.length > 0) {
+          addAuditLog({
+            user: { name: 'Admin User' },
+            action: 'Update',
+            entityType: 'Transaction',
+            entityName: oldTr.description,
+            changes,
+          })
+        }
+      }
+      return prev.map((t) => (t.id === id ? { ...t, ...data } : t))
+    })
   }
 
   const deleteTransaction = (id: string) => {
-    setTransactions((prev) => prev.filter((tr) => tr.id !== id))
+    setTransactions((prev) => {
+      const oldTr = prev.find((t) => t.id === id)
+      if (oldTr) {
+        addAuditLog({
+          user: { name: 'Admin User' },
+          action: 'Delete',
+          entityType: 'Transaction',
+          entityName: oldTr.description,
+          changes: [],
+        })
+      }
+      return prev.filter((tr) => tr.id !== id)
+    })
   }
 
   const addCategory = (c: Omit<ExpenseCategory, 'id'>) => {
@@ -346,6 +409,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const addProject = (p: Project) => {
     setProjects((prev) => [p, ...prev])
+    addAuditLog({
+      user: { name: 'Admin User' },
+      action: 'Create',
+      entityType: 'Project',
+      entityName: p.name,
+      changes: [
+        { field: 'Status', newValue: p.status },
+        { field: 'Engenheiro', newValue: p.engineer },
+      ],
+    })
     sendSlackNotification(
       slackWebhookUrl,
       '🚀 Novo Projeto Criado',
@@ -356,23 +429,60 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const updateProject = (id: string, p: Partial<Project>) => {
     setProjects((prev) => {
       const oldProject = prev.find((proj) => proj.id === id)
-      if (oldProject && p.status && oldProject.status !== p.status) {
-        addNotification({
-          title: 'Atualização de Status',
-          description: `O projeto ${oldProject.name} mudou o status para ${p.status}.`,
-          link: `/projects/${id}`,
+      if (oldProject) {
+        const changes: AuditLogChange[] = []
+        Object.keys(p).forEach((k) => {
+          const key = k as keyof Project
+          if (p[key] !== oldProject[key] && p[key] !== undefined) {
+            changes.push({
+              field: key,
+              oldValue: String(oldProject[key] || ''),
+              newValue: String(p[key] || ''),
+            })
+          }
         })
-        sendSlackNotification(
-          slackWebhookUrl,
-          '🔄 Atualização de Status',
-          `O projeto *${oldProject.name}* mudou de status: \n*Anterior:* ${oldProject.status} \n*Novo:* ${p.status}`,
-        )
+        if (changes.length > 0) {
+          addAuditLog({
+            user: { name: 'Admin User' },
+            action: 'Update',
+            entityType: 'Project',
+            entityName: oldProject.name,
+            changes,
+          })
+        }
+
+        if (p.status && oldProject.status !== p.status) {
+          addNotification({
+            title: 'Atualização de Status',
+            description: `O projeto ${oldProject.name} mudou o status para ${p.status}.`,
+            link: `/projects/${id}`,
+          })
+          sendSlackNotification(
+            slackWebhookUrl,
+            '🔄 Atualização de Status',
+            `O projeto *${oldProject.name}* mudou de status: \n*Anterior:* ${oldProject.status} \n*Novo:* ${p.status}`,
+          )
+        }
       }
       return prev.map((proj) => (proj.id === id ? { ...proj, ...p } : proj))
     })
   }
 
-  const deleteProject = (id: string) => setProjects((prev) => prev.filter((proj) => proj.id !== id))
+  const deleteProject = (id: string) => {
+    setProjects((prev) => {
+      const oldProject = prev.find((proj) => proj.id === id)
+      if (oldProject) {
+        addAuditLog({
+          user: { name: 'Admin User' },
+          action: 'Delete',
+          entityType: 'Project',
+          entityName: oldProject.name,
+          changes: [],
+        })
+      }
+      return prev.filter((proj) => proj.id !== id)
+    })
+  }
 
   const addComment = (c: Comment) => setComments((prev) => [...prev, c])
 
@@ -565,6 +675,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         categories,
         addCategory,
         deleteCategory,
+        auditLogs,
+        addAuditLog,
       },
     },
     children,

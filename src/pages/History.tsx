@@ -34,7 +34,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import useProjectStore from '@/stores/useProjectStore'
 import { useToast } from '@/hooks/use-toast'
 import { AuditTrailDialog } from '@/components/timesheet/AuditTrailDialog'
-import { MOCK_LOGS } from '@/lib/mock-logs'
 import { exportAuditLogsCSV } from '@/lib/export'
 import { TimeEntryForm } from '@/components/timesheet/TimeEntryForm'
 
@@ -75,7 +74,8 @@ export default function History() {
   const [period, setPeriod] = useState('all')
   const [activeTab, setActiveTab] = useState('system')
 
-  const { projects, users, timeLogs, tasks, approveTimeLog, rejectTimeLog } = useProjectStore()
+  const { projects, users, timeLogs, tasks, approveTimeLog, rejectTimeLog, auditLogs } =
+    useProjectStore()
   const { toast } = useToast()
 
   const [currentUserId, setCurrentUserId] = useState(users[0]?.id)
@@ -85,7 +85,7 @@ export default function History() {
   const isManager = ['Gerente de Projeto', 'Administrador'].includes(currentUserObj?.role || '')
 
   const filteredLogs = useMemo(() => {
-    return MOCK_LOGS.filter((log) => {
+    return auditLogs.filter((log) => {
       const matchesSearch =
         log.user.name.toLowerCase().includes(search.toLowerCase()) ||
         log.entityName.toLowerCase().includes(search.toLowerCase())
@@ -278,14 +278,18 @@ export default function History() {
         <TabsContent value="system">
           <Card>
             <CardHeader>
-              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
                 <div>
                   <CardTitle className="text-xl flex items-center gap-2">
                     <HistoryIcon className="h-5 w-5" />
                     Trilha de Auditoria
                   </CardTitle>
                   <CardDescription>
-                    Visualização cronológica de alterações em projetos e tarefas.
+                    Visualização cronológica de alterações no sistema. <br />
+                    <span className="text-amber-600 dark:text-amber-400 text-xs font-medium">
+                      Nota: Os logs de auditoria gerados são simulados nesta sessão e serão perdidos
+                      ao recarregar a página.
+                    </span>
                   </CardDescription>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
@@ -328,10 +332,10 @@ export default function History() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Data & Hora</TableHead>
+                      <TableHead>Data/Hora</TableHead>
                       <TableHead>Usuário</TableHead>
-                      <TableHead>Ação / Entidade</TableHead>
-                      <TableHead>Detalhes da Alteração</TableHead>
+                      <TableHead>Ação</TableHead>
+                      <TableHead>Entidade Afetada</TableHead>{' '}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -351,34 +355,37 @@ export default function History() {
                             <span className="text-sm font-medium">{log.user.name}</span>
                           </TableCell>
                           <TableCell>
+                            <ActionBadge action={log.action} />
+                          </TableCell>
+                          <TableCell>
                             <div className="flex flex-col gap-1 items-start">
-                              <ActionBadge action={log.action} />
                               <span className="text-sm font-medium">{log.entityName}</span>
                               <span className="text-xs text-muted-foreground">
                                 {log.entityType}
                               </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-2">
-                              {log.changes.map((change, i) => (
-                                <div key={i} className="flex flex-wrap items-center gap-2 text-sm">
-                                  <span className="font-medium text-slate-700 dark:text-slate-300 min-w-[80px]">
-                                    {change.field}:
-                                  </span>
-                                  {change.oldValue && (
-                                    <>
-                                      <span className="line-through text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 px-1.5 py-0.5 rounded text-xs">
-                                        {change.oldValue}
-                                      </span>
-                                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                                    </>
-                                  )}
-                                  <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded text-xs">
-                                    {change.newValue}
-                                  </span>
-                                </div>
-                              ))}
+                              <div className="flex flex-col gap-2 mt-1">
+                                {log.changes.map((change, i) => (
+                                  <div
+                                    key={i}
+                                    className="flex flex-wrap items-center gap-2 text-xs"
+                                  >
+                                    <span className="font-medium text-slate-700 dark:text-slate-300 min-w-[80px]">
+                                      {change.field}:
+                                    </span>
+                                    {change.oldValue && (
+                                      <>
+                                        <span className="line-through text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 px-1.5 py-0.5 rounded">
+                                          {change.oldValue}
+                                        </span>
+                                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                      </>
+                                    )}
+                                    <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded">
+                                      {change.newValue}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>

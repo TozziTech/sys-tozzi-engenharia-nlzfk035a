@@ -47,6 +47,8 @@ const formSchema = z
       .transform((v) => (v === '' ? undefined : Number(v)))
       .optional(),
     observations: z.string().optional(),
+    cno: z.string().optional(),
+    cnpj: z.string().optional(),
   })
   .refine((data) => data.endDate >= data.startDate, {
     message: 'Data de entrega deve ser posterior ao início',
@@ -84,6 +86,8 @@ export function NewProjectModal() {
       engineer: '',
       observations: '',
       budget: undefined,
+      cno: '',
+      cnpj: '',
     },
   })
 
@@ -105,6 +109,8 @@ export function NewProjectModal() {
       engineer: values.engineer,
       budget: values.budget,
       observations: values.observations,
+      cno: values.cno,
+      cnpj: values.cnpj,
     })
 
     toast({ title: 'Projeto criado!', description: `O projeto ${values.name} foi adicionado.` })
@@ -249,7 +255,32 @@ export function NewProjectModal() {
                   </FormItem>
                 )}
               />
-              <div className="col-span-2 sm:col-span-1" />
+              <FormField
+                control={form.control}
+                name="cno"
+                render={({ field }) => (
+                  <FormItem className="col-span-2 sm:col-span-1">
+                    <FormLabel>CNO da Obra</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Opcional" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cnpj"
+                render={({ field }) => (
+                  <FormItem className="col-span-2 sm:col-span-1">
+                    <FormLabel>CNPJ da Obra</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Opcional" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="description"

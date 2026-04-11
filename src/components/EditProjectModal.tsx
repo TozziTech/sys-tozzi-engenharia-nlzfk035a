@@ -56,6 +56,8 @@ const formSchema = z
       .transform((v) => (v === '' ? 0 : Number(v)))
       .optional(),
     observations: z.string().optional(),
+    cno: z.string().optional(),
+    cnpj: z.string().optional(),
   })
   .refine((data) => data.endDate >= data.startDate, {
     message: 'Data de entrega deve ser posterior ao início',
@@ -103,6 +105,8 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
       budget: undefined,
       spent: undefined,
       progress: 0,
+      cno: '',
+      cnpj: '',
     },
   })
 
@@ -121,6 +125,8 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
         progress: String(project.progress) as any,
         startDate: new Date(project.startDate + 'T00:00:00'),
         endDate: new Date(project.endDate + 'T00:00:00'),
+        cno: project.cno || '',
+        cnpj: project.cnpj || '',
       })
     }
   }, [open, project, form])
@@ -139,6 +145,8 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
       budget: values.budget,
       spent: values.spent,
       observations: values.observations,
+      cno: values.cno,
+      cnpj: values.cnpj,
     })
 
     toast({
@@ -341,6 +349,32 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
                         {...field}
                         value={field.value ?? ''}
                       />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cno"
+                render={({ field }) => (
+                  <FormItem className="col-span-2 sm:col-span-1">
+                    <FormLabel>CNO da Obra</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Opcional" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cnpj"
+                render={({ field }) => (
+                  <FormItem className="col-span-2 sm:col-span-1">
+                    <FormLabel>CNPJ da Obra</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Opcional" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

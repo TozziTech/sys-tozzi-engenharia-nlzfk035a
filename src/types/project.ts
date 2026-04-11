@@ -108,4 +108,6 @@ export interface Project {
   budget?: number
   spent?: number
   observations?: string
+  cno?: string
+  cnpj?: string
 }

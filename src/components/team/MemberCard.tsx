@@ -59,37 +59,215 @@ export function MemberCard({ user, onUpdate }: { user: User; onUpdate: (user: Us
   const [isEditOpen, setIsEditOpen] = useState(false)
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md border-border/60">
-      <CardHeader className="flex flex-col pb-4 bg-muted/30 relative border-b border-border/40">
+    <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md border-border/60 group">
+      <CardHeader className="flex flex-col pb-4 relative border-b border-border/40">
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1 space-y-1">
-            <CardTitle className="text-xl leading-tight font-bold">{user.name}</CardTitle>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button className="text-xl leading-tight font-bold text-left hover:underline text-primary transition-colors cursor-pointer block w-full truncate">
+                  {user.name}
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[800px] h-[85vh] flex flex-col p-0 overflow-hidden bg-background">
+                <div className="p-6 pb-4 border-b border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/10 shrink-0">
+                  <div>
+                    <DialogTitle className="text-2xl font-bold">{user.name}</DialogTitle>
+                    <DialogDescription className="text-base font-medium text-primary mt-1 flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" /> {user.specialty || 'Sem Especialidade'}
+                    </DialogDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 shrink-0 bg-background"
+                    onClick={() => exportUserPDF(user, userProjects)}
+                  >
+                    <FileDown className="h-4 w-4" />
+                    Exportar PDF
+                  </Button>
+                </div>
+
+                <ScrollArea className="flex-1 p-6">
+                  <div className="space-y-8 pb-8">
+                    {/* Contact & Basics */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                          <User className="h-3.5 w-3.5" /> Informações Pessoais
+                        </h4>
+                        <div className="text-sm space-y-3">
+                          <div className="flex items-center gap-3 text-muted-foreground">
+                            <Mail className="h-4 w-4 shrink-0" />
+                            <span className="font-medium text-foreground truncate">
+                              {user.email || 'Não informado'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-muted-foreground">
+                            <Phone className="h-4 w-4 shrink-0" />
+                            <span className="font-medium text-foreground">
+                              {user.phone || 'Não informado'}
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-3 text-muted-foreground">
+                            <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
+                            <span className="font-medium text-foreground line-clamp-2">
+                              {user.address || 'Não informado'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-muted-foreground pt-1">
+                            <FileText className="h-4 w-4 shrink-0" />
+                            <span className="font-medium text-foreground">
+                              CREA: {user.crea || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bank Details */}
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                          <Wallet className="h-3.5 w-3.5" /> Dados Bancários
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-lg border border-border/40">
+                          <div>
+                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
+                              Banco
+                            </span>
+                            <span className="font-medium text-sm">
+                              {user.bankData?.bank || '-'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
+                              Agência
+                            </span>
+                            <span className="font-medium text-sm">
+                              {user.bankData?.agency || '-'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
+                              Conta
+                            </span>
+                            <span className="font-medium text-sm">
+                              {user.bankData?.account || '-'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
+                              PIX
+                            </span>
+                            <span
+                              className="font-medium text-sm truncate block"
+                              title={user.bankData?.pix}
+                            >
+                              {user.bankData?.pix || '-'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Projects */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between border-b border-border/50 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-3.5 w-3.5" /> Projetos Associados
+                        </div>
+                        <Badge variant="secondary" className="h-5 px-2 text-xs rounded-full">
+                          {userProjects.length}
+                        </Badge>
+                      </h4>
+                      {userProjects.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {userProjects.map((p) => (
+                            <div
+                              key={p.id}
+                              className="flex justify-between items-center bg-muted/10 border border-border/60 p-3 rounded-lg shadow-sm"
+                            >
+                              <div className="flex flex-col truncate pr-2">
+                                <span className="font-medium text-sm truncate">{p.name}</span>
+                                <span className="text-xs text-muted-foreground">{p.client}</span>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] whitespace-nowrap bg-background"
+                              >
+                                {p.status}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="bg-muted/10 border border-dashed border-border p-6 rounded-lg text-center">
+                          <p className="text-sm text-muted-foreground font-medium">
+                            Nenhum projeto associado no momento.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Financial Performance */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                          <TrendingUp className="h-3.5 w-3.5" /> Desempenho Financeiro
+                        </h4>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 rounded-full hover:bg-transparent"
+                            >
+                              <Info className="h-4 w-4 text-muted-foreground/50 hover:text-foreground transition-colors" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-[250px] text-xs">
+                            Valores baseados em horas aprovadas multiplicadas pelo valor hora do
+                            profissional. Dados ilustrativos no momento.
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <ChartContainer
+                        config={{ amount: { label: 'Recebido', color: 'hsl(var(--primary))' } }}
+                        className="h-[150px] w-full"
+                      >
+                        <BarChart
+                          data={mockFinancialData}
+                          margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                        >
+                          <ChartTooltip
+                            cursor={{ fill: 'hsl(var(--muted))' }}
+                            content={<ChartTooltipContent />}
+                          />
+                          <Bar
+                            dataKey="amount"
+                            fill="var(--color-amount)"
+                            radius={[4, 4, 0, 0]}
+                            maxBarSize={40}
+                          />
+                        </BarChart>
+                      </ChartContainer>
+                    </div>
+
+                    {/* Dashboard */}
+                    <div className="pt-4">
+                      <ProjetistaDashboard user={user} />
+                    </div>
+                  </div>
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
+
             <div className="flex items-center gap-2">
-              <Briefcase className="h-3.5 w-3.5 text-primary" />
-              <CardDescription className="text-sm font-semibold text-primary">
-                {user.specialty || 'Sem Especialidade'}
-              </CardDescription>
+              <Badge variant="secondary" className="font-medium bg-primary/10 text-primary">
+                {user.role || 'Sem Cargo'}
+              </Badge>
             </div>
           </div>
           <div className="flex gap-1.5 items-center shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 gap-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                  onClick={() => exportUserPDF(user, userProjects)}
-                >
-                  <FileDown className="h-4 w-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline-block">
-                    PDF
-                  </span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>Exportar PDF (Dados Temporários)</p>
-              </TooltipContent>
-            </Tooltip>
             <MemberEditDialog
               user={user}
               onSave={onUpdate}
@@ -98,172 +276,29 @@ export function MemberCard({ user, onUpdate }: { user: User; onUpdate: (user: Us
             />
           </div>
         </div>
-
-        <div className="flex gap-2 mt-4 items-center">
-          <Badge
-            variant="outline"
-            className="bg-background/50 font-medium border-border/80 flex items-center gap-1.5 px-2"
-          >
-            <FileText className="h-3 w-3 text-muted-foreground" />
-            CREA: {user.crea || 'N/A'}
-          </Badge>
-          <div className="ml-auto w-[150px]">
-            <Select
-              value={user.role || ''}
-              onValueChange={(val: any) => onUpdate({ ...user, role: val })}
-            >
-              <SelectTrigger className="h-7 text-xs bg-background shadow-sm border-border/80 focus:ring-1">
-                <SelectValue placeholder="Definir Cargo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Administrador">Administrador</SelectItem>
-                <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
-                <SelectItem value="Projetista">Projetista</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
       </CardHeader>
 
-      <CardContent className="flex-1 pt-5 space-y-6 bg-card">
-        <div className="text-sm space-y-3">
-          <div className="flex items-center gap-3 text-muted-foreground group">
-            <div className="bg-muted p-1.5 rounded-md group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-              <Mail className="h-3.5 w-3.5" />
-            </div>
-            <span className="font-medium text-foreground truncate">
-              {user.email || 'Não informado'}
-            </span>
+      <CardContent className="flex-1 pt-4 space-y-4 bg-card/50">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Briefcase className="h-4 w-4 shrink-0 text-primary/70" />
+            <span className="truncate">{user.specialty || 'Sem especialidade'}</span>
           </div>
-          <div className="flex items-center gap-3 text-muted-foreground group">
-            <div className="bg-muted p-1.5 rounded-md group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-              <Phone className="h-3.5 w-3.5" />
-            </div>
-            <span className="font-medium text-foreground">{user.phone || 'Não informado'}</span>
-          </div>
-          <div className="flex items-start gap-3 text-muted-foreground group">
-            <div className="bg-muted p-1.5 rounded-md group-hover:bg-primary/10 group-hover:text-primary transition-colors shrink-0">
-              <MapPin className="h-3.5 w-3.5" />
-            </div>
-            <span className="font-medium text-foreground line-clamp-2 mt-0.5">
-              {user.address || 'Não informado'}
-            </span>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Mail className="h-4 w-4 shrink-0 text-primary/70" />
+            <span className="truncate">{user.email || 'Email não informado'}</span>
           </div>
         </div>
 
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b border-border/50 pb-2">
-            <Wallet className="h-3.5 w-3.5" /> Dados Bancários
-          </h4>
-          <div className="grid grid-cols-2 gap-3 bg-muted/40 p-3 rounded-lg border border-border/40">
-            <div>
-              <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
-                Banco
-              </span>
-              <span className="font-medium text-xs">{user.bankData?.bank || '-'}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
-                Agência
-              </span>
-              <span className="font-medium text-xs">{user.bankData?.agency || '-'}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
-                Conta
-              </span>
-              <span className="font-medium text-xs">{user.bankData?.account || '-'}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-0.5">
-                PIX
-              </span>
-              <span className="font-medium text-xs truncate block" title={user.bankData?.pix}>
-                {user.bankData?.pix || '-'}
-              </span>
-            </div>
+        <div className="pt-3 border-t border-border/50 flex items-center justify-between">
+          <div className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{userProjects.length}</span>{' '}
+            {userProjects.length === 1 ? 'Projeto' : 'Projetos'}
           </div>
+          <Badge variant="outline" className="text-[10px] bg-background border-border/80">
+            {user.crea ? `CREA: ${user.crea}` : 'Sem CREA'}
+          </Badge>
         </div>
-
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between border-b border-border/50 pb-2">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-3.5 w-3.5" /> Projetos
-            </div>
-            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] rounded-full">
-              {userProjects.length}
-            </Badge>
-          </h4>
-          {userProjects.length > 0 ? (
-            <ul className="text-xs space-y-2">
-              {userProjects.slice(0, 3).map((p) => (
-                <li
-                  key={p.id}
-                  className="flex justify-between items-center bg-background border border-border/60 p-2 rounded-lg shadow-sm"
-                >
-                  <span className="truncate pr-2 font-medium">{p.name}</span>
-                  <Badge
-                    variant="outline"
-                    className="text-[9px] whitespace-nowrap px-1.5 py-0 h-4 bg-muted/50 border-border/80"
-                  >
-                    {p.status}
-                  </Badge>
-                </li>
-              ))}
-              {userProjects.length > 3 && (
-                <li className="text-[10px] text-center text-muted-foreground font-medium pt-1">
-                  + {userProjects.length - 3} outros projetos
-                </li>
-              )}
-            </ul>
-          ) : (
-            <div className="bg-muted/30 border border-dashed border-border p-3 rounded-lg text-center">
-              <p className="text-xs text-muted-foreground font-medium">Nenhum projeto associado</p>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-3 pt-3 border-t border-border/50">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-3.5 w-3.5" /> Desempenho Financeiro
-            </h4>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 rounded-full hover:bg-transparent"
-                >
-                  <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-foreground transition-colors" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" className="max-w-[220px] text-xs">
-                Valores baseados em projetos concluídos. Os dados apresentados são temporários
-                enquanto não há conexão com o banco de dados.
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <ChartContainer
-            config={{ amount: { label: 'Recebido', color: 'hsl(var(--primary))' } }}
-            className="h-[80px] w-full"
-          >
-            <BarChart data={mockFinancialData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-              <ChartTooltip
-                cursor={{ fill: 'hsl(var(--muted))' }}
-                content={<ChartTooltipContent hideLabel />}
-              />
-              <Bar
-                dataKey="amount"
-                fill="var(--color-amount)"
-                radius={[2, 2, 0, 0]}
-                maxBarSize={30}
-              />
-            </BarChart>
-          </ChartContainer>
-        </div>
-
-        <ProjetistaDashboard user={user} />
       </CardContent>
     </Card>
   )
@@ -312,7 +347,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px] h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-        <div className="p-6 pb-4">
+        <div className="p-6 pb-4 bg-muted/10">
           <DialogHeader>
             <DialogTitle className="text-xl">Editar Perfil do Membro</DialogTitle>
             <DialogDescription>
@@ -322,7 +357,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         </div>
 
         <Tabs defaultValue="personal" className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-6 border-b border-border/50">
+          <div className="px-6 border-b border-border/50 bg-muted/10">
             <TabsList className="grid w-full grid-cols-3 bg-muted/50 h-10 mb-[-1px] rounded-b-none border border-b-0 border-border/50">
               <TabsTrigger
                 value="personal"

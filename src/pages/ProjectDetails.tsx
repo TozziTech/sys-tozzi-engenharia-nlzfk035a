@@ -214,6 +214,28 @@ export default function ProjectDetails() {
                     <p className="font-medium">{project.endDate.split('-').reverse().join('/')}</p>
                   </div>
                 </div>
+                {project.cno && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                        CNO da Obra
+                      </p>
+                      <p className="font-medium">{project.cno}</p>
+                    </div>
+                  </div>
+                )}
+                {project.cnpj && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                        CNPJ da Obra
+                      </p>
+                      <p className="font-medium">{project.cnpj}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {project.description && (

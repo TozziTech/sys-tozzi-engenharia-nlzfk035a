@@ -225,7 +225,7 @@ export default function History() {
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 print:hidden">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Histórico e Time Tracking</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Auditoria e Time Tracking</h2>
           <p className="text-muted-foreground">
             Acompanhe atividades do sistema e registro de horas (Timesheet).
           </p>

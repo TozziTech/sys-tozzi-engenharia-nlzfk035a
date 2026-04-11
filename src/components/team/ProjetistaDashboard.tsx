@@ -36,7 +36,7 @@ export function ProjetistaDashboard({ user }: { user: User }) {
       <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle>Dashboard Financeiro</DialogTitle>
-          <DialogDescription>Resumo de recebimentos do projetista {user.name}</DialogDescription>
+          <DialogDescription>Resumo de recebimentos do membro {user.name}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

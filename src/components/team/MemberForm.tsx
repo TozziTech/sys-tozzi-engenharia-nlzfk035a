@@ -23,13 +23,14 @@ import { User } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
 import { Plus } from 'lucide-react'
 
-export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
+export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState<Partial<User>>({
     name: '',
     specialty: '',
+    role: 'Projetista',
     crea: '',
     address: '',
     phone: '',
@@ -50,10 +51,10 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
   }
 
   const handleSave = () => {
-    if (!formData.name || !formData.specialty) {
+    if (!formData.name) {
       toast({
-        title: 'Erro',
-        description: 'Nome e Especialidade são obrigatórios',
+        title: 'Atenção',
+        description: 'O nome do membro é obrigatório.',
         variant: 'destructive',
       })
       return
@@ -62,8 +63,8 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
     const newUser: User = {
       id: Math.random().toString(36).substr(2, 9),
       name: formData.name,
-      avatar: `https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${Math.random()}`,
-      role: 'Projetista',
+      avatar: '',
+      role: formData.role as any,
       specialty: formData.specialty,
       crea: formData.crea,
       address: formData.address,
@@ -74,11 +75,12 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
     }
 
     onAdd(newUser)
-    toast({ title: 'Sucesso', description: 'Projetista cadastrado com sucesso.' })
+    toast({ title: 'Sucesso', description: 'Membro adicionado à equipe com sucesso.' })
     setOpen(false)
     setFormData({
       name: '',
       specialty: '',
+      role: 'Projetista',
       crea: '',
       address: '',
       phone: '',
@@ -91,44 +93,55 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="mr-2 h-4 w-4" /> Adicionar Projetista
+          <Plus className="mr-2 h-4 w-4" /> Adicionar Membro
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Novo Projetista</DialogTitle>
-          <DialogDescription>Cadastre um novo projetista na equipe.</DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="flex-1 pr-4 -mr-4">
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>Nome Completo</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                placeholder="João da Silva"
-              />
-            </div>
+      <DialogContent className="sm:max-w-[600px] h-[90vh] flex flex-col p-0 overflow-hidden">
+        <div className="p-6 pb-4">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Novo Membro</DialogTitle>
+            <DialogDescription>
+              Cadastre um novo profissional na equipe do sistema.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
+        <ScrollArea className="flex-1 px-6">
+          <div className="grid gap-6 py-4 pb-6">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Especialidade</Label>
-                <Select
-                  value={formData.specialty}
-                  onValueChange={(v) => handleChange('specialty', v)}
-                >
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label>Nome Completo</Label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  placeholder="Ex: João da Silva"
+                />
+              </div>
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label>Cargo</Label>
+                <Select value={formData.role} onValueChange={(v) => handleChange('role', v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
+                    <SelectValue placeholder="Selecione o cargo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Engenheiro Civil">Engenheiro Civil</SelectItem>
-                    <SelectItem value="Engenheiro Mecânico">Engenheiro Mecânico</SelectItem>
-                    <SelectItem value="Engenheiro Elétrico">Engenheiro Elétrico</SelectItem>
-                    <SelectItem value="Outros">Outros</SelectItem>
+                    <SelectItem value="Administrador">Administrador</SelectItem>
+                    <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                    <SelectItem value="Projetista">Projetista</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label>Especialidade</Label>
+                <Input
+                  value={formData.specialty}
+                  onChange={(e) => handleChange('specialty', e.target.value)}
+                  placeholder="Ex: Engenheiro Civil"
+                />
+              </div>
+              <div className="space-y-2 col-span-2 sm:col-span-1">
                 <Label>CREA</Label>
                 <Input
                   value={formData.crea}
@@ -144,7 +157,7 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleChange('email', e.target.value)}
-                placeholder="joao@exemplo.com"
+                placeholder="contato@exemplo.com"
               />
             </div>
 
@@ -166,10 +179,10 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
               />
             </div>
 
-            <div className="mt-4">
-              <h4 className="font-medium mb-3">Dados Bancários</h4>
+            <div className="mt-2 pt-6 border-t border-border/50">
+              <h4 className="font-semibold text-sm mb-4">Dados Bancários</h4>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-2 sm:col-span-1">
                   <Label>Banco</Label>
                   <Input
                     value={formData.bankData?.bank}
@@ -177,7 +190,7 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
                     placeholder="Ex: Itaú, Nubank"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-2 sm:col-span-1">
                   <Label>Agência</Label>
                   <Input
                     value={formData.bankData?.agency}
@@ -185,7 +198,7 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
                     placeholder="0000"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-2 sm:col-span-1">
                   <Label>Conta Corrente</Label>
                   <Input
                     value={formData.bankData?.account}
@@ -193,7 +206,7 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
                     placeholder="00000-0"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-2 sm:col-span-1">
                   <Label>Chave PIX</Label>
                   <Input
                     value={formData.bankData?.pix}
@@ -205,9 +218,15 @@ export function ProjetistaForm({ onAdd }: { onAdd: (user: User) => void }) {
             </div>
           </div>
         </ScrollArea>
-        <DialogFooter className="mt-4">
-          <Button onClick={handleSave}>Salvar Projetista</Button>
-        </DialogFooter>
+
+        <div className="p-6 pt-4 border-t border-border/50 bg-muted/10">
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>Salvar Membro</Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   )

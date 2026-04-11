@@ -40,12 +40,13 @@ const formSchema = z
   .object({
     name: z.string().min(1, 'O nome do membro é obrigatório.'),
     codigo: z.string().min(1, 'O código é obrigatório.'),
+    password: z.string().min(8, 'A senha deve ter no mínimo 8 caracteres.'),
     role: z.string().default('Projetista'),
     status: z.string().default('Ativo'),
     crea: z.string().optional().default(''),
     formacaoSelect: z.string().default('Engenheiro Civil'),
     formacaoCustom: z.string().optional().default(''),
-    email: z.string().email('Email inválido.').or(z.literal('')).default(''),
+    email: z.string().email('Email inválido.').min(1, 'O email é obrigatório.'),
     phone: z.string().optional().default(''),
     altPhone: z.string().optional().default(''),
     logradouro: z.string().optional().default(''),
@@ -95,6 +96,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     defaultValues: {
       name: '',
       codigo: '',
+      password: '',
       role: 'Projetista',
       status: 'Ativo',
       crea: '',
@@ -152,36 +154,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       data.formacaoSelect === 'Outros' ? data.formacaoCustom : data.formacaoSelect
 
     try {
-      try {
-        const existing = await pb.collection('users').getFirstListItem(`codigo = "${data.codigo}"`)
-        if (existing) {
-          form.setError('codigo', { type: 'manual', message: 'Este código já está em uso.' })
-          setLoading(false)
-          return
-        }
-      } catch (_) {
-        // ignore if not found
-      }
-
-      if (data.email) {
-        try {
-          const existingEmail = await pb
-            .collection('users')
-            .getFirstListItem(`email = "${data.email}"`)
-          if (existingEmail) {
-            form.setError('email', { type: 'manual', message: 'Este e-mail já está cadastrado.' })
-            setLoading(false)
-            return
-          }
-        } catch (_) {
-          // ignore if not found
-        }
-      }
-
       const createdRecord = await pb.collection('users').create({
-        email: data.email || `temp_${Date.now()}@example.com`,
-        password: 'password123',
-        passwordConfirm: 'password123',
+        email: data.email,
+        password: data.password,
+        passwordConfirm: data.password,
         name: data.name,
         codigo: data.codigo,
         formacao: finalFormacao,
@@ -230,7 +206,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
         err.response?.data?.email?.code === 'validation_invalid_email' ||
         err.response?.data?.email?.code === 'validation_not_unique'
       ) {
-        form.setError('email', { type: 'manual', message: 'Este e-mail já está cadastrado.' })
+        form.setError('email', {
+          type: 'manual',
+          message: 'Este e-mail já está cadastrado ou é inválido.',
+        })
         hasFieldError = true
       }
 
@@ -300,7 +279,12 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                       <FormItem className="col-span-2 sm:col-span-1">
                         <FormLabel>Código (ID)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: PER-001" {...field} />
+                          <Input
+                            placeholder="Ex: PER-001"
+                            disabled
+                            className="bg-muted text-muted-foreground"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -425,19 +409,34 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                   )}
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="contato@exemplo.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2 sm:col-span-1">
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="contato@exemplo.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2 sm:col-span-1">
+                        <FormLabel>Senha Provisória</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Mínimo de 8 caracteres" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField

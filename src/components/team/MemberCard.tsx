@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import type { User } from '@/types/project'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -24,11 +27,20 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import useProjectStore from '@/stores/useProjectStore'
 import { ProjetistaDashboard } from './ProjetistaDashboard'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
+import { maskCPF, maskRG, maskPhone, validateCPF } from '@/lib/utils'
 import {
   Edit2,
   Mail,
@@ -428,54 +440,138 @@ export function MemberCard({
   )
 }
 
+const editFormSchema = z
+  .object({
+    name: z.string().min(1, 'O nome do membro é obrigatório.'),
+    codigo: z.string().min(1, 'O código é obrigatório.'),
+    role: z.string().default('Projetista'),
+    status: z.string().default('Ativo'),
+    crea: z.string().optional().default(''),
+    formacaoSelect: z.string().default('Engenheiro Civil'),
+    formacaoCustom: z.string().optional().default(''),
+    email: z.string().email('Email inválido.').min(1, 'O email é obrigatório.'),
+    phone: z.string().optional().default(''),
+    altPhone: z.string().optional().default(''),
+    logradouro: z.string().optional().default(''),
+    numero: z.string().optional().default(''),
+    bairro: z.string().optional().default(''),
+    cidade: z.string().optional().default(''),
+    uf: z.string().optional().default(''),
+    cep: z.string().optional().default(''),
+    cpf: z.string().optional().default(''),
+    rg: z.string().optional().default(''),
+    birthDate: z.string().optional().default(''),
+    bank_bank: z.string().optional().default(''),
+    bank_agency: z.string().optional().default(''),
+    bank_account: z.string().optional().default(''),
+    bank_pix: z.string().optional().default(''),
+  })
+  .refine(
+    (data) => {
+      if (data.formacaoSelect === 'Outros' && !data.formacaoCustom) return false
+      return true
+    },
+    {
+      message: 'Especifique a formação.',
+      path: ['formacaoCustom'],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.cpf && data.cpf.replace(/\D/g, '').length > 0 && !validateCPF(data.cpf)) return false
+      return true
+    },
+    {
+      message: 'O CPF informado é inválido.',
+      path: ['cpf'],
+    },
+  )
+
+type EditFormValues = z.infer<typeof editFormSchema>
+
 function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
   const { projects } = useProjectStore()
-  const [formData, setFormData] = useState<Partial<User> & Record<string, any>>(user)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const [selectedProjects, setSelectedProjects] = useState<string[]>(user.assignedProjects || [])
 
-  const [formacaoSelect, setFormacaoSelect] = useState(() => {
-    const f = (user as any).formacao || user.specialty || ''
-    const predefined = [
-      'Engenheiro Civil',
-      'Engenheiro Elétrico',
-      'Engenheiro Mecânico',
-      'Arquiteto',
-      'Topógrafo',
-    ]
-    if (!f) return 'Engenheiro Civil'
-    if (predefined.includes(f)) return f
-    return 'Outros'
+  const initialFormacao = (user as any).formacao || user.specialty || ''
+  const predefined = [
+    'Engenheiro Civil',
+    'Engenheiro Elétrico',
+    'Engenheiro Mecânico',
+    'Arquiteto',
+    'Topógrafo',
+  ]
+  const isPredefined = predefined.includes(initialFormacao)
+
+  const form = useForm<EditFormValues>({
+    resolver: zodResolver(editFormSchema),
+    defaultValues: {
+      name: user.name || '',
+      codigo: (user as any).codigo || '',
+      role: (user as any).role || 'Projetista',
+      status: (user as any).status || 'Ativo',
+      crea: (user as any).crea || '',
+      formacaoSelect: initialFormacao
+        ? isPredefined
+          ? initialFormacao
+          : 'Outros'
+        : 'Engenheiro Civil',
+      formacaoCustom: !isPredefined && initialFormacao ? initialFormacao : '',
+      email: user.email || '',
+      phone: user.phone || '',
+      altPhone: (user as any).altPhone || '',
+      logradouro: (user as any).logradouro || '',
+      numero: (user as any).numero || '',
+      bairro: (user as any).bairro || '',
+      cidade: (user as any).cidade || '',
+      uf: (user as any).uf || '',
+      cep: (user as any).cep || '',
+      cpf: (user as any).cpf || '',
+      rg: (user as any).rg || '',
+      birthDate: (user as any).birthDate || '',
+      bank_bank: (user as any).bankData?.bank || '',
+      bank_agency: (user as any).bankData?.agency || '',
+      bank_account: (user as any).bankData?.account || '',
+      bank_pix: (user as any).bankData?.pix || '',
+    },
   })
 
-  const [formacaoCustom, setFormacaoCustom] = useState(() => {
-    const f = (user as any).formacao || user.specialty || ''
-    const predefined = [
-      'Engenheiro Civil',
-      'Engenheiro Elétrico',
-      'Engenheiro Mecânico',
-      'Arquiteto',
-      'Topógrafo',
-    ]
-    if (f && !predefined.includes(f)) return f
-    return ''
-  })
-
-  const handleChange = (field: string, value: any) => {
-    if (field.startsWith('bank_')) {
-      const bankField = field.replace('bank_', '')
-      setFormData((prev) => ({
-        ...prev,
-        bankData: {
-          ...(prev.bankData || { bank: '', agency: '', account: '', pix: '' }),
-          [bankField]: value,
-        },
-      }))
-    } else {
-      setFormData((prev) => ({ ...prev, [field]: value }))
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        name: user.name || '',
+        codigo: (user as any).codigo || '',
+        role: (user as any).role || 'Projetista',
+        status: (user as any).status || 'Ativo',
+        crea: (user as any).crea || '',
+        formacaoSelect: initialFormacao
+          ? isPredefined
+            ? initialFormacao
+            : 'Outros'
+          : 'Engenheiro Civil',
+        formacaoCustom: !isPredefined && initialFormacao ? initialFormacao : '',
+        email: user.email || '',
+        phone: user.phone || '',
+        altPhone: (user as any).altPhone || '',
+        logradouro: (user as any).logradouro || '',
+        numero: (user as any).numero || '',
+        bairro: (user as any).bairro || '',
+        cidade: (user as any).cidade || '',
+        uf: (user as any).uf || '',
+        cep: (user as any).cep || '',
+        cpf: (user as any).cpf || '',
+        rg: (user as any).rg || '',
+        birthDate: (user as any).birthDate || '',
+        bank_bank: (user as any).bankData?.bank || '',
+        bank_agency: (user as any).bankData?.agency || '',
+        bank_account: (user as any).bankData?.account || '',
+        bank_pix: (user as any).bankData?.pix || '',
+      })
+      setSelectedProjects(user.assignedProjects || [])
     }
-  }
+  }, [open, user, form, initialFormacao, isPredefined])
 
   const handleToggleProject = (projectId: string) => {
     setSelectedProjects((prev) =>
@@ -483,47 +579,80 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
     )
   }
 
-  const handleSave = async () => {
-    const finalFormacao = formacaoSelect === 'Outros' ? formacaoCustom : formacaoSelect
-    const updatedUser = {
-      ...user,
-      ...formData,
-      formacao: finalFormacao,
-      specialty: finalFormacao,
-      assignedProjects: selectedProjects,
-    }
+  const onSubmit = async (data: EditFormValues) => {
+    const finalFormacao =
+      data.formacaoSelect === 'Outros' ? data.formacaoCustom : data.formacaoSelect
 
     setLoading(true)
     try {
       await pb.collection('users').update(user.id, {
-        codigo: formData.codigo,
+        codigo: data.codigo,
         formacao: finalFormacao,
-        logradouro: formData.logradouro,
-        numero: formData.numero,
-        bairro: formData.bairro,
-        cidade: formData.cidade,
-        uf: formData.uf,
-        cep: formData.cep,
-        name: formData.name,
-        phone: formData.phone,
-        crea: formData.crea,
-        cpf: formData.cpf,
-        rg: formData.rg,
-        status: formData.status || 'Ativo',
+        logradouro: data.logradouro,
+        numero: data.numero,
+        bairro: data.bairro,
+        cidade: data.cidade,
+        uf: data.uf,
+        cep: data.cep,
+        name: data.name,
+        phone: data.phone,
+        crea: data.crea,
+        cpf: data.cpf,
+        rg: data.rg,
+        email: data.email,
+        status: data.status,
       })
+
+      const updatedUser = {
+        ...user,
+        ...data,
+        formacao: finalFormacao,
+        specialty: finalFormacao,
+        assignedProjects: selectedProjects,
+        bankData: {
+          bank: data.bank_bank,
+          agency: data.bank_agency,
+          account: data.bank_account,
+          pix: data.bank_pix,
+        },
+      }
+
       toast({ title: 'Sucesso', description: 'Membro atualizado com sucesso.' })
       onSave(updatedUser)
       onOpenChange(false)
     } catch (err: any) {
       const fieldErrors = extractFieldErrors(err)
-      if (fieldErrors.email) {
+      let hasFieldError = false
+
+      if (
+        fieldErrors.email ||
+        err.response?.data?.email?.code === 'validation_invalid_email' ||
+        err.response?.data?.email?.code === 'validation_not_unique'
+      ) {
+        form.setError('email', {
+          type: 'manual',
+          message: 'Este e-mail já está cadastrado ou é inválido.',
+        })
+        hasFieldError = true
+      }
+      if (fieldErrors.codigo || err.response?.data?.codigo?.code === 'validation_not_unique') {
+        form.setError('codigo', { type: 'manual', message: 'Este código já está em uso.' })
+        hasFieldError = true
+      }
+
+      for (const [key, msg] of Object.entries(fieldErrors)) {
+        if (key !== 'codigo' && key !== 'email' && key in data) {
+          form.setError(key as keyof EditFormValues, { type: 'manual', message: msg as string })
+          hasFieldError = true
+        }
+      }
+
+      if (!hasFieldError) {
         toast({
-          title: 'Email inválido ou já cadastrado',
-          description: fieldErrors.email,
+          title: 'Erro ao salvar',
+          description: getErrorMessage(err),
           variant: 'destructive',
         })
-      } else {
-        toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
       }
     } finally {
       setLoading(false)
@@ -541,8 +670,8 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
           <Edit2 className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-        <div className="p-6 pb-4 bg-muted/10">
+      <DialogContent className="sm:max-w-[650px] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <div className="p-6 pb-4 bg-muted/10 border-b border-border/50 shrink-0">
           <DialogHeader>
             <DialogTitle className="text-xl">Editar Perfil do Membro</DialogTitle>
             <DialogDescription>
@@ -551,278 +680,444 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
           </DialogHeader>
         </div>
 
-        <Tabs defaultValue="personal" className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-6 border-b border-border/50 bg-muted/10">
-            <TabsList className="grid w-full grid-cols-3 bg-muted/50 h-10 mb-[-1px] rounded-b-none border border-b-0 border-border/50">
-              <TabsTrigger
-                value="personal"
-                className="rounded-b-none data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-background"
-              >
-                Pessoal
-              </TabsTrigger>
-              <TabsTrigger
-                value="professional"
-                className="rounded-b-none data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-background"
-              >
-                Profissional
-              </TabsTrigger>
-              <TabsTrigger
-                value="projects"
-                className="rounded-b-none data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-background"
-              >
-                Acessos
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <ScrollArea className="flex-1 px-6 mt-6">
-            <TabsContent value="personal" className="space-y-4 m-0 pb-6">
-              <div className="grid grid-cols-4 gap-4">
-                <div className="space-y-2 col-span-3">
-                  <Label>Nome Completo</Label>
-                  <Input
-                    value={formData.name || ''}
-                    onChange={(e) => handleChange('name', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 col-span-1">
-                  <Label>Código</Label>
-                  <Input
-                    value={formData.codigo || ''}
-                    disabled
-                    className="bg-muted text-muted-foreground"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={formData.email || ''}
-                    onChange={(e) => handleChange('email', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input
-                    value={formData.phone || ''}
-                    onChange={(e) => handleChange('phone', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-border/50 mt-6">
-                <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" /> Endereço
-                </h4>
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="space-y-2 col-span-12 sm:col-span-8">
-                    <Label>Logradouro</Label>
-                    <Input
-                      value={formData.logradouro || ''}
-                      onChange={(e) => handleChange('logradouro', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2 col-span-12 sm:col-span-4">
-                    <Label>Número</Label>
-                    <Input
-                      value={formData.numero || ''}
-                      onChange={(e) => handleChange('numero', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2 col-span-12 sm:col-span-5">
-                    <Label>Bairro</Label>
-                    <Input
-                      value={formData.bairro || ''}
-                      onChange={(e) => handleChange('bairro', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2 col-span-12 sm:col-span-4">
-                    <Label>Cidade</Label>
-                    <Input
-                      value={formData.cidade || ''}
-                      onChange={(e) => handleChange('cidade', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2 col-span-12 sm:col-span-3">
-                    <Label>UF</Label>
-                    <Input
-                      value={formData.uf || ''}
-                      onChange={(e) => handleChange('uf', e.target.value)}
-                      maxLength={2}
-                    />
-                  </div>
-                  <div className="space-y-2 col-span-12 sm:col-span-4">
-                    <Label>CEP</Label>
-                    <Input
-                      value={formData.cep || ''}
-                      onChange={(e) => handleChange('cep', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="professional" className="space-y-4 m-0 pb-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Formação</Label>
-                  <Select value={formacaoSelect} onValueChange={setFormacaoSelect}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Engenheiro Civil">Engenheiro Civil</SelectItem>
-                      <SelectItem value="Engenheiro Elétrico">Engenheiro Elétrico</SelectItem>
-                      <SelectItem value="Engenheiro Mecânico">Engenheiro Mecânico</SelectItem>
-                      <SelectItem value="Arquiteto">Arquiteto</SelectItem>
-                      <SelectItem value="Topógrafo">Topógrafo</SelectItem>
-                      <SelectItem value="Outros">Outros</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>CREA</Label>
-                  <Input
-                    value={formData.crea || ''}
-                    onChange={(e) => handleChange('crea', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {formacaoSelect === 'Outros' && (
-                <div className="space-y-2 animate-in fade-in zoom-in duration-200">
-                  <Label>Especifique a Formação</Label>
-                  <Input
-                    value={formacaoCustom}
-                    onChange={(e) => setFormacaoCustom(e.target.value)}
-                    placeholder="Sua formação..."
-                  />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={formData.status || 'Ativo'}
-                    onValueChange={(v) => handleChange('status', v)}
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex-1 flex flex-col overflow-hidden"
+          >
+            <Tabs defaultValue="personal" className="flex-1 flex flex-col overflow-hidden">
+              <div className="px-6 bg-muted/10 shrink-0">
+                <TabsList className="grid w-full grid-cols-3 bg-muted/50 h-10 mb-[-1px] rounded-b-none border border-b-0 border-border/50">
+                  <TabsTrigger
+                    value="personal"
+                    className="rounded-b-none data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-background"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Ativo">Ativo</SelectItem>
-                      <SelectItem value="Inativo">Inativo</SelectItem>
-                      <SelectItem value="Em Férias">Em Férias</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Cargo no Sistema</Label>
-                  <Select
-                    value={formData.role || ''}
-                    onValueChange={(v) => handleChange('role', v)}
+                    Pessoal
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="professional"
+                    className="rounded-b-none data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-background"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Administrador">Administrador</SelectItem>
-                      <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
-                      <SelectItem value="Projetista">Projetista</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    Profissional
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="projects"
+                    className="rounded-b-none data-[state=active]:border-b-2 data-[state=active]:border-b-primary data-[state=active]:bg-background"
+                  >
+                    Acessos
+                  </TabsTrigger>
+                </TabsList>
               </div>
 
-              <div className="pt-4 border-t border-border/50 mt-6">
-                <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-muted-foreground" /> Dados Bancários
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Banco</Label>
-                    <Input
-                      value={formData.bankData?.bank || ''}
-                      onChange={(e) => handleChange('bank_bank', e.target.value)}
+              <ScrollArea className="flex-1 px-6 mt-6">
+                <TabsContent value="personal" className="space-y-4 m-0 pb-6">
+                  <div className="grid grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem className="col-span-3">
+                          <FormLabel>Nome Completo</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="codigo"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>Código</FormLabel>
+                          <FormControl>
+                            <Input disabled className="bg-muted text-muted-foreground" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Agência</Label>
-                    <Input
-                      value={formData.bankData?.agency || ''}
-                      onChange={(e) => handleChange('bank_agency', e.target.value)}
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>Telefone</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              onChange={(e) => field.onChange(maskPhone(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Conta</Label>
-                    <Input
-                      value={formData.bankData?.account || ''}
-                      onChange={(e) => handleChange('bank_account', e.target.value)}
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="cpf"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>CPF</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              onChange={(e) => field.onChange(maskCPF(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="rg"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>RG</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              onChange={(e) => field.onChange(maskRG(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>PIX</Label>
-                    <Input
-                      value={formData.bankData?.pix || ''}
-                      onChange={(e) => handleChange('bank_pix', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
 
-            <TabsContent value="projects" className="space-y-4 m-0 pb-6">
-              <div className="mb-4">
-                <Label className="text-base font-semibold">Projetos Atribuídos</Label>
-                <p className="text-sm text-muted-foreground">
-                  Selecione os projetos que este membro pode acessar e registrar horas.
-                </p>
-              </div>
-              <div className="border rounded-lg p-1 bg-muted/10 border-border/60">
-                {projects.length > 0 ? (
-                  projects.map((project) => (
-                    <label
-                      key={project.id}
-                      htmlFor={`proj-${project.id}`}
-                      className="flex items-center space-x-3 p-3 hover:bg-muted/50 rounded-md cursor-pointer transition-colors"
-                    >
-                      <Checkbox
-                        id={`proj-${project.id}`}
-                        checked={selectedProjects.includes(project.id)}
-                        onCheckedChange={() => handleToggleProject(project.id)}
+                  <div className="pt-4 border-t border-border/50 mt-6">
+                    <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" /> Endereço
+                    </h4>
+                    <div className="grid grid-cols-12 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="logradouro"
+                        render={({ field }) => (
+                          <FormItem className="col-span-12 sm:col-span-8">
+                            <FormLabel>Logradouro</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium leading-none">{project.name}</span>
-                        <span className="text-xs text-muted-foreground mt-1.5">
-                          {project.client} • {project.status}
-                        </span>
-                      </div>
-                    </label>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground p-4 text-center">
-                    Nenhum projeto cadastrado no sistema.
-                  </p>
-                )}
-              </div>
-            </TabsContent>
-          </ScrollArea>
-        </Tabs>
+                      <FormField
+                        control={form.control}
+                        name="numero"
+                        render={({ field }) => (
+                          <FormItem className="col-span-12 sm:col-span-4">
+                            <FormLabel>Número</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="bairro"
+                        render={({ field }) => (
+                          <FormItem className="col-span-12 sm:col-span-5">
+                            <FormLabel>Bairro</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="cidade"
+                        render={({ field }) => (
+                          <FormItem className="col-span-12 sm:col-span-4">
+                            <FormLabel>Cidade</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="uf"
+                        render={({ field }) => (
+                          <FormItem className="col-span-12 sm:col-span-3">
+                            <FormLabel>UF</FormLabel>
+                            <FormControl>
+                              <Input maxLength={2} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="cep"
+                        render={({ field }) => (
+                          <FormItem className="col-span-12 sm:col-span-4">
+                            <FormLabel>CEP</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
 
-        <div className="p-6 pt-4 border-t border-border/50 bg-muted/10">
-          <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar Alterações
-            </Button>
-          </DialogFooter>
-        </div>
+                <TabsContent value="professional" className="space-y-4 m-0 pb-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="formacaoSelect"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>Formação</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Engenheiro Civil">Engenheiro Civil</SelectItem>
+                              <SelectItem value="Engenheiro Elétrico">
+                                Engenheiro Elétrico
+                              </SelectItem>
+                              <SelectItem value="Engenheiro Mecânico">
+                                Engenheiro Mecânico
+                              </SelectItem>
+                              <SelectItem value="Arquiteto">Arquiteto</SelectItem>
+                              <SelectItem value="Topógrafo">Topógrafo</SelectItem>
+                              <SelectItem value="Outros">Outros</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="crea"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>CREA</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {form.watch('formacaoSelect') === 'Outros' && (
+                    <FormField
+                      control={form.control}
+                      name="formacaoCustom"
+                      render={({ field }) => (
+                        <FormItem className="animate-in fade-in zoom-in duration-200">
+                          <FormLabel>Especifique a Formação</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Sua formação..." />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>Status</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione..." />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Ativo">Ativo</SelectItem>
+                              <SelectItem value="Inativo">Inativo</SelectItem>
+                              <SelectItem value="Em Férias">Em Férias</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>Cargo no Sistema</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione..." />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Administrador">Administrador</SelectItem>
+                              <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                              <SelectItem value="Projetista">Projetista</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-border/50 mt-6">
+                    <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-muted-foreground" /> Dados Bancários
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="bank_bank"
+                        render={({ field }) => (
+                          <FormItem className="col-span-1">
+                            <FormLabel>Banco</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="bank_agency"
+                        render={({ field }) => (
+                          <FormItem className="col-span-1">
+                            <FormLabel>Agência</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="bank_account"
+                        render={({ field }) => (
+                          <FormItem className="col-span-1">
+                            <FormLabel>Conta</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="bank_pix"
+                        render={({ field }) => (
+                          <FormItem className="col-span-1">
+                            <FormLabel>PIX</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="projects" className="space-y-4 m-0 pb-6">
+                  <div className="mb-4">
+                    <Label className="text-base font-semibold">Projetos Atribuídos</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Selecione os projetos que este membro pode acessar e registrar horas.
+                    </p>
+                  </div>
+                  <div className="border rounded-lg p-1 bg-muted/10 border-border/60">
+                    {projects.length > 0 ? (
+                      projects.map((project) => (
+                        <label
+                          key={project.id}
+                          htmlFor={`proj-${project.id}`}
+                          className="flex items-center space-x-3 p-3 hover:bg-muted/50 rounded-md cursor-pointer transition-colors"
+                        >
+                          <Checkbox
+                            id={`proj-${project.id}`}
+                            checked={selectedProjects.includes(project.id)}
+                            onCheckedChange={() => handleToggleProject(project.id)}
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium leading-none">{project.name}</span>
+                            <span className="text-xs text-muted-foreground mt-1.5">
+                              {project.client} • {project.status}
+                            </span>
+                          </div>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground p-4 text-center">
+                        Nenhum projeto cadastrado no sistema.
+                      </p>
+                    )}
+                  </div>
+                </TabsContent>
+              </ScrollArea>
+
+              <div className="p-6 pt-4 border-t border-border/50 bg-muted/10 shrink-0">
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => onOpenChange(false)}
+                    disabled={loading}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar Alterações
+                  </Button>
+                </DialogFooter>
+              </div>
+            </Tabs>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   )

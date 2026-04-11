@@ -9,6 +9,7 @@ import { ThemeProvider } from './components/ThemeProvider'
 import Projects from './pages/Projects'
 import ProjectDetails from './pages/ProjectDetails'
 import { RealtimeSync } from './components/RealtimeSync'
+import Financial from './pages/Financial'
 import Clients from './pages/Clients'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/projects/:id" element={<ProjectDetails />} />
+              <Route path="/financial" element={<Financial />} />
               <Route path="/financeiro" element={<Finance />} />
               <Route path="/clients" element={<Clients />} />
               <Route path="/reports" element={<Reports />} />

@@ -13,6 +13,7 @@ import {
   Activity,
   ClipboardList,
   Wallet,
+  DollarSign,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -25,9 +26,13 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { useSettingsStore } from '@/stores/useSettingsStore'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Financeiro', href: '/financial', icon: DollarSign },
   { name: 'Projetos', href: '/projects', icon: FolderKanban },
   { name: 'Dashboard Financeiro', href: '/financeiro', icon: Wallet },
   { name: 'Equipe', href: '/team', icon: Users },
@@ -94,7 +99,23 @@ export function AppSidebar() {
           })}
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-4">
+        <div className="flex items-center justify-between px-2">
+          <Label htmlFor="realtime-sync" className="text-xs text-slate-300 cursor-pointer">
+            Sync em Tempo Real
+          </Label>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400">
+              {useSettingsStore((s) => s.realtimeEnabled) ? 'Habilitado' : 'Desabilitado'}
+            </span>
+            <Switch
+              id="realtime-sync"
+              checked={useSettingsStore((s) => s.realtimeEnabled)}
+              onCheckedChange={useSettingsStore((s) => s.toggleRealtime)}
+              className="scale-75"
+            />
+          </div>
+        </div>
         <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 p-2 shadow-sm">
           <Avatar className="h-9 w-9">
             <AvatarImage src="https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1" />

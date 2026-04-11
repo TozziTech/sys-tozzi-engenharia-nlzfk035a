@@ -35,6 +35,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     address: '',
     phone: '',
     email: '',
+    cpf: '',
+    rg: '',
+    birthDate: '',
+    altPhone: '',
     bankData: { bank: '', agency: '', account: '', pix: '' },
   })
 
@@ -70,6 +74,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       address: formData.address,
       phone: formData.phone,
       email: formData.email,
+      cpf: formData.cpf,
+      rg: formData.rg,
+      birthDate: formData.birthDate,
+      altPhone: formData.altPhone,
       bankData: formData.bankData as User['bankData'],
       assignedProjects: [],
     }
@@ -85,6 +93,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       address: '',
       phone: '',
       email: '',
+      cpf: '',
+      rg: '',
+      birthDate: '',
+      altPhone: '',
       bankData: { bank: '', agency: '', account: '', pix: '' },
     })
   }
@@ -177,6 +189,44 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                 onChange={(e) => handleChange('address', e.target.value)}
                 placeholder="Rua, Número, Bairro, Cidade - UF"
               />
+            </div>
+
+            <div className="mt-2 pt-6 border-t border-border/50">
+              <h4 className="font-semibold text-sm mb-4">Dados Pessoais</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-2 sm:col-span-1">
+                  <Label>CPF</Label>
+                  <Input
+                    value={formData.cpf || ''}
+                    onChange={(e) => handleChange('cpf', e.target.value)}
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+                <div className="space-y-2 col-span-2 sm:col-span-1">
+                  <Label>RG</Label>
+                  <Input
+                    value={formData.rg || ''}
+                    onChange={(e) => handleChange('rg', e.target.value)}
+                    placeholder="00.000.000-0"
+                  />
+                </div>
+                <div className="space-y-2 col-span-2 sm:col-span-1">
+                  <Label>Data de Nascimento</Label>
+                  <Input
+                    type="date"
+                    value={formData.birthDate || ''}
+                    onChange={(e) => handleChange('birthDate', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2 col-span-2 sm:col-span-1">
+                  <Label>Telefone Alternativo</Label>
+                  <Input
+                    value={formData.altPhone || ''}
+                    onChange={(e) => handleChange('altPhone', e.target.value)}
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="mt-2 pt-6 border-t border-border/50">

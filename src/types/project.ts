@@ -34,6 +34,10 @@ export interface User {
   address?: string
   phone?: string
   email?: string
+  cpf?: string
+  rg?: string
+  birthDate?: string
+  altPhone?: string
   bankData?: {
     bank: string
     agency: string

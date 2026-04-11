@@ -1,12 +1,16 @@
 import { useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import useProjectStore from '@/stores/useProjectStore'
+import { useSettingsStore } from '@/stores/useSettingsStore'
 
 export function RealtimeSync() {
   const { projects, updateProject } = useProjectStore()
+  const { realtimeEnabled } = useSettingsStore()
   const { toast } = useToast()
 
   useEffect(() => {
+    if (!realtimeEnabled) return
+
     // Simulate real-time updates for demonstration
     const interval = setInterval(() => {
       if (projects.length === 0) return
@@ -30,7 +34,7 @@ export function RealtimeSync() {
     }, 20000) // Trigger every 20 seconds for demo visibility
 
     return () => clearInterval(interval)
-  }, [projects, updateProject, toast])
+  }, [projects, updateProject, toast, realtimeEnabled])
 
   return null
 }

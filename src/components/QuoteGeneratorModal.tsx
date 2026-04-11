@@ -36,6 +36,7 @@ export type QuoteItem = {
 export type QuoteData = {
   id?: string
   clientName: string
+  clientEmail?: string
   projectName: string
   date?: string
   value?: number
@@ -60,6 +61,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
   const [isPreview, setIsPreview] = useState(false)
 
   const [clientName, setClientName] = useState(initialData?.clientName || '')
+  const [clientEmail, setClientEmail] = useState(initialData?.clientEmail || '')
   const [projectName, setProjectName] = useState(initialData?.projectName || '')
   const [includedItems, setIncludedItems] = useState(initialData?.includedItems || '')
   const [notIncludedItems, setNotIncludedItems] = useState(initialData?.notIncludedItems || '')
@@ -74,6 +76,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
   React.useEffect(() => {
     if (open) {
       setClientName(initialData?.clientName || '')
+      setClientEmail(initialData?.clientEmail || '')
       setProjectName(initialData?.projectName || '')
       setIncludedItems(initialData?.includedItems || '')
       setNotIncludedItems(initialData?.notIncludedItems || '')
@@ -134,6 +137,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
       onSave({
         id: initialData?.id,
         clientName,
+        clientEmail,
         projectName,
         deadline,
         paymentMethod,
@@ -164,18 +168,6 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
         </div>
 
         <div className="p-6 overflow-y-auto flex-1 bg-muted/10">
-          {!isPreview && (
-            <div className="bg-blue-50/80 border-l-4 border-blue-500 p-4 mb-6 rounded-r-md">
-              <div className="flex">
-                <InfoIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-                <p className="text-sm text-blue-800">
-                  <strong>Aviso:</strong> Os dados gerados aqui são apenas para pré-visualização e
-                  não são persistidos. Eles serão perdidos ao recarregar a página.
-                </p>
-              </div>
-            </div>
-          )}
-
           {isPreview ? (
             <div className="space-y-8 bg-white text-slate-800 p-6 md:p-10 rounded-lg border shadow-sm mx-auto max-w-3xl relative">
               <div className="flex flex-col md:flex-row justify-between items-start border-b pb-6 gap-4">
@@ -316,16 +308,28 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
             </div>
           ) : (
             <div className="space-y-8 bg-background p-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-3">
                   <Label htmlFor="clientName" className="text-sm font-semibold text-foreground/90">
                     Cliente / Empresa
                   </Label>
                   <Input
                     id="clientName"
-                    placeholder="Nome do cliente ou empresa que receberá a proposta..."
+                    placeholder="Nome do cliente..."
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="clientEmail" className="text-sm font-semibold text-foreground/90">
+                    Email do Cliente
+                  </Label>
+                  <Input
+                    id="clientEmail"
+                    type="email"
+                    placeholder="Ex: cliente@empresa.com"
+                    value={clientEmail}
+                    onChange={(e) => setClientEmail(e.target.value)}
                   />
                 </div>
                 <div className="space-y-3">
@@ -334,7 +338,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                   </Label>
                   <Input
                     id="projectName"
-                    placeholder="Ex: Reforma Comercial, App Mobile..."
+                    placeholder="Ex: Reforma Comercial..."
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
                   />

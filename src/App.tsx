@@ -23,6 +23,7 @@ import Activities from './pages/Activities'
 import PendingReport from './pages/PendingReport'
 import Finance from './pages/Finance'
 import Quotes from './pages/Quotes'
+import GestaoCentral from './pages/GestaoCentral'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="/pending-report" element={<PendingReport />} />
               <Route path="/performance" element={<Performance />} />
               <Route path="/quotes" element={<Quotes />} />
+              <Route path="/gestao-central" element={<GestaoCentral />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

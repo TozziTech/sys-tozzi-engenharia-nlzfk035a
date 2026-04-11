@@ -18,6 +18,7 @@ export default function Team() {
   const { users, updateUserRole } = useProjectStore()
   const [localUsers, setLocalUsers] = useState<User[]>([])
   const [editedUsers, setEditedUsers] = useState<Record<string, User>>({})
+  const [deletedUsers, setDeletedUsers] = useState<Set<string>>(new Set())
   const [specialtyFilter, setSpecialtyFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -33,11 +34,12 @@ export default function Team() {
 
   const filteredMembers = useMemo(() => {
     return allMembers.filter((m) => {
+      if (deletedUsers.has(m.id)) return false
       const matchesSpec = specialtyFilter === 'all' || m.specialty === specialtyFilter
       const matchesSearch = !searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase())
       return matchesSpec && matchesSearch
     })
-  }, [allMembers, specialtyFilter, searchQuery])
+  }, [allMembers, specialtyFilter, searchQuery, deletedUsers])
 
   const handleAddMember = (user: User) => {
     setLocalUsers((prev) => [...prev, user])
@@ -52,6 +54,14 @@ export default function Team() {
         updateUserRole(user.id, user.role)
       }
     }
+  }
+
+  const handleDeleteMember = (id: string) => {
+    setDeletedUsers((prev) => {
+      const newSet = new Set(prev)
+      newSet.add(id)
+      return newSet
+    })
   }
 
   return (
@@ -102,7 +112,12 @@ export default function Team() {
       {filteredMembers.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredMembers.map((member) => (
-            <MemberCard key={member.id} user={member} onUpdate={handleUpdateMember} />
+            <MemberCard
+              key={member.id}
+              user={member}
+              onUpdate={handleUpdateMember}
+              onDelete={handleDeleteMember}
+            />
           ))}
         </div>
       ) : (

@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Download, Plus, Circle, Loader2 } from 'lucide-react'
+import { Download, Plus, Circle, Loader2, Edit2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export interface ProjectVersion {
@@ -56,6 +56,7 @@ const INITIAL_VERSIONS: ProjectVersion[] = [
 export function ProjectVersions({ projectId }: { projectId: string }) {
   const [versions, setVersions] = useState<ProjectVersion[]>(INITIAL_VERSIONS)
   const [isOpen, setIsOpen] = useState(false)
+  const [editVersion, setEditVersion] = useState<ProjectVersion | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
@@ -186,6 +187,17 @@ export function ProjectVersions({ projectId }: { projectId: string }) {
     setIsSubmitting(false)
   }
 
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editVersion) return
+    setVersions(versions.map((v) => (v.id === editVersion.id ? editVersion : v)))
+    setEditVersion(null)
+    toast({
+      title: 'Versão atualizada',
+      description: 'Os dados da versão foram atualizados com sucesso.',
+    })
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-4">
@@ -312,25 +324,36 @@ export function ProjectVersions({ projectId }: { projectId: string }) {
                     {v.description}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 shrink-0 md:mt-0 mt-2"
-                  onClick={() => {
-                    if (v.link_arquivos) {
-                      window.open(v.link_arquivos, '_blank')
-                    } else {
-                      toast({
-                        title: 'Arquivo indisponível',
-                        description: 'Esta versão não possui um arquivo anexado.',
-                        variant: 'destructive',
-                      })
-                    }
-                  }}
-                >
-                  <Download className="h-4 w-4" />
-                  <span>Baixar Arquivos</span>
-                </Button>
+                <div className="flex items-center gap-2 mt-2 md:mt-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 shrink-0"
+                    onClick={() => setEditVersion(v)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    <span className="sr-only sm:not-sr-only">Editar</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 shrink-0"
+                    onClick={() => {
+                      if (v.link_arquivos) {
+                        window.open(v.link_arquivos, '_blank')
+                      } else {
+                        toast({
+                          title: 'Arquivo indisponível',
+                          description: 'Esta versão não possui um arquivo anexado.',
+                          variant: 'destructive',
+                        })
+                      }
+                    }}
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="sr-only sm:not-sr-only">Baixar</span>
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
@@ -341,6 +364,75 @@ export function ProjectVersions({ projectId }: { projectId: string }) {
           )}
         </div>
       </CardContent>
+
+      <Dialog open={!!editVersion} onOpenChange={(open) => !open && setEditVersion(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Versão do Projeto</DialogTitle>
+          </DialogHeader>
+          {editVersion && (
+            <form onSubmit={handleEditSubmit} className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-version">Versão</Label>
+                  <Input
+                    id="edit-version"
+                    value={editVersion.version}
+                    onChange={(e) => setEditVersion({ ...editVersion, version: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-revision">Revisão</Label>
+                  <Input
+                    id="edit-revision"
+                    value={editVersion.revision}
+                    onChange={(e) => setEditVersion({ ...editVersion, revision: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-date">Data</Label>
+                  <Input
+                    id="edit-date"
+                    type="date"
+                    value={editVersion.date}
+                    onChange={(e) => setEditVersion({ ...editVersion, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-author">Autor</Label>
+                  <Input
+                    id="edit-author"
+                    value={editVersion.author}
+                    onChange={(e) => setEditVersion({ ...editVersion, author: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Descrição das Alterações</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editVersion.description}
+                  onChange={(e) => setEditVersion({ ...editVersion, description: e.target.value })}
+                  required
+                  rows={3}
+                />
+              </div>
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setEditVersion(null)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Salvar</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

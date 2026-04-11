@@ -99,6 +99,8 @@ export default function ProjectDetails() {
   const [periodFilter, setPeriodFilter] = useState<string>('all')
   const [draggedTx, setDraggedTx] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [projectTeam, setProjectTeam] = useState(MOCK_TEAM)
+  const [memberToRemove, setMemberToRemove] = useState<number | null>(null)
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
 
@@ -273,9 +275,6 @@ export default function ProjectDetails() {
               <TabsTrigger value="team" className="flex-1">
                 Equipe
               </TabsTrigger>
-              <TabsTrigger value="history" className="flex-1">
-                Histórico
-              </TabsTrigger>
               <TabsTrigger value="comments" className="flex-1">
                 Comentários
               </TabsTrigger>
@@ -285,10 +284,13 @@ export default function ProjectDetails() {
               <TabsTrigger value="finance" className="flex-1">
                 Financeiro
               </TabsTrigger>
+              <TabsTrigger value="history" className="flex-1">
+                Histórico
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="tasks" className="mt-4">
-              <KanbanBoard projectName={project.name} teamMembers={MOCK_TEAM} />
+              <KanbanBoard projectName={project.name} teamMembers={projectTeam} />
             </TabsContent>
 
             <TabsContent value="team" className="mt-4">
@@ -298,22 +300,37 @@ export default function ProjectDetails() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {MOCK_TEAM.map((member) => (
+                    {projectTeam.map((member) => (
                       <div
                         key={member.id}
-                        className="flex items-center gap-4 p-3 border rounded-lg"
+                        className="flex items-center justify-between p-3 border rounded-lg group hover:bg-muted/50 transition-colors"
                       >
-                        <img
-                          src={member.avatar}
-                          alt={member.name}
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                        <div>
-                          <p className="font-semibold">{member.name}</p>
-                          <p className="text-sm text-muted-foreground">{member.role}</p>
+                        <div className="flex items-center gap-4">
+                          <img
+                            src={member.avatar}
+                            alt={member.name}
+                            className="h-10 w-10 rounded-full object-cover"
+                          />
+                          <div>
+                            <p className="font-semibold">{member.name}</p>
+                            <p className="text-sm text-muted-foreground">{member.role}</p>
+                          </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setMemberToRemove(member.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     ))}
+                    {projectTeam.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Nenhum membro alocado no momento.
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -888,6 +905,37 @@ export default function ProjectDetails() {
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               Deletar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={memberToRemove !== null}
+        onOpenChange={(open) => !open && setMemberToRemove(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover membro da equipe?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação removerá o membro do escopo deste projeto.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (memberToRemove) {
+                  setProjectTeam((prev) => prev.filter((m) => m.id !== memberToRemove))
+                  toast({
+                    title: 'Membro removido',
+                    description: 'O membro foi removido do projeto com sucesso.',
+                  })
+                }
+              }}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Remover
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -29,6 +29,18 @@ export const maskRG = (value: string) => {
     .replace(/(-\d{1})\d+?$/, '$1')
 }
 
+export const validateCPF = (cpf: string) => {
+  const cleanCPF = cpf.replace(/[^\d]+/g, '')
+  if (cleanCPF.length !== 11 || !!cleanCPF.match(/(\d)\1{10}/)) return false
+  const values = cleanCPF.split('').map(Number)
+  const rest = (count: number) =>
+    ((values.slice(0, count - 12).reduce((soma, el, index) => soma + el * (count - index), 0) *
+      10) %
+      11) %
+    10
+  return rest(10) === values[9] && rest(11) === values[10]
+}
+
 export const maskPhone = (value: string) => {
   const digits = value.replace(/\D/g, '')
   if (digits.length <= 10) {

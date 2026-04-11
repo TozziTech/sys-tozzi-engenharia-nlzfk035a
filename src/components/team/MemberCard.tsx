@@ -39,8 +39,19 @@ import {
   Info,
   TrendingUp,
   User as UserIcon,
+  Trash2,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { exportUserPDF } from '@/lib/exportPdf'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Bar, BarChart } from 'recharts'
@@ -54,10 +65,19 @@ const mockFinancialData = [
   { month: 'Jun', amount: 7200 },
 ]
 
-export function MemberCard({ user, onUpdate }: { user: User; onUpdate: (user: User) => void }) {
+export function MemberCard({
+  user,
+  onUpdate,
+  onDelete,
+}: {
+  user: User
+  onUpdate: (user: User) => void
+  onDelete?: (id: string) => void
+}) {
   const { projects } = useProjectStore()
   const userProjects = projects.filter((p) => user.assignedProjects?.includes(p.id))
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md border-border/60 group">
@@ -275,6 +295,38 @@ export function MemberCard({ user, onUpdate }: { user: User; onUpdate: (user: Us
               open={isEditOpen}
               onOpenChange={setIsEditOpen}
             />
+            {onDelete && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir Membro</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tem certeza que deseja remover {user.name} da equipe? Esta ação não pode ser
+                        desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDelete(user.id)}
+                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      >
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
           </div>
         </div>
       </CardHeader>

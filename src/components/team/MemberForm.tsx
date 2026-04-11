@@ -22,7 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { User } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
 import { Plus } from 'lucide-react'
-import { maskCPF, maskRG, maskPhone } from '@/lib/utils'
+import { maskCPF, maskRG, maskPhone, validateCPF } from '@/lib/utils'
 
 export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
@@ -65,6 +65,15 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       toast({
         title: 'Atenção',
         description: 'O nome do membro é obrigatório.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (formData.cpf && !validateCPF(formData.cpf)) {
+      toast({
+        title: 'Atenção',
+        description: 'O CPF informado é inválido.',
         variant: 'destructive',
       })
       return

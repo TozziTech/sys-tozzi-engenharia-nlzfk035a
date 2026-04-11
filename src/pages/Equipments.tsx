@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Wrench } from 'lucide-react'
+import { Plus, Pencil, Trash2, Wrench, HandPlatter, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import {
@@ -34,12 +34,20 @@ import { Textarea } from '@/components/ui/textarea'
 
 export default function Equipments() {
   const [equipments, setEquipments] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
-  const { user } = useAuth()
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [loanModalOpen, setLoanModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  const [loanForm, setLoanForm] = useState({
+    equipment_id: '',
+    user_id: '',
+    return_date: '',
+  })
+
   const [form, setForm] = useState({
     name: '',
     category: '',
@@ -54,8 +62,12 @@ export default function Equipments() {
 
   const loadData = async () => {
     try {
-      const records = await pb.collection('equipments').getFullList({ sort: '-created' })
+      const [records, userRecords] = await Promise.all([
+        pb.collection('equipments').getFullList({ sort: '-created' }),
+        pb.collection('users').getFullList(),
+      ])
       setEquipments(records)
+      setUsers(userRecords)
     } catch (e) {
       console.error(e)
     } finally {
@@ -67,9 +79,8 @@ export default function Equipments() {
     loadData()
   }, [])
 
-  useRealtime('equipments', () => {
-    loadData()
-  })
+  useRealtime('equipments', () => loadData())
+  useRealtime('equipment_loans', () => loadData())
 
   const handleSave = async () => {
     try {
@@ -97,6 +108,68 @@ export default function Equipments() {
     }
   }
 
+  const openLoanModal = (eq: any) => {
+    setLoanForm({
+      equipment_id: eq.id,
+      user_id: '',
+      return_date: '',
+    })
+    setLoanModalOpen(true)
+  }
+
+  const handleLoan = async () => {
+    if (!loanForm.user_id) {
+      toast({ title: 'Selecione um usuário', variant: 'destructive' })
+      return
+    }
+
+    try {
+      const selectedUser = users.find((u) => u.id === loanForm.user_id)
+
+      await pb.collection('equipment_loans').create({
+        equipment_id: loanForm.equipment_id,
+        user_id: loanForm.user_id,
+        loan_date: new Date().toISOString(),
+        return_date: loanForm.return_date ? new Date(loanForm.return_date).toISOString() : '',
+        status: 'Ativo',
+      })
+
+      await pb.collection('equipments').update(loanForm.equipment_id, {
+        status: 'Emprestado',
+        responsible: selectedUser?.name || selectedUser?.email,
+      })
+
+      toast({ title: 'Equipamento emprestado com sucesso' })
+      setLoanModalOpen(false)
+    } catch (e) {
+      toast({ title: 'Erro ao emprestar', variant: 'destructive' })
+    }
+  }
+
+  const handleReturn = async (eq: any) => {
+    try {
+      const activeLoans = await pb.collection('equipment_loans').getFullList({
+        filter: `equipment_id = '${eq.id}' && status = 'Ativo'`,
+      })
+
+      for (const loan of activeLoans) {
+        await pb.collection('equipment_loans').update(loan.id, {
+          status: 'Devolvido',
+          return_date: new Date().toISOString(),
+        })
+      }
+
+      await pb.collection('equipments').update(eq.id, {
+        status: 'Disponível',
+        responsible: '',
+      })
+
+      toast({ title: 'Equipamento devolvido com sucesso' })
+    } catch (e) {
+      toast({ title: 'Erro ao devolver equipamento', variant: 'destructive' })
+    }
+  }
+
   const handleQuickMaintenance = async (eq: any) => {
     try {
       const today = new Date()
@@ -108,18 +181,6 @@ export default function Equipments() {
         next_maintenance: next.toISOString().split('T')[0],
         condition: 'Bom',
       })
-
-      if (user) {
-        await pb.collection('audit_logs').create({
-          user_id: user.id,
-          action: 'QUICK_MAINTENANCE',
-          resource: eq.name,
-          details: {
-            equipment_id: eq.id,
-            action: 'Manutenção finalizada rapidamente',
-          },
-        })
-      }
 
       toast({ title: 'Manutenção finalizada com sucesso!' })
     } catch (e) {
@@ -162,6 +223,8 @@ export default function Equipments() {
     switch (status) {
       case 'Disponível':
         return <Badge className="bg-emerald-500 hover:bg-emerald-600">Disponível</Badge>
+      case 'Emprestado':
+        return <Badge className="bg-purple-500 hover:bg-purple-600">Emprestado</Badge>
       case 'Em Uso':
         return <Badge className="bg-blue-500 hover:bg-blue-600">Em Uso</Badge>
       case 'Manutenção':
@@ -202,18 +265,13 @@ export default function Equipments() {
     }
   }
 
-  const isMaintenanceOverdue = (dateStr: string) => {
-    if (!dateStr) return false
-    return new Date(dateStr) < new Date()
-  }
-
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Equipamentos</h2>
           <p className="text-muted-foreground">
-            Gerencie o inventário e as manutenções dos equipamentos.
+            Gerencie o inventário e os empréstimos dos equipamentos.
           </p>
         </div>
         <Button onClick={() => openModal()} className="w-full md:w-auto">
@@ -251,7 +309,12 @@ export default function Equipments() {
                 <TableRow key={eq.id}>
                   <TableCell className="font-medium">
                     <div>{eq.name}</div>
-                    {eq.responsible && (
+                    {eq.responsible && eq.status === 'Emprestado' && (
+                      <div className="text-xs text-purple-600 font-semibold mt-0.5">
+                        Com: {eq.responsible}
+                      </div>
+                    )}
+                    {eq.responsible && eq.status !== 'Emprestado' && (
                       <div className="text-xs text-muted-foreground">Resp: {eq.responsible}</div>
                     )}
                   </TableCell>
@@ -262,29 +325,46 @@ export default function Equipments() {
                     {eq.next_maintenance ? (
                       <span
                         className={
-                          isMaintenanceOverdue(eq.next_maintenance)
+                          new Date(eq.next_maintenance) < new Date()
                             ? 'text-destructive font-semibold flex items-center'
                             : ''
                         }
                       >
                         {eq.next_maintenance.substring(0, 10).split('-').reverse().join('/')}
-                        {isMaintenanceOverdue(eq.next_maintenance) && (
-                          <span className="ml-2 text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
-                            Atrasada
-                          </span>
-                        )}
                       </span>
                     ) : (
                       '-'
                     )}
                   </TableCell>
                   <TableCell className="text-right">
+                    {eq.status === 'Disponível' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openLoanModal(eq)}
+                        title="Emprestar"
+                        className="text-purple-600 hover:bg-purple-100"
+                      >
+                        <HandPlatter className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {eq.status === 'Emprestado' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleReturn(eq)}
+                        title="Devolver"
+                        className="text-emerald-600 hover:bg-emerald-100"
+                      >
+                        <Undo2 className="w-4 h-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleQuickMaintenance(eq)}
                       title="Finalizar Manutenção"
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                      className="text-blue-600 hover:bg-blue-100"
                     >
                       <Wrench className="w-4 h-4" />
                     </Button>
@@ -306,6 +386,48 @@ export default function Equipments() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={loanModalOpen} onOpenChange={setLoanModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Emprestar Equipamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Projetista / Usuário</Label>
+              <Select
+                value={loanForm.user_id}
+                onValueChange={(v) => setLoanForm({ ...loanForm, user_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione quem vai retirar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name || u.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Data de Devolução (Opcional)</Label>
+              <Input
+                type="date"
+                value={loanForm.return_date}
+                onChange={(e) => setLoanForm({ ...loanForm, return_date: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLoanModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleLoan}>Confirmar Empréstimo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -337,6 +459,7 @@ export default function Equipments() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Disponível">Disponível</SelectItem>
+                  <SelectItem value="Emprestado">Emprestado</SelectItem>
                   <SelectItem value="Em Uso">Em Uso</SelectItem>
                   <SelectItem value="Manutenção">Manutenção</SelectItem>
                 </SelectContent>
@@ -360,7 +483,7 @@ export default function Equipments() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Responsável</Label>
+              <Label>Responsável Fixo (Opcional)</Label>
               <Input
                 value={form.responsible}
                 onChange={(e) => setForm({ ...form, responsible: e.target.value })}
@@ -392,11 +515,10 @@ export default function Equipments() {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label>Histórico / Observações de Uso</Label>
+              <Label>Observações</Label>
               <Textarea
                 value={form.usage_notes}
                 onChange={(e) => setForm({ ...form, usage_notes: e.target.value })}
-                placeholder="Anotações sobre avarias, consertos ou detalhes de uso contínuo..."
                 className="min-h-[100px]"
               />
             </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Filter, XCircle, Plus } from 'lucide-react'
+import { Filter, XCircle, Plus, CalendarDays } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
 import {
   Select,
@@ -65,9 +65,39 @@ export default function Projects() {
             Pesquise, filtre e gerencie os detalhes dos projetos.
           </p>
         </div>
-        <Button onClick={() => setNewProjectModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Novo Projeto
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const { default: pb } = await import('@/lib/pocketbase/client')
+                const res = await fetch(
+                  `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/calendar/projects.ics`,
+                  {
+                    headers: { Authorization: `Bearer ${pb.authStore.token}` },
+                  },
+                )
+                if (!res.ok) throw new Error('Failed to export')
+                const blob = await res.blob()
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = 'projects.ics'
+                document.body.appendChild(a)
+                a.click()
+                window.URL.revokeObjectURL(url)
+                document.body.removeChild(a)
+              } catch (e) {
+                console.error(e)
+              }
+            }}
+          >
+            <CalendarDays className="mr-2 h-4 w-4" /> Exportar Calendário (ICS)
+          </Button>
+          <Button onClick={() => setNewProjectModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Novo Projeto
+          </Button>
+        </div>
       </div>
 
       {/* Filters Bar */}

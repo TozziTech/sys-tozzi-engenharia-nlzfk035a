@@ -272,6 +272,30 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                       onCheckedChange={async (checked) => {
                         try {
                           const newStatus = checked ? 'Concluído' : 'Pendente'
+
+                          // Handle mock data IDs (which are short strings like '1', '1.1', '2')
+                          if (task.id.length < 15) {
+                            setTasks((prevTasks) => {
+                              const updateStatus = (nodes: TreeTask[]): TreeTask[] => {
+                                return nodes.map((node) => {
+                                  if (node.id === task.id) {
+                                    return { ...node, status: newStatus }
+                                  }
+                                  if (node.children) {
+                                    return { ...node, children: updateStatus(node.children) }
+                                  }
+                                  return node
+                                })
+                              }
+                              return updateStatus(prevTasks)
+                            })
+                            toast({
+                              title: 'Status atualizado (Simulação)',
+                              description: `Tarefa movida para ${newStatus}`,
+                            })
+                            return
+                          }
+
                           await updateTaskStatus(task.id, newStatus)
                           toast({
                             title: 'Status atualizado',

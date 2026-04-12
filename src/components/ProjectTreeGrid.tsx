@@ -35,9 +35,12 @@ const buildTree = (tasks: any[]): TaskNode[] => {
   const map = new Map<string, TaskNode>()
   const roots: TaskNode[] = []
   tasks.forEach((t) => map.set(t.id, { ...t, children: [] }))
-  const sorted = Array.from(map.values()).sort(
-    (a, b) => new Date(a.created).getTime() - new Date(b.created).getTime(),
-  )
+  const sorted = Array.from(map.values()).sort((a, b) => {
+    const orderA = a.ordem ?? 999999
+    const orderB = b.ordem ?? 999999
+    if (orderA !== orderB) return orderA - orderB
+    return new Date(a.created).getTime() - new Date(b.created).getTime()
+  })
   sorted.forEach((node) => {
     const pid = node.parent_id || node.parent_task
     if (pid && map.has(pid)) {

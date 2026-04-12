@@ -10,6 +10,7 @@ interface TaskRowProps {
   task: TaskNode
   depth: number
   columns: any
+  customColumns?: any[]
   users: any[]
   isExpanded: boolean
   draggedId: string | null
@@ -30,6 +31,7 @@ export function TaskRow({
   task,
   depth,
   columns,
+  customColumns = [],
   users,
   isExpanded,
   draggedId,
@@ -93,14 +95,14 @@ export function TaskRow({
             <button
               className={cn(
                 'cursor-pointer text-left border-none bg-transparent hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 rounded-sm px-1 py-0.5',
-                task.status === 'Concluído'
+                task.concluida
                   ? 'line-through text-slate-400 dark:text-slate-500'
                   : 'font-medium text-slate-700 dark:text-slate-200',
               )}
               onClick={() => onClickTitle?.(task)}
               title="Clique para ver detalhes"
             >
-              {task.title || task.titulo || 'Tarefa sem título'}
+              {task.titulo || task.title || 'Tarefa sem título'}
             </button>
           </div>
         </TableCell>
@@ -110,8 +112,10 @@ export function TaskRow({
         <TableCell className="py-2.5">
           <select
             className="bg-transparent text-sm w-full outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-1 py-0.5 transition-colors focus:ring-2 focus:ring-primary/50"
-            value={task.responsible || ''}
-            onChange={(e) => onUpdate(task.id, { responsible: e.target.value })}
+            value={task.dados_customizados?.responsible || ''}
+            onChange={(e) =>
+              onUpdate(task.id, { dados_customizados: { responsible: e.target.value } })
+            }
           >
             <option value="">Não atribuído</option>
             {users.map((u) => (
@@ -129,12 +133,18 @@ export function TaskRow({
             type="date"
             className={cn(
               'bg-transparent text-sm w-full outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-1 py-0.5 transition-colors focus:ring-2 focus:ring-primary/50',
-              isOverdue(task.due_date) && task.status !== 'Concluído'
+              isOverdue(task.dados_customizados?.due_date) && !task.concluida
                 ? 'text-red-600 dark:text-red-400 font-semibold'
                 : 'text-slate-600 dark:text-slate-300',
             )}
-            value={task.due_date ? task.due_date.split(' ')[0] : ''}
-            onChange={(e) => onUpdate(task.id, { due_date: e.target.value })}
+            value={
+              task.dados_customizados?.due_date
+                ? task.dados_customizados.due_date.split(' ')[0]
+                : ''
+            }
+            onChange={(e) =>
+              onUpdate(task.id, { dados_customizados: { due_date: e.target.value } })
+            }
           />
         </TableCell>
       )}
@@ -144,14 +154,20 @@ export function TaskRow({
           <select
             className={cn(
               'bg-transparent text-sm w-full outline-none cursor-pointer rounded px-2 py-1 transition-colors focus:ring-2 focus:ring-primary/50 font-medium',
-              task.status === 'Concluído'
+              task.concluida
                 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
-                : task.status === 'Em Andamento'
+                : task.dados_customizados?.status === 'Em Andamento'
                   ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
                   : 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700',
             )}
-            value={task.status || 'Pendente'}
-            onChange={(e) => onUpdate(task.id, { status: e.target.value })}
+            value={task.concluida ? 'Concluído' : task.dados_customizados?.status || 'Pendente'}
+            onChange={(e) => {
+              const val = e.target.value
+              onUpdate(task.id, {
+                concluida: val === 'Concluído',
+                dados_customizados: { status: val },
+              })
+            }}
           >
             <option value="Pendente">Pendente</option>
             <option value="Em Andamento">Em Andamento</option>
@@ -159,6 +175,20 @@ export function TaskRow({
           </select>
         </TableCell>
       )}
+
+      {customColumns.map((col) => (
+        <TableCell key={col.id} className="py-2.5">
+          <input
+            type="text"
+            className="bg-transparent text-sm w-full outline-none hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-2 py-1 transition-colors focus:ring-2 focus:ring-primary/50"
+            value={task.dados_customizados?.[col.id] || ''}
+            onChange={(e) =>
+              onUpdate(task.id, { dados_customizados: { [col.id]: e.target.value } })
+            }
+            placeholder="-"
+          />
+        </TableCell>
+      ))}
 
       {columns.acoes && (
         <TableCell className="py-2.5 text-center">
@@ -184,6 +214,9 @@ export function TaskRow({
           </div>
         </TableCell>
       )}
+
+      {/* Empty cell to align with the + button in header */}
+      <TableCell className="py-2.5 p-0"></TableCell>
     </TableRow>
   )
 }

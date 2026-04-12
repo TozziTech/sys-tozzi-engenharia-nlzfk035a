@@ -8,7 +8,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Columns, Download, PlusCircle } from 'lucide-react'
+import { Columns, Download, PlusCircle, Plus } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -16,6 +16,15 @@ import {
   DropdownMenuItem,
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
@@ -30,8 +39,9 @@ const buildTree = (tasks: any[]): TaskNode[] => {
     (a, b) => new Date(a.created).getTime() - new Date(b.created).getTime(),
   )
   sorted.forEach((node) => {
-    if (node.parent_task && map.has(node.parent_task)) {
-      map.get(node.parent_task)!.children.push(node)
+    const pid = node.parent_id || node.parent_task
+    if (pid && map.has(pid)) {
+      map.get(pid)!.children.push(node)
     } else {
       roots.push(node)
     }
@@ -83,10 +93,28 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
   const [filter, setFilter] = useState<'todas' | 'aberto' | 'concluidas' | 'pendentes'>('todas')
   const [selectedTask, setSelectedTask] = useState<any>(null)
 
+  const [customColumns, setCustomColumns] = useState<any[]>([])
+  const [isAddColOpen, setIsAddColOpen] = useState(false)
+  const [newColName, setNewColName] = useState('')
+  const [colError, setColError] = useState('')
+
+  const loadColumns = useCallback(async () => {
+    try {
+      const cols = await pb
+        .collection('colunas_projeto')
+        .getFullList({ filter: `projeto_id = "${projectId}"`, sort: 'created' })
+      setCustomColumns(cols)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [projectId])
+
   const loadData = useCallback(async () => {
     try {
       const [pbTasks, pbUsers] = await Promise.all([
-        pb.collection('tasks').getFullList({ filter: `project = "${projectId}"`, sort: 'created' }),
+        pb
+          .collection('tarefas_hierarquicas')
+          .getFullList({ filter: `projeto_id = "${projectId}"`, sort: 'ordem,created' }),
         pb.collection('users').getFullList({ sort: 'name' }),
       ])
       setUsers(pbUsers)
@@ -100,19 +128,22 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
   }, [projectId, toast])
 
   useEffect(() => {
+    loadColumns()
     loadData()
-  }, [loadData])
-  useRealtime('tasks', loadData)
+  }, [loadColumns, loadData])
+
+  useRealtime('tarefas_hierarquicas', loadData)
+  useRealtime('colunas_projeto', loadColumns)
 
   const tasksTree = useMemo(() => buildTree(rawTasks), [rawTasks])
 
   const updateProgress = useCallback(async () => {
     try {
       const pbTasks = await pb
-        .collection('tasks')
-        .getFullList({ filter: `project = "${projectId}"` })
+        .collection('tarefas_hierarquicas')
+        .getFullList({ filter: `projeto_id = "${projectId}"` })
       const total = pbTasks.length
-      const concluidaCount = pbTasks.filter((t) => t.status === 'Concluído').length
+      const concluidaCount = pbTasks.filter((t) => t.concluida).length
       const progress = total > 0 ? Math.round((concluidaCount / total) * 100) : 0
       await pb.collection('projects').update(projectId, { progress })
     } catch (e) {
@@ -126,8 +157,8 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
       if (!title) return
       try {
         await pb
-          .collection('tasks')
-          .create({ project: projectId, title, status: 'Pendente', parent_task: pid || '' })
+          .collection('tarefas_hierarquicas')
+          .create({ projeto_id: projectId, titulo: title, concluida: false, parent_id: pid || '' })
         if (pid) setExpandedIds((prev) => new Set(prev).add(pid))
         await updateProgress()
       } catch {
@@ -141,7 +172,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
     async (id: string) => {
       if (!window.confirm('Excluir esta tarefa e suas subtarefas?')) return
       try {
-        await pb.collection('tasks').delete(id)
+        await pb.collection('tarefas_hierarquicas').delete(id)
         await updateProgress()
       } catch {
         toast({ title: 'Erro ao excluir tarefa', variant: 'destructive' })
@@ -152,17 +183,58 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
 
   const handleUpd = useCallback(
     async (id: string, data: any) => {
-      setRawTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)))
+      setRawTasks((prev) =>
+        prev.map((t) => {
+          if (t.id === id) {
+            const merged = { ...t, ...data }
+            if (data.dados_customizados) {
+              merged.dados_customizados = {
+                ...(t.dados_customizados || {}),
+                ...data.dados_customizados,
+              }
+            }
+            return merged
+          }
+          return t
+        }),
+      )
       try {
-        await pb.collection('tasks').update(id, data)
-        if ('status' in data) await updateProgress()
+        const taskToUpdate = rawTasks.find((t) => t.id === id)
+        const payload = { ...data }
+        if (data.dados_customizados) {
+          payload.dados_customizados = {
+            ...(taskToUpdate?.dados_customizados || {}),
+            ...data.dados_customizados,
+          }
+        }
+        await pb.collection('tarefas_hierarquicas').update(id, payload)
+        if ('concluida' in data) await updateProgress()
       } catch {
         toast({ title: 'Erro ao atualizar', variant: 'destructive' })
         loadData()
       }
     },
-    [updateProgress, toast, loadData],
+    [rawTasks, updateProgress, toast, loadData],
   )
+
+  const handleAddColumn = async () => {
+    if (!newColName.trim()) {
+      setColError('O nome da coluna é obrigatório')
+      return
+    }
+    try {
+      await pb.collection('colunas_projeto').create({
+        projeto_id: projectId,
+        nome: newColName.trim(),
+        tipo_dado: 'Texto Livre',
+      })
+      setIsAddColOpen(false)
+      setNewColName('')
+      toast({ title: 'Coluna criada com sucesso' })
+    } catch {
+      toast({ title: 'Erro ao criar coluna', variant: 'destructive' })
+    }
+  }
 
   const getNode = useCallback(
     (id: string, nodes: TaskNode[] = tasksTree): TaskNode | null => {
@@ -193,18 +265,18 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
         curr = curr.parent_task ? getNode(curr.parent_task) : null
       }
 
-      let newParentId = target.parent_task || ''
+      let newParentId = target.parent_id || target.parent_task || ''
       if (pos === 'inside') {
         newParentId = target.id
         setExpandedIds((prev) => new Set(prev).add(target.id))
       }
 
       setRawTasks((prev) =>
-        prev.map((t) => (t.id === dragId ? { ...t, parent_task: newParentId } : t)),
+        prev.map((t) => (t.id === dragId ? { ...t, parent_id: newParentId } : t)),
       )
 
       try {
-        await pb.collection('tasks').update(dragId, { parent_task: newParentId })
+        await pb.collection('tarefas_hierarquicas').update(dragId, { parent_id: newParentId })
       } catch {
         toast({ title: 'Erro ao mover tarefa', variant: 'destructive' })
         loadData()
@@ -263,10 +335,13 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
   const visibleNodes = useMemo(
     () =>
       flatNodes.filter(({ task }) => {
+        const isDone = task.concluida
+        const dueDate = task.dados_customizados?.due_date
+
         if (filter === 'todas') return true
-        if (filter === 'aberto') return task.status !== 'Concluído'
-        if (filter === 'concluidas') return task.status === 'Concluído'
-        if (filter === 'pendentes') return task.status !== 'Concluído' && isOverdue(task.due_date)
+        if (filter === 'aberto') return !isDone
+        if (filter === 'concluidas') return isDone
+        if (filter === 'pendentes') return !isDone && isOverdue(dueDate)
         return true
       }),
     [flatNodes, filter],
@@ -275,7 +350,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
   const handleExportCSV = useCallback(() => {
     const exportData = visibleNodes.map(({ task }) => ({
       ...task,
-      responsibleName: users.find((u) => u.id === task.responsible)?.name || '',
+      responsibleName: users.find((u) => u.id === task.dados_customizados?.responsible)?.name || '',
     }))
     import('@/lib/export').then((m) => m.exportTasksCSV(exportData, 'Projeto'))
   }, [visibleNodes, users])
@@ -283,7 +358,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
   const handleExportPDF = useCallback(() => {
     const exportData = visibleNodes.map(({ task }) => ({
       ...task,
-      responsibleName: users.find((u) => u.id === task.responsible)?.name || '',
+      responsibleName: users.find((u) => u.id === task.dados_customizados?.responsible)?.name || '',
     }))
     import('@/lib/exportPdf').then((m) => m.exportTasksPDF(exportData, 'Projeto', 'Usuário Local'))
   }, [visibleNodes, users])
@@ -369,9 +444,24 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
               {columns.status && (
                 <TableHead className="border-r border-b w-[140px]">Status</TableHead>
               )}
+              {customColumns.map((col) => (
+                <TableHead key={col.id} className="border-r border-b w-[150px]">
+                  {col.nome}
+                </TableHead>
+              ))}
               {columns.acoes && (
                 <TableHead className="border-b w-[50px] p-0 text-center"></TableHead>
               )}
+              <TableHead className="border-b w-[40px] p-0 text-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsAddColOpen(true)}
+                  className="h-7 w-7 text-muted-foreground hover:text-primary"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -381,6 +471,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
                 task={task}
                 depth={depth}
                 columns={columns}
+                customColumns={customColumns}
                 users={users}
                 isExpanded={expandedIds.has(task.id)}
                 draggedId={draggedId}
@@ -399,7 +490,10 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
             ))}
             {visibleNodes.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={6 + customColumns.length}
+                  className="h-32 text-center text-muted-foreground"
+                >
                   Nenhuma tarefa encontrada.
                 </TableCell>
               </TableRow>
@@ -420,6 +514,35 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
         projectId={projectId}
         onTaskUpdated={loadData}
       />
+
+      <Dialog open={isAddColOpen} onOpenChange={setIsAddColOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Coluna Customizada</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome da Coluna</Label>
+              <Input
+                value={newColName}
+                onChange={(e) => {
+                  setNewColName(e.target.value)
+                  if (e.target.value) setColError('')
+                }}
+                placeholder="Ex: Notas, Criticidade..."
+                autoFocus
+              />
+              {colError && <p className="text-sm text-red-500">{colError}</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddColOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddColumn}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

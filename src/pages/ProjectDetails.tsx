@@ -53,7 +53,7 @@ import {
 } from '@/components/ui/table'
 import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
-import { KanbanBoard } from '@/components/KanbanBoard'
+import { ProjectTreeGrid } from '@/components/ProjectTreeGrid'
 import { ProjectVersions } from '@/components/ProjectVersions'
 import { ProjectModules } from '@/components/ProjectModules'
 import {
@@ -441,7 +441,7 @@ export default function ProjectDetails() {
             </TabsContent>
 
             <TabsContent value="tasks" className="mt-4">
-              <KanbanBoard projectName={project.name} teamMembers={projectTeam} />
+              <ProjectTreeGrid projectId={project.id} />
             </TabsContent>
 
             <TabsContent value="modules" className="mt-4">

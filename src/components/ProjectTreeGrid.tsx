@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
 import { TaskRow, type TaskNode } from './TaskRow'
+import { TaskSheet } from './TaskSheet'
 
 const buildTree = (tasks: any[]): TaskNode[] => {
   const map = new Map<string, TaskNode>()
@@ -80,6 +81,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
     position: 'before' | 'after' | 'inside'
   } | null>(null)
   const [filter, setFilter] = useState<'todas' | 'aberto' | 'concluidas' | 'pendentes'>('todas')
+  const [selectedTask, setSelectedTask] = useState<any>(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -392,6 +394,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
                 onDrop={onDrop}
                 onDragEnd={onDragEnd}
                 isOverdue={isOverdue}
+                onClickTitle={(t) => setSelectedTask(t)}
               />
             ))}
             {visibleNodes.length === 0 && (
@@ -409,6 +412,14 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
           <PlusCircle className="w-4 h-4 text-primary" /> Adicionar Tarefa Raiz
         </Button>
       </div>
+
+      <TaskSheet
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => !open && setSelectedTask(null)}
+        projectId={projectId}
+        onTaskUpdated={loadData}
+      />
     </div>
   )
 }

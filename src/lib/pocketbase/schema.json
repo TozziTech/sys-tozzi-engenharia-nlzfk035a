@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-12T05:19:37.144Z",
+  "generatedAt": "2026-04-12T05:31:04.088Z",
   "collections": [
     {
       "name": "users",
@@ -376,6 +376,12 @@
         {
           "name": "attachments",
           "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
           "required": false,
           "system": false
         }
@@ -1016,6 +1022,12 @@
         {
           "name": "ordem",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
           "required": false,
           "system": false
         }

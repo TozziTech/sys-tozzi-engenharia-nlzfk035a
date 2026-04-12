@@ -2,6 +2,160 @@ import { User, Project } from '@/types/project'
 
 import { format } from 'date-fns'
 
+export function exportFinancialPDF(
+  records: any[],
+  totals: { revenue: number; expenses: number; balance: number },
+  periodLabel: string,
+  currentUser: string,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório Financeiro - ${periodLabel}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            line-height: 1.5; 
+            color: #1a1a1a; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
+          
+          .summary {
+            display: flex;
+            justify-content: space-around;
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+          }
+          .summary-item { text-align: center; }
+          .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
+          .summary-value { font-size: 20px; font-weight: 700; color: #111827; margin-top: 5px; }
+          .summary-value.positive { color: #059669; }
+          .summary-value.negative { color: #dc2626; }
+          
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+            vertical-align: top;
+          }
+          th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          .text-right { text-align: right; }
+          
+          .footer { 
+            margin-top: 50px; 
+            padding-top: 20px; 
+            border-top: 1px dashed #e5e7eb; 
+            font-size: 12px; 
+            color: #9ca3af; 
+            text-align: center; 
+          }
+          
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+      
+        <div class="header">
+          <h1>Relatório Financeiro</h1>
+          <p><strong>Período:</strong> ${periodLabel}</p>
+          <p>Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+        </div>
+        
+        <div class="summary">
+          <div class="summary-item">
+            <div class="summary-label">Receita Total</div>
+            <div class="summary-value positive">${formatCurrency(totals.revenue)}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Despesa Total</div>
+            <div class="summary-value negative">${formatCurrency(totals.expenses)}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Saldo</div>
+            <div class="summary-value ${totals.balance >= 0 ? 'positive' : 'negative'}">
+              ${formatCurrency(totals.balance)}
+            </div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Descrição</th>
+              <th>Categoria</th>
+              <th>Tipo</th>
+              <th class="text-right">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${records
+              .map((r: any) => {
+                const isExpense =
+                  r.type?.toLowerCase().includes('saída') ||
+                  r.type?.toLowerCase().includes('despesa') ||
+                  r.amount < 0
+                return `
+                <tr>
+                  <td style="white-space: nowrap;">${format(new Date(r.date || r.created), 'dd/MM/yyyy')}</td>
+                  <td>${r.description}</td>
+                  <td>${r.category || '-'}</td>
+                  <td>${r.type || '-'}</td>
+                  <td class="text-right" style="color: ${isExpense ? '#dc2626' : '#059669'}; font-weight: 500;">
+                    ${isExpense && r.amount > 0 ? '-' : ''}${formatCurrency(Math.abs(r.amount))}
+                  </td>
+                </tr>
+              `
+              })
+              .join('')}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          Documento gerado pelo Sistema de Gerenciamento de Projetos.
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
 export function exportAuditLogsPDF(logs: any[], currentUser: string) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return

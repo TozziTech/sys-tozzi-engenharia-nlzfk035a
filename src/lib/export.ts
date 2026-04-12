@@ -2,6 +2,31 @@ import { format } from 'date-fns'
 import { Log } from './mock-logs'
 import { Project } from '@/types/project'
 
+export function exportFinancialCSV(records: any[], periodLabel: string) {
+  const headers = ['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor']
+
+  const rows = records.map((r) => {
+    const date = `"${format(new Date(r.date || r.created), 'dd/MM/yyyy')}"`
+    const desc = `"${(r.description || '').replace(/"/g, '""')}"`
+    const cat = `"${(r.category || '').replace(/"/g, '""')}"`
+    const type = `"${(r.type || '').replace(/"/g, '""')}"`
+    const val = r.amount
+    return [date, desc, cat, type, val]
+  })
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Financeiro_${periodLabel}_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportTeamCSV(users: any[]) {
   const headers = ['Código', 'Nome', 'Formação', 'Status', 'Cidade', 'UF']
 

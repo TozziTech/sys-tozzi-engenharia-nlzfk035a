@@ -54,7 +54,20 @@ export default function ProjectCalendar() {
       if (p.end_date && p.status !== 'Concluído') {
         const eDate = format(new Date(p.end_date), 'yyyy-MM-dd')
         if (!events[eDate]) events[eDate] = []
-        events[eDate].push({ project: p, type: 'end' })
+
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const end = new Date(p.end_date)
+        end.setHours(0, 0, 0, 0)
+        const diffTime = end.getTime() - today.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        events[eDate].push({
+          project: p,
+          type: 'end',
+          isUrgent: diffDays >= 0 && diffDays <= 3,
+          isOverdue: diffDays < 0,
+        })
       }
     })
     return events
@@ -140,11 +153,23 @@ export default function ProjectCalendar() {
                               'text-[11px] leading-tight px-1.5 py-1 rounded-sm truncate font-medium border transition-colors hover:brightness-95 cursor-default',
                               e.type === 'start'
                                 ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20'
-                                : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
+                                : e.isOverdue
+                                  ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
+                                  : e.isUrgent
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 animate-pulse'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20',
                             )}
                             title={`${e.type === 'start' ? 'Início' : 'Entrega'}: ${e.project.name}`}
                           >
-                            <span className="mr-1">{e.type === 'start' ? '🟢' : '🔴'}</span>
+                            <span className="mr-1">
+                              {e.type === 'start'
+                                ? '🟢'
+                                : e.isOverdue
+                                  ? '🔴'
+                                  : e.isUrgent
+                                    ? '⚠️'
+                                    : '🏁'}
+                            </span>
                             {e.project.name}
                           </div>
                         ))}

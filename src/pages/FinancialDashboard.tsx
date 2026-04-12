@@ -18,7 +18,11 @@ import {
   format,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { TrendingUp, TrendingDown, Wallet } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Download, FileText } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/use-auth'
+import { exportFinancialCSV } from '@/lib/export'
+import { exportFinancialPDF } from '@/lib/exportPdf'
 import {
   Bar,
   BarChart,
@@ -37,6 +41,7 @@ import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 
 export default function FinancialDashboard() {
+  const { user } = useAuth()
   const [financials, setFinancials] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -184,18 +189,43 @@ export default function FinancialDashboard() {
             Visão detalhada da saúde financeira, custos de projetos e receitas.
           </p>
         </div>
-        <div className="w-full md:w-64">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="bg-background">
-              <SelectValue placeholder="Selecione o período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="weekly">Semanal</SelectItem>
-              <SelectItem value="monthly">Mensal</SelectItem>
-              <SelectItem value="quarterly">Trimestral</SelectItem>
-              <SelectItem value="all">Todo o Período</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 w-full md:w-auto">
+          <div className="w-full md:w-48">
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Selecione o período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="weekly">Semanal</SelectItem>
+                <SelectItem value="monthly">Mensal</SelectItem>
+                <SelectItem value="quarterly">Trimestral</SelectItem>
+                <SelectItem value="all">Todo o Período</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-full md:w-auto gap-2">
+            <Button
+              variant="outline"
+              onClick={() => exportFinancialCSV(filteredFinancials, period)}
+              className="flex-1 md:flex-none bg-background shadow-sm"
+            >
+              <Download className="mr-2 h-4 w-4" /> CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                exportFinancialPDF(
+                  filteredFinancials,
+                  { revenue: totalRevenue, expenses: totalExpenses, balance },
+                  period,
+                  user?.name || user?.email || 'Usuário',
+                )
+              }
+              className="flex-1 md:flex-none bg-background shadow-sm"
+            >
+              <FileText className="mr-2 h-4 w-4" /> PDF
+            </Button>
+          </div>
         </div>
       </div>
 

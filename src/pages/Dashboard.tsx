@@ -75,12 +75,27 @@ const Dashboard = () => {
         })
       }
 
-      if (p.progress < 100 && p.end_date && new Date(p.end_date) < new Date()) {
-        issues.push({
-          project: p,
-          type: 'deadline',
-          message: `Prazo ultrapassado (${new Date(p.end_date).toLocaleDateString('pt-BR')})`,
-        })
+      if (p.progress < 100 && p.end_date) {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const end = new Date(p.end_date)
+        end.setHours(0, 0, 0, 0)
+        const diffTime = end.getTime() - today.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        if (diffDays < 0) {
+          issues.push({
+            project: p,
+            type: 'deadline',
+            message: `Prazo ultrapassado (${new Date(p.end_date).toLocaleDateString('pt-BR')})`,
+          })
+        } else if (diffDays <= 3) {
+          issues.push({
+            project: p,
+            type: 'warning',
+            message: `Prazo próximo (${diffDays} dia${diffDays === 1 ? '' : 's'}) - ${new Date(p.end_date).toLocaleDateString('pt-BR')}`,
+          })
+        }
       }
 
       return issues
@@ -292,14 +307,16 @@ const Dashboard = () => {
                     <div className="flex items-center text-sm">
                       {b.type === 'budget' ? (
                         <TrendingDown className="w-4 h-4 mr-1.5 text-destructive shrink-0" />
+                      ) : b.type === 'deadline' ? (
+                        <Clock className="w-4 h-4 mr-1.5 text-destructive shrink-0" />
                       ) : (
-                        <Clock className="w-4 h-4 mr-1.5 text-orange-500 shrink-0" />
+                        <AlertTriangle className="w-4 h-4 mr-1.5 text-amber-500 shrink-0" />
                       )}
                       <span
                         className={
-                          b.type === 'budget'
+                          b.type === 'budget' || b.type === 'deadline'
                             ? 'text-destructive font-medium'
-                            : 'text-orange-600 font-medium'
+                            : 'text-amber-600 font-medium'
                         }
                       >
                         {b.message}

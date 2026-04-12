@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-12T14:36:47.942Z",
+  "generatedAt": "2026-04-12T19:22:18.539Z",
   "collections": [
     {
       "name": "users",
@@ -918,6 +918,12 @@
           "required": false,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "documents",
+          "type": "file",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX idx_project_modules_project ON project_modules (project)"]

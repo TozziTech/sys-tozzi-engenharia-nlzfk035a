@@ -6,6 +6,7 @@ export interface ProjectModule {
   progress: number
   deadline: string
   notes: string
+  documents?: string[]
   responsible?: string
   designer?: string
   expand?: {

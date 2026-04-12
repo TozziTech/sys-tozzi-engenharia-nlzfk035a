@@ -42,14 +42,19 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const [editingModule, setEditingModule] = useState<ProjectModule | undefined>(undefined)
   const [deleteModuleId, setDeleteModuleId] = useState<ProjectModule | null>(null)
   const [selectedModuleForTasks, setSelectedModuleForTasks] = useState<ProjectModule | null>(null)
+  const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
-  const loadModules = async () => {
+  const loadData = async () => {
     try {
-      const data = await getProjectModules(projectId)
-      setModules(data)
+      const [modulesData, tasksData] = await Promise.all([
+        getProjectModules(projectId),
+        pb.collection('tasks').getFullList({ filter: `project = "${projectId}"` }),
+      ])
+      setModules(modulesData)
+      setTasks(tasksData)
     } catch (err) {
       console.error(err)
     } finally {
@@ -58,11 +63,14 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   }
 
   useEffect(() => {
-    loadModules()
+    loadData()
   }, [projectId])
 
   useRealtime('project_modules', () => {
-    loadModules()
+    loadData()
+  })
+  useRealtime('tasks', () => {
+    loadData()
   })
 
   const getStatusColor = (status: string) => {
@@ -128,13 +136,40 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Link
                           to={`/projects/${projectId}/disciplines/${mod.id}`}
                           className="hover:underline text-primary"
                         >
                           <h4 className="font-semibold text-base">{mod.name}</h4>
                         </Link>
+
+                        {tasks
+                          .filter((t) => t.module === mod.id)
+                          .some(
+                            (t) =>
+                              t.status !== 'Concluído' &&
+                              t.due_date &&
+                              differenceInHours(new Date(t.due_date), new Date()) <= 72,
+                          ) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="destructive"
+                                  className="px-1.5 py-0 h-5 bg-red-500 hover:bg-red-600 border-none cursor-help"
+                                >
+                                  <AlertTriangle className="w-3 h-3 mr-1" />
+                                  Tarefas Críticas
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Existem tarefas atrasadas ou vencendo nos próximos 3 dias.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+
                         {mod.deadline &&
                           mod.status !== 'Concluído' &&
                           differenceInHours(new Date(mod.deadline), new Date()) <= 72 &&

@@ -18,7 +18,7 @@ export const createProjectModule = async (data: Partial<ProjectModule>, userId: 
       user_id: userId,
       action: 'Create',
       resource: 'project_modules',
-      details: { module_name: record.name, project_id: record.project },
+      details: { module_id: record.id, module_name: record.name, project_id: record.project },
     })
     .catch(console.error)
 
@@ -38,7 +38,12 @@ export const updateProjectModule = async (
       user_id: userId,
       action: 'Update',
       resource: 'project_modules',
-      details: { module_name: record.name, project_id: record.project, changes: data },
+      details: {
+        module_id: record.id,
+        module_name: record.name,
+        project_id: record.project,
+        changes: data,
+      },
     })
     .catch(console.error)
 
@@ -59,7 +64,7 @@ export const deleteProjectModule = async (
       user_id: userId,
       action: 'Delete',
       resource: 'project_modules',
-      details: { module_name: moduleName, project_id: projectId },
+      details: { module_id: id, module_name: moduleName, project_id: projectId },
     })
     .catch(console.error)
 }

@@ -13,7 +13,8 @@ import { ChevronRight, ChevronDown, Plus, PlusCircle, User, Calendar } from 'luc
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
-import { getModuleTasks } from '@/services/tasks'
+import { getModuleTasks, updateTaskStatus } from '@/services/tasks'
+import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
 import { format } from 'date-fns'
 
@@ -163,22 +164,34 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
+  const loadTasks = async () => {
+    const pbTasks = await getModuleTasks(moduleId)
+    if (pbTasks.length > 0) {
+      const tree = buildTreeFromPB(pbTasks)
+      setTasks(tree)
+    } else {
+      setTasks(MOCK_TREE_DATA)
+    }
+  }
+
   useEffect(() => {
-    const loadTasks = async () => {
+    const init = async () => {
       setLoading(true)
+      await loadTasks()
+      // Expand top level roots by default for real data
       const pbTasks = await getModuleTasks(moduleId)
       if (pbTasks.length > 0) {
         const tree = buildTreeFromPB(pbTasks)
-        setTasks(tree)
-        // Expand top level roots by default for real data
         setExpandedIds(new Set(tree.map((t) => t.id)))
-      } else {
-        setTasks(MOCK_TREE_DATA)
       }
       setLoading(false)
     }
-    loadTasks()
+    init()
   }, [moduleId])
+
+  useRealtime('tasks', () => {
+    loadTasks()
+  })
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -255,8 +268,23 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                     style={{ paddingLeft: `${depth * 24}px` }}
                   >
                     <Checkbox
-                      checked={selectedIds.has(task.id)}
-                      onCheckedChange={() => toggleSelect(task.id)}
+                      checked={task.status === 'Concluído'}
+                      onCheckedChange={async (checked) => {
+                        try {
+                          const newStatus = checked ? 'Concluído' : 'Pendente'
+                          await updateTaskStatus(task.id, newStatus)
+                          toast({
+                            title: 'Status atualizado',
+                            description: `Tarefa movida para ${newStatus}`,
+                          })
+                        } catch (err) {
+                          toast({
+                            title: 'Erro',
+                            description: 'Não foi possível atualizar',
+                            variant: 'destructive',
+                          })
+                        }
+                      }}
                       className="data-[state=checked]:bg-primary"
                     />
                     <div className="w-5 h-5 flex items-center justify-center shrink-0">

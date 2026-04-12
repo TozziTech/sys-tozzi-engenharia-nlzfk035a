@@ -7,6 +7,7 @@ import {
   Home,
   CalendarDays,
   Calendar as CalendarIcon,
+  Clock,
   AlertTriangle,
   History,
   DollarSign,
@@ -43,6 +44,7 @@ const navigationGroups = [
       { name: 'Dashboard Financeiro', href: '/financial-dashboard', icon: LineChart },
       { name: 'Diagnóstico', href: '/diagnostics', icon: AlertTriangle },
       { name: 'Performance', href: '/performance', icon: Activity },
+      { name: 'Auditoria de Prazos', href: '/deadline-audit', icon: Clock },
     ],
   },
   {

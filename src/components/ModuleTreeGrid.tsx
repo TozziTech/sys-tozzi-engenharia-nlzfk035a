@@ -22,7 +22,9 @@ import {
   Loader2,
   Download,
   Trash2,
+  Eye,
 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -205,6 +207,11 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
 
   const [inlineCreateParentId, setInlineCreateParentId] = useState<string | null>(null)
   const [subTaskTitle, setSubTaskTitle] = useState('')
+  const [previewFile, setPreviewFile] = useState<{
+    url: string
+    name: string
+    type: string
+  } | null>(null)
 
   const loadTasks = async () => {
     const pbTasks = await getModuleTasks(moduleId)
@@ -249,10 +256,15 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
   const flatNodes = useMemo(() => flattenTree(tasks, 0, expandedIds), [tasks, expandedIds])
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
+    const isCompleted = newStatus === 'Concluído'
+    const nowIso = isCompleted ? new Date().toISOString() : null
+
     setTasks((prevTasks) => {
       const updateStatus = (nodes: TreeTask[]): TreeTask[] => {
         return nodes.map((node) => {
-          if (node.id === taskId) return { ...node, status: newStatus }
+          if (node.id === taskId) {
+            return { ...node, status: newStatus, due_date: isCompleted ? nowIso : undefined }
+          }
           if (node.children) return { ...node, children: updateStatus(node.children) }
           return node
         })
@@ -265,7 +277,7 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
       return
     }
     try {
-      await updateTaskStatus(taskId, newStatus)
+      await updateTaskStatus(taskId, newStatus, isCompleted ? nowIso : null)
       toast({ title: 'Status atualizado' })
     } catch (err) {
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' })
@@ -552,51 +564,75 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                               <div className="space-y-2">
                                 <h4 className="text-sm font-medium border-b pb-1">Anexos</h4>
                                 <div className="max-h-[200px] overflow-y-auto pr-1">
-                                  {task.attachments.map((filename) => (
-                                    <div
-                                      key={filename}
-                                      className="flex items-center justify-between text-sm p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group/file"
-                                    >
-                                      <span
-                                        className="truncate max-w-[180px] text-xs font-medium"
-                                        title={filename}
+                                  {task.attachments.map((filename) => {
+                                    const ext = filename.split('.').pop()?.toLowerCase()
+                                    const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(
+                                      ext || '',
+                                    )
+                                    const isPdf = ext === 'pdf'
+                                    const canPreview = isImage || isPdf
+                                    const fileUrl = pb.files.getURL(
+                                      {
+                                        id: task.id,
+                                        collectionId: 'tasks',
+                                        collectionName: 'tasks',
+                                      },
+                                      filename,
+                                    )
+
+                                    return (
+                                      <div
+                                        key={filename}
+                                        className="flex items-center justify-between text-sm p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group/file"
                                       >
-                                        {filename}
-                                      </span>
-                                      <div className="flex items-center gap-1 opacity-0 group-hover/file:opacity-100 transition-opacity">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                                          onClick={() =>
-                                            window.open(
-                                              pb.files.getURL(
-                                                {
-                                                  id: task.id,
-                                                  collectionId: 'tasks',
-                                                  collectionName: 'tasks',
-                                                },
-                                                filename,
-                                              ),
-                                              '_blank',
-                                            )
-                                          }
-                                          title="Baixar"
+                                        <span
+                                          className="truncate max-w-[150px] text-xs font-medium"
+                                          title={filename}
                                         >
-                                          <Download className="w-3 h-3" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                          onClick={() => handleDeleteAttachment(task.id, filename)}
-                                          title="Remover"
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </Button>
+                                          {filename}
+                                        </span>
+                                        <div className="flex items-center gap-0.5 opacity-0 group-hover/file:opacity-100 transition-opacity">
+                                          {canPreview && (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                              onClick={() =>
+                                                setPreviewFile({
+                                                  url: fileUrl,
+                                                  name: filename,
+                                                  type: isImage ? 'image' : 'pdf',
+                                                })
+                                              }
+                                              title="Visualizar"
+                                            >
+                                              <Eye className="w-3 h-3" />
+                                            </Button>
+                                          )}
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                            onClick={() => window.open(fileUrl, '_blank')}
+                                            title="Baixar"
+                                          >
+                                            <Download className="w-3 h-3" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            onClick={() =>
+                                              handleDeleteAttachment(task.id, filename)
+                                            }
+                                            title="Remover"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </Button>
+                                        </div>
                                       </div>
-                                    </div>
-                                  ))}
+                                    )
+                                  })}
                                 </div>
                               </div>
                             </PopoverContent>
@@ -741,6 +777,30 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
         moduleId={moduleId}
         availableParents={flatNodes.map((n) => ({ id: n.task.id, title: n.task.title }))}
       />
+
+      <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
+        <DialogContent className="max-w-4xl w-full h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-4 py-3 border-b shrink-0 bg-background">
+            <DialogTitle className="text-base truncate pr-6">{previewFile?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden bg-slate-100/50 dark:bg-slate-900/50 flex items-center justify-center p-4 relative">
+            {previewFile?.type === 'image' && (
+              <img
+                src={previewFile.url}
+                alt={previewFile.name}
+                className="max-w-full max-h-full object-contain rounded-md shadow-sm"
+              />
+            )}
+            {previewFile?.type === 'pdf' && (
+              <iframe
+                src={previewFile.url}
+                className="w-full h-full border-0 rounded-md shadow-sm bg-white"
+                title={previewFile.name}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

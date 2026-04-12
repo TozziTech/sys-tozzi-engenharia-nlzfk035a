@@ -20,8 +20,16 @@ export const getDeadlineTasks = async () => {
   })
 }
 
-export const updateTaskStatus = async (taskId: string, status: string) => {
-  return pb.collection('tasks').update(taskId, { status })
+export const updateTaskStatus = async (
+  taskId: string,
+  status: string,
+  due_date?: string | null,
+) => {
+  const data: any = { status }
+  if (due_date !== undefined) {
+    data.due_date = due_date
+  }
+  return pb.collection('tasks').update(taskId, data)
 }
 
 export const updateTaskTitle = async (taskId: string, title: string) => {

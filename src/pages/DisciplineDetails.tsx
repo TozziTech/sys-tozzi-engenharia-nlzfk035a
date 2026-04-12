@@ -222,8 +222,8 @@ export default function DisciplineDetails() {
   })
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6">
-      <div className="flex items-center gap-2 mb-6">
+    <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6 print:p-0 print:m-0 print:max-w-none print:space-y-0">
+      <div className="flex items-center gap-2 mb-6 print:hidden">
         <Button variant="ghost" size="sm" asChild className="gap-2">
           <Link to={`/projects/${id}`}>
             <ArrowLeft className="h-4 w-4" />
@@ -235,7 +235,7 @@ export default function DisciplineDetails() {
       </div>
 
       {hasCriticalTasks && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 text-red-800 dark:text-red-300 p-4 rounded-lg flex items-start gap-3">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 text-red-800 dark:text-red-300 p-4 rounded-lg flex items-start gap-3 print:hidden">
           <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
           <div>
             <h4 className="font-semibold text-sm">Atenção Necessária</h4>
@@ -247,9 +247,9 @@ export default function DisciplineDetails() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block print:gap-0">
+        <div className="lg:col-span-2 space-y-6 print:space-y-0">
+          <Card className="print:hidden">
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
@@ -306,7 +306,7 @@ export default function DisciplineDetails() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="print:hidden">
             <CardHeader className="pb-4">
               <div className="flex flex-row items-center justify-between">
                 <div>
@@ -475,7 +475,7 @@ export default function DisciplineDetails() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="print:hidden">
             <CardHeader>
               <CardTitle className="text-lg">Arquivos da Disciplina</CardTitle>
               <CardDescription>
@@ -550,10 +550,10 @@ export default function DisciplineDetails() {
             </CardContent>
           </Card>
 
-          <ModuleVersions moduleId={moduleId!} />
+          <ModuleVersions module={module} />
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 print:hidden">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Equipe Responsável</CardTitle>

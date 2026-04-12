@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Download, Plus, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
+import { Download, Plus, AlertTriangle, CheckCircle, Clock, History, Printer } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
@@ -29,11 +29,14 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 
-export function ModuleVersions({ moduleId }: { moduleId: string }) {
+export function ModuleVersions({ module }: { module: any }) {
+  const moduleId = module.id
   const [versions, setVersions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState<string | null>(null)
+  const [versionHistory, setVersionHistory] = useState<any[]>([])
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -127,20 +130,80 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
     }
   }
 
+  const openHistory = async (versionId: string) => {
+    setHistoryOpen(versionId)
+    try {
+      const logs = await pb.collection('audit_logs').getFullList({
+        filter: `resource = 'project_versions' && details.version_id = '${versionId}'`,
+        sort: '-created',
+        expand: 'user_id'
+      })
+      setVersionHistory(logs)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   return (
-    <Card>
+    <>
+      <div className="hidden print:block w-full text-black">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold">Relatório de Auditoria de Versões</h2>
+          <div className="mt-4 space-y-1 text-sm">
+            <p><strong>Projeto:</strong> {module.expand?.project?.name || 'N/A'}</p>
+            <p><strong>Disciplina:</strong> {module.name}</p>
+            <p><strong>Data de Emissão:</strong> {format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+          </div>
+        </div>
+
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b-2 border-black text-left">
+              <th className="py-2">Versão</th>
+              <th className="py-2">Revisão</th>
+              <th className="py-2">Status</th>
+              <th className="py-2">Crítica</th>
+              <th className="py-2">Responsável</th>
+              <th className="py-2">Data Criação</th>
+              <th className="py-2">Data Aprovação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {versions.map(v => (
+              <tr key={v.id} className="border-b border-gray-300">
+                <td className="py-2">{v.version_label}</td>
+                <td className="py-2">{v.revision || '-'}</td>
+                <td className="py-2">{v.status}</td>
+                <td className="py-2">{v.is_critical ? 'Sim' : 'Não'}</td>
+                <td className="py-2">{v.expand?.approved_by?.name || '-'}</td>
+                <td className="py-2">{format(new Date(v.created), "dd/MM/yyyy")}</td>
+                <td className="py-2">{v.approval_date ? format(new Date(v.approval_date), "dd/MM/yyyy") : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+    <Card className="print:hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="space-y-1">
           <CardTitle className="text-lg">Versões da Disciplina</CardTitle>
           <CardDescription>Histórico de revisões e entregas técnicas.</CardDescription>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-1">
-              <Plus className="h-4 w-4" />
-              Registrar Nova Versão
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => window.print()}>
+            <Printer className="h-4 w-4" />
+            <span className="hidden sm:inline">Exportar Relatório</span>
+            <span className="sm:hidden">Exportar</span>
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nova Versão</span>
+                <span className="sm:hidden">Nova</span>
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Registrar Nova Versão</DialogTitle>
@@ -298,6 +361,9 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => openHistory(version.id)} title="Histórico de Alterações">
+                    <History className="h-4 w-4" />
+                  </Button>
                   {version.file && (
                     <Button variant="outline" size="sm" asChild className="gap-1.5">
                       <a
@@ -322,5 +388,43 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
         )}
       </CardContent>
     </Card>
+
+    <Dialog open={!!historyOpen} onOpenChange={(val) => !val && setHistoryOpen(null)}>
+      <DialogContent className="sm:max-w-[600px] print:hidden">
+        <DialogHeader>
+          <DialogTitle>Histórico de Alterações</DialogTitle>
+          <DialogDescription>
+            Registro de auditoria para esta versão.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[400px] overflow-y-auto space-y-4 pr-2">
+          {versionHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhum registro de alteração encontrado.</p>
+          ) : (
+            versionHistory.map(log => (
+              <div key={log.id} className="text-sm border-b pb-4 last:border-0">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold">{log.expand?.user_id?.name || 'Sistema'}</span>
+                  <span className="text-xs text-muted-foreground">{format(new Date(log.created), "dd/MM/yyyy HH:mm")}</span>
+                </div>
+                <div className="bg-muted/50 p-2 rounded text-xs space-y-2">
+                  {log.details?.changes && Object.entries(log.details.changes).map(([field, vals]: any) => (
+                    <div key={field} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <span className="font-medium capitalize w-24 shrink-0">{field}:</span>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="text-destructive line-through truncate max-w-[45%]">{String(vals.old || '(vazio)')}</span>
+                        <span className="text-muted-foreground shrink-0">→</span>
+                        <span className="text-emerald-600 font-medium truncate max-w-[45%]">{String(vals.new || '(vazio)')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

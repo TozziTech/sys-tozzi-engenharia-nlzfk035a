@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-12T02:20:53.495Z",
+  "generatedAt": "2026-04-12T02:32:34.224Z",
   "collections": [
     {
       "name": "users",
@@ -1013,6 +1013,12 @@
           "required": false,
           "system": false,
           "collectionRef": "tarefas_hierarquicas"
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

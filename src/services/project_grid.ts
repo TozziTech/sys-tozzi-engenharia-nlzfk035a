@@ -18,7 +18,7 @@ export const createProjectColumn = async (data: {
 export const getHierarchicalTasks = async (projectId: string) => {
   return pb.collection('tarefas_hierarquicas').getFullList({
     filter: `projeto_id = "${projectId}"`,
-    sort: 'created',
+    sort: 'ordem,created',
   })
 }
 
@@ -27,6 +27,7 @@ export const createHierarchicalTask = async (data: {
   titulo: string
   parent_id?: string | null
   concluida?: boolean
+  ordem?: number
   dados_customizados?: Record<string, any>
 }) => {
   return pb.collection('tarefas_hierarquicas').create(data)

@@ -1,6 +1,30 @@
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 
+export function TextMaskedInput({
+  value,
+  onBlur,
+}: {
+  value: string
+  onBlur: (val: string) => void
+}) {
+  const [local, setLocal] = useState(value || '')
+  useEffect(() => setLocal(value || ''), [value])
+
+  return (
+    <Input
+      className="h-8 text-xs border-transparent hover:border-input focus:border-input bg-transparent"
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => {
+        if (local !== (value || '')) {
+          onBlur(local)
+        }
+      }}
+    />
+  )
+}
+
 export function DateMaskedInput({
   value,
   onBlur,
@@ -8,8 +32,8 @@ export function DateMaskedInput({
   value: string
   onBlur: (val: string) => void
 }) {
-  const [local, setLocal] = useState(value)
-  useEffect(() => setLocal(value), [value])
+  const [local, setLocal] = useState(value || '')
+  useEffect(() => setLocal(value || ''), [value])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let v = e.target.value.replace(/\D/g, '')

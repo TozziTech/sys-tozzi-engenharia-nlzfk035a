@@ -29,7 +29,7 @@ import { ChevronRight, ChevronDown, Plus, PlusCircle, Trash2, GripVertical } fro
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
-import { DateMaskedInput, CurrencyMaskedInput } from './ProjectGridCells'
+import { DateMaskedInput, CurrencyMaskedInput, TextMaskedInput } from './ProjectGridCells'
 import {
   getProjectColumns,
   getHierarchicalTasks,
@@ -156,7 +156,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
       await createHierarchicalTask({
         projeto_id: projectId,
         titulo,
-        parent_id: pid || null,
+        parent_id: pid || '',
         ordem: newOrdem,
       })
       if (pid) setExpandedIds((prev) => new Set(prev).add(pid))
@@ -175,10 +175,22 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
   }
 
   const handleUpd = async (id: string, data: any) => {
+    setTasks((prev) => {
+      const updateNode = (nodes: HTreeTask[]): HTreeTask[] => {
+        return nodes.map((n) => {
+          if (n.id === id) return { ...n, ...data }
+          if (n.children) return { ...n, children: updateNode(n.children) }
+          return n
+        })
+      }
+      return updateNode(prev)
+    })
+
     try {
       await updateHierarchicalTask(id, data)
     } catch {
       toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+      loadData()
     }
   }
 
@@ -202,7 +214,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
       curr = curr.parent_id ? getNode(curr.parent_id)! : (null as any)
     }
 
-    let newParentId = target.parent_id || null
+    let newParentId = target.parent_id || ''
     let newOrdem = 0
 
     if (pos === 'inside') {
@@ -381,16 +393,11 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
                           }
                         />
                       ) : (
-                        <Input
-                          className="h-8 text-xs border-transparent hover:border-input focus:border-input bg-transparent"
-                          defaultValue={task.dados_customizados?.[c.nome] || ''}
-                          onBlur={(e) =>
-                            e.target.value !== (task.dados_customizados?.[c.nome] || '') &&
+                        <TextMaskedInput
+                          value={task.dados_customizados?.[c.nome] || ''}
+                          onBlur={(v) =>
                             handleUpd(task.id, {
-                              dados_customizados: {
-                                ...task.dados_customizados,
-                                [c.nome]: e.target.value,
-                              },
+                              dados_customizados: { ...task.dados_customizados, [c.nome]: v },
                             })
                           }
                         />

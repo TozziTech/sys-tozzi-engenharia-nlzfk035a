@@ -30,11 +30,21 @@ export const createHierarchicalTask = async (data: {
   ordem?: number
   dados_customizados?: Record<string, any>
 }) => {
-  return pb.collection('tarefas_hierarquicas').create(data)
+  const payload = { ...data }
+  if (payload.parent_id === null || payload.parent_id === undefined) {
+    payload.parent_id = ''
+  }
+  return pb.collection('tarefas_hierarquicas').create(payload)
 }
 
 export const updateHierarchicalTask = async (id: string, data: any) => {
-  return pb.collection('tarefas_hierarquicas').update(id, data)
+  const payload = { ...data }
+  if (payload.parent_id === null || payload.parent_id === undefined) {
+    if ('parent_id' in payload) {
+      payload.parent_id = ''
+    }
+  }
+  return pb.collection('tarefas_hierarquicas').update(id, payload)
 }
 
 export const deleteHierarchicalTask = async (id: string) => {

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import useProjectStore from '@/stores/useProjectStore'
 import { Button } from '@/components/ui/button'
@@ -113,7 +113,7 @@ export default function ProjectDetails() {
   const navigate = useNavigate()
   const [taskMetrics, setTaskMetrics] = useState({ completed: 0, pending: 0, total: 0 })
 
-  const loadMetrics = async () => {
+  const loadMetrics = useCallback(async () => {
     if (!id) return
     try {
       const th = await pb
@@ -125,11 +125,11 @@ export default function ProjectDetails() {
     } catch (e) {
       console.error(e)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     loadMetrics()
-  }, [id])
+  }, [loadMetrics])
 
   useRealtime('tarefas_hierarquicas', loadMetrics)
   const {
@@ -157,28 +157,34 @@ export default function ProjectDetails() {
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newDocs = Array.from(e.target.files).map((file) => ({
-        id: crypto.randomUUID(),
-        name: file.name,
-        date: new Date().toLocaleDateString('pt-BR'),
-        size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-      }))
-      setDocuments((prev) => [...prev, ...newDocs])
-      toast({
-        title: 'Documentos anexados',
-        description: `${newDocs.length} arquivo(s) adicionado(s) com sucesso.`,
-      })
-    }
-  }
+  const handleFileUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const newDocs = Array.from(e.target.files).map((file) => ({
+          id: crypto.randomUUID(),
+          name: file.name,
+          date: new Date().toLocaleDateString('pt-BR'),
+          size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+        }))
+        setDocuments((prev) => [...prev, ...newDocs])
+        toast({
+          title: 'Documentos anexados',
+          description: `${newDocs.length} arquivo(s) adicionado(s) com sucesso.`,
+        })
+      }
+    },
+    [toast],
+  )
 
-  const handleDeleteDoc = (docId: string) => {
-    setDocuments((prev) => prev.filter((d) => d.id !== docId))
-    toast({ title: 'Documento removido', description: 'O arquivo foi excluído.' })
-  }
+  const handleDeleteDoc = useCallback(
+    (docId: string) => {
+      setDocuments((prev) => prev.filter((d) => d.id !== docId))
+      toast({ title: 'Documento removido', description: 'O arquivo foi excluído.' })
+    },
+    [toast],
+  )
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     if (!project) return
     deleteProject(project.id)
     toast({
@@ -187,7 +193,7 @@ export default function ProjectDetails() {
       variant: 'destructive',
     })
     navigate('/projects')
-  }
+  }, [project, deleteProject, navigate, toast])
 
   const formatCurrency = (value?: number) => {
     if (value === undefined) return 'N/A'
@@ -212,15 +218,15 @@ export default function ProjectDetails() {
   const totalActualHours = projectTimeLogs.reduce((acc, log) => acc + log.hours, 0)
   const estimatedHours = project?.estimatedHours || 100
 
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     if (!project) return
     exportProjectHoursCSV(projectTimeLogs, project.name)
-  }
+  }, [project, projectTimeLogs])
 
-  const handleExportPDF = () => {
+  const handleExportPDF = useCallback(() => {
     if (!project) return
     exportProjectHoursPDF(projectTimeLogs, project, 'Usuário Logado')
-  }
+  }, [project, projectTimeLogs])
 
   if (!project) {
     return (

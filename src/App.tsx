@@ -11,6 +11,7 @@ import Projects from './pages/Projects'
 import ProjectDetails from './pages/ProjectDetails'
 import { RealtimeSync } from './components/RealtimeSync'
 import Financial from './pages/Financial'
+import FinancialDashboard from './pages/FinancialDashboard'
 import Clients from './pages/Clients'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
@@ -57,6 +58,8 @@ const App = () => (
                   <Route path="/gantt" element={<Gantt />} />
                   <Route path="/schedule" element={<Gantt />} />
                   <Route path="/bottlenecks" element={<Bottlenecks />} />
+                  <Route path="/diagnostics" element={<Bottlenecks />} />
+                  <Route path="/financial-dashboard" element={<FinancialDashboard />} />
                   <Route path="/timesheet" element={<Timesheet />} />
                   <Route path="/history" element={<History />} />
                   <Route path="/team" element={<Team />} />

@@ -81,10 +81,11 @@ export default function Bottlenecks() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <AlertTriangle className="h-8 w-8 text-red-500" />
-          Gargalos e Riscos
+          Diagnóstico
         </h1>
         <p className="text-muted-foreground mt-2">
-          Monitore projetos críticos, sobrecarga de equipe e atrasos sistêmicos.
+          Monitore projetos críticos, sobrecarga de equipe e atrasos sistêmicos através deste
+          diagnóstico.
         </p>
       </div>
 

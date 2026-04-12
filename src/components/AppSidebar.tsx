@@ -13,6 +13,7 @@ import {
   FileText,
   Briefcase,
   Shield,
+  LineChart,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -36,8 +37,9 @@ const navigationGroups = [
   {
     label: 'Gestão',
     items: [
-      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { name: 'Gargalos', href: '/bottlenecks', icon: AlertTriangle },
+      { name: 'Dashboard Geral', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Dashboard Financeiro', href: '/financial-dashboard', icon: LineChart },
+      { name: 'Diagnóstico', href: '/diagnostics', icon: AlertTriangle },
     ],
   },
   {

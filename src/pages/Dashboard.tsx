@@ -134,7 +134,7 @@ const Dashboard = () => {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 pb-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard de Projetos</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard Geral</h2>
           <p className="text-muted-foreground mt-1">
             Visão geral financeira, status dos projetos e alertas importantes.
           </p>
@@ -179,7 +179,7 @@ const Dashboard = () => {
         </Card>
         <Card className="shadow-sm border-muted/60">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Alertas de Gargalo</CardTitle>
+            <CardTitle className="text-sm font-medium">Alertas de Diagnóstico</CardTitle>
             <div className="p-2 bg-destructive/10 rounded-full">
               <AlertTriangle className="h-4 w-4 text-destructive" />
             </div>
@@ -263,7 +263,7 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center text-destructive">
               <AlertTriangle className="w-5 h-5 mr-2" />
-              Gargalos e Alertas
+              Diagnóstico e Alertas
             </CardTitle>
             <CardDescription>Projetos exigindo atenção imediata.</CardDescription>
           </CardHeader>
@@ -273,7 +273,7 @@ const Dashboard = () => {
             ) : bottlenecks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
                 <CheckCircle2 className="w-12 h-12 mb-3 text-green-500/50" />
-                <p>Nenhum gargalo detectado!</p>
+                <p>Nenhum problema detectado no diagnóstico!</p>
                 <p className="text-sm">Todos os projetos estão dentro do prazo e orçamento.</p>
               </div>
             ) : (

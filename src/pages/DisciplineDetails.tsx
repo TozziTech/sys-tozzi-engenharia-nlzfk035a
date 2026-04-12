@@ -83,6 +83,16 @@ export default function DisciplineDetails() {
   const [selectedTask, setSelectedTask] = useState<any>(null)
   const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false)
 
+  const { user } = useAuth()
+
+  // Column Visibility State
+  const [visibleColumns, setVisibleColumns] = useState({
+    descricao: true,
+    status: true,
+    data: true,
+    acoes: true,
+  })
+
   // Drag and Drop State
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null)
@@ -459,28 +469,102 @@ export default function DisciplineDetails() {
                 </TabsList>
 
                 <TabsContent value="list" className="mt-0">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4 mt-2 print:hidden">
-                    <div className="relative w-full sm:w-72">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar tarefas..."
-                        className="pl-9"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4 mt-2 print:hidden">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                      <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar tarefas..."
+                          className="pl-9"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      <div className="w-full sm:w-48">
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Filtrar por Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All">Todos os Status</SelectItem>
+                            <SelectItem value="Pendente">Pendente</SelectItem>
+                            <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                            <SelectItem value="Concluído">Concluído</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="w-full sm:w-48">
-                      <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Filtrar por Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="All">Todos os Status</SelectItem>
-                          <SelectItem value="Pendente">Pendente</SelectItem>
-                          <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                          <SelectItem value="Concluído">Concluído</SelectItem>
-                        </SelectContent>
-                      </Select>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                            <Columns className="h-4 w-4" />
+                            <span className="hidden sm:inline">Colunas</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuLabel>Alternar Colunas</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuCheckboxItem
+                            checked={visibleColumns.descricao}
+                            onCheckedChange={(c) =>
+                              setVisibleColumns((p) => ({ ...p, descricao: !!c }))
+                            }
+                          >
+                            Descrição
+                          </DropdownMenuCheckboxItem>
+                          <DropdownMenuCheckboxItem
+                            checked={visibleColumns.status}
+                            onCheckedChange={(c) =>
+                              setVisibleColumns((p) => ({ ...p, status: !!c }))
+                            }
+                          >
+                            Status
+                          </DropdownMenuCheckboxItem>
+                          <DropdownMenuCheckboxItem
+                            checked={visibleColumns.data}
+                            onCheckedChange={(c) => setVisibleColumns((p) => ({ ...p, data: !!c }))}
+                          >
+                            Data
+                          </DropdownMenuCheckboxItem>
+                          <DropdownMenuCheckboxItem
+                            checked={visibleColumns.acoes}
+                            onCheckedChange={(c) =>
+                              setVisibleColumns((p) => ({ ...p, acoes: !!c }))
+                            }
+                          >
+                            Ações
+                          </DropdownMenuCheckboxItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                            <Download className="h-4 w-4" />
+                            <span className="hidden sm:inline">Exportar</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => exportDisciplineTasksCSV(filteredTasks, module.name)}
+                          >
+                            Exportar para CSV
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              exportDisciplineTasksPDF(
+                                filteredTasks,
+                                module.name,
+                                user?.name || 'Usuário',
+                              )
+                            }
+                          >
+                            Exportar para PDF
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
 
@@ -489,10 +573,63 @@ export default function DisciplineDetails() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Data</TableHead>
-                            <TableHead className="text-right w-[80px]">Ações</TableHead>
+                            {visibleColumns.descricao && (
+                              <TableHead>
+                                <div className="flex items-center gap-1.5">
+                                  Descrição
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="max-w-[200px] text-xs">
+                                        Refere-se ao título ou resumo da atividade técnica a ser
+                                        executada.
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </TableHead>
+                            )}
+                            {visibleColumns.status && (
+                              <TableHead>
+                                <div className="flex items-center gap-1.5">
+                                  Status
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="max-w-[200px] text-xs">
+                                        Indica o estágio atual de progresso (Pendente, Em Andamento,
+                                        Concluído).
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </TableHead>
+                            )}
+                            {visibleColumns.data && (
+                              <TableHead className="text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="max-w-[200px] text-xs">
+                                        Prazo final estipulado para a entrega ou conclusão desta
+                                        tarefa.
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  Data
+                                </div>
+                              </TableHead>
+                            )}
+                            {visibleColumns.acoes && (
+                              <TableHead className="text-right w-[80px]">Ações</TableHead>
+                            )}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -520,80 +657,90 @@ export default function DisciplineDetails() {
                                   setIsTaskSheetOpen(true)
                                 }}
                               >
-                                <TableCell className="font-medium flex items-center py-3">
-                                  {!isFilterActive ? (
-                                    <div className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-2">
-                                      <GripVertical className="h-4 w-4" />
-                                    </div>
-                                  ) : (
-                                    <div className="w-6" />
-                                  )}
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="flex items-center gap-2">
-                                      {task.title}
-                                      {urgency.level !== 'none' && (
-                                        <Badge
-                                          variant="outline"
-                                          className={cn(
-                                            'border-none flex items-center gap-1 px-1.5 py-0 h-5',
-                                            urgency.bg,
-                                            urgency.color,
-                                          )}
-                                        >
-                                          <urgency.icon className="h-3 w-3" />
-                                          <span className="text-[10px] uppercase font-bold">
-                                            {urgency.label}
-                                          </span>
-                                        </Badge>
-                                      )}
-                                    </span>
-                                    {task.description && (
-                                      <span className="text-xs text-muted-foreground line-clamp-1">
-                                        {task.description}
-                                      </span>
+                                {visibleColumns.descricao && (
+                                  <TableCell className="font-medium flex items-center py-3">
+                                    {!isFilterActive ? (
+                                      <div className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                                        <GripVertical className="h-4 w-4" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-6" />
                                     )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant={task.status === 'Concluído' ? 'default' : 'secondary'}
-                                    className={
-                                      task.status === 'Concluído'
-                                        ? 'bg-emerald-500 hover:bg-emerald-600'
-                                        : ''
-                                    }
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="flex items-center gap-2">
+                                        {task.title}
+                                        {urgency.level !== 'none' && (
+                                          <Badge
+                                            variant="outline"
+                                            className={cn(
+                                              'border-none flex items-center gap-1 px-1.5 py-0 h-5',
+                                              urgency.bg,
+                                              urgency.color,
+                                            )}
+                                          >
+                                            <urgency.icon className="h-3 w-3" />
+                                            <span className="text-[10px] uppercase font-bold">
+                                              {urgency.label}
+                                            </span>
+                                          </Badge>
+                                        )}
+                                      </span>
+                                      {task.description && (
+                                        <span className="text-xs text-muted-foreground line-clamp-1">
+                                          {task.description}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                )}
+                                {visibleColumns.status && (
+                                  <TableCell>
+                                    <Badge
+                                      variant={
+                                        task.status === 'Concluído' ? 'default' : 'secondary'
+                                      }
+                                      className={
+                                        task.status === 'Concluído'
+                                          ? 'bg-emerald-500 hover:bg-emerald-600'
+                                          : ''
+                                      }
+                                    >
+                                      {task.status || 'Pendente'}
+                                    </Badge>
+                                  </TableCell>
+                                )}
+                                {visibleColumns.data && (
+                                  <TableCell
+                                    className={cn(
+                                      'text-right',
+                                      urgency.level === 'overdue' && 'text-red-500 font-bold',
+                                      urgency.level === 'urgent' && 'text-orange-500 font-bold',
+                                    )}
                                   >
-                                    {task.status || 'Pendente'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell
-                                  className={cn(
-                                    'text-right',
-                                    urgency.level === 'overdue' && 'text-red-500 font-bold',
-                                    urgency.level === 'urgent' && 'text-orange-500 font-bold',
-                                  )}
-                                >
-                                  {task.due_date
-                                    ? format(new Date(task.due_date), 'dd/MM/yyyy')
-                                    : '-'}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setSelectedTask(task)
-                                      setIsTaskSheetOpen(true)
-                                    }}
-                                  >
-                                    <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                                  </Button>
-                                </TableCell>
+                                    {task.due_date
+                                      ? format(new Date(task.due_date), 'dd/MM/yyyy')
+                                      : '-'}
+                                  </TableCell>
+                                )}
+                                {visibleColumns.acoes && (
+                                  <TableCell className="text-right">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setSelectedTask(task)
+                                        setIsTaskSheetOpen(true)
+                                      }}
+                                    >
+                                      <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                    </Button>
+                                  </TableCell>
+                                )}
                               </TableRow>
                             )
                           })}
-                        </TableBody>
+                        </TableBody>{' '}
                       </Table>
                     </div>
                   ) : (

@@ -165,6 +165,29 @@ export function exportTasksCSV(tasks: any[], projectName: string) {
   URL.revokeObjectURL(url)
 }
 
+export function exportDisciplineTasksCSV(tasks: any[], moduleName: string) {
+  const headers = ['Status', 'Descrição', 'Data']
+
+  const rows = tasks.map((t) => {
+    const status = `"${(t.status || 'Pendente').replace(/"/g, '""')}"`
+    const desc = `"${(t.title || '').replace(/"/g, '""')}"`
+    const date = t.due_date ? format(new Date(t.due_date), 'dd/MM/yyyy') : ''
+    return [status, desc, date]
+  })
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Tarefas_${moduleName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportAuditLogsCSV(logs: Log[]) {
   const headers = ['Evento', 'Usuário', 'Descrição', 'Data/Hora']
 

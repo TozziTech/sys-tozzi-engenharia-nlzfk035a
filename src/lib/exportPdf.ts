@@ -234,6 +234,61 @@ export function exportCalendarPDF(
   setTimeout(() => printWindow.print(), 250)
 }
 
+export function exportDisciplineTasksPDF(tasks: any[], moduleName: string, currentUser: string) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Tarefas - ${moduleName}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+          th { background-color: #f9fafb; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <h2 style="margin-bottom: 5px;">Relatório de Tarefas - ${moduleName}</h2>
+        <p style="margin-top: 0; color: #6b7280; font-size: 14px; margin-bottom: 20px;">Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Descrição</th>
+              <th>Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tasks
+              .map(
+                (t) => `
+              <tr>
+                <td>${t.status || 'Pendente'}</td>
+                <td>${t.title}</td>
+                <td>${t.due_date ? format(new Date(t.due_date), 'dd/MM/yyyy') : '-'}</td>
+              </tr>
+            `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportTasksPDF(tasks: any[], projectName: string, currentUser: string) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return

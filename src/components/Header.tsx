@@ -65,15 +65,7 @@ export function Header() {
       <div className="flex flex-1 items-center gap-4 md:gap-8">
         <div className="hidden sm:flex items-center">
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge
-                variant="outline"
-                className="cursor-help border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-400 gap-1.5 py-1"
-              >
-                <Database className="h-3 w-3" />
-                Sem Banco
-              </Badge>
-            </TooltipTrigger>
+            <TooltipTrigger asChild></TooltipTrigger>
             <TooltipContent>
               <p>Os dados são salvos apenas localmente na sessão atual.</p>
               <p>Conecte um backend para persistência permanente.</p>

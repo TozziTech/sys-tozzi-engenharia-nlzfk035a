@@ -238,12 +238,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
 
   const flatNodes = useMemo(() => flattenTree(tasks, 0, expandedIds), [tasks, expandedIds])
 
-  if (loading)
-    return (
-      <div className="p-8 text-center text-muted-foreground animate-pulse">
-        Carregando tarefas...
-      </div>
-    )
+  const [filter, setFilter] = useState<'todas' | 'aberto' | 'concluidas' | 'pendentes'>('todas')
 
   const isOverdue = (dueDate: string | null | undefined) => {
     if (!dueDate) return false
@@ -252,8 +247,6 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
     today.setHours(0, 0, 0, 0)
     return date.getTime() < today.getTime()
   }
-
-  const [filter, setFilter] = useState<'todas' | 'aberto' | 'concluidas' | 'pendentes'>('todas')
 
   const visibleNodes = useMemo(() => {
     return flatNodes.filter(({ task }) => {
@@ -264,6 +257,13 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
       return true
     })
   }, [flatNodes, filter])
+
+  if (loading)
+    return (
+      <div className="p-8 text-center text-muted-foreground animate-pulse">
+        Carregando tarefas...
+      </div>
+    )
 
   const handleExportCSV = () => {
     const exportData = visibleNodes.map(({ task }) => ({

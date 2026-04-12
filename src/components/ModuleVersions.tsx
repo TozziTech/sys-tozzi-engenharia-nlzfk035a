@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -14,7 +15,16 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Download, Plus, Circle, Loader2, FileArchive } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Download, Plus, Circle, Loader2, FileArchive, AlertTriangle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 
@@ -24,6 +34,17 @@ interface ProjectVersion {
   description: string
   file: string
   created: string
+  status: string
+  is_critical: boolean
+  approved_by?: string
+  approval_date?: string
+  expand?: {
+    approved_by?: {
+      id: string
+      name: string
+      avatar: string
+    }
+  }
 }
 
 export function ModuleVersions({ moduleId }: { moduleId: string }) {
@@ -31,10 +52,14 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  const isAdminOrManager = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
   const [formData, setFormData] = useState({
     version_label: '',
     description: '',
+    is_critical: false,
   })
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(true)
@@ -44,6 +69,7 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
       const records = await pb.collection('project_versions').getFullList<ProjectVersion>({
         filter: `module = "${moduleId}"`,
         sort: '-created',
+        expand: 'approved_by',
       })
       setVersions(records)
     } catch (err) {
@@ -89,6 +115,8 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
       data.append('module', moduleId)
       data.append('version_label', formData.version_label)
       if (formData.description) data.append('description', formData.description)
+      data.append('is_critical', String(formData.is_critical))
+      data.append('status', 'Pendente')
       data.append('file', file)
 
       await pb.collection('project_versions').create(data)
@@ -102,6 +130,7 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
       setFormData({
         version_label: '',
         description: '',
+        is_critical: false,
       })
       setFile(null)
     } catch (error: any) {
@@ -113,6 +142,43 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleStatusChange = async (versionId: string, newStatus: string) => {
+    try {
+      const updateData: any = { status: newStatus }
+
+      if (newStatus === 'Aprovado') {
+        updateData.approved_by = user?.id
+        updateData.approval_date = new Date().toISOString()
+      } else {
+        updateData.approved_by = null
+        updateData.approval_date = null
+      }
+
+      await pb.collection('project_versions').update(versionId, updateData)
+      toast({
+        title: 'Status atualizado',
+        description: `A versão foi marcada como ${newStatus}.`,
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao atualizar',
+        description: error.message || 'Ocorreu um erro.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Aprovado':
+        return <Badge className="bg-emerald-500 hover:bg-emerald-600">Aprovado</Badge>
+      case 'Em Revisão':
+        return <Badge className="bg-amber-500 hover:bg-amber-600 text-amber-950">Em Revisão</Badge>
+      default:
+        return <Badge variant="secondary">Pendente</Badge>
     }
   }
 
@@ -154,6 +220,18 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
                   rows={3}
                   placeholder="O que mudou nesta versão?"
                 />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is_critical"
+                  checked={formData.is_critical}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, is_critical: checked as boolean })
+                  }
+                />
+                <Label htmlFor="is_critical" className="font-normal cursor-pointer">
+                  Marcar como Versão Crítica
+                </Label>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="file">Arquivo Anexo</Label>
@@ -198,11 +276,22 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
                 <span className="absolute -left-[11px] top-1 h-5 w-5 rounded-full bg-background border-2 border-primary flex items-center justify-center transition-transform group-hover:scale-110">
                   <Circle className="h-2.5 w-2.5 fill-primary text-primary" />
                 </span>
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 bg-card hover:bg-muted/50 transition-colors p-4 rounded-lg border shadow-sm">
+                <div
+                  className={`flex flex-col md:flex-row md:items-start justify-between gap-4 bg-card hover:bg-muted/50 transition-colors p-4 rounded-lg border shadow-sm ${v.is_critical ? 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10' : ''}`}
+                >
                   <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-bold text-lg">{v.version_label}</span>
-                      <span className="text-xs font-medium text-muted-foreground">
+                      {v.is_critical && (
+                        <Badge
+                          variant="outline"
+                          className="text-red-600 border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 gap-1"
+                        >
+                          <AlertTriangle className="h-3 w-3" /> Crítica
+                        </Badge>
+                      )}
+                      {!isAdminOrManager && getStatusBadge(v.status || 'Pendente')}
+                      <span className="text-xs font-medium text-muted-foreground ml-auto md:ml-2">
                         {format(new Date(v.created), 'dd/MM/yyyy HH:mm')}
                       </span>
                     </div>
@@ -211,8 +300,30 @@ export function ModuleVersions({ moduleId }: { moduleId: string }) {
                         {v.description}
                       </p>
                     )}
+                    {v.status === 'Aprovado' && v.expand?.approved_by && v.approval_date && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Aprovado por{' '}
+                        <span className="font-medium">{v.expand.approved_by.name}</span> em{' '}
+                        {format(new Date(v.approval_date), 'dd/MM/yyyy HH:mm')}
+                      </p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 mt-2 md:mt-0">
+                  <div className="flex items-center gap-3 mt-2 md:mt-0">
+                    {isAdminOrManager && (
+                      <Select
+                        value={v.status || 'Pendente'}
+                        onValueChange={(val) => handleStatusChange(v.id, val)}
+                      >
+                        <SelectTrigger className="h-8 w-[130px] text-xs">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Pendente">Pendente</SelectItem>
+                          <SelectItem value="Em Revisão">Em Revisão</SelectItem>
+                          <SelectItem value="Aprovado">Aprovado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"

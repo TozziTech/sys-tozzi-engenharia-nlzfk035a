@@ -1,7 +1,15 @@
 import React from 'react'
 import { TableRow, TableCell } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, ChevronDown, PlusCircle, Trash2, GripVertical } from 'lucide-react'
+import {
+  ChevronRight,
+  ChevronDown,
+  PlusCircle,
+  Trash2,
+  GripVertical,
+  AlertCircle,
+  Clock,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type TaskNode = any
@@ -48,6 +56,16 @@ export function TaskRow({
   onClickTitle,
 }: TaskRowProps) {
   const hasChildren = task.children && task.children.length > 0
+
+  const due = task.dados_customizados?.due_date ? new Date(task.dados_customizados.due_date) : null
+  const now = new Date()
+  const isCompleted = task.concluida || task.dados_customizados?.status === 'Concluído'
+  let urgencyLevel = 'none'
+  if (due && !isCompleted) {
+    const diffHours = (due.getTime() - now.getTime()) / (1000 * 60 * 60)
+    if (diffHours < 0) urgencyLevel = 'overdue'
+    else if (diffHours <= 24) urgencyLevel = 'urgent'
+  }
 
   return (
     <TableRow
@@ -104,6 +122,18 @@ export function TaskRow({
             >
               {task.titulo || task.title || 'Tarefa sem título'}
             </button>
+            {!isCompleted && urgencyLevel === 'overdue' && (
+              <AlertCircle
+                className="w-3.5 h-3.5 text-red-500 inline-block flex-shrink-0 ml-1"
+                title="Atrasado"
+              />
+            )}
+            {!isCompleted && urgencyLevel === 'urgent' && (
+              <Clock
+                className="w-3.5 h-3.5 text-orange-500 inline-block flex-shrink-0 ml-1"
+                title="Urgente (< 24h)"
+              />
+            )}
           </div>
         </TableCell>
       )}

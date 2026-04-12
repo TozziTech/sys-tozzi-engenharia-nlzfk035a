@@ -9,10 +9,13 @@ import {
   Trash2,
   Clock,
   AlertTriangle,
+  AlertCircle,
   Activity,
   ChevronLeft,
   ChevronRight,
   Edit2,
+  Search,
+  GripVertical,
 } from 'lucide-react'
 import {
   format,
@@ -45,11 +48,20 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ProjectModule } from '@/types/project_modules'
 import { useToast } from '@/hooks/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ModuleVersions } from '@/components/ModuleVersions'
 import { TaskSheet } from '@/components/TaskSheet'
+import { cn } from '@/lib/utils'
 
 export default function DisciplineDetails() {
   const { id, moduleId } = useParams<{ id: string; moduleId: string }>()
@@ -63,9 +75,17 @@ export default function DisciplineDetails() {
   const [error, setError] = useState(false)
   const [uploading, setUploading] = useState(false)
 
+  // Filtering State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
+
   // Task Editing State
   const [selectedTask, setSelectedTask] = useState<any>(null)
   const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false)
+
+  // Drag and Drop State
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null)
 
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -80,7 +100,7 @@ export default function DisciplineDetails() {
 
       const moduleTasks = await pb.collection('tasks').getFullList({
         filter: `module = "${moduleId}"`,
-        sort: 'due_date',
+        sort: 'ordem,due_date',
       })
       setTasks(moduleTasks)
 
@@ -179,6 +199,74 @@ export default function DisciplineDetails() {
     }
   }
 
+  const onDragStart = (e: React.DragEvent, taskId: string) => {
+    setDraggedTaskId(taskId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const onDragOver = (e: React.DragEvent, taskId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (taskId !== dragOverTaskId) {
+      setDragOverTaskId(taskId)
+    }
+  }
+
+  const onDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    if (!draggedTaskId || draggedTaskId === targetId) {
+      setDraggedTaskId(null)
+      setDragOverTaskId(null)
+      return
+    }
+
+    const fullTasks = [...tasks]
+    const draggedIdx = fullTasks.findIndex((t) => t.id === draggedTaskId)
+    const targetIdx = fullTasks.findIndex((t) => t.id === targetId)
+
+    if (draggedIdx === -1 || targetIdx === -1) return
+
+    const [draggedItem] = fullTasks.splice(draggedIdx, 1)
+    fullTasks.splice(targetIdx, 0, draggedItem)
+
+    setTasks(fullTasks)
+    setDraggedTaskId(null)
+    setDragOverTaskId(null)
+
+    try {
+      await Promise.all(
+        fullTasks.map((t, index) => {
+          if (t.ordem !== index) {
+            t.ordem = index
+            return pb.collection('tasks').update(t.id, { ordem: index })
+          }
+        }),
+      )
+
+      if (id) {
+        try {
+          const thList = await pb.collection('tarefas_hierarquicas').getFullList({
+            filter: `projeto_id = "${id}"`,
+          })
+          await Promise.all(
+            fullTasks.map(async (t, index) => {
+              const th = thList.find((x) => x.titulo === t.title)
+              if (th && th.ordem !== index) {
+                await pb.collection('tarefas_hierarquicas').update(th.id, { ordem: index })
+              }
+            }),
+          )
+        } catch (thErr) {
+          console.warn('Silent fail syncing tarefas_hierarquicas', thErr)
+        }
+      }
+    } catch (err) {
+      console.error(err)
+      toast({ title: 'Erro', description: 'Erro ao reordenar tarefas', variant: 'destructive' })
+      loadData()
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Concluído':
@@ -190,6 +278,36 @@ export default function DisciplineDetails() {
       default:
         return 'bg-slate-500 hover:bg-slate-600 text-white'
     }
+  }
+
+  const getUrgencyInfo = (task: any) => {
+    if (task.status === 'Concluído' || !task.due_date) return { level: 'none' }
+
+    const due = new Date(task.due_date)
+    const now = new Date()
+    const diffMs = due.getTime() - now.getTime()
+    const diffHours = diffMs / (1000 * 60 * 60)
+
+    if (diffHours < 0) {
+      return {
+        level: 'overdue',
+        label: 'Atrasado',
+        color: 'text-red-700 dark:text-red-400',
+        bg: 'bg-red-100 dark:bg-red-950/40',
+        icon: AlertCircle,
+      }
+    }
+    if (diffHours <= 24) {
+      return {
+        level: 'urgent',
+        label: 'Urgente (< 24h)',
+        color: 'text-orange-700 dark:text-orange-400',
+        bg: 'bg-orange-100 dark:bg-orange-950/40',
+        icon: Clock,
+      }
+    }
+
+    return { level: 'none' }
   }
 
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1))
@@ -225,6 +343,18 @@ export default function DisciplineDetails() {
     if (t.status === 'Concluído' || !t.due_date) return false
     const daysUntilDue = differenceInDays(new Date(t.due_date), new Date())
     return daysUntilDue <= 3
+  })
+
+  const isFilterActive = searchQuery !== '' || statusFilter !== 'All'
+  const filteredTasks = tasks.filter((task) => {
+    const matchSearch =
+      task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchStatus =
+      statusFilter === 'All' ||
+      task.status === statusFilter ||
+      (statusFilter === 'Pendente' && !task.status)
+    return matchSearch && matchStatus
   })
 
   return (
@@ -329,7 +459,32 @@ export default function DisciplineDetails() {
                 </TabsList>
 
                 <TabsContent value="list" className="mt-0">
-                  {tasks.length > 0 ? (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4 mt-2 print:hidden">
+                    <div className="relative w-full sm:w-72">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar tarefas..."
+                        className="pl-9"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    <div className="w-full sm:w-48">
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Filtrar por Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="All">Todos os Status</SelectItem>
+                          <SelectItem value="Pendente">Pendente</SelectItem>
+                          <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                          <SelectItem value="Concluído">Concluído</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {filteredTasks.length > 0 ? (
                     <div className="rounded-md border overflow-x-auto">
                       <Table>
                         <TableHeader>
@@ -341,27 +496,63 @@ export default function DisciplineDetails() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {tasks.map((task) => {
-                            const daysUntilDue = task.due_date
-                              ? differenceInDays(new Date(task.due_date), new Date())
-                              : null
-                            const isCritical =
-                              task.status !== 'Concluído' &&
-                              daysUntilDue !== null &&
-                              daysUntilDue <= 3
+                          {filteredTasks.map((task) => {
+                            const urgency = getUrgencyInfo(task)
 
                             return (
                               <TableRow
                                 key={task.id}
-                                className="cursor-pointer hover:bg-muted/50"
+                                draggable={!isFilterActive}
+                                onDragStart={(e) => !isFilterActive && onDragStart(e, task.id)}
+                                onDragOver={(e) => !isFilterActive && onDragOver(e, task.id)}
+                                onDrop={(e) => !isFilterActive && onDrop(e, task.id)}
+                                onDragEnd={() => {
+                                  setDraggedTaskId(null)
+                                  setDragOverTaskId(null)
+                                }}
+                                className={cn(
+                                  'cursor-pointer hover:bg-muted/50 group transition-colors',
+                                  draggedTaskId === task.id && 'opacity-50',
+                                  dragOverTaskId === task.id && 'border-t-2 border-t-primary',
+                                )}
                                 onClick={() => {
                                   setSelectedTask(task)
                                   setIsTaskSheetOpen(true)
                                 }}
                               >
-                                <TableCell className="font-medium flex items-center gap-2">
-                                  {task.title}
-                                  {isCritical && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                                <TableCell className="font-medium flex items-center py-3">
+                                  {!isFilterActive ? (
+                                    <div className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                                      <GripVertical className="h-4 w-4" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-6" />
+                                  )}
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="flex items-center gap-2">
+                                      {task.title}
+                                      {urgency.level !== 'none' && (
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            'border-none flex items-center gap-1 px-1.5 py-0 h-5',
+                                            urgency.bg,
+                                            urgency.color,
+                                          )}
+                                        >
+                                          <urgency.icon className="h-3 w-3" />
+                                          <span className="text-[10px] uppercase font-bold">
+                                            {urgency.label}
+                                          </span>
+                                        </Badge>
+                                      )}
+                                    </span>
+                                    {task.description && (
+                                      <span className="text-xs text-muted-foreground line-clamp-1">
+                                        {task.description}
+                                      </span>
+                                    )}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <Badge
@@ -376,7 +567,11 @@ export default function DisciplineDetails() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell
-                                  className={`text-right ${isCritical ? 'text-red-500 font-bold' : ''}`}
+                                  className={cn(
+                                    'text-right',
+                                    urgency.level === 'overdue' && 'text-red-500 font-bold',
+                                    urgency.level === 'urgent' && 'text-orange-500 font-bold',
+                                  )}
                                 >
                                   {task.due_date
                                     ? format(new Date(task.due_date), 'dd/MM/yyyy')
@@ -403,7 +598,9 @@ export default function DisciplineDetails() {
                     </div>
                   ) : (
                     <div className="text-center py-8 border rounded-md bg-muted/20 text-muted-foreground">
-                      Nenhuma tarefa registrada para esta disciplina.
+                      {tasks.length > 0
+                        ? 'Nenhuma tarefa encontrada com os filtros atuais.'
+                        : 'Nenhuma tarefa registrada para esta disciplina.'}
                     </div>
                   )}
                 </TabsContent>

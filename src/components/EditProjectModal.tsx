@@ -33,6 +33,7 @@ import { DatePicker } from './DatePicker'
 import useProjectStore from '@/stores/useProjectStore'
 import type { Discipline, Project, Status } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
 
 const formSchema = z
   .object({
@@ -92,6 +93,9 @@ interface EditProjectModalProps {
 export function EditProjectModal({ project, open, onOpenChange }: EditProjectModalProps) {
   const { updateProject } = useProjectStore()
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  const canEditStatus = user && ['Administrador', 'Gerente de Projeto'].includes(user?.role)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -234,8 +238,17 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
                 name="status"
                 render={({ field }) => (
                   <FormItem className="col-span-2 sm:col-span-1">
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <FormLabel>
+                      Status{' '}
+                      {!canEditStatus && (
+                        <span className="text-xs text-muted-foreground">(Apenas Leitura)</span>
+                      )}
+                    </FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={!canEditStatus}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />

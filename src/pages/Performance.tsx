@@ -16,7 +16,8 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
-import { Activity } from 'lucide-react'
+import { Activity, Download } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export default function Performance() {
   const [projects, setProjects] = useState<any[]>([])
@@ -88,6 +89,34 @@ export default function Performance() {
       .sort((a, b) => b.eficiencia - a.eficiencia)
   }, [projects])
 
+  const generateMonthlySummary = () => {
+    const lines = ['Relatório de Eficiência Mensal - Tozzi Engenharia']
+    lines.push(`Data de Geração: ${new Date().toLocaleDateString('pt-BR')}`)
+    lines.push('')
+    lines.push('--- STATUS DOS PROJETOS ---')
+    deadlineStats.forEach((s) => lines.push(`${s.name},${s.value}`))
+    lines.push('')
+    lines.push('--- EFICIÊNCIA POR PROJETISTA ---')
+    lines.push('Projetista,Total,Concluídos,Atrasados,Eficiência (%)')
+    engineerStats.forEach((s) =>
+      lines.push(`${s.name},${s.total},${s.completed},${s.delayed},${s.eficiencia}%`),
+    )
+    lines.push('')
+    lines.push('--- DISTRIBUIÇÃO POR DISCIPLINA ---')
+    lines.push('Disciplina,Total,Atrasados')
+    disciplineStats.forEach((s) => lines.push(`${s.name},${s.total},${s.atrasados}`))
+
+    const csvContent = lines.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `resumo_mensal_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const disciplineStats = useMemo(() => {
     const stats: Record<string, { total: number; delayed: number }> = {}
     projects.forEach((p) => {
@@ -109,18 +138,27 @@ export default function Performance() {
 
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6 space-y-8 animate-fade-in-up">
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
-          <Activity className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
+            <Activity className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              Performance
+            </h1>
+            <p className="text-muted-foreground">
+              Métricas de eficiência, entregas no prazo e alocação de projetos.
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Performance da Equipe
-          </h1>
-          <p className="text-muted-foreground">
-            Métricas de eficiência, entregas no prazo e alocação de projetos.
-          </p>
-        </div>
+        <Button
+          onClick={generateMonthlySummary}
+          className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+        >
+          <Download className="h-4 w-4" />
+          Gerar Resumo Mensal
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -25,7 +25,8 @@ import {
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { format, startOfMonth, endOfMonth, addDays, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Briefcase,
@@ -37,6 +38,7 @@ import {
   AlertCircle,
   PauseCircle,
   FolderKanban,
+  Info,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -76,6 +78,50 @@ type DashboardProject = {
   client: string
 }
 
+// Mock Data Generators
+const MOCK_PROJECTS: DashboardProject[] = [
+  {
+    id: 'mock-1',
+    name: 'Residencial Aurora',
+    discipline: 'Estrutural',
+    status: 'Em Andamento',
+    end_date: addDays(new Date(), 15).toISOString(),
+    progress: 65,
+    client: 'Construtora Alpha',
+  },
+  {
+    id: 'mock-2',
+    name: 'Edifício Comercial Beta',
+    discipline: 'Elétrica',
+    status: 'Atrasado',
+    end_date: subDays(new Date(), 5).toISOString(),
+    progress: 80,
+    client: 'Beta Empreendimentos',
+  },
+  {
+    id: 'mock-3',
+    name: 'Galpão Logístico Gama',
+    discipline: 'Hidrossanitário',
+    status: 'Concluído',
+    end_date: subDays(new Date(), 20).toISOString(),
+    progress: 100,
+    client: 'Logística Gama',
+  },
+]
+
+const MOCK_TASKS = [
+  { id: 't1', projeto_id: 'mock-1', titulo: 'Revisão de Cargas', concluida: false },
+  { id: 't2', projeto_id: 'mock-1', titulo: 'Detalhamento de Vigas', concluida: false },
+  { id: 't3', projeto_id: 'mock-2', titulo: 'Quadro de Força', concluida: false },
+  { id: 't4', projeto_id: 'mock-2', titulo: 'Projeto Luminotécnico', concluida: false },
+]
+
+const MOCK_TIME_LOGS = [
+  { id: 'l1', project_id: 'mock-1', hours: 4.5, date: new Date().toISOString() },
+  { id: 'l2', project_id: 'mock-2', hours: 3.0, date: new Date().toISOString() },
+  { id: 'l3', project_id: 'mock-1', hours: 6.0, date: new Date().toISOString() },
+]
+
 export default function MeuPainel() {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -83,6 +129,7 @@ export default function MeuPainel() {
   const [projects, setProjects] = useState<DashboardProject[]>([])
   const [timeLogs, setTimeLogs] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
+  const [isUsingMock, setIsUsingMock] = useState(false)
 
   const [isHoursDialogOpen, setIsHoursDialogOpen] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
@@ -114,8 +161,6 @@ export default function MeuPainel() {
         }),
       ])
 
-      setTimeLogs(logs)
-
       const projectMap = new Map<string, DashboardProject>()
 
       engineerProjects.forEach((p: any) => {
@@ -145,14 +190,29 @@ export default function MeuPainel() {
       })
 
       const uniqueProjects = Array.from(projectMap.values())
-      setProjects(uniqueProjects)
 
-      const projectIds = uniqueProjects.map((p) => p.id)
-      setTasks(
-        th.filter((t: any) => projectIds.includes(t.projeto_id) || projectIds.includes(t.project)),
-      )
+      if (uniqueProjects.length === 0) {
+        setProjects(MOCK_PROJECTS)
+        setTasks(MOCK_TASKS)
+        setTimeLogs(MOCK_TIME_LOGS)
+        setIsUsingMock(true)
+      } else {
+        setProjects(uniqueProjects)
+        const projectIds = uniqueProjects.map((p) => p.id)
+        setTasks(
+          th.filter(
+            (t: any) => projectIds.includes(t.projeto_id) || projectIds.includes(t.project),
+          ),
+        )
+        setTimeLogs(logs)
+        setIsUsingMock(false)
+      }
     } catch (e) {
       console.error(e)
+      setProjects(MOCK_PROJECTS)
+      setTasks(MOCK_TASKS)
+      setTimeLogs(MOCK_TIME_LOGS)
+      setIsUsingMock(true)
     }
   }
 
@@ -167,11 +227,27 @@ export default function MeuPainel() {
 
   const activeProjectsCount = projects.filter((p) => p.status !== 'Concluído').length
   const pendingTasksCount = tasks.length
-  const hoursThisMonth = timeLogs.reduce((acc, log) => acc + (log.hours || 0), 0)
+  const hoursThisMonth = timeLogs.reduce((acc, log) => acc + (Number(log.hours) || 0), 0)
 
   const handleLogHours = async () => {
     if (!selectedProjectId || !hoursLog.date || !hoursLog.hours) {
       toast({ title: 'Preencha todos os campos obrigatórios', variant: 'destructive' })
+      return
+    }
+
+    if (isUsingMock) {
+      setTimeLogs((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(),
+          project_id: selectedProjectId,
+          hours: Number(hoursLog.hours),
+          date: hoursLog.date,
+        },
+      ])
+      toast({ title: 'Horas registradas com sucesso (Modo Demo)!' })
+      setIsHoursDialogOpen(false)
+      setHoursLog({ date: format(new Date(), 'yyyy-MM-dd'), hours: '', description: '' })
       return
     }
 
@@ -194,7 +270,7 @@ export default function MeuPainel() {
   if (!user) return null
 
   return (
-    <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500">
+    <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500 max-w-7xl mx-auto w-full">
       <div className="flex flex-col gap-2">
         <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
           Meu Painel
@@ -203,6 +279,17 @@ export default function MeuPainel() {
           Bem-vindo(a), {user.name || 'Projetista'}. Aqui está o resumo das suas atribuições ativas.
         </p>
       </div>
+
+      {isUsingMock && (
+        <Alert className="bg-blue-50/50 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Modo de Demonstração</AlertTitle>
+          <AlertDescription>
+            Você ainda não possui projetos atribuídos na base de dados. Exibindo dados de exemplo
+            para demonstração.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="bg-primary/5 border-primary/20 dark:bg-primary/10">
@@ -245,89 +332,75 @@ export default function MeuPainel() {
           Meus Projetos
         </h3>
 
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {projects.length > 0 ? (
-            projects.map((proj) => (
-              <Card
-                key={proj.id}
-                className="flex flex-col overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <CardHeader className="pb-4 border-b">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1.5 pr-2">
-                      <CardTitle className="text-lg leading-tight line-clamp-2">
-                        {proj.name}
-                      </CardTitle>
-                      <CardDescription className="font-medium text-primary">
-                        Disciplina: {proj.discipline}
-                      </CardDescription>
-                    </div>
-                    <Badge className={getStatusColor(proj.status || '')} variant="outline">
-                      {getStatusIcon(proj.status || '')}
-                      {proj.status || 'Pendente'}
-                    </Badge>
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+          {projects.map((proj) => (
+            <Card
+              key={proj.id}
+              className="flex flex-col overflow-hidden hover:shadow-md transition-shadow"
+            >
+              <CardHeader className="pb-4 border-b">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1.5 pr-2">
+                    <CardTitle className="text-lg leading-tight line-clamp-2">
+                      {proj.name}
+                    </CardTitle>
+                    <CardDescription className="font-medium text-primary">
+                      Disciplina: {proj.discipline}
+                    </CardDescription>
                   </div>
-                </CardHeader>
-                <CardContent className="py-5 flex-1 space-y-5">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-500 flex items-center gap-1.5">
-                        <Calendar className="h-4 w-4" /> Prazo
-                      </span>
-                      <span className="font-medium">
-                        {proj.end_date
-                          ? format(new Date(proj.end_date), 'dd/MM/yyyy')
-                          : 'Não definido'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-500 flex items-center gap-1.5">
-                        <Briefcase className="h-4 w-4" /> Cliente
-                      </span>
-                      <span className="font-medium truncate max-w-[150px]" title={proj.client}>
-                        {proj.client}
-                      </span>
-                    </div>
+                  <Badge className={getStatusColor(proj.status || '')} variant="outline">
+                    {getStatusIcon(proj.status || '')}
+                    {proj.status || 'Pendente'}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="py-5 flex-1 space-y-5">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500 flex items-center gap-1.5">
+                      <Calendar className="h-4 w-4" /> Prazo
+                    </span>
+                    <span className="font-medium">
+                      {proj.end_date
+                        ? format(new Date(proj.end_date), 'dd/MM/yyyy')
+                        : 'Não definido'}
+                    </span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm font-medium">
-                      <span className="text-slate-600 dark:text-slate-300">Progresso</span>
-                      <span>{proj.progress || 0}%</span>
-                    </div>
-                    <Progress value={proj.progress || 0} className="h-2" />
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500 flex items-center gap-1.5">
+                      <Briefcase className="h-4 w-4" /> Cliente
+                    </span>
+                    <span className="font-medium truncate max-w-[150px]" title={proj.client}>
+                      {proj.client}
+                    </span>
                   </div>
-                </CardContent>
-                <CardFooter className="pt-4 border-t bg-slate-50/50 dark:bg-slate-900/50 flex flex-wrap gap-2">
-                  <Button asChild variant="outline" className="flex-1 text-xs sm:text-sm">
-                    <Link to={`/projects/${proj.id}`}>Acessar Tarefas</Link>
-                  </Button>
-                  <Button
-                    variant="default"
-                    className="flex-1 text-xs sm:text-sm"
-                    onClick={() => {
-                      setSelectedProjectId(proj.id)
-                      setIsHoursDialogOpen(true)
-                    }}
-                  >
-                    <Clock className="h-4 w-4 mr-2" />
-                    Registrar Horas
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))
-          ) : (
-            <div className="col-span-full py-16 text-center bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
-                <FolderKanban className="h-8 w-8 text-slate-400" />
-              </div>
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-                Nenhum projeto encontrado
-              </h3>
-              <p className="text-slate-500 max-w-sm mx-auto">
-                Você não está alocado como responsável ou projetista em nenhum projeto no momento.
-              </p>
-            </div>
-          )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm font-medium">
+                    <span className="text-slate-600 dark:text-slate-300">Progresso</span>
+                    <span>{proj.progress || 0}%</span>
+                  </div>
+                  <Progress value={proj.progress || 0} className="h-2" />
+                </div>
+              </CardContent>
+              <CardFooter className="pt-4 border-t bg-slate-50/50 dark:bg-slate-900/50 flex flex-wrap gap-2">
+                <Button asChild variant="outline" className="flex-1 text-xs sm:text-sm">
+                  <Link to={`/projects/${proj.id}`}>Acessar Tarefas</Link>
+                </Button>
+                <Button
+                  variant="default"
+                  className="flex-1 text-xs sm:text-sm"
+                  onClick={() => {
+                    setSelectedProjectId(proj.id)
+                    setIsHoursDialogOpen(true)
+                  }}
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Registrar Horas
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       </div>
 

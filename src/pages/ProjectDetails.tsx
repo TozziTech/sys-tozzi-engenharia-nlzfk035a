@@ -33,9 +33,12 @@ import {
   FileSpreadsheet,
   FileText,
   AlertTriangle,
+  CheckCircle,
 } from 'lucide-react'
 import { exportProjectHoursCSV } from '@/lib/export'
 import { exportProjectHoursPDF } from '@/lib/exportPdf'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   Select,
   SelectContent,
@@ -108,6 +111,27 @@ const MOCK_HISTORY = [
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [taskMetrics, setTaskMetrics] = useState({ completed: 0, pending: 0, total: 0 })
+
+  const loadMetrics = async () => {
+    if (!id) return
+    try {
+      const th = await pb
+        .collection('tarefas_hierarquicas')
+        .getFullList({ filter: `projeto_id = "${id}"` })
+      const completed = th.filter((t) => t.concluida).length
+      const pending = th.length - completed
+      setTaskMetrics({ completed, pending, total: th.length })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    loadMetrics()
+  }, [id])
+
+  useRealtime('tarefas_hierarquicas', loadMetrics)
   const {
     projects,
     deleteProject,
@@ -237,6 +261,47 @@ export default function ProjectDetails() {
           </Button>
         </div>
       </div>
+
+      {/* Project Metrics Dashboard */}
+      <Card className="w-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-primary" />
+            Métricas de Tarefas
+          </CardTitle>
+          <CardDescription>
+            Visão geral da distribuição de tarefas concluídas e pendentes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {taskMetrics.total > 0 ? (
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm font-medium">
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  {taskMetrics.completed} Concluídas
+                </span>
+                <span className="text-amber-600 dark:text-amber-400">
+                  {taskMetrics.pending} Pendentes
+                </span>
+              </div>
+              <div className="h-4 w-full bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden flex">
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${(taskMetrics.completed / taskMetrics.total) * 100}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                {Math.round((taskMetrics.completed / taskMetrics.total) * 100)}% de progresso nas
+                tarefas
+              </p>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground text-center py-2">
+              Nenhuma tarefa registrada para este projeto.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Main Info */}

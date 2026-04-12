@@ -72,27 +72,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 
-const MOCK_TEAM = [
-  {
-    id: 'usr1_8f9e0d1c',
-    name: 'João Carlos',
-    role: 'Arquiteto Sênior',
-    avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
-  },
-  {
-    id: 'usr2_3a2b1c4d',
-    name: 'Ana Silva',
-    role: 'Engenheira Civil',
-    avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
-  },
-  {
-    id: 'usr3_6e5d4c3b',
-    name: 'Marcos Paulo',
-    role: 'Mestre de Obras',
-    avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=3',
-  },
-]
-
 const MOCK_HISTORY = [
   { id: 'hist1_1a2b', date: '2024-03-01', time: '10:00', action: 'Projeto criado no sistema' },
   {
@@ -155,8 +134,6 @@ export default function ProjectDetails() {
   const [periodFilter, setPeriodFilter] = useState<string>('all')
   const [draggedTx, setDraggedTx] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [projectTeam, setProjectTeam] = useState(MOCK_TEAM)
-  const [memberToRemove, setMemberToRemove] = useState<string | null>(null)
   const [documents, setDocuments] = useState<
     { id: string; name: string; date: string; size: string }[]
   >([])
@@ -422,12 +399,9 @@ export default function ProjectDetails() {
           <ProjectTreeGrid projectId={project.id} />
 
           <Tabs defaultValue="disciplines" className="w-full">
-            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-4 md:grid-cols-8 p-1">
+            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-4 md:grid-cols-7 p-1">
               <TabsTrigger value="disciplines" className="flex-1 whitespace-nowrap">
                 Disciplinas / Equipe
-              </TabsTrigger>
-              <TabsTrigger value="team" className="flex-1 hidden md:block">
-                Equipe
               </TabsTrigger>
               <TabsTrigger value="documents" className="flex-1">
                 Documentos
@@ -525,49 +499,6 @@ export default function ProjectDetails() {
                       Nenhum documento anexado ainda.
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="team" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Equipe Alocada</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {projectTeam.map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center justify-between p-3 border rounded-lg group hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={member.avatar}
-                            alt={member.name}
-                            className="h-10 w-10 rounded-full object-cover"
-                          />
-                          <div>
-                            <p className="font-semibold">{member.name}</p>
-                            <p className="text-sm text-muted-foreground">{member.role}</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setMemberToRemove(member.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    {projectTeam.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nenhum membro alocado no momento.
-                      </p>
-                    )}
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1313,37 +1244,6 @@ export default function ProjectDetails() {
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               Deletar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={memberToRemove !== null}
-        onOpenChange={(open) => !open && setMemberToRemove(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover membro da equipe?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação removerá o membro do escopo deste projeto.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (memberToRemove) {
-                  setProjectTeam((prev) => prev.filter((m) => m.id !== memberToRemove))
-                  toast({
-                    title: 'Membro removido',
-                    description: 'O membro foi removido do projeto com sucesso.',
-                  })
-                }
-              }}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            >
-              Remover
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

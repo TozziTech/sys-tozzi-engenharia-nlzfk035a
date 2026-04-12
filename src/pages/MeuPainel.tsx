@@ -39,7 +39,6 @@ import {
   FolderKanban,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { ProjectModule } from '@/types/project_modules'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -67,11 +66,21 @@ const getStatusIcon = (status: string) => {
   }
 }
 
+type DashboardProject = {
+  id: string
+  name: string
+  discipline: string
+  status: string
+  end_date: string
+  progress: number
+  client: string
+}
+
 export default function MeuPainel() {
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const [modules, setModules] = useState<ProjectModule[]>([])
+  const [projects, setProjects] = useState<DashboardProject[]>([])
   const [timeLogs, setTimeLogs] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
 
@@ -89,8 +98,11 @@ export default function MeuPainel() {
       const firstDay = format(startOfMonth(new Date()), 'yyyy-MM-dd')
       const lastDay = format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
-      const [mods, logs, th] = await Promise.all([
-        pb.collection('project_modules').getFullList<ProjectModule>({
+      const [engineerProjects, mods, logs, th] = await Promise.all([
+        pb.collection('projects').getFullList({
+          filter: `engineer ~ "${user.name}"`,
+        }),
+        pb.collection('project_modules').getFullList({
           filter: `responsible = "${user.id}" || designer = "${user.id}"`,
           expand: 'project',
         }),
@@ -102,11 +114,43 @@ export default function MeuPainel() {
         }),
       ])
 
-      setModules(mods)
       setTimeLogs(logs)
 
-      const projectIds = mods.map((m) => m.project)
-      setTasks(th.filter((t) => projectIds.includes(t.projeto_id)))
+      const projectMap = new Map<string, DashboardProject>()
+
+      engineerProjects.forEach((p: any) => {
+        projectMap.set(p.id, {
+          id: p.id,
+          name: p.name,
+          discipline: p.discipline || 'Geral',
+          status: p.status,
+          end_date: p.end_date,
+          progress: p.progress || 0,
+          client: p.client || '-',
+        })
+      })
+
+      mods.forEach((m: any) => {
+        if (m.expand?.project && !projectMap.has(m.expand.project.id)) {
+          projectMap.set(m.expand.project.id, {
+            id: m.expand.project.id,
+            name: m.expand.project.name,
+            discipline: m.expand.project.discipline || m.name,
+            status: m.expand.project.status,
+            end_date: m.expand.project.end_date,
+            progress: m.expand.project.progress || 0,
+            client: m.expand.project.client || '-',
+          })
+        }
+      })
+
+      const uniqueProjects = Array.from(projectMap.values())
+      setProjects(uniqueProjects)
+
+      const projectIds = uniqueProjects.map((p) => p.id)
+      setTasks(
+        th.filter((t: any) => projectIds.includes(t.projeto_id) || projectIds.includes(t.project)),
+      )
     } catch (e) {
       console.error(e)
     }
@@ -116,13 +160,12 @@ export default function MeuPainel() {
     loadData()
   }, [user])
 
+  useRealtime('projects', loadData)
   useRealtime('project_modules', loadData)
   useRealtime('time_logs', loadData)
   useRealtime('tarefas_hierarquicas', loadData)
 
-  const activeProjectsCount = new Set(
-    modules.filter((m) => m.status !== 'Concluído').map((m) => m.project),
-  ).size
+  const activeProjectsCount = projects.filter((p) => p.status !== 'Concluído').length
   const pendingTasksCount = tasks.length
   const hoursThisMonth = timeLogs.reduce((acc, log) => acc + (log.hours || 0), 0)
 
@@ -199,29 +242,29 @@ export default function MeuPainel() {
       <div>
         <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
           <FolderKanban className="h-5 w-5" />
-          Meus Projetos e Disciplinas
+          Meus Projetos
         </h3>
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {modules.length > 0 ? (
-            modules.map((mod) => (
+          {projects.length > 0 ? (
+            projects.map((proj) => (
               <Card
-                key={mod.id}
+                key={proj.id}
                 className="flex flex-col overflow-hidden hover:shadow-md transition-shadow"
               >
                 <CardHeader className="pb-4 border-b">
                   <div className="flex items-start justify-between">
-                    <div className="space-y-1.5">
-                      <CardTitle className="text-lg leading-tight">
-                        {mod.expand?.project?.name || 'Projeto Desconhecido'}
+                    <div className="space-y-1.5 pr-2">
+                      <CardTitle className="text-lg leading-tight line-clamp-2">
+                        {proj.name}
                       </CardTitle>
                       <CardDescription className="font-medium text-primary">
-                        Disciplina: {mod.name}
+                        Disciplina: {proj.discipline}
                       </CardDescription>
                     </div>
-                    <Badge className={getStatusColor(mod.status)} variant="outline">
-                      {getStatusIcon(mod.status)}
-                      {mod.status}
+                    <Badge className={getStatusColor(proj.status || '')} variant="outline">
+                      {getStatusIcon(proj.status || '')}
+                      {proj.status || 'Pendente'}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -229,45 +272,40 @@ export default function MeuPainel() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-500 flex items-center gap-1.5">
-                        <Calendar className="h-4 w-4" /> Prazo Final
+                        <Calendar className="h-4 w-4" /> Prazo
                       </span>
                       <span className="font-medium">
-                        {mod.deadline
-                          ? format(new Date(mod.deadline), 'dd/MM/yyyy')
-                          : mod.expand?.project?.end_date
-                            ? format(new Date(mod.expand.project.end_date), 'dd/MM/yyyy')
-                            : 'Não definido'}
+                        {proj.end_date
+                          ? format(new Date(proj.end_date), 'dd/MM/yyyy')
+                          : 'Não definido'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-500 flex items-center gap-1.5">
                         <Briefcase className="h-4 w-4" /> Cliente
                       </span>
-                      <span
-                        className="font-medium truncate max-w-[150px]"
-                        title={mod.expand?.project?.client}
-                      >
-                        {mod.expand?.project?.client || '-'}
+                      <span className="font-medium truncate max-w-[150px]" title={proj.client}>
+                        {proj.client}
                       </span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium">
                       <span className="text-slate-600 dark:text-slate-300">Progresso</span>
-                      <span>{mod.progress || 0}%</span>
+                      <span>{proj.progress || 0}%</span>
                     </div>
-                    <Progress value={mod.progress || 0} className="h-2" />
+                    <Progress value={proj.progress || 0} className="h-2" />
                   </div>
                 </CardContent>
                 <CardFooter className="pt-4 border-t bg-slate-50/50 dark:bg-slate-900/50 flex flex-wrap gap-2">
                   <Button asChild variant="outline" className="flex-1 text-xs sm:text-sm">
-                    <Link to={`/projects/${mod.project}`}>Acessar Tarefas</Link>
+                    <Link to={`/projects/${proj.id}`}>Acessar Tarefas</Link>
                   </Button>
                   <Button
                     variant="default"
                     className="flex-1 text-xs sm:text-sm"
                     onClick={() => {
-                      setSelectedProjectId(mod.project)
+                      setSelectedProjectId(proj.id)
                       setIsHoursDialogOpen(true)
                     }}
                   >
@@ -286,8 +324,7 @@ export default function MeuPainel() {
                 Nenhum projeto encontrado
               </h3>
               <p className="text-slate-500 max-w-sm mx-auto">
-                Você não está alocado como responsável ou projetista em nenhuma disciplina no
-                momento.
+                Você não está alocado como responsável ou projetista em nenhum projeto no momento.
               </p>
             </div>
           )}
@@ -306,9 +343,7 @@ export default function MeuPainel() {
             <div className="space-y-2">
               <Label>Projeto</Label>
               <Input
-                value={
-                  modules.find((m) => m.project === selectedProjectId)?.expand?.project?.name || ''
-                }
+                value={projects.find((p) => p.id === selectedProjectId)?.name || ''}
                 disabled
               />
             </div>

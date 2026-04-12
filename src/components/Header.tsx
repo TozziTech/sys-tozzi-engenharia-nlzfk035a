@@ -270,12 +270,7 @@ export function Header() {
               </ScrollArea>
             </PopoverContent>
           </Popover>
-          <Button
-            onClick={() => setNewProjectModalOpen(true)}
-            className="hidden md:flex bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-sm transition-transform active:scale-95"
-          >
-            <Plus className="h-4 w-4 mr-2" /> Novo Projeto
-          </Button>
+
           <Button
             onClick={() => setNewProjectModalOpen(true)}
             size="icon"

@@ -85,8 +85,10 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import { HelpCircle, Columns, Download } from 'lucide-react'
+import { HelpCircle, Columns, Download, Tag, X } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { ManageTagsDialog } from '@/components/ManageTagsDialog'
+import { getContrastYIQ } from '@/lib/colors'
 
 // Funções de exportação (placeholders preventivos para evitar erros de compilação)
 const exportDisciplineTasksCSV = (tasks: any[], moduleName: string) => {
@@ -118,9 +120,13 @@ export default function DisciplineDetails() {
 
   const { user } = useAuth()
 
-  // Column Visibility State
+  // Tags & Column Visibility State
+  const [allTags, setAllTags] = useState<any[]>([])
+  const [tagFilter, setTagFilter] = useState<string[]>([])
+
   const [visibleColumns, setVisibleColumns] = useState({
     descricao: true,
+    tags: true,
     status: true,
     data: true,
     acoes: true,
@@ -163,9 +169,13 @@ export default function DisciplineDetails() {
       })
       setModule(mod)
 
+      const tagsData = await pb.collection('tags').getFullList({ sort: 'name' })
+      setAllTags(tagsData)
+
       const moduleTasks = await pb.collection('tasks').getFullList({
         filter: `module = "${moduleId}"`,
         sort: 'ordem,due_date',
+        expand: 'tags',
       })
       setTasks(moduleTasks)
 
@@ -200,6 +210,7 @@ export default function DisciplineDetails() {
   useRealtime('project_modules', loadData)
   useRealtime('tasks', loadData)
   useRealtime('audit_logs', loadData)
+  useRealtime('tags', loadData)
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !module) return
@@ -455,7 +466,7 @@ export default function DisciplineDetails() {
     return daysUntilDue <= 3
   })
 
-  const isFilterActive = searchQuery !== '' || statusFilter !== 'All'
+  const isFilterActive = searchQuery !== '' || statusFilter !== 'All' || tagFilter.length > 0
   const filteredTasks = tasks.filter((task) => {
     const matchSearch =
       task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -464,7 +475,8 @@ export default function DisciplineDetails() {
       statusFilter === 'All' ||
       task.status === statusFilter ||
       (statusFilter === 'Pendente' && !task.status)
-    return matchSearch && matchStatus
+    const matchTags = tagFilter.length === 0 || tagFilter.some((id) => task.tags?.includes(id))
+    return matchSearch && matchStatus && matchTags
   })
 
   const totalTasks = tasks.length
@@ -729,6 +741,59 @@ export default function DisciplineDetails() {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      <div className="w-full sm:w-auto">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="gap-2 w-full justify-start sm:w-auto"
+                            >
+                              <Tag className="h-4 w-4" />
+                              <span>Filtro de Tags</span>
+                              {tagFilter.length > 0 && (
+                                <Badge variant="secondary" className="ml-1 px-1 py-0 h-5 text-xs">
+                                  {tagFilter.length}
+                                </Badge>
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuLabel>Filtrar por Tags</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {allTags.map((tag) => (
+                              <DropdownMenuCheckboxItem
+                                key={tag.id}
+                                checked={tagFilter.includes(tag.id)}
+                                onCheckedChange={(c) => {
+                                  setTagFilter((prev) =>
+                                    c ? [...prev, tag.id] : prev.filter((id) => id !== tag.id),
+                                  )
+                                }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="w-3 h-3 rounded-full"
+                                    style={{ backgroundColor: tag.color }}
+                                  />
+                                  {tag.name}
+                                </div>
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                            {tagFilter.length > 0 && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setTagFilter([])}
+                                  className="justify-center text-sm text-muted-foreground"
+                                >
+                                  Limpar Filtros
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -742,6 +807,12 @@ export default function DisciplineDetails() {
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuLabel>Alternar Colunas</DropdownMenuLabel>
                           <DropdownMenuSeparator />
+                          <DropdownMenuCheckboxItem
+                            checked={visibleColumns.tags}
+                            onCheckedChange={(c) => setVisibleColumns((p) => ({ ...p, tags: !!c }))}
+                          >
+                            Tags
+                          </DropdownMenuCheckboxItem>
                           <DropdownMenuCheckboxItem
                             checked={visibleColumns.descricao}
                             onCheckedChange={(c) =>
@@ -774,6 +845,13 @@ export default function DisciplineDetails() {
                           </DropdownMenuCheckboxItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+
+                      <ManageTagsDialog>
+                        <Button variant="outline" className="gap-2 w-full sm:w-auto">
+                          <Tag className="h-4 w-4" />
+                          <span className="hidden sm:inline">Gerenciar Tags</span>
+                        </Button>
+                      </ManageTagsDialog>
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -816,6 +894,9 @@ export default function DisciplineDetails() {
                                 aria-label="Selecionar todas"
                               />
                             </TableHead>
+                            {visibleColumns.tags && (
+                              <TableHead className="w-[150px]">Tags</TableHead>
+                            )}
                             {visibleColumns.descricao && (
                               <TableHead>
                                 <div className="flex items-center gap-1.5">
@@ -912,6 +993,24 @@ export default function DisciplineDetails() {
                                     aria-label={`Selecionar tarefa ${task.title}`}
                                   />
                                 </TableCell>
+                                {visibleColumns.tags && (
+                                  <TableCell>
+                                    <div className="flex flex-wrap gap-1">
+                                      {task.expand?.tags?.map((tag: any) => (
+                                        <Badge
+                                          key={tag.id}
+                                          style={{
+                                            backgroundColor: tag.color,
+                                            color: getContrastYIQ(tag.color),
+                                          }}
+                                          className="text-[10px] px-1.5 py-0 border-none whitespace-nowrap"
+                                        >
+                                          {tag.name}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </TableCell>
+                                )}
                                 {visibleColumns.descricao && (
                                   <TableCell className="font-medium flex items-center py-3">
                                     {!isFilterActive ? (
@@ -1318,6 +1417,63 @@ export default function DisciplineDetails() {
             {selectedTaskIds.length} selecionada{selectedTaskIds.length > 1 ? 's' : ''}
           </Badge>
           <div className="w-px h-6 bg-border mx-1" />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-full border-none bg-muted/50 hover:bg-muted"
+              >
+                <Tag className="h-4 w-4 mr-2" />
+                Atribuir Tags
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Adicionar Tag</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {allTags.map((tag) => (
+                <DropdownMenuItem
+                  key={tag.id}
+                  onClick={async () => {
+                    setLoading(true)
+                    try {
+                      await Promise.all(
+                        selectedTaskIds.map(async (id) => {
+                          const task = tasks.find((t) => t.id === id)
+                          if (task && !task.tags?.includes(tag.id)) {
+                            const newTags = [...(task.tags || []), tag.id]
+                            await pb.collection('tasks').update(id, { tags: newTags })
+                          }
+                        }),
+                      )
+                      toast({
+                        title: 'Tags adicionadas',
+                        description: 'As tags foram atribuídas às tarefas selecionadas.',
+                      })
+                      setSelectedTaskIds([])
+                      setLastSelectedTaskId(null)
+                      loadData()
+                    } catch (e) {
+                      toast({
+                        title: 'Erro',
+                        description: 'Falha ao adicionar tags.',
+                        variant: 'destructive',
+                      })
+                    } finally {
+                      setLoading(false)
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
+                    {tag.name}
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Select onValueChange={handleBulkStatusChange} value="">
             <SelectTrigger className="w-[160px] h-8 rounded-full border-none bg-muted/50 hover:bg-muted">
               <SelectValue placeholder="Alterar Status" />

@@ -11,6 +11,18 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import pb from '@/lib/pocketbase/client'
+import { Tag, X } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { getContrastYIQ } from '@/lib/colors'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
 
 interface TaskSheetProps {
   task: any
@@ -25,9 +37,15 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
   const [concluida, setConcluida] = useState(false)
   const [descricao, setDescricao] = useState('')
   const [thId, setThId] = useState<string | null>(null)
+  const [tags, setTags] = useState<string[]>([])
+  const [allTags, setAllTags] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  const stateRef = useRef({ title, concluida, descricao, thId })
+  const stateRef = useRef({ title, concluida, descricao, thId, tags })
+
+  useEffect(() => {
+    pb.collection('tags').getFullList({ sort: 'name' }).then(setAllTags).catch(console.error)
+  }, [])
 
   useEffect(() => {
     async function fetchTaskData() {
@@ -53,24 +71,27 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
 
         setTitle(fetchedTitle)
         setConcluida(fetchedConcluida)
+        const fetchedTags = task.tags || []
+
         setDescricao(fetchedDesc)
         setThId(fetchedThId)
+        setTags(fetchedTags)
 
         stateRef.current = {
           title: fetchedTitle,
           concluida: fetchedConcluida,
           descricao: fetchedDesc,
           thId: fetchedThId,
-        }
-        setIsLoading(false)
+          tags: fetchedTags,
+        }        setIsLoading(false)
       }
     }
     fetchTaskData()
   }, [task, open, projectId])
 
   useEffect(() => {
-    stateRef.current = { title, concluida, descricao, thId }
-  }, [title, concluida, descricao, thId])
+    stateRef.current = { title, concluida, descricao, thId, tags }
+  }, [title, concluida, descricao, thId, tags])
 
   const saveChanges = useCallback(async () => {
     if (!task || !projectId || isLoading) return
@@ -82,6 +103,7 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
         title: current.title,
         status: statusStr,
         description: current.descricao,
+        tags: current.tags,
       })
 
       if (current.thId) {
@@ -116,7 +138,7 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
       saveChanges()
     }, 800)
     return () => clearTimeout(timer)
-  }, [title, concluida, descricao, task, open, isLoading, saveChanges])
+  }, [title, concluida, descricao, tags, task, open, isLoading, saveChanges])
 
   const handleClose = async (isOpen: boolean) => {
     if (!isOpen) {
@@ -170,6 +192,49 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
                 Marcar como concluída
               </Label>
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tags</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tags.map(tagId => {
+                const tag = allTags.find(t => t.id === tagId)
+                if (!tag) return null
+                return (
+                  <Badge key={tag.id} style={{ backgroundColor: tag.color, color: getContrastYIQ(tag.color) }} className="pr-1 gap-1">
+                    {tag.name}
+                    <button onClick={() => setTags(prev => prev.filter(id => id !== tagId))} className="ml-1 rounded-full bg-black/20 hover:bg-black/40 p-0.5" disabled={isLoading}>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )
+              })}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2" disabled={isLoading}>
+                  <Tag className="h-4 w-4" /> Adicionar Tag
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel>Tags Disponíveis</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {allTags.map(tag => (
+                  <DropdownMenuCheckboxItem
+                    key={tag.id}
+                    checked={tags.includes(tag.id)}
+                    onCheckedChange={(c) => {
+                      setTags(prev => c ? [...prev, tag.id] : prev.filter(id => id !== tag.id))
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
+                      {tag.name}
+                    </div>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="space-y-3">

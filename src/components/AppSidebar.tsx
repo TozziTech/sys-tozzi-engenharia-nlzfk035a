@@ -15,6 +15,7 @@ import {
   Briefcase,
   Shield,
   LineChart,
+  Activity,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -41,6 +42,7 @@ const navigationGroups = [
       { name: 'Dashboard Geral', href: '/dashboard', icon: LayoutDashboard },
       { name: 'Dashboard Financeiro', href: '/financial-dashboard', icon: LineChart },
       { name: 'Diagnóstico', href: '/diagnostics', icon: AlertTriangle },
+      { name: 'Performance da Equipe', href: '/performance', icon: Activity },
     ],
   },
   {

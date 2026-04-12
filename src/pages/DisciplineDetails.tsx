@@ -10,8 +10,23 @@ import {
   Clock,
   AlertTriangle,
   Activity,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
-import { format, differenceInDays } from 'date-fns'
+import {
+  format,
+  differenceInDays,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
+} from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
@@ -27,6 +42,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ProjectModule } from '@/types/project_modules'
 import { useToast } from '@/hooks/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -42,6 +59,9 @@ export default function DisciplineDetails() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  // Calendar State
+  const [currentDate, setCurrentDate] = useState(new Date())
 
   const loadData = useCallback(async () => {
     if (!moduleId) return
@@ -165,6 +185,16 @@ export default function DisciplineDetails() {
     }
   }
 
+  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1))
+  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1))
+
+  const monthStart = startOfMonth(currentDate)
+  const monthEnd = endOfMonth(monthStart)
+  const startDate = startOfWeek(monthStart)
+  const endDate = endOfWeek(monthEnd)
+  const calendarDays = eachDayOfInterval({ start: startDate, end: endDate })
+  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Carregando...</div>
   }
@@ -276,63 +306,171 @@ export default function DisciplineDetails() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Tarefas da Disciplina</CardTitle>
-              <CardDescription>Lista de tarefas associadas a este módulo.</CardDescription>
+            <CardHeader className="pb-4">
+              <div className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Tarefas da Disciplina</CardTitle>
+                  <CardDescription>Lista e cronograma das atividades do módulo.</CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {tasks.length > 0 ? (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Título</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Data de Vencimento</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tasks.map((task) => {
-                        const daysUntilDue = task.due_date
-                          ? differenceInDays(new Date(task.due_date), new Date())
-                          : null
-                        const isCritical =
-                          task.status !== 'Concluído' && daysUntilDue !== null && daysUntilDue <= 3
+              <Tabs defaultValue="list" className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="list">Lista</TabsTrigger>
+                  <TabsTrigger value="calendar">Calendário</TabsTrigger>
+                </TabsList>
 
-                        return (
-                          <TableRow key={task.id}>
-                            <TableCell className="font-medium flex items-center gap-2">
-                              {task.title}
-                              {isCritical && <AlertTriangle className="h-4 w-4 text-red-500" />}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={task.status === 'Concluído' ? 'default' : 'secondary'}
-                                className={
-                                  task.status === 'Concluído'
-                                    ? 'bg-emerald-500 hover:bg-emerald-600'
-                                    : ''
-                                }
-                              >
-                                {task.status || 'Pendente'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell
-                              className={`text-right ${isCritical ? 'text-red-500 font-bold' : ''}`}
-                            >
-                              {task.due_date ? format(new Date(task.due_date), 'dd/MM/yyyy') : '-'}
-                            </TableCell>
+                <TabsContent value="list" className="mt-0">
+                  {tasks.length > 0 ? (
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Título</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Data de Vencimento</TableHead>
                           </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-8 border rounded-md bg-muted/20 text-muted-foreground">
-                  Nenhuma tarefa registrada para esta disciplina.
-                </div>
-              )}
+                        </TableHeader>
+                        <TableBody>
+                          {tasks.map((task) => {
+                            const daysUntilDue = task.due_date
+                              ? differenceInDays(new Date(task.due_date), new Date())
+                              : null
+                            const isCritical =
+                              task.status !== 'Concluído' &&
+                              daysUntilDue !== null &&
+                              daysUntilDue <= 3
+
+                            return (
+                              <TableRow key={task.id}>
+                                <TableCell className="font-medium flex items-center gap-2">
+                                  {task.title}
+                                  {isCritical && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={task.status === 'Concluído' ? 'default' : 'secondary'}
+                                    className={
+                                      task.status === 'Concluído'
+                                        ? 'bg-emerald-500 hover:bg-emerald-600'
+                                        : ''
+                                    }
+                                  >
+                                    {task.status || 'Pendente'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell
+                                  className={`text-right ${isCritical ? 'text-red-500 font-bold' : ''}`}
+                                >
+                                  {task.due_date
+                                    ? format(new Date(task.due_date), 'dd/MM/yyyy')
+                                    : '-'}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 border rounded-md bg-muted/20 text-muted-foreground">
+                      Nenhuma tarefa registrada para esta disciplina.
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="calendar" className="mt-0">
+                  <div className="flex flex-col space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-lg capitalize">
+                        {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" onClick={prevMonth}>
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={nextMonth}>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden">
+                      <div className="grid grid-cols-7 gap-px bg-border">
+                        {weekDays.map((d) => (
+                          <div
+                            key={d}
+                            className="bg-muted p-2 text-center text-xs font-semibold uppercase tracking-wider"
+                          >
+                            {d}
+                          </div>
+                        ))}
+                        {calendarDays.map((day) => {
+                          const dayTasks = tasks.filter(
+                            (t) => t.due_date && isSameDay(new Date(t.due_date), day),
+                          )
+                          const isCurrentMonth = isSameMonth(day, currentDate)
+                          const isToday = isSameDay(day, new Date())
+
+                          return (
+                            <div
+                              key={day.toString()}
+                              className={`min-h-[100px] bg-background p-1.5 flex flex-col gap-1 transition-colors hover:bg-muted/50 ${!isCurrentMonth ? 'text-muted-foreground bg-muted/20' : ''}`}
+                            >
+                              <div className="flex justify-end">
+                                <span
+                                  className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-primary-foreground' : ''}`}
+                                >
+                                  {format(day, 'd')}
+                                </span>
+                              </div>
+                              <div className="flex-1 space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar pr-1">
+                                {dayTasks.map((task) => (
+                                  <Popover key={task.id}>
+                                    <PopoverTrigger asChild>
+                                      <div
+                                        className={`text-[10px] px-1.5 py-0.5 rounded cursor-pointer truncate font-medium shadow-sm transition-opacity hover:opacity-80 min-w-0 ${getStatusColor(task.status)}`}
+                                        title={task.title}
+                                      >
+                                        {task.title}
+                                      </div>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64 p-3 shadow-md z-50">
+                                      <h4 className="font-semibold text-sm mb-2">{task.title}</h4>
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-xs text-muted-foreground">
+                                            Status
+                                          </span>
+                                          <Badge
+                                            variant="outline"
+                                            className={`${getStatusColor(task.status)} border-none`}
+                                          >
+                                            {task.status || 'Pendente'}
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-xs text-muted-foreground">
+                                            Prazo
+                                          </span>
+                                          <span className="text-xs font-medium flex items-center gap-1">
+                                            <Calendar className="h-3 w-3" />
+                                            {format(new Date(task.due_date), 'dd/MM/yyyy')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
 

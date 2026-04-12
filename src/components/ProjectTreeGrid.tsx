@@ -8,7 +8,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Columns, Download, PlusCircle, Plus } from 'lucide-react'
+import { Columns, Download, PlusCircle, Plus, Trash2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -23,6 +23,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
@@ -100,6 +110,8 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
   const [isAddColOpen, setIsAddColOpen] = useState(false)
   const [newColName, setNewColName] = useState('')
   const [colError, setColError] = useState('')
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
+  const [columnToDelete, setColumnToDelete] = useState<any | null>(null)
 
   const loadColumns = useCallback(async () => {
     try {
@@ -171,18 +183,42 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
     [projectId, updateProgress, toast],
   )
 
-  const handleDel = useCallback(
-    async (id: string) => {
-      if (!window.confirm('Excluir esta tarefa e suas subtarefas?')) return
-      try {
-        await pb.collection('tarefas_hierarquicas').delete(id)
-        await updateProgress()
-      } catch {
-        toast({ title: 'Erro ao excluir tarefa', variant: 'destructive' })
+  const handleDel = useCallback((id: string) => {
+    setTaskToDelete(id)
+  }, [])
+
+  const confirmDeleteTask = async () => {
+    if (!taskToDelete) return
+    try {
+      const deleteRecursively = async (taskId: string) => {
+        const children = rawTasks.filter((t) => t.parent_id === taskId || t.parent_task === taskId)
+        for (const child of children) {
+          await deleteRecursively(child.id)
+        }
+        await pb.collection('tarefas_hierarquicas').delete(taskId)
       }
-    },
-    [updateProgress, toast],
-  )
+      await deleteRecursively(taskToDelete)
+      await updateProgress()
+      toast({ title: 'Tarefa excluída com sucesso' })
+    } catch {
+      toast({ title: 'Erro ao excluir tarefa', variant: 'destructive' })
+    } finally {
+      setTaskToDelete(null)
+    }
+  }
+
+  const confirmDeleteColumn = async () => {
+    if (!columnToDelete) return
+    try {
+      await pb.collection('colunas_projeto').delete(columnToDelete.id)
+      toast({ title: 'Coluna excluída com sucesso' })
+      loadColumns()
+    } catch {
+      toast({ title: 'Erro ao excluir coluna', variant: 'destructive' })
+    } finally {
+      setColumnToDelete(null)
+    }
+  }
 
   const handleUpd = useCallback(
     async (id: string, data: any) => {
@@ -448,8 +484,18 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
                 <TableHead className="border-r border-b w-[140px]">Status</TableHead>
               )}
               {customColumns.map((col) => (
-                <TableHead key={col.id} className="border-r border-b w-[150px]">
-                  {col.nome}
+                <TableHead key={col.id} className="border-r border-b w-[150px] relative group/col">
+                  <div className="flex items-center justify-between">
+                    <span>{col.nome}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 opacity-0 group-hover/col:opacity-100 text-muted-foreground hover:text-red-500 transition-opacity"
+                      onClick={() => setColumnToDelete(col)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </TableHead>
               ))}
               {columns.acoes && (
@@ -517,6 +563,46 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
         projectId={projectId}
         onTaskUpdated={loadData}
       />
+
+      <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Tarefa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja realmente excluir esta tarefa? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTask} className="bg-red-600 hover:bg-red-700">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!columnToDelete}
+        onOpenChange={(open) => !open && setColumnToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Coluna</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja realmente excluir esta coluna? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteColumn}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={isAddColOpen} onOpenChange={setIsAddColOpen}>
         <DialogContent>

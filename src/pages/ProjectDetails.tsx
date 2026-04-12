@@ -377,6 +377,8 @@ export default function ProjectDetails() {
             </CardContent>
           </Card>
 
+          <ProjectDisciplinesTab projectId={project.id} />
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Observações</CardTitle>
@@ -395,8 +397,6 @@ export default function ProjectDetails() {
               )}
             </CardContent>
           </Card>
-
-          <ProjectDisciplinesTab projectId={project.id} />
 
           <ProjectTreeGrid projectId={project.id} />
 
@@ -571,12 +571,9 @@ export default function ProjectDetails() {
           </div>
 
           <Tabs defaultValue="documents" className="w-full">
-            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-3 md:grid-cols-5 p-1">
+            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-2 md:grid-cols-4 p-1">
               <TabsTrigger value="documents" className="flex-1">
                 Documentos
-              </TabsTrigger>
-              <TabsTrigger value="comments" className="flex-1">
-                Comentários
               </TabsTrigger>
               <TabsTrigger value="versions" className="flex-1">
                 Versões
@@ -686,10 +683,6 @@ export default function ProjectDetails() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="comments" className="mt-4">
-              <ProjectComments projectId={project.id} />
             </TabsContent>
 
             <TabsContent value="versions" className="mt-4">
@@ -1209,6 +1202,8 @@ export default function ProjectDetails() {
               </div>
             </CardContent>
           </Card>
+
+          <ProjectComments projectId={project.id} />
         </div>
       </div>
 

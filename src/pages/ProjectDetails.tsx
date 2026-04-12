@@ -55,6 +55,7 @@ import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { ProjectVersions } from '@/components/ProjectVersions'
+import { ProjectModules } from '@/components/ProjectModules'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -333,9 +334,12 @@ export default function ProjectDetails() {
           </Card>
 
           <Tabs defaultValue="tasks" className="w-full">
-            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-4 md:grid-cols-8 p-1">
+            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-3 md:grid-cols-9 p-1">
               <TabsTrigger value="tasks" className="flex-1">
                 Tarefas
+              </TabsTrigger>
+              <TabsTrigger value="modules" className="flex-1">
+                Módulos
               </TabsTrigger>
               <TabsTrigger value="team" className="flex-1">
                 Equipe
@@ -438,6 +442,10 @@ export default function ProjectDetails() {
 
             <TabsContent value="tasks" className="mt-4">
               <KanbanBoard projectName={project.name} teamMembers={projectTeam} />
+            </TabsContent>
+
+            <TabsContent value="modules" className="mt-4">
+              <ProjectModules projectId={project.id} />
             </TabsContent>
 
             <TabsContent value="team" className="mt-4">

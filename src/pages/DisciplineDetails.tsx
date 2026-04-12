@@ -489,9 +489,9 @@ export default function DisciplineDetails() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Título</TableHead>
+                            <TableHead>Descrição</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Data de Vencimento</TableHead>
+                            <TableHead className="text-right">Data</TableHead>
                             <TableHead className="text-right w-[80px]">Ações</TableHead>
                           </TableRow>
                         </TableHeader>

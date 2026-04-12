@@ -475,9 +475,13 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {flatNodes.map(({ task, depth }) => (
-              <React.Fragment key={task.id}>
-                <TableRow className="hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition-colors group">
+            {flatNodes.map(({ task, depth }) => {
+              const rows = []
+              rows.push(
+                <TableRow
+                  key={task.id}
+                  className="hover:bg-slate-50/80 dark:hover:bg-slate-900/40 transition-colors group"
+                >
                   <TableCell className="border-r border-b p-2.5">
                     <div
                       className="flex items-center gap-2"
@@ -622,10 +626,15 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                       <Plus className="h-4 w-4" />
                     </Button>
                   </TableCell>
-                </TableRow>
+                </TableRow>,
+              )
 
-                {inlineCreateParentId === task.id && (
-                  <TableRow className="bg-slate-50/50 dark:bg-slate-900/30">
+              if (inlineCreateParentId === task.id) {
+                rows.push(
+                  <TableRow
+                    key={`${task.id}-inline`}
+                    className="bg-slate-50/50 dark:bg-slate-900/30"
+                  >
                     <TableCell colSpan={5} className="p-2 border-b">
                       <div
                         className="flex items-center gap-2"
@@ -662,10 +671,12 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                         </Button>
                       </div>
                     </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
-            ))}
+                  </TableRow>,
+                )
+              }
+
+              return rows
+            })}
             {flatNodes.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">

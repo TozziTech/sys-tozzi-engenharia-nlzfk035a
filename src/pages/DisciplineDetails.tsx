@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -132,10 +132,28 @@ export default function DisciplineDetails() {
 
   // Batch actions state
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
+  const [lastSelectedTaskId, setLastSelectedTaskId] = useState<string | null>(null)
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
 
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  const isShiftPressed = useRef(false)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') isShiftPressed.current = true
+    }
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') isShiftPressed.current = false
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [])
 
   const loadData = useCallback(async () => {
     if (!moduleId) return
@@ -376,6 +394,7 @@ export default function DisciplineDetails() {
         description: `${selectedTaskIds.length} tarefas atualizadas para ${status}.`,
       })
       setSelectedTaskIds([])
+      setLastSelectedTaskId(null)
       loadData()
     } catch (error) {
       toast({
@@ -397,6 +416,7 @@ export default function DisciplineDetails() {
         description: `${selectedTaskIds.length} tarefas foram excluídas com sucesso.`,
       })
       setSelectedTaskIds([])
+      setLastSelectedTaskId(null)
       setIsBulkDeleteDialogOpen(false)
       loadData()
     } catch (error) {
@@ -470,15 +490,36 @@ export default function DisciplineDetails() {
       setSelectedTaskIds(filteredTasks.map((t) => t.id))
     } else {
       setSelectedTaskIds([])
+      setLastSelectedTaskId(null)
     }
   }
 
   const handleSelectRow = (taskId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedTaskIds((prev) => [...prev, taskId])
+    if (isShiftPressed.current && lastSelectedTaskId) {
+      const currentIndex = filteredTasks.findIndex((t) => t.id === taskId)
+      const lastIndex = filteredTasks.findIndex((t) => t.id === lastSelectedTaskId)
+
+      if (currentIndex !== -1 && lastIndex !== -1) {
+        const start = Math.min(currentIndex, lastIndex)
+        const end = Math.max(currentIndex, lastIndex)
+
+        const tasksInRange = filteredTasks.slice(start, end + 1).map((t) => t.id)
+
+        if (checked) {
+          setSelectedTaskIds((prev) => Array.from(new Set([...prev, ...tasksInRange])))
+        } else {
+          setSelectedTaskIds((prev) => prev.filter((id) => !tasksInRange.includes(id)))
+        }
+      }
     } else {
-      setSelectedTaskIds((prev) => prev.filter((id) => id !== taskId))
+      if (checked) {
+        setSelectedTaskIds((prev) => [...prev, taskId])
+      } else {
+        setSelectedTaskIds((prev) => prev.filter((id) => id !== taskId))
+      }
     }
+
+    setLastSelectedTaskId(taskId)
   }
 
   return (
@@ -862,6 +903,9 @@ export default function DisciplineDetails() {
                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                   <Checkbox
                                     checked={selectedTaskIds.includes(task.id)}
+                                    onClick={(e: any) => {
+                                      if (e.shiftKey) isShiftPressed.current = true
+                                    }}
                                     onCheckedChange={(checked) =>
                                       handleSelectRow(task.id, !!checked)
                                     }

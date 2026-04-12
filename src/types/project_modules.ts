@@ -6,6 +6,16 @@ export interface ProjectModule {
   progress: number
   deadline: string
   notes: string
+  responsible?: string
+  expand?: {
+    responsible?: {
+      id: string
+      collectionId?: string
+      collectionName?: string
+      name: string
+      avatar: string
+    }
+  }
   created: string
   updated: string
 }

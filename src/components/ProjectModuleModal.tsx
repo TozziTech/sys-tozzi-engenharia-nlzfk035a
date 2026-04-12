@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useAuth } from '@/hooks/use-auth'
+import useProjectStore from '@/stores/useProjectStore'
 import { createProjectModule, updateProjectModule } from '@/services/project_modules'
 import { ProjectModule } from '@/types/project_modules'
 import {
@@ -38,6 +39,7 @@ const schema = z.object({
   progress: z.coerce.number().min(0).max(100),
   deadline: z.string().optional(),
   notes: z.string().optional(),
+  responsible: z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -54,6 +56,7 @@ export function ProjectModuleModal({
   module?: ProjectModule
 }) {
   const { user } = useAuth()
+  const { users } = useProjectStore()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -77,6 +80,7 @@ export function ProjectModuleModal({
           progress: module.progress,
           deadline: module.deadline ? new Date(module.deadline).toISOString().split('T')[0] : '',
           notes: module.notes || '',
+          responsible: module.responsible || 'none',
         })
       } else {
         form.reset({
@@ -85,6 +89,7 @@ export function ProjectModuleModal({
           progress: 0,
           deadline: '',
           notes: '',
+          responsible: 'none',
         })
       }
     }
@@ -101,6 +106,7 @@ export function ProjectModuleModal({
         notes: data.notes,
         project: projectId,
         deadline: data.deadline ? new Date(data.deadline).toISOString() : '',
+        responsible: data.responsible !== 'none' ? data.responsible : null,
       }
 
       if (module) {
@@ -184,19 +190,49 @@ export function ProjectModuleModal({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="deadline"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Prazo de Entrega</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="deadline"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Prazo de Entrega</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="responsible"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Responsável</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um responsável" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {users
+                          .filter((u) => u.status === 'Ativo')
+                          .map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.name || u.codigo || 'Usuário sem nome'}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}

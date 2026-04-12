@@ -7,8 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Plus, Edit2, Trash2, Calendar } from 'lucide-react'
-import { format } from 'date-fns'
+import { Plus, Edit2, Trash2, Calendar, AlertTriangle, Clock, User } from 'lucide-react'
+import { format, differenceInHours } from 'date-fns'
+import pb from '@/lib/pocketbase/client'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
 import { ProjectModuleModal } from './ProjectModuleModal'
 import {
@@ -115,7 +118,53 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h4 className="font-semibold text-base">{mod.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-base">{mod.name}</h4>
+                        {mod.deadline &&
+                          mod.status !== 'Concluído' &&
+                          differenceInHours(new Date(mod.deadline), new Date()) <= 72 &&
+                          differenceInHours(new Date(mod.deadline), new Date()) > 0 && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="destructive"
+                                    className="px-1.5 py-0 h-5 bg-orange-500 hover:bg-orange-600 border-none cursor-help"
+                                  >
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Prazo Próximo
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>
+                                    O prazo encerra em{' '}
+                                    {differenceInHours(new Date(mod.deadline), new Date())} horas.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        {mod.deadline &&
+                          mod.status !== 'Concluído' &&
+                          differenceInHours(new Date(mod.deadline), new Date()) <= 0 && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="destructive"
+                                    className="px-1.5 py-0 h-5 border-none cursor-help"
+                                  >
+                                    <AlertTriangle className="w-3 h-3 mr-1" />
+                                    Atrasado
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>O prazo deste módulo expirou.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                      </div>
                       {mod.deadline && (
                         <div className="flex items-center text-xs text-muted-foreground mt-1">
                           <Calendar className="w-3 h-3 mr-1" />
@@ -125,6 +174,34 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                     </div>
                     <Badge className={getStatusColor(mod.status)}>{mod.status}</Badge>
                   </div>
+
+                  {mod.expand?.responsible && (
+                    <div className="flex items-center gap-2 mb-4 p-2 bg-muted/30 rounded-md border border-border/50">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage
+                          src={
+                            mod.expand.responsible.avatar
+                              ? pb.files.getURL(
+                                  mod.expand.responsible as any,
+                                  mod.expand.responsible.avatar,
+                                )
+                              : undefined
+                          }
+                        />
+                        <AvatarFallback className="text-[10px]">
+                          <User className="h-3 w-3" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-medium text-foreground leading-none">
+                          {mod.expand.responsible.name || 'Usuário'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-none mt-0.5">
+                          Responsável pela disciplina
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-1.5 mb-4">
                     <div className="flex justify-between text-xs font-medium">

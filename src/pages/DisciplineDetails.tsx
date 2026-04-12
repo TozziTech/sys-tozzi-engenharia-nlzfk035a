@@ -62,6 +62,39 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { ModuleVersions } from '@/components/ModuleVersions'
 import { TaskSheet } from '@/components/TaskSheet'
 import { cn } from '@/lib/utils'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { PieChart, Pie, Cell } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { useAuth } from '@/hooks/use-auth'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { HelpCircle, Columns, Download } from 'lucide-react'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+
+// Funções de exportação (placeholders preventivos para evitar erros de compilação)
+const exportDisciplineTasksCSV = (tasks: any[], moduleName: string) => {
+  console.log('Export CSV', tasks, moduleName)
+}
+const exportDisciplineTasksPDF = (tasks: any[], moduleName: string, userName: string) => {
+  console.log('Export PDF', tasks, moduleName, userName)
+}
 
 export default function DisciplineDetails() {
   const { id, moduleId } = useParams<{ id: string; moduleId: string }>()
@@ -96,6 +129,10 @@ export default function DisciplineDetails() {
   // Drag and Drop State
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null)
+
+  // Batch actions state
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
 
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -330,6 +367,49 @@ export default function DisciplineDetails() {
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate })
   const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
+  const handleBulkStatusChange = async (status: string) => {
+    setLoading(true)
+    try {
+      await Promise.all(selectedTaskIds.map((id) => pb.collection('tasks').update(id, { status })))
+      toast({
+        title: 'Status atualizado',
+        description: `${selectedTaskIds.length} tarefas atualizadas para ${status}.`,
+      })
+      setSelectedTaskIds([])
+      loadData()
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao atualizar as tarefas.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    setLoading(true)
+    try {
+      await Promise.all(selectedTaskIds.map((id) => pb.collection('tasks').delete(id)))
+      toast({
+        title: 'Tarefas excluídas',
+        description: `${selectedTaskIds.length} tarefas foram excluídas com sucesso.`,
+      })
+      setSelectedTaskIds([])
+      setIsBulkDeleteDialogOpen(false)
+      loadData()
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao excluir as tarefas.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Carregando...</div>
   }
@@ -367,6 +447,40 @@ export default function DisciplineDetails() {
     return matchSearch && matchStatus
   })
 
+  const totalTasks = tasks.length
+  const concludedTasks = tasks.filter((t) => t.status === 'Concluído').length
+  const inProgressTasks = tasks.filter((t) => t.status === 'Em Andamento').length
+  const pendingTasks = tasks.filter((t) => !t.status || t.status === 'Pendente').length
+
+  const chartData = [
+    { name: 'Concluído', value: concludedTasks, fill: 'var(--color-concluido)' },
+    { name: 'Em Andamento', value: inProgressTasks, fill: 'var(--color-andamento)' },
+    { name: 'Pendente', value: pendingTasks, fill: 'var(--color-pendente)' },
+  ].filter((d) => d.value > 0)
+
+  const chartConfig = {
+    concluido: { label: 'Concluído', color: 'hsl(var(--chart-2, 142 71% 45%))' },
+    andamento: { label: 'Em Andamento', color: 'hsl(var(--chart-1, 221 83% 53%))' },
+    pendente: { label: 'Pendente', color: 'hsl(var(--chart-3, 215 16% 47%))' },
+  }
+
+  const allSelected = filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedTaskIds(filteredTasks.map((t) => t.id))
+    } else {
+      setSelectedTaskIds([])
+    }
+  }
+
+  const handleSelectRow = (taskId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedTaskIds((prev) => [...prev, taskId])
+    } else {
+      setSelectedTaskIds((prev) => prev.filter((id) => id !== taskId))
+    }
+  }
+
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6 print:p-0 print:m-0 print:max-w-none print:space-y-0">
       <div className="flex items-center gap-2 mb-6 print:hidden">
@@ -392,6 +506,87 @@ export default function DisciplineDetails() {
           </div>
         </div>
       )}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:hidden">
+        <Card className="col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total de Tarefas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalTasks}</div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Concluídas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
+              {concludedTasks}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Em Andamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">
+              {inProgressTasks}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">
+              {pendingTasks}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-2 md:col-span-4 lg:col-span-1">
+          <CardHeader className="pb-0 pt-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground text-center">
+              Progresso
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 flex items-center justify-center h-[80px]">
+            {totalTasks > 0 ? (
+              <ChartContainer
+                config={chartConfig}
+                className="h-[80px] w-full max-w-[120px] aspect-square"
+              >
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={20}
+                    outerRadius={35}
+                    strokeWidth={2}
+                    paddingAngle={2}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="text-xs text-muted-foreground flex h-full items-center">
+                Sem dados
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block print:gap-0">
         <div className="lg:col-span-2 space-y-6 print:space-y-0">
@@ -573,6 +768,13 @@ export default function DisciplineDetails() {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="w-[40px]">
+                              <Checkbox
+                                checked={allSelected}
+                                onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                aria-label="Selecionar todas"
+                              />
+                            </TableHead>
                             {visibleColumns.descricao && (
                               <TableHead>
                                 <div className="flex items-center gap-1.5">
@@ -657,6 +859,15 @@ export default function DisciplineDetails() {
                                   setIsTaskSheetOpen(true)
                                 }}
                               >
+                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                  <Checkbox
+                                    checked={selectedTaskIds.includes(task.id)}
+                                    onCheckedChange={(checked) =>
+                                      handleSelectRow(task.id, !!checked)
+                                    }
+                                    aria-label={`Selecionar tarefa ${task.title}`}
+                                  />
+                                </TableCell>
                                 {visibleColumns.descricao && (
                                   <TableCell className="font-medium flex items-center py-3">
                                     {!isFilterActive ? (
@@ -1056,6 +1267,59 @@ export default function DisciplineDetails() {
           </Card>
         </div>
       </div>
+
+      {selectedTaskIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-background border shadow-lg rounded-full px-4 py-2 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-10">
+          <Badge variant="secondary" className="px-2 py-1">
+            {selectedTaskIds.length} selecionada{selectedTaskIds.length > 1 ? 's' : ''}
+          </Badge>
+          <div className="w-px h-6 bg-border mx-1" />
+          <Select onValueChange={handleBulkStatusChange} value="">
+            <SelectTrigger className="w-[160px] h-8 rounded-full border-none bg-muted/50 hover:bg-muted">
+              <SelectValue placeholder="Alterar Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+              <SelectItem value="Concluído">Concluído</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-8 rounded-full"
+            onClick={() => setIsBulkDeleteDialogOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir
+          </Button>
+        </div>
+      )}
+
+      <AlertDialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Tarefas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você está prestes a excluir {selectedTaskIds.length} tarefa
+              {selectedTaskIds.length > 1 ? 's' : ''}. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault()
+                handleBulkDelete()
+              }}
+              disabled={loading}
+            >
+              {loading ? 'Excluindo...' : 'Sim, Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <TaskSheet
         task={selectedTask}

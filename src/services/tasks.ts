@@ -23,3 +23,7 @@ export const getDeadlineTasks = async () => {
 export const updateTaskStatus = async (taskId: string, status: string) => {
   return pb.collection('tasks').update(taskId, { status })
 }
+
+export const createTask = async (data: any) => {
+  return pb.collection('tasks').create(data)
+}

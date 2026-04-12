@@ -17,6 +17,7 @@ import { getModuleTasks, updateTaskStatus } from '@/services/tasks'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
 import { format } from 'date-fns'
+import { CreateTaskDialog } from './CreateTaskDialog'
 
 export interface TreeTask {
   id: string
@@ -163,6 +164,7 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(['1', '1.1']))
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
 
   const loadTasks = async () => {
     const pbTasks = await getModuleTasks(moduleId)
@@ -385,12 +387,19 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
           variant="outline"
           size="sm"
           className="gap-2"
-          onClick={() => handleSimulateAction('Adicionar Tarefa')}
+          onClick={() => setIsCreateTaskOpen(true)}
         >
           <PlusCircle className="w-4 h-4 text-primary" />
           Adicionar Tarefa
         </Button>
       </div>
+
+      <CreateTaskDialog
+        open={isCreateTaskOpen}
+        onOpenChange={setIsCreateTaskOpen}
+        moduleId={moduleId}
+        availableParents={flatNodes.map((n) => ({ id: n.task.id, title: n.task.title }))}
+      />
     </div>
   )
 }

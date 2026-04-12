@@ -46,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Table,
   TableBody,
@@ -127,6 +128,9 @@ export default function ProjectDetails() {
     users,
     tasks,
   } = useProjectStore()
+
+  const store = useProjectStore() as any
+  const updateProject = store.updateProject
   const { toast } = useToast()
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -137,6 +141,8 @@ export default function ProjectDetails() {
   const [documents, setDocuments] = useState<
     { id: string; name: string; date: string; size: string }[]
   >([])
+  const [isEditingObservations, setIsEditingObservations] = useState(false)
+  const [observationText, setObservationText] = useState('')
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
 
@@ -380,14 +386,79 @@ export default function ProjectDetails() {
           <ProjectDisciplinesTab projectId={project.id} />
 
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
               <CardTitle className="text-lg">Observações</CardTitle>
+              {!isEditingObservations && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setObservationText(project.description || project.observations || '')
+                    setIsEditingObservations(true)
+                  }}
+                >
+                  <Edit2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Editar</span>
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              {project.observations ? (
-                <div className="bg-muted/50 p-4 rounded-lg border border-border">
+              {isEditingObservations ? (
+                <div className="space-y-3 animate-in fade-in duration-200">
+                  <Textarea
+                    value={observationText}
+                    onChange={(e) => setObservationText(e.target.value)}
+                    placeholder="Adicione observações e descrições do projeto..."
+                    className="min-h-[120px] resize-y"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditingObservations(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await pb
+                            .collection('projects')
+                            .update(project.id, { description: observationText })
+                          if (typeof updateProject === 'function') {
+                            updateProject(project.id, {
+                              description: observationText,
+                              observations: observationText,
+                            })
+                          } else {
+                            window.location.reload() // Recarrega se não tiver método local de update
+                          }
+                          setIsEditingObservations(false)
+                          toast({
+                            title: 'Observações atualizadas',
+                            description: 'As observações foram salvas com sucesso.',
+                          })
+                        } catch (err) {
+                          console.error(err)
+                          toast({
+                            title: 'Erro',
+                            description: 'Ocorreu um erro ao salvar as observações.',
+                            variant: 'destructive',
+                          })
+                        }
+                      }}
+                    >
+                      Salvar
+                    </Button>
+                  </div>
+                </div>
+              ) : project.description || project.observations ? (
+                <div className="bg-muted/50 p-4 rounded-lg border border-border group relative">
                   <p className="text-sm whitespace-pre-wrap text-foreground">
-                    {project.observations}
+                    {project.description || project.observations}
                   </p>
                 </div>
               ) : (

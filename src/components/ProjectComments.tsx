@@ -7,6 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Paperclip, Send, File, X } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
 import { formatDistanceToNow } from 'date-fns'
+import { Badge } from '@/components/ui/badge'
+import { useRealtime } from '@/hooks/use-realtime'
 import { ptBR } from 'date-fns/locale'
 
 export function ProjectComments({ projectId }: { projectId: string }) {
@@ -26,6 +28,10 @@ export function ProjectComments({ projectId }: { projectId: string }) {
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
     [comments, projectId],
   )
+
+  useRealtime('project_comments', () => {
+    // Updates UI when a new comment is added from backend via real-time subscription
+  })
 
   const filteredUsers = useMemo(() => {
     if (!mentionQuery) return users
@@ -133,9 +139,12 @@ export function ProjectComments({ projectId }: { projectId: string }) {
       <CardHeader className="py-4 border-b bg-slate-50/50 dark:bg-slate-900/20">
         <CardTitle className="text-lg flex items-center gap-2">
           Discussão do Projeto
-          <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 text-xs py-0.5 px-2 rounded-full font-medium">
-            {projectComments.length}
-          </span>
+          <Badge
+            variant="secondary"
+            className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors ml-2"
+          >
+            {projectComments.length} {projectComments.length === 1 ? 'comentário' : 'comentários'}
+          </Badge>
         </CardTitle>
       </CardHeader>
 

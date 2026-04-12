@@ -324,7 +324,11 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
                             onClick={() =>
                               setExpandedIds((p) => {
                                 const n = new Set(p)
-                                n.has(task.id) ? n.delete(task.id) : n.add(task.id)
+                                if (n.has(task.id)) {
+                                  n.delete(task.id)
+                                } else {
+                                  n.add(task.id)
+                                }
                                 return n
                               })
                             }

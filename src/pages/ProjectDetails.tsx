@@ -72,6 +72,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
+import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 
 const MOCK_HISTORY = [
   { id: 'hist1_1a2b', date: '2024-03-01', time: '10:00', action: 'Projeto criado no sistema' },
@@ -406,13 +407,29 @@ export default function ProjectDetails() {
             <CardContent>
               {isEditingObservations ? (
                 <div className="space-y-3 animate-in fade-in duration-200">
-                  <Textarea
-                    value={observationText}
-                    onChange={(e) => setObservationText(e.target.value)}
-                    placeholder="Adicione observações e descrições do projeto..."
-                    className="min-h-[120px] resize-y"
-                    autoFocus
-                  />
+                  <div className="space-y-2">
+                    <Textarea
+                      value={observationText}
+                      onChange={(e) => setObservationText(e.target.value)}
+                      placeholder="Adicione observações e descrições do projeto... (Suporta Markdown: **negrito**, *itálico*, - listas, [link](url))"
+                      className="min-h-[160px] resize-y font-mono text-sm"
+                      autoFocus
+                    />
+                    <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                      <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        <span>
+                          <strong className="font-bold">**</strong>negrito
+                          <strong className="font-bold">**</strong>
+                        </span>
+                        <span>
+                          <em className="italic">*</em>itálico<em className="italic">*</em>
+                        </span>
+                        <span>[link](url)</span>
+                        <span>- lista</span>
+                      </div>
+                      <span className="shrink-0">Suporta Markdown</span>
+                    </div>
+                  </div>
                   <div className="flex justify-end gap-2">
                     <Button
                       variant="outline"
@@ -457,9 +474,7 @@ export default function ProjectDetails() {
                 </div>
               ) : project.description || project.observations ? (
                 <div className="bg-muted/50 p-4 rounded-lg border border-border group relative">
-                  <p className="text-sm whitespace-pre-wrap text-foreground">
-                    {project.description || project.observations}
-                  </p>
+                  <MarkdownRenderer content={project.description || project.observations || ''} />
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground italic">

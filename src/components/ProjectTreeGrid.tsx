@@ -411,62 +411,6 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col h-[500px] sm:h-[600px] bg-white dark:bg-slate-950 border rounded-lg shadow-sm overflow-hidden">
-      <div className="p-3 border-b flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/50">
-        <div className="flex items-center gap-1 bg-white dark:bg-slate-950 p-1 rounded-md border shadow-sm">
-          {(['todas', 'aberto', 'concluidas', 'pendentes'] as const).map((f) => (
-            <Button
-              key={f}
-              variant={filter === f ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setFilter(f)}
-              className="h-7 text-xs capitalize"
-            >
-              {f === 'todas'
-                ? 'Todas'
-                : f === 'aberto'
-                  ? 'Em aberto'
-                  : f === 'concluidas'
-                    ? 'Concluídas'
-                    : 'Pendentes'}
-            </Button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-2">
-                <Columns className="h-3 w-3" />
-                Colunas
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {Object.keys(columns).map((k) => (
-                <DropdownMenuCheckboxItem
-                  key={k}
-                  checked={columns[k as keyof typeof columns]}
-                  onCheckedChange={(v) => setColumns((p) => ({ ...p, [k]: v }))}
-                  className="capitalize"
-                >
-                  {k === 'dataEntrega' ? 'Data de Entrega' : k}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-2">
-                <Download className="h-3 w-3" />
-                Exportar
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportCSV}>Exportar CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportPDF}>Exportar PDF</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
       <div className="flex-1 overflow-auto">
         <Table className="w-full relative">
           <TableHeader className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10 shadow-sm">

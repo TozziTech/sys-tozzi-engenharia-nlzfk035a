@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-12T20:10:27.375Z",
+  "generatedAt": "2026-04-12T20:46:27.147Z",
   "collections": [
     {
       "name": "users",
@@ -1046,6 +1046,59 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "project_versions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "module",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "project_modules"
+        },
+        {
+          "name": "version_label",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "file",
+          "type": "file",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_project_versions_module ON project_versions (module)"]
     }
   ]
 }

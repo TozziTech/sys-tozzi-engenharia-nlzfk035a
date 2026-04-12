@@ -57,7 +57,6 @@ import {
 } from '@/components/ui/table'
 import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
-import { ProjectVersions } from '@/components/ProjectVersions'
 import { ProjectModules } from '@/components/ProjectModules'
 import { ProjectDisciplinesTab } from '@/components/ProjectDisciplinesTab'
 import { ProjectTreeGrid } from '@/components/ProjectTreeGrid'
@@ -661,9 +660,6 @@ export default function ProjectDetails() {
               <TabsTrigger value="documents" className="flex-1">
                 Documentos
               </TabsTrigger>
-              <TabsTrigger value="versions" className="flex-1">
-                Versões
-              </TabsTrigger>
               <TabsTrigger value="finance" className="flex-1">
                 Financeiro
               </TabsTrigger>
@@ -769,10 +765,6 @@ export default function ProjectDetails() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="versions" className="mt-4">
-              <ProjectVersions projectId={project.id} />
             </TabsContent>
 
             <TabsContent value="finance" className="mt-4 space-y-6">

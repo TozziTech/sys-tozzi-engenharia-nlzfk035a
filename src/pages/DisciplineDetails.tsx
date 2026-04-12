@@ -47,6 +47,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ProjectModule } from '@/types/project_modules'
 import { useToast } from '@/hooks/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { ModuleVersions } from '@/components/ModuleVersions'
 
 export default function DisciplineDetails() {
   const { id, moduleId } = useParams<{ id: string; moduleId: string }>()
@@ -548,6 +549,8 @@ export default function DisciplineDetails() {
               )}
             </CardContent>
           </Card>
+
+          <ModuleVersions moduleId={moduleId!} />
         </div>
 
         <div className="space-y-6">

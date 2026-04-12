@@ -83,7 +83,8 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
           descricao: fetchedDesc,
           thId: fetchedThId,
           tags: fetchedTags,
-        }        setIsLoading(false)
+        }
+        setIsLoading(false)
       }
     }
     fetchTaskData()
@@ -197,13 +198,21 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
           <div className="space-y-3">
             <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tags</Label>
             <div className="flex flex-wrap gap-2 mb-2">
-              {tags.map(tagId => {
-                const tag = allTags.find(t => t.id === tagId)
+              {tags.map((tagId) => {
+                const tag = allTags.find((t) => t.id === tagId)
                 if (!tag) return null
                 return (
-                  <Badge key={tag.id} style={{ backgroundColor: tag.color, color: getContrastYIQ(tag.color) }} className="pr-1 gap-1">
+                  <Badge
+                    key={tag.id}
+                    style={{ backgroundColor: tag.color, color: getContrastYIQ(tag.color) }}
+                    className="pr-1 gap-1"
+                  >
                     {tag.name}
-                    <button onClick={() => setTags(prev => prev.filter(id => id !== tagId))} className="ml-1 rounded-full bg-black/20 hover:bg-black/40 p-0.5" disabled={isLoading}>
+                    <button
+                      onClick={() => setTags((prev) => prev.filter((id) => id !== tagId))}
+                      className="ml-1 rounded-full bg-black/20 hover:bg-black/40 p-0.5"
+                      disabled={isLoading}
+                    >
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
@@ -219,16 +228,21 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
               <DropdownMenuContent align="start" className="w-56">
                 <DropdownMenuLabel>Tags Disponíveis</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {allTags.map(tag => (
+                {allTags.map((tag) => (
                   <DropdownMenuCheckboxItem
                     key={tag.id}
                     checked={tags.includes(tag.id)}
                     onCheckedChange={(c) => {
-                      setTags(prev => c ? [...prev, tag.id] : prev.filter(id => id !== tag.id))
+                      setTags((prev) =>
+                        c ? [...prev, tag.id] : prev.filter((id) => id !== tag.id),
+                      )
                     }}
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
                       {tag.name}
                     </div>
                   </DropdownMenuCheckboxItem>

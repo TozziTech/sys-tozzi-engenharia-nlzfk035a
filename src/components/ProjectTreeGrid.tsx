@@ -26,7 +26,14 @@ import {
   Trash2,
   GripVertical,
   CalendarIcon,
+  Download,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
@@ -238,8 +245,94 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
       </div>
     )
 
+  const isOverdue = (dueDate: string | null | undefined) => {
+    if (!dueDate) return false
+    const date = new Date(dueDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return date.getTime() < today.getTime()
+  }
+
+  const [filter, setFilter] = useState<'todas' | 'aberto' | 'concluidas' | 'pendentes'>('todas')
+
+  const visibleNodes = useMemo(() => {
+    return flatNodes.filter(({ task }) => {
+      if (filter === 'todas') return true
+      if (filter === 'aberto') return task.status !== 'Concluído'
+      if (filter === 'concluidas') return task.status === 'Concluído'
+      if (filter === 'pendentes') return task.status !== 'Concluído' && isOverdue(task.due_date)
+      return true
+    })
+  }, [flatNodes, filter])
+
+  const handleExportCSV = () => {
+    const exportData = visibleNodes.map(({ task }) => ({
+      ...task,
+      responsibleName: users.find((u) => u.id === task.responsible)?.name || '',
+    }))
+    import('@/lib/export').then((m) => m.exportTasksCSV(exportData, 'Projeto'))
+  }
+
+  const handleExportPDF = () => {
+    const exportData = visibleNodes.map(({ task }) => ({
+      ...task,
+      responsibleName: users.find((u) => u.id === task.responsible)?.name || '',
+    }))
+    import('@/lib/exportPdf').then((m) => m.exportTasksPDF(exportData, 'Projeto', 'Usuário Local'))
+  }
+
   return (
     <div className="flex flex-col h-[500px] sm:h-[600px] bg-white dark:bg-slate-950 border rounded-lg shadow-sm overflow-hidden">
+      <div className="p-3 border-b flex flex-wrap items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900/50">
+        <div className="flex items-center gap-1 bg-white dark:bg-slate-950 p-1 rounded-md border shadow-sm">
+          <Button
+            variant={filter === 'todas' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setFilter('todas')}
+            className="h-7 text-xs"
+          >
+            Todas
+          </Button>
+          <Button
+            variant={filter === 'aberto' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setFilter('aberto')}
+            className="h-7 text-xs"
+          >
+            Em aberto
+          </Button>
+          <Button
+            variant={filter === 'concluidas' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setFilter('concluidas')}
+            className="h-7 text-xs"
+          >
+            Concluídas
+          </Button>
+          <Button
+            variant={filter === 'pendentes' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setFilter('pendentes')}
+            className="h-7 text-xs"
+          >
+            Pendentes
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-2">
+                <Download className="h-3 w-3" />
+                Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCSV}>Exportar CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF}>Exportar PDF</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
       <div className="flex-1 overflow-auto">
         <Table className="w-full relative">
           <TableHeader className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10 shadow-sm">
@@ -252,7 +345,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {flatNodes.map(({ task, depth }) => {
+            {visibleNodes.map(({ task, depth }) => {
               const isDropTarget = dropTarget?.id === task.id
               const dropPos = dropTarget?.position
               return (
@@ -388,6 +481,9 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
                           className={cn(
                             'h-8 text-xs w-full justify-start text-left font-normal border-transparent hover:border-input px-2 shadow-none',
                             !task.due_date && 'text-muted-foreground',
+                            task.status !== 'Concluído' &&
+                              isOverdue(task.due_date) &&
+                              'text-red-500 font-medium',
                           )}
                         >
                           <CalendarIcon className="mr-2 h-3 w-3 shrink-0" />
@@ -453,10 +549,10 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
                 </TableRow>
               )
             })}
-            {flatNodes.length === 0 && (
+            {visibleNodes.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                  Nenhuma tarefa registrada. Adicione a primeira!
+                  Nenhuma tarefa encontrada.
                 </TableCell>
               </TableRow>
             )}

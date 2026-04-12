@@ -115,6 +115,30 @@ export function exportProjectHoursCSV(logs: any[], projectName: string) {
   URL.revokeObjectURL(url)
 }
 
+export function exportTasksCSV(tasks: any[], projectName: string) {
+  const headers = ['Tarefa', 'Responsável', 'Data de Entrega', 'Status']
+
+  const rows = tasks.map((t) => {
+    const title = `"${(t.title || '').replace(/"/g, '""')}"`
+    const resp = `"${(t.responsibleName || '').replace(/"/g, '""')}"`
+    const date = t.due_date ? format(new Date(t.due_date), 'dd/MM/yyyy') : ''
+    const status = `"${(t.status || '').replace(/"/g, '""')}"`
+    return [title, resp, date, status]
+  })
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Tarefas_${projectName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportAuditLogsCSV(logs: Log[]) {
   const headers = ['Evento', 'Usuário', 'Descrição', 'Data/Hora']
 

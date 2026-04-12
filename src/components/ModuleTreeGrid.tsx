@@ -9,30 +9,34 @@ import {
 } from '@/components/ui/table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   ChevronRight,
   ChevronDown,
   Plus,
   PlusCircle,
-  User,
   Calendar,
   CornerDownRight,
+  Paperclip,
+  Loader2,
+  Download,
+  Trash2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
 import {
   getModuleTasks,
   updateTaskStatus,
-  updateTaskResponsible,
   updateTaskTitle,
   updateTaskDueDate,
   createTask,
+  uploadTaskAttachments,
+  deleteTaskAttachment,
 } from '@/services/tasks'
 import { TextMaskedInput, DateMaskedInput } from '@/components/ProjectGridCells'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
-import { format } from 'date-fns'
 
 const pbDateToBR = (dateStr?: string) => {
   if (!dateStr) return ''
@@ -41,6 +45,7 @@ const pbDateToBR = (dateStr?: string) => {
   if (parts.length !== 3) return ''
   return `${parts[2]}/${parts[1]}/${parts[0]}`
 }
+
 import { CreateTaskDialog } from './CreateTaskDialog'
 import {
   Select,
@@ -56,10 +61,10 @@ export interface TreeTask {
   id: string
   title: string
   status: string
-  responsible?: { id: string; name: string; avatar?: string }
   due_date?: string
   children?: TreeTask[]
   project?: string
+  attachments?: string[]
 }
 
 const MOCK_TREE_DATA: TreeTask[] = [
@@ -67,15 +72,15 @@ const MOCK_TREE_DATA: TreeTask[] = [
     id: '1',
     title: '1. Projeto Básico de Arquitetura',
     status: 'Em Andamento',
-    responsible: { id: 'u1', name: 'João Carlos' },
     due_date: '2024-05-10',
+    attachments: ['planta_baixa_v1.pdf', 'referencias.zip'],
     children: [
       {
         id: '1.1',
         title: '1.1. Levantamento Planialtimétrico',
         status: 'Concluído',
-        responsible: { id: 'u2', name: 'Ana Silva' },
         due_date: '2024-04-20',
+        attachments: ['levantamento.pdf'],
         children: [
           {
             id: '1.1.1',
@@ -95,7 +100,6 @@ const MOCK_TREE_DATA: TreeTask[] = [
         id: '1.2',
         title: '1.2. Estudo Preliminar',
         status: 'Em Andamento',
-        responsible: { id: 'u3', name: 'Marcos Paulo' },
         due_date: '2024-05-05',
         children: [
           {
@@ -151,16 +155,8 @@ const buildTreeFromPB = (flatTasks: any[]): TreeTask[] => {
       title: t.title,
       status: t.status || 'Pendente',
       project: t.project,
-      responsible: t.expand?.responsible
-        ? {
-            id: t.expand.responsible.id,
-            name: t.expand.responsible.name || 'Usuário',
-            avatar: t.expand.responsible.avatar
-              ? pb.files.getURL(t.expand.responsible, t.expand.responsible.avatar)
-              : undefined,
-          }
-        : undefined,
       due_date: t.due_date,
+      attachments: t.attachments || [],
       children: [],
     })
   })
@@ -203,8 +199,8 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(['1', '1.1']))
   const [loading, setLoading] = useState(true)
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
+  const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null)
 
-  const [users, setUsers] = useState<any[]>([])
   const [projectId, setProjectId] = useState<string | null>(null)
 
   const [inlineCreateParentId, setInlineCreateParentId] = useState<string | null>(null)
@@ -232,14 +228,6 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
     const init = async () => {
       setLoading(true)
       await loadTasks()
-      try {
-        const res = await pb
-          .collection('users')
-          .getFullList({ filter: 'status != "Inativo"', sort: 'name' })
-        setUsers(res)
-      } catch (e) {
-        // Ignorar
-      }
       setLoading(false)
     }
     init()
@@ -261,7 +249,6 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
   const flatNodes = useMemo(() => flattenTree(tasks, 0, expandedIds), [tasks, expandedIds])
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
-    // Optimistic update
     setTasks((prevTasks) => {
       const updateStatus = (nodes: TreeTask[]): TreeTask[] => {
         return nodes.map((node) => {
@@ -282,14 +269,13 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
       toast({ title: 'Status atualizado' })
     } catch (err) {
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' })
-      loadTasks() // revert
+      loadTasks()
     }
   }
 
   const handleTitleChange = async (taskId: string, newTitle: string) => {
     if (!newTitle.trim()) return
 
-    // Optimistic update
     setTasks((prevTasks) => {
       const updateTitle = (nodes: TreeTask[]): TreeTask[] => {
         return nodes.map((node) => {
@@ -310,7 +296,7 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
       toast({ title: 'Título atualizado' })
     } catch (err) {
       toast({ title: 'Erro ao atualizar título', variant: 'destructive' })
-      loadTasks() // revert
+      loadTasks()
     }
   }
 
@@ -331,7 +317,6 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
       return
     }
 
-    // Optimistic update
     setTasks((prevTasks) => {
       const updateDate = (nodes: TreeTask[]): TreeTask[] => {
         return nodes.map((node) => {
@@ -352,47 +337,52 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
       toast({ title: 'Data atualizada' })
     } catch (err) {
       toast({ title: 'Erro ao atualizar data', variant: 'destructive' })
-      loadTasks() // revert
+      loadTasks()
     }
   }
 
-  const handleResponsibleChange = async (taskId: string, userId: string | null) => {
-    const selectedUser = users.find((u) => u.id === userId)
+  const handleFileUpload = async (taskId: string, files: FileList | null) => {
+    if (!files || files.length === 0) return
 
-    // Optimistic update
-    setTasks((prevTasks) => {
-      const updateResp = (nodes: TreeTask[]): TreeTask[] => {
-        return nodes.map((node) => {
-          if (node.id === taskId)
-            return {
-              ...node,
-              responsible: selectedUser
-                ? {
-                    id: selectedUser.id,
-                    name: selectedUser.name,
-                    avatar: selectedUser.avatar
-                      ? pb.files.getURL(selectedUser, selectedUser.avatar)
-                      : undefined,
-                  }
-                : undefined,
-            }
-          if (node.children) return { ...node, children: updateResp(node.children) }
-          return node
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].size > 5242880) {
+        toast({
+          title: 'Erro de validação',
+          description: `O arquivo ${files[i].name} excede o limite de 5MB.`,
+          variant: 'destructive',
         })
+        return
       }
-      return updateResp(prevTasks)
-    })
+    }
 
     if (taskId.length < 15) {
-      toast({ title: 'Responsável atualizado (Simulação)' })
+      toast({ title: 'Upload simulado (Tarefa Mock)' })
+      return
+    }
+
+    setUploadingTaskId(taskId)
+    try {
+      await uploadTaskAttachments(taskId, files)
+      toast({ title: 'Anexo(s) enviado(s) com sucesso!' })
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar arquivo', description: err.message, variant: 'destructive' })
+    } finally {
+      setUploadingTaskId(null)
+      const el = document.getElementById(`file-${taskId}`) as HTMLInputElement
+      if (el) el.value = ''
+    }
+  }
+
+  const handleDeleteAttachment = async (taskId: string, filename: string) => {
+    if (taskId.length < 15) {
+      toast({ title: 'Exclusão simulada (Tarefa Mock)' })
       return
     }
     try {
-      await updateTaskResponsible(taskId, userId)
-      toast({ title: 'Responsável atualizado' })
-    } catch (err) {
-      toast({ title: 'Erro ao atualizar responsável', variant: 'destructive' })
-      loadTasks() // revert
+      await deleteTaskAttachment(taskId, filename)
+      toast({ title: 'Anexo removido com sucesso!' })
+    } catch (err: any) {
+      toast({ title: 'Erro ao remover anexo', description: err.message, variant: 'destructive' })
     }
   }
 
@@ -465,8 +455,8 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
               <TableHead className="border-r border-b w-[160px] font-semibold text-foreground">
                 Status
               </TableHead>
-              <TableHead className="border-r border-b w-[200px] font-semibold text-foreground">
-                Responsável
+              <TableHead className="border-r border-b w-[160px] font-semibold text-foreground">
+                Documentos
               </TableHead>
               <TableHead className="border-r border-b w-[140px] font-semibold text-foreground">
                 Data
@@ -544,63 +534,109 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                     </Select>
                   </TableCell>
                   <TableCell className="border-r border-b p-2.5">
-                    <Select
-                      value={task.responsible?.id || 'unassigned'}
-                      onValueChange={(val) =>
-                        handleResponsibleChange(task.id, val === 'unassigned' ? null : val)
-                      }
-                    >
-                      <SelectTrigger className="h-8 border-none bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 w-full focus:ring-0 px-2 [&>span]:w-full [&>span]:flex [&>span]:items-center">
-                        <SelectValue>
-                          <div className="flex items-center gap-2 text-muted-foreground/50">
-                            <div className="w-6 h-6 rounded-full border border-dashed flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-                              <User className="w-3 h-3" />
-                            </div>
-                            <span className="text-xs italic">Atribuir</span>
-                          </div>
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        <SelectItem value="unassigned">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <div className="w-6 h-6 rounded-full border border-dashed flex items-center justify-center">
-                              <User className="w-3 h-3" />
-                            </div>
-                            <span className="text-xs italic">Não atribuído</span>
-                          </div>
-                        </SelectItem>
-                        {users.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="w-6 h-6 border">
-                                <AvatarImage
-                                  src={u.avatar ? pb.files.getURL(u, u.avatar) : undefined}
-                                />
-                                <AvatarFallback className="text-[10px]">
-                                  {u.name?.charAt(0).toUpperCase() || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs truncate max-w-[120px]">{u.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                        {task.responsible && !users.find((u) => u.id === task.responsible!.id) && (
-                          <SelectItem value={task.responsible.id} className="hidden">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="w-6 h-6 border">
-                                <AvatarImage src={task.responsible.avatar} />
-                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                  {task.responsible.name.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs font-medium truncate max-w-[120px]">
-                                {task.responsible.name}
-                              </span>
-                            </div>
-                          </SelectItem>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        {task.attachments && task.attachments.length > 0 ? (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs flex items-center gap-1 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-100 hover:text-foreground"
+                              >
+                                <Paperclip className="w-3 h-3" />
+                                {task.attachments.length}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-72 p-2 shadow-lg z-50">
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium border-b pb-1">Anexos</h4>
+                                <div className="max-h-[200px] overflow-y-auto pr-1">
+                                  {task.attachments.map((filename) => (
+                                    <div
+                                      key={filename}
+                                      className="flex items-center justify-between text-sm p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group/file"
+                                    >
+                                      <span
+                                        className="truncate max-w-[180px] text-xs font-medium"
+                                        title={filename}
+                                      >
+                                        {filename}
+                                      </span>
+                                      <div className="flex items-center gap-1 opacity-0 group-hover/file:opacity-100 transition-opacity">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                          onClick={() =>
+                                            window.open(
+                                              pb.files.getURL(
+                                                {
+                                                  id: task.id,
+                                                  collectionId: 'tasks',
+                                                  collectionName: 'tasks',
+                                                },
+                                                filename,
+                                              ),
+                                              '_blank',
+                                            )
+                                          }
+                                          title="Baixar"
+                                        >
+                                          <Download className="w-3 h-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                          onClick={() => handleDeleteAttachment(task.id, filename)}
+                                          title="Remover"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic px-2">
+                            Sem anexos
+                          </span>
                         )}
-                      </SelectContent>
-                    </Select>
+                      </div>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="relative">
+                            <input
+                              type="file"
+                              id={`file-${task.id}`}
+                              className="hidden"
+                              multiple
+                              onChange={(e) => handleFileUpload(task.id, e.target.files)}
+                              accept=".pdf,image/jpeg,image/png,image/gif,image/webp,.xlsx,.xls,.docx,.doc,.zip"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 hover:bg-slate-100 dark:hover:bg-slate-800 text-muted-foreground hover:text-foreground shrink-0"
+                              onClick={() => document.getElementById(`file-${task.id}`)?.click()}
+                              disabled={uploadingTaskId === task.id}
+                            >
+                              {uploadingTaskId === task.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                              ) : (
+                                <Plus className="w-3.5 h-3.5" />
+                              )}
+                            </Button>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>Anexar arquivo</TooltipContent>
+                      </Tooltip>
+                    </div>
                   </TableCell>
                   <TableCell className="border-r border-b p-1">
                     <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400 pl-1 pr-0.5">

@@ -39,20 +39,15 @@ export function CreateTaskDialog({
   const { toast } = useToast()
 
   const [title, setTitle] = useState('')
-  const [responsible, setResponsible] = useState('none')
   const [dueDate, setDueDate] = useState('')
   const [parentTask, setParentTask] = useState('none')
 
-  const [users, setUsers] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (open) {
-      pb.collection('users').getFullList({ sort: 'name' }).then(setUsers).catch(console.error)
-
       setTitle('')
-      setResponsible('none')
       setDueDate('')
       setParentTask('none')
       setErrors({})
@@ -71,7 +66,6 @@ export function CreateTaskDialog({
     try {
       let projectId = projectIdUrl
       if (!projectId) {
-        // Fallback to fetch from module if we are not on a project route
         const mod = await pb.collection('project_modules').getOne(moduleId)
         projectId = mod.project
       }
@@ -81,10 +75,6 @@ export function CreateTaskDialog({
         module: moduleId,
         project: projectId,
         status: 'Pendente',
-      }
-
-      if (responsible && responsible !== 'none') {
-        data.responsible = responsible
       }
 
       if (dueDate) {
@@ -130,23 +120,6 @@ export function CreateTaskDialog({
               placeholder="Ex: Levantamento Planialtimétrico"
             />
             {errors.title && <p className="text-sm text-red-500">{errors.title}</p>}
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="responsible">Responsável</Label>
-            <Select value={responsible} onValueChange={setResponsible}>
-              <SelectTrigger id="responsible">
-                <SelectValue placeholder="Selecione um responsável" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Não atribuído</SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name || 'Usuário sem nome'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="grid gap-2">

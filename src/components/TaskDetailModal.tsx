@@ -130,30 +130,6 @@ export function TaskDetailModal({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Responsável</Label>
-                  <Select
-                    value={editedTask.assigneeId?.toString() || 'unassigned'}
-                    onValueChange={(v) =>
-                      setEditedTask({
-                        ...editedTask,
-                        assigneeId: v === 'unassigned' ? undefined : Number(v),
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Nenhum</SelectItem>
-                      {teamMembers.map((m) => (
-                        <SelectItem key={m.id} value={m.id.toString()}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
                   <Label>Prazo</Label>
                   <Input
                     type="date"

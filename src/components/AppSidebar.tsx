@@ -71,7 +71,7 @@ const navigationGroups = [
     items: [
       { name: 'Configurações', href: '/settings', icon: Settings },
       { name: 'Acessos', href: '/access-control', icon: Shield },
-      { name: 'Auditoria', href: '/audit', icon: History },
+      { name: 'Histórico de Movimentações', href: '/audit-log', icon: History },
     ],
   },
 ]

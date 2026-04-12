@@ -28,6 +28,14 @@ export const updateTaskResponsible = async (taskId: string, responsibleId: strin
   return pb.collection('tasks').update(taskId, { responsible: responsibleId })
 }
 
+export const updateTaskTitle = async (taskId: string, title: string) => {
+  return pb.collection('tasks').update(taskId, { title })
+}
+
+export const updateTaskDueDate = async (taskId: string, due_date: string | null) => {
+  return pb.collection('tasks').update(taskId, { due_date })
+}
+
 export const createTask = async (data: any) => {
   return pb.collection('tasks').create(data)
 }

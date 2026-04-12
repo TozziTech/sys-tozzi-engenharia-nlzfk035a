@@ -4,18 +4,28 @@ import { Input } from '@/components/ui/input'
 export function TextMaskedInput({
   value,
   onBlur,
+  className,
 }: {
   value: string
   onBlur: (val: string) => void
+  className?: string
 }) {
   const [local, setLocal] = useState(value || '')
   useEffect(() => setLocal(value || ''), [value])
 
   return (
     <Input
-      className="h-8 text-xs border-transparent hover:border-input focus:border-input bg-transparent"
+      className={
+        className ||
+        'h-8 text-xs border-transparent hover:border-input focus:border-input bg-transparent'
+      }
       value={local}
       onChange={(e) => setLocal(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur()
+        }
+      }}
       onBlur={() => {
         if (local !== (value || '')) {
           onBlur(local)
@@ -28,9 +38,11 @@ export function TextMaskedInput({
 export function DateMaskedInput({
   value,
   onBlur,
+  className,
 }: {
   value: string
   onBlur: (val: string) => void
+  className?: string
 }) {
   const [local, setLocal] = useState(value || '')
   useEffect(() => setLocal(value || ''), [value])
@@ -45,10 +57,22 @@ export function DateMaskedInput({
 
   return (
     <Input
-      className="h-8 text-xs border-transparent hover:border-input focus:border-input bg-transparent"
+      className={
+        className ||
+        'h-8 text-xs border-transparent hover:border-input focus:border-input bg-transparent'
+      }
       value={local}
       onChange={handleChange}
-      onBlur={() => onBlur(local)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur()
+        }
+      }}
+      onBlur={() => {
+        if (local !== (value || '')) {
+          onBlur(local)
+        }
+      }}
       placeholder="DD/MM/AAAA"
     />
   )

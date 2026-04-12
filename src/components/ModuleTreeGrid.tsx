@@ -25,11 +25,22 @@ import {
   getModuleTasks,
   updateTaskStatus,
   updateTaskResponsible,
+  updateTaskTitle,
+  updateTaskDueDate,
   createTask,
 } from '@/services/tasks'
+import { TextMaskedInput, DateMaskedInput } from '@/components/ProjectGridCells'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
 import { format } from 'date-fns'
+
+const pbDateToBR = (dateStr?: string) => {
+  if (!dateStr) return ''
+  const ymd = dateStr.substring(0, 10)
+  const parts = ymd.split('-')
+  if (parts.length !== 3) return ''
+  return `${parts[2]}/${parts[1]}/${parts[0]}`
+}
 import { CreateTaskDialog } from './CreateTaskDialog'
 import {
   Select,
@@ -250,17 +261,19 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
   const flatNodes = useMemo(() => flattenTree(tasks, 0, expandedIds), [tasks, expandedIds])
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
+    // Optimistic update
+    setTasks((prevTasks) => {
+      const updateStatus = (nodes: TreeTask[]): TreeTask[] => {
+        return nodes.map((node) => {
+          if (node.id === taskId) return { ...node, status: newStatus }
+          if (node.children) return { ...node, children: updateStatus(node.children) }
+          return node
+        })
+      }
+      return updateStatus(prevTasks)
+    })
+
     if (taskId.length < 15) {
-      setTasks((prevTasks) => {
-        const updateStatus = (nodes: TreeTask[]): TreeTask[] => {
-          return nodes.map((node) => {
-            if (node.id === taskId) return { ...node, status: newStatus }
-            if (node.children) return { ...node, children: updateStatus(node.children) }
-            return node
-          })
-        }
-        return updateStatus(prevTasks)
-      })
       toast({ title: 'Status atualizado (Simulação)' })
       return
     }
@@ -269,34 +282,108 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
       toast({ title: 'Status atualizado' })
     } catch (err) {
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' })
+      loadTasks() // revert
+    }
+  }
+
+  const handleTitleChange = async (taskId: string, newTitle: string) => {
+    if (!newTitle.trim()) return
+
+    // Optimistic update
+    setTasks((prevTasks) => {
+      const updateTitle = (nodes: TreeTask[]): TreeTask[] => {
+        return nodes.map((node) => {
+          if (node.id === taskId) return { ...node, title: newTitle }
+          if (node.children) return { ...node, children: updateTitle(node.children) }
+          return node
+        })
+      }
+      return updateTitle(prevTasks)
+    })
+
+    if (taskId.length < 15) {
+      toast({ title: 'Título atualizado (Simulação)' })
+      return
+    }
+    try {
+      await updateTaskTitle(taskId, newTitle)
+      toast({ title: 'Título atualizado' })
+    } catch (err) {
+      toast({ title: 'Erro ao atualizar título', variant: 'destructive' })
+      loadTasks() // revert
+    }
+  }
+
+  const handleDateChange = async (taskId: string, newDateStr: string) => {
+    let isoDate: string | null = null
+    if (newDateStr.length === 10) {
+      const [d, m, y] = newDateStr.split('/')
+      const parsedDate = new Date(`${y}-${m}-${d}T12:00:00Z`)
+      if (isNaN(parsedDate.getTime())) {
+        toast({ title: 'Data inválida', variant: 'destructive' })
+        return
+      }
+      isoDate = `${y}-${m}-${d} 12:00:00.000Z`
+    } else if (newDateStr.length === 0) {
+      isoDate = null
+    } else {
+      toast({ title: 'Data inválida (use DD/MM/AAAA)', variant: 'destructive' })
+      return
+    }
+
+    // Optimistic update
+    setTasks((prevTasks) => {
+      const updateDate = (nodes: TreeTask[]): TreeTask[] => {
+        return nodes.map((node) => {
+          if (node.id === taskId) return { ...node, due_date: isoDate || undefined }
+          if (node.children) return { ...node, children: updateDate(node.children) }
+          return node
+        })
+      }
+      return updateDate(prevTasks)
+    })
+
+    if (taskId.length < 15) {
+      toast({ title: 'Data atualizada (Simulação)' })
+      return
+    }
+    try {
+      await updateTaskDueDate(taskId, isoDate)
+      toast({ title: 'Data atualizada' })
+    } catch (err) {
+      toast({ title: 'Erro ao atualizar data', variant: 'destructive' })
+      loadTasks() // revert
     }
   }
 
   const handleResponsibleChange = async (taskId: string, userId: string | null) => {
+    const selectedUser = users.find((u) => u.id === userId)
+
+    // Optimistic update
+    setTasks((prevTasks) => {
+      const updateResp = (nodes: TreeTask[]): TreeTask[] => {
+        return nodes.map((node) => {
+          if (node.id === taskId)
+            return {
+              ...node,
+              responsible: selectedUser
+                ? {
+                    id: selectedUser.id,
+                    name: selectedUser.name,
+                    avatar: selectedUser.avatar
+                      ? pb.files.getURL(selectedUser, selectedUser.avatar)
+                      : undefined,
+                  }
+                : undefined,
+            }
+          if (node.children) return { ...node, children: updateResp(node.children) }
+          return node
+        })
+      }
+      return updateResp(prevTasks)
+    })
+
     if (taskId.length < 15) {
-      const selectedUser = users.find((u) => u.id === userId)
-      setTasks((prevTasks) => {
-        const updateResp = (nodes: TreeTask[]): TreeTask[] => {
-          return nodes.map((node) => {
-            if (node.id === taskId)
-              return {
-                ...node,
-                responsible: selectedUser
-                  ? {
-                      id: selectedUser.id,
-                      name: selectedUser.name,
-                      avatar: selectedUser.avatar
-                        ? pb.files.getURL(selectedUser, selectedUser.avatar)
-                        : undefined,
-                    }
-                  : undefined,
-              }
-            if (node.children) return { ...node, children: updateResp(node.children) }
-            return node
-          })
-        }
-        return updateResp(prevTasks)
-      })
       toast({ title: 'Responsável atualizado (Simulação)' })
       return
     }
@@ -305,6 +392,7 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
       toast({ title: 'Responsável atualizado' })
     } catch (err) {
       toast({ title: 'Erro ao atualizar responsável', variant: 'destructive' })
+      loadTasks() // revert
     }
   }
 
@@ -416,11 +504,15 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                           </button>
                         ) : null}
                       </div>
-                      <span
-                        className={`text-sm ${depth === 0 ? 'font-semibold' : depth === 1 ? 'font-medium' : 'text-muted-foreground'}`}
-                      >
-                        {task.title}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <TextMaskedInput
+                          value={task.title}
+                          onBlur={(val) => {
+                            if (val !== task.title) handleTitleChange(task.id, val)
+                          }}
+                          className={`h-7 px-1 py-0 -ml-1 w-full text-sm border-transparent hover:border-input focus:border-input bg-transparent ${depth === 0 ? 'font-semibold' : depth === 1 ? 'font-medium' : 'text-muted-foreground'}`}
+                        />
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="border-r border-b p-2.5">
@@ -506,15 +598,15 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell className="border-r border-b p-2.5 text-xs font-medium">
-                    {task.due_date ? (
-                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 px-2">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {format(new Date(task.due_date), 'dd/MM/yyyy')}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground/50 italic px-2">-</span>
-                    )}
+                  <TableCell className="border-r border-b p-1">
+                    <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400 pl-1 pr-0.5">
+                      <Calendar className="w-3.5 h-3.5 shrink-0 ml-1 text-muted-foreground" />
+                      <DateMaskedInput
+                        value={pbDateToBR(task.due_date)}
+                        onBlur={(val) => handleDateChange(task.id, val)}
+                        className="h-8 text-xs font-medium border-transparent hover:border-input focus:border-input bg-transparent w-full text-left"
+                      />
+                    </div>
                   </TableCell>
                   <TableCell className="border-b p-2.5 text-center">
                     <Button

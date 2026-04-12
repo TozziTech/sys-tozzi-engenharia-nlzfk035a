@@ -24,74 +24,99 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
   const [title, setTitle] = useState('')
   const [concluida, setConcluida] = useState(false)
   const [descricao, setDescricao] = useState('')
+  const [thId, setThId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const stateRef = useRef({ title, concluida, descricao })
+  const stateRef = useRef({ title, concluida, descricao, thId })
 
   useEffect(() => {
-    if (task && open) {
-      const initialTitle = task.title || task.titulo || ''
-      const initialConcluida = task.status === 'Concluído' || task.concluida === true
-      const initialDesc = task.description || task.descricao || ''
+    async function fetchTaskData() {
+      if (task && open) {
+        setIsLoading(true)
+        let fetchedThId = null
+        let fetchedTitle = task.title || task.titulo || ''
+        let fetchedConcluida = task.status === 'Concluído' || task.concluida === true
+        let fetchedDesc = task.description || task.descricao || ''
 
-      setTitle(initialTitle)
-      setConcluida(initialConcluida)
-      setDescricao(initialDesc)
-      stateRef.current = {
-        title: initialTitle,
-        concluida: initialConcluida,
-        descricao: initialDesc,
+        try {
+          const th = await pb
+            .collection('tarefas_hierarquicas')
+            .getFirstListItem(`titulo="${task.title}" && projeto_id="${projectId}"`)
+
+          fetchedThId = th.id
+          fetchedTitle = th.titulo
+          fetchedConcluida = th.concluida
+          fetchedDesc = th.descricao || ''
+        } catch {
+          // Fallback to tasks data if not found in tarefas_hierarquicas
+        }
+
+        setTitle(fetchedTitle)
+        setConcluida(fetchedConcluida)
+        setDescricao(fetchedDesc)
+        setThId(fetchedThId)
+
+        stateRef.current = {
+          title: fetchedTitle,
+          concluida: fetchedConcluida,
+          descricao: fetchedDesc,
+          thId: fetchedThId,
+        }
+        setIsLoading(false)
       }
     }
-  }, [task, open])
+    fetchTaskData()
+  }, [task, open, projectId])
 
   useEffect(() => {
-    stateRef.current = { title, concluida, descricao }
-  }, [title, concluida, descricao])
+    stateRef.current = { title, concluida, descricao, thId }
+  }, [title, concluida, descricao, thId])
 
   const saveChanges = useCallback(async () => {
-    if (!task || !projectId) return
+    if (!task || !projectId || isLoading) return
     const current = stateRef.current
     try {
       const statusStr = current.concluida ? 'Concluído' : 'Pendente'
 
-      // Update tasks collection
       await pb.collection('tasks').update(task.id, {
         title: current.title,
         status: statusStr,
         description: current.descricao,
       })
 
-      // Update or create in tarefas_hierarquicas
-      try {
-        const th = await pb
-          .collection('tarefas_hierarquicas')
-          .getFirstListItem(`titulo="${task.title}" && projeto_id="${projectId}"`)
-        await pb.collection('tarefas_hierarquicas').update(th.id, {
+      if (current.thId) {
+        await pb.collection('tarefas_hierarquicas').update(current.thId, {
           titulo: current.title,
           concluida: current.concluida,
           descricao: current.descricao,
         })
-      } catch {
-        await pb.collection('tarefas_hierarquicas').create({
-          projeto_id: projectId,
-          titulo: current.title,
-          concluida: current.concluida,
-          descricao: current.descricao,
-          ordem: 0,
-        })
+      } else {
+        try {
+          const th = await pb.collection('tarefas_hierarquicas').create({
+            projeto_id: projectId,
+            titulo: current.title,
+            concluida: current.concluida,
+            descricao: current.descricao,
+            ordem: 0,
+          })
+          setThId(th.id)
+          stateRef.current.thId = th.id
+        } catch (err) {
+          console.error('Failed to create in tarefas_hierarquicas', err)
+        }
       }
     } catch (err) {
       console.error('Auto-save failed', err)
     }
-  }, [task, projectId])
+  }, [task, projectId, isLoading])
 
   useEffect(() => {
-    if (!task || !open) return
+    if (!task || !open || isLoading) return
     const timer = setTimeout(() => {
       saveChanges()
     }, 800)
     return () => clearTimeout(timer)
-  }, [title, concluida, descricao, task, open, saveChanges])
+  }, [title, concluida, descricao, task, open, isLoading, saveChanges])
 
   const handleClose = async (isOpen: boolean) => {
     if (!isOpen) {
@@ -125,6 +150,7 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Nome da tarefa"
               className="font-medium h-11"
+              disabled={isLoading}
             />
           </div>
 
@@ -135,6 +161,7 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
                 checked={concluida}
                 onCheckedChange={(c) => setConcluida(!!c)}
                 className="w-5 h-5 rounded-sm"
+                disabled={isLoading}
               />
               <Label
                 htmlFor="concluida-status"
@@ -154,6 +181,7 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
               onChange={(e) => setDescricao(e.target.value)}
               placeholder="Adicione uma descrição detalhada para esta tarefa..."
               className="min-h-[220px] resize-y leading-relaxed p-4"
+              disabled={isLoading}
             />
           </div>
 

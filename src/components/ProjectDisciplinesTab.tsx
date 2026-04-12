@@ -33,12 +33,10 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   const loadData = async () => {
     try {
       const [mods, usrs] = await Promise.all([
-        pb
-          .collection('project_modules')
-          .getFullList<ProjectModule>({
-            filter: `project = "${projectId}"`,
-            expand: 'responsible,designer',
-          }),
+        pb.collection('project_modules').getFullList<ProjectModule>({
+          filter: `project = "${projectId}"`,
+          expand: 'responsible,designer',
+        }),
         pb.collection('users').getFullList(),
       ])
       setModules(mods)

@@ -33,8 +33,27 @@ import {
 } from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
 
+const DISCIPLINES = [
+  'Estrutural Concreto',
+  'Estrutural Metálico',
+  'Fundação/Contenção',
+  'Hidráulico',
+  'Elétrico',
+  'Engenharia Diagnóstico',
+  'Prevenção de Incêndio',
+  'Gases',
+  'Orçamento',
+  'Ensaios',
+  'Recuperação e Reforço',
+  'Consultoria',
+  'Climatização',
+  'Arquitetura e Regularização',
+  'Assistência Técnica',
+  'Auditoria',
+]
+
 const schema = z.object({
-  name: z.string().min(3, 'Nome é obrigatório'),
+  name: z.string().min(1, 'Disciplina é obrigatória'),
   status: z.enum(['Pendente', 'Em Andamento', 'Concluído', 'Pausado']),
   progress: z.coerce.number().min(0).max(100),
   deadline: z.string().optional(),
@@ -141,10 +160,24 @@ export function ProjectModuleModal({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome da Disciplina</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Projeto Estrutural" {...field} />
-                  </FormControl>
+                  <FormLabel>Disciplina</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a disciplina" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {DISCIPLINES.map((discipline) => (
+                        <SelectItem key={discipline} value={discipline}>
+                          {discipline}
+                        </SelectItem>
+                      ))}
+                      {field.value && !DISCIPLINES.includes(field.value) && (
+                        <SelectItem value={field.value}>{field.value} (Legado)</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

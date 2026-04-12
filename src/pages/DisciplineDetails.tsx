@@ -12,6 +12,7 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
+  Edit2,
 } from 'lucide-react'
 import {
   format,
@@ -48,6 +49,7 @@ import { ProjectModule } from '@/types/project_modules'
 import { useToast } from '@/hooks/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ModuleVersions } from '@/components/ModuleVersions'
+import { TaskSheet } from '@/components/TaskSheet'
 
 export default function DisciplineDetails() {
   const { id, moduleId } = useParams<{ id: string; moduleId: string }>()
@@ -60,6 +62,10 @@ export default function DisciplineDetails() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  // Task Editing State
+  const [selectedTask, setSelectedTask] = useState<any>(null)
+  const [isTaskSheetOpen, setIsTaskSheetOpen] = useState(false)
 
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -331,6 +337,7 @@ export default function DisciplineDetails() {
                             <TableHead>Título</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Data de Vencimento</TableHead>
+                            <TableHead className="text-right w-[80px]">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -344,7 +351,14 @@ export default function DisciplineDetails() {
                               daysUntilDue <= 3
 
                             return (
-                              <TableRow key={task.id}>
+                              <TableRow
+                                key={task.id}
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => {
+                                  setSelectedTask(task)
+                                  setIsTaskSheetOpen(true)
+                                }}
+                              >
                                 <TableCell className="font-medium flex items-center gap-2">
                                   {task.title}
                                   {isCritical && <AlertTriangle className="h-4 w-4 text-red-500" />}
@@ -367,6 +381,19 @@ export default function DisciplineDetails() {
                                   {task.due_date
                                     ? format(new Date(task.due_date), 'dd/MM/yyyy')
                                     : '-'}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setSelectedTask(task)
+                                      setIsTaskSheetOpen(true)
+                                    }}
+                                  >
+                                    <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                             )
@@ -460,6 +487,18 @@ export default function DisciplineDetails() {
                                           </span>
                                         </div>
                                       </div>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full mt-3 gap-2"
+                                        onClick={() => {
+                                          setSelectedTask(task)
+                                          setIsTaskSheetOpen(true)
+                                        }}
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                        Editar Tarefa
+                                      </Button>
                                     </PopoverContent>
                                   </Popover>
                                 ))}
@@ -673,6 +712,14 @@ export default function DisciplineDetails() {
           </Card>
         </div>
       </div>
+
+      <TaskSheet
+        task={selectedTask}
+        open={isTaskSheetOpen}
+        onOpenChange={setIsTaskSheetOpen}
+        projectId={id || ''}
+        onTaskUpdated={loadData}
+      />
     </div>
   )
 }

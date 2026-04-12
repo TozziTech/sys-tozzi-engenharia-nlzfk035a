@@ -1,5 +1,23 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfQuarter,
+  endOfQuarter,
+  isWithinInterval,
+  format,
+} from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react'
 import {
   Bar,
@@ -22,6 +40,25 @@ export default function FinancialDashboard() {
   const [financials, setFinancials] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [period, setPeriod] = useState<string>('monthly')
+
+  const filteredFinancials = useMemo(() => {
+    const now = new Date()
+    return financials.filter((f) => {
+      if (period === 'all') return true
+      const date = new Date(f.date || f.created)
+      if (period === 'weekly')
+        return isWithinInterval(date, {
+          start: startOfWeek(now, { weekStartsOn: 1 }),
+          end: endOfWeek(now, { weekStartsOn: 1 }),
+        })
+      if (period === 'monthly')
+        return isWithinInterval(date, { start: startOfMonth(now), end: endOfMonth(now) })
+      if (period === 'quarterly')
+        return isWithinInterval(date, { start: startOfQuarter(now), end: endOfQuarter(now) })
+      return true
+    })
+  }, [financials, period])
 
   const loadData = async () => {
     try {
@@ -48,7 +85,7 @@ export default function FinancialDashboard() {
   const { totalRevenue, totalExpenses, balance } = useMemo(() => {
     let rev = 0
     let exp = 0
-    financials.forEach((f) => {
+    filteredFinancials.forEach((f) => {
       const isExpense =
         f.type?.toLowerCase().includes('saída') ||
         f.type?.toLowerCase().includes('despesa') ||
@@ -60,11 +97,11 @@ export default function FinancialDashboard() {
       }
     })
     return { totalRevenue: rev, totalExpenses: exp, balance: rev - exp }
-  }, [financials])
+  }, [filteredFinancials])
 
   const categoryData = useMemo(() => {
     const cats: Record<string, number> = {}
-    financials.forEach((f) => {
+    filteredFinancials.forEach((f) => {
       const isExpense =
         f.type?.toLowerCase().includes('saída') ||
         f.type?.toLowerCase().includes('despesa') ||
@@ -77,32 +114,43 @@ export default function FinancialDashboard() {
     return Object.entries(cats)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-  }, [financials])
+  }, [filteredFinancials])
 
   const cashFlowData = useMemo(() => {
-    const monthly: Record<string, { month: string; receita: number; despesa: number }> = {}
-    financials.forEach((f) => {
+    const grouped: Record<
+      string,
+      { sortKey: string; month: string; receita: number; despesa: number }
+    > = {}
+    filteredFinancials.forEach((f) => {
       const date = new Date(f.date || f.created)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      const monthLabel = date.toLocaleString('pt-BR', { month: 'short', year: 'numeric' })
-      if (!monthly[monthKey]) {
-        monthly[monthKey] = { month: monthLabel, receita: 0, despesa: 0 }
+      let key = ''
+      let label = ''
+
+      if (period === 'weekly' || period === 'monthly') {
+        key = format(date, 'yyyy-MM-dd')
+        label = format(date, 'dd/MM')
+      } else {
+        key = format(date, 'yyyy-MM')
+        label = format(date, 'MMM yy', { locale: ptBR })
+      }
+
+      if (!grouped[key]) {
+        grouped[key] = { sortKey: key, month: label, receita: 0, despesa: 0 }
       }
       const isExpense =
         f.type?.toLowerCase().includes('saída') ||
         f.type?.toLowerCase().includes('despesa') ||
         f.amount < 0
       if (isExpense) {
-        monthly[monthKey].despesa += Math.abs(f.amount)
+        grouped[key].despesa += Math.abs(f.amount)
       } else {
-        monthly[monthKey].receita += f.amount
+        grouped[key].receita += f.amount
       }
     })
-    return Object.keys(monthly)
-      .sort()
-      .map((k) => monthly[k])
+    return Object.values(grouped)
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
       .slice(-12)
-  }, [financials])
+  }, [filteredFinancials, period])
 
   const activeProjectsFinancials = useMemo(() => {
     return projects
@@ -129,11 +177,26 @@ export default function FinancialDashboard() {
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 animate-fade-in">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard Financeiro</h2>
-        <p className="text-muted-foreground mt-1">
-          Visão detalhada da saúde financeira, custos de projetos e receitas.
-        </p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard Financeiro</h2>
+          <p className="text-muted-foreground mt-1">
+            Visão detalhada da saúde financeira, custos de projetos e receitas.
+          </p>
+        </div>
+        <div className="w-full md:w-64">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Selecione o período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="weekly">Semanal</SelectItem>
+              <SelectItem value="monthly">Mensal</SelectItem>
+              <SelectItem value="quarterly">Trimestral</SelectItem>
+              <SelectItem value="all">Todo o Período</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

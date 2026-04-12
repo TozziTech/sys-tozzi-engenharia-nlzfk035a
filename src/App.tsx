@@ -16,6 +16,7 @@ import Clients from './pages/Clients'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Gantt from './pages/Gantt'
+import ProjectCalendar from './pages/ProjectCalendar'
 import Bottlenecks from './pages/Bottlenecks'
 import Timesheet from './pages/Timesheet'
 import History from './pages/History'
@@ -57,6 +58,7 @@ const App = () => (
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/gantt" element={<Gantt />} />
                   <Route path="/schedule" element={<Gantt />} />
+                  <Route path="/calendar" element={<ProjectCalendar />} />
                   <Route path="/bottlenecks" element={<Bottlenecks />} />
                   <Route path="/diagnostics" element={<Bottlenecks />} />
                   <Route path="/financial-dashboard" element={<FinancialDashboard />} />

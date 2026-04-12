@@ -24,6 +24,10 @@ export const updateTaskStatus = async (taskId: string, status: string) => {
   return pb.collection('tasks').update(taskId, { status })
 }
 
+export const updateTaskResponsible = async (taskId: string, responsibleId: string | null) => {
+  return pb.collection('tasks').update(taskId, { responsible: responsibleId })
+}
+
 export const createTask = async (data: any) => {
   return pb.collection('tasks').create(data)
 }

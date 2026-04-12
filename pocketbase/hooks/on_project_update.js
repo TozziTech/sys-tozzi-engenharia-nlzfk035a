@@ -1,5 +1,11 @@
 onRecordUpdateRequest((e) => {
-  const original = e.record.originalCopy()
+  let original = null
+  try {
+    original = $app.findRecordById('projects', e.record.id)
+  } catch (_) {
+    return e.next()
+  }
+
   const changes = {}
   const fields = [
     'status',

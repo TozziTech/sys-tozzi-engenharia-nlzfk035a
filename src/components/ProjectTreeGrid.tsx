@@ -38,6 +38,7 @@ import {
   createProjectColumn,
   deleteHierarchicalTask,
 } from '@/services/project_grid'
+import pb from '@/lib/pocketbase/client'
 
 export interface HTreeTask {
   id: string
@@ -135,6 +136,18 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
     return null
   }
 
+  const updateProgress = async () => {
+    try {
+      const pbTasks = await getHierarchicalTasks(projectId)
+      const total = pbTasks.length
+      const concluidaCount = pbTasks.filter((t) => t.concluida).length
+      const progress = total > 0 ? Math.round((concluidaCount / total) * 100) : 0
+      await pb.collection('projects').update(projectId, { progress })
+    } catch (e) {
+      console.error('Error updating progress', e)
+    }
+  }
+
   const handleAddCol = async () => {
     if (!colName) return
     try {
@@ -160,6 +173,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
         ordem: newOrdem,
       })
       if (pid) setExpandedIds((prev) => new Set(prev).add(pid))
+      await updateProgress()
     } catch {
       toast({ title: 'Erro ao criar tarefa', variant: 'destructive' })
     }
@@ -169,6 +183,7 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
     if (!window.confirm('Excluir esta tarefa e suas subtarefas?')) return
     try {
       await deleteHierarchicalTask(id)
+      await updateProgress()
     } catch {
       toast({ title: 'Erro ao excluir tarefa', variant: 'destructive' })
     }
@@ -188,6 +203,9 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
 
     try {
       await updateHierarchicalTask(id, data)
+      if ('concluida' in data) {
+        await updateProgress()
+      }
     } catch {
       toast({ title: 'Erro ao atualizar', variant: 'destructive' })
       loadData()

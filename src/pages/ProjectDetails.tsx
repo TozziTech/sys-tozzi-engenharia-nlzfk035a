@@ -70,19 +70,19 @@ import { useToast } from '@/hooks/use-toast'
 
 const MOCK_TEAM = [
   {
-    id: 1,
+    id: 'usr1_8f9e0d1c',
     name: 'João Carlos',
     role: 'Arquiteto Sênior',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
   },
   {
-    id: 2,
+    id: 'usr2_3a2b1c4d',
     name: 'Ana Silva',
     role: 'Engenheira Civil',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
   },
   {
-    id: 3,
+    id: 'usr3_6e5d4c3b',
     name: 'Marcos Paulo',
     role: 'Mestre de Obras',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=3',
@@ -90,10 +90,20 @@ const MOCK_TEAM = [
 ]
 
 const MOCK_HISTORY = [
-  { id: 1, date: '2024-03-01', time: '10:00', action: 'Projeto criado no sistema' },
-  { id: 2, date: '2024-03-05', time: '14:30', action: 'Documentação anexada: Planta Baixa.pdf' },
-  { id: 3, date: '2024-03-10', time: '09:15', action: 'Status alterado para Em Andamento' },
-  { id: 4, date: '2024-03-12', time: '16:45', action: 'Orçamento estimado atualizado' },
+  { id: 'hist1_1a2b', date: '2024-03-01', time: '10:00', action: 'Projeto criado no sistema' },
+  {
+    id: 'hist2_3c4d',
+    date: '2024-03-05',
+    time: '14:30',
+    action: 'Documentação anexada: Planta Baixa.pdf',
+  },
+  {
+    id: 'hist3_5e6f',
+    date: '2024-03-10',
+    time: '09:15',
+    action: 'Status alterado para Em Andamento',
+  },
+  { id: 'hist4_7g8h', date: '2024-03-12', time: '16:45', action: 'Orçamento estimado atualizado' },
 ]
 
 export default function ProjectDetails() {
@@ -117,7 +127,7 @@ export default function ProjectDetails() {
   const [draggedTx, setDraggedTx] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [projectTeam, setProjectTeam] = useState(MOCK_TEAM)
-  const [memberToRemove, setMemberToRemove] = useState<number | null>(null)
+  const [memberToRemove, setMemberToRemove] = useState<string | null>(null)
   const [documents, setDocuments] = useState<
     { id: string; name: string; date: string; size: string }[]
   >([])

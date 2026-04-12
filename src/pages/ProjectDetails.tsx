@@ -851,7 +851,7 @@ export default function ProjectDetails() {
                       : '[&>div]:bg-blue-500 bg-blue-100'
 
                 return (
-                  <>
+                  <div className="space-y-6">
                     <div className="flex justify-end mb-4">
                       <Select value={periodFilter} onValueChange={setPeriodFilter}>
                         <SelectTrigger className="w-[200px] bg-white dark:bg-slate-950">
@@ -1149,7 +1149,7 @@ export default function ProjectDetails() {
                         )}
                       </CardContent>
                     </Card>
-                  </>
+                  </div>
                 )
               })()}
             </TabsContent>

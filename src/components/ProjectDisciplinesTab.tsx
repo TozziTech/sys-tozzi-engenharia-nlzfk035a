@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Trash2, Users } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { ProjectModule } from '@/types/project_modules'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -133,7 +134,14 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
               {modules.length > 0 ? (
                 modules.map((mod) => (
                   <TableRow key={mod.id}>
-                    <TableCell className="font-medium">{mod.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        to={`/projects/${projectId}/disciplines/${mod.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {mod.name}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <Select
                         value={mod.responsible || 'unassigned'}

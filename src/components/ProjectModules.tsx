@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Plus, Edit2, Trash2, Calendar, AlertTriangle, Clock, User, ListTree } from 'lucide-react'
 import { format, differenceInHours } from 'date-fns'
+import { Link } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -128,7 +129,12 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-base">{mod.name}</h4>
+                        <Link
+                          to={`/projects/${projectId}/disciplines/${mod.id}`}
+                          className="hover:underline text-primary"
+                        >
+                          <h4 className="font-semibold text-base">{mod.name}</h4>
+                        </Link>
                         {mod.deadline &&
                           mod.status !== 'Concluído' &&
                           differenceInHours(new Date(mod.deadline), new Date()) <= 72 &&
@@ -181,7 +187,11 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                         </div>
                       )}
                     </div>
-                    <Badge className={getStatusColor(mod.status)}>{mod.status}</Badge>
+                    <Link to={`/projects/${projectId}/disciplines/${mod.id}`}>
+                      <Badge className={`${getStatusColor(mod.status)} cursor-pointer`}>
+                        {mod.status}
+                      </Badge>
+                    </Link>
                   </div>
 
                   {mod.expand?.responsible && (

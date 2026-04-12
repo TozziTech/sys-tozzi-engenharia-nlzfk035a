@@ -11,6 +11,7 @@ import Performance from './pages/Performance'
 import { ThemeProvider } from './components/ThemeProvider'
 import Projects from './pages/Projects'
 import ProjectDetails from './pages/ProjectDetails'
+import DisciplineDetails from './pages/DisciplineDetails'
 import { RealtimeSync } from './components/RealtimeSync'
 import Financial from './pages/Financial'
 import FinancialDashboard from './pages/FinancialDashboard'
@@ -54,6 +55,10 @@ const App = () => (
                   <Route path="/designer-panel" element={<DesignerPanel />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetails />} />
+                  <Route
+                    path="/projects/:id/disciplines/:moduleId"
+                    element={<DisciplineDetails />}
+                  />
                   <Route path="/financial" element={<Financial />} />
                   <Route path="/financeiro" element={<Finance />} />
                   <Route path="/clients" element={<Clients />} />

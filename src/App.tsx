@@ -6,6 +6,7 @@ import { ProjectProvider } from '@/stores/useProjectStore'
 import Dashboard from './pages/Dashboard'
 import DeadlineAudit from './pages/DeadlineAudit'
 import DesignerPanel from './pages/DesignerPanel'
+import MeuPainel from './pages/MeuPainel'
 import Performance from './pages/Performance'
 import { ThemeProvider } from './components/ThemeProvider'
 import Projects from './pages/Projects'
@@ -49,6 +50,7 @@ const App = () => (
                 <Route element={<Layout />}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/meu-painel" element={<MeuPainel />} />
                   <Route path="/designer-panel" element={<DesignerPanel />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetails />} />

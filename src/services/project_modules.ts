@@ -5,7 +5,7 @@ export const getProjectModules = async (projectId: string) => {
   return pb.collection('project_modules').getFullList<ProjectModule>({
     filter: `project = "${projectId}"`,
     sort: '-created',
-    expand: 'responsible',
+    expand: 'responsible,designer,project',
   })
 }
 

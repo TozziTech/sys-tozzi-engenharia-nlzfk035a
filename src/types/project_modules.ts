@@ -7,6 +7,7 @@ export interface ProjectModule {
   deadline: string
   notes: string
   responsible?: string
+  designer?: string
   expand?: {
     responsible?: {
       id: string
@@ -14,6 +15,21 @@ export interface ProjectModule {
       collectionName?: string
       name: string
       avatar: string
+    }
+    designer?: {
+      id: string
+      collectionId?: string
+      collectionName?: string
+      name: string
+      avatar: string
+    }
+    project?: {
+      id: string
+      name: string
+      status: string
+      end_date: string
+      progress: number
+      client: string
     }
   }
   created: string

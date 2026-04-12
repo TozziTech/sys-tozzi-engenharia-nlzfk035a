@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-12T06:58:02.865Z",
+  "generatedAt": "2026-04-12T13:12:05.293Z",
   "collections": [
     {
       "name": "users",
@@ -907,6 +907,13 @@
         },
         {
           "name": "responsible",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "designer",
           "type": "relation",
           "required": false,
           "system": false,

@@ -58,6 +58,7 @@ import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
 import { ProjectVersions } from '@/components/ProjectVersions'
 import { ProjectModules } from '@/components/ProjectModules'
+import { ProjectDisciplinesTab } from '@/components/ProjectDisciplinesTab'
 import { ProjectTreeGrid } from '@/components/ProjectTreeGrid'
 import {
   AlertDialog,
@@ -418,13 +419,14 @@ export default function ProjectDetails() {
             </CardContent>
           </Card>
 
-          <ProjectModules projectId={project.id} />
-
           <ProjectTreeGrid projectId={project.id} />
 
-          <Tabs defaultValue="team" className="w-full">
-            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-3 md:grid-cols-7 p-1">
-              <TabsTrigger value="team" className="flex-1">
+          <Tabs defaultValue="disciplines" className="w-full">
+            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-4 md:grid-cols-8 p-1">
+              <TabsTrigger value="disciplines" className="flex-1 whitespace-nowrap">
+                Disciplinas / Equipe
+              </TabsTrigger>
+              <TabsTrigger value="team" className="flex-1 hidden md:block">
                 Equipe
               </TabsTrigger>
               <TabsTrigger value="documents" className="flex-1">
@@ -446,6 +448,10 @@ export default function ProjectDetails() {
                 Performance
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="disciplines" className="mt-4">
+              <ProjectDisciplinesTab projectId={project.id} />
+            </TabsContent>
 
             <TabsContent value="documents" className="mt-4">
               <Card>

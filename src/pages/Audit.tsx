@@ -9,11 +9,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { format, startOfDay, endOfDay } from 'date-fns'
-import { History, Search, Calendar as CalendarIcon, User as UserIcon, X } from 'lucide-react'
+import { format, startOfDay, endOfDay, isSameDay, isAfter, startOfWeek } from 'date-fns'
+import {
+  History,
+  Search,
+  Calendar as CalendarIcon,
+  User as UserIcon,
+  X,
+  Activity,
+  BarChart2,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -83,6 +91,16 @@ export default function Audit() {
     })
   }, [logs, searchTerm, selectedUser, date])
 
+  const todayCount = useMemo(() => {
+    const today = new Date()
+    return logs.filter((log) => isSameDay(new Date(log.created), today)).length
+  }, [logs])
+
+  const weekCount = useMemo(() => {
+    const startOfCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 0 })
+    return logs.filter((log) => isAfter(new Date(log.created), startOfCurrentWeek)).length
+  }, [logs])
+
   const renderDetails = (details: any) => {
     if (!details || typeof details !== 'object')
       return <span className="text-muted-foreground">-</span>
@@ -131,12 +149,45 @@ export default function Audit() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <History className="h-8 w-8 text-primary" /> Histórico de Movimentações
+            <History className="h-8 w-8 text-primary" /> Painel de Auditoria Executiva
           </h1>
           <p className="text-muted-foreground">
-            Acompanhe todas as alterações de datas e movimentações realizadas no sistema.
+            Monitore atividades, rastreie ações de usuários e garanta total rastreabilidade.
           </p>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium">Total de Registros</CardTitle>
+            <BarChart2 className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{logs.length}</div>
+            <p className="text-xs text-muted-foreground">Registros de auditoria no total</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium">Atividades Hoje</CardTitle>
+            <Activity className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{todayCount}</div>
+            <p className="text-xs text-muted-foreground">Ações registradas hoje</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium">Atividades na Semana</CardTitle>
+            <History className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{weekCount}</div>
+            <p className="text-xs text-muted-foreground">Ações registradas esta semana</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="mb-6">

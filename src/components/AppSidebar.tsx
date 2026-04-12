@@ -35,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { useSettingsStore } from '@/stores/useSettingsStore'
+import { useAuth } from '@/hooks/use-auth'
 
 const navigationGroups = [
   {
@@ -71,13 +72,14 @@ const navigationGroups = [
     items: [
       { name: 'Configurações', href: '/settings', icon: Settings },
       { name: 'Acessos', href: '/access-control', icon: Shield },
-      { name: 'Histórico de Movimentações', href: '/audit-log', icon: History },
+      { name: 'Auditoria Executiva', href: '/admin/audit-log', icon: History, adminOnly: true },
     ],
   },
 ]
 
 export function AppSidebar() {
   const location = useLocation()
+  const { user } = useAuth()
 
   return (
     <Sidebar
@@ -111,6 +113,7 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
+                  if (item.adminOnly && user?.role !== 'Administrador') return null
                   const isActive =
                     location.pathname === item.href ||
                     (location.pathname === '/' && item.href === '/dashboard')

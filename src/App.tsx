@@ -36,6 +36,7 @@ import Audit from './pages/Audit'
 import AccessControl from './pages/AccessControl'
 import { AuthProvider } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
+import { AdminGuard } from './components/auth/AdminGuard'
 
 const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
@@ -82,7 +83,9 @@ const App = () => (
                   <Route path="/equipments" element={<Equipments />} />
                   <Route path="/equipment" element={<Equipments />} />
                   <Route path="/audit" element={<Audit />} />
-                  <Route path="/audit-log" element={<Audit />} />
+                  <Route element={<AdminGuard />}>
+                    <Route path="/admin/audit-log" element={<Audit />} />
+                  </Route>
                   <Route path="/access-control" element={<AccessControl />} />
                 </Route>
               </Route>

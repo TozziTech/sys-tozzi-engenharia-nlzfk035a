@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-12T21:33:32.626Z",
+  "generatedAt": "2026-04-12T21:54:57.841Z",
   "collections": [
     {
       "name": "users",
@@ -725,7 +725,11 @@
           "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE INDEX `idx_audit_logs_created` ON `audit_logs` (created)",
+        "CREATE INDEX `idx_audit_logs_user_id` ON `audit_logs` (user_id)",
+        "CREATE INDEX `idx_audit_logs_resource` ON `audit_logs` (resource)"
+      ]
     },
     {
       "name": "time_logs",

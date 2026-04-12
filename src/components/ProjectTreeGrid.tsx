@@ -409,6 +409,5 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
       </div>
     )
 
-  return
-  null
+  return null
 }

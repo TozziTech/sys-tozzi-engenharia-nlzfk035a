@@ -396,6 +396,8 @@ export default function ProjectDetails() {
             </CardContent>
           </Card>
 
+          <ProjectDisciplinesTab projectId={project.id} />
+
           <ProjectTreeGrid projectId={project.id} />
 
           <div className="space-y-6">
@@ -568,11 +570,8 @@ export default function ProjectDetails() {
             </Card>
           </div>
 
-          <Tabs defaultValue="disciplines" className="w-full">
-            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-3 md:grid-cols-6 p-1">
-              <TabsTrigger value="disciplines" className="flex-1 whitespace-nowrap">
-                Disciplinas / Equipe
-              </TabsTrigger>
+          <Tabs defaultValue="documents" className="w-full">
+            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-3 md:grid-cols-5 p-1">
               <TabsTrigger value="documents" className="flex-1">
                 Documentos
               </TabsTrigger>
@@ -589,10 +588,6 @@ export default function ProjectDetails() {
                 Histórico
               </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="disciplines" className="mt-4">
-              <ProjectDisciplinesTab projectId={project.id} />
-            </TabsContent>
 
             <TabsContent value="documents" className="mt-4">
               <Card>

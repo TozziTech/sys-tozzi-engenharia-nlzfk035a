@@ -7,13 +7,21 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Plus, Edit2, Trash2, Calendar, AlertTriangle, Clock, User } from 'lucide-react'
+import { Plus, Edit2, Trash2, Calendar, AlertTriangle, Clock, User, ListTree } from 'lucide-react'
 import { format, differenceInHours } from 'date-fns'
 import pb from '@/lib/pocketbase/client'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
 import { ProjectModuleModal } from './ProjectModuleModal'
+import { ModuleTreeGrid } from './ModuleTreeGrid'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +40,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingModule, setEditingModule] = useState<ProjectModule | undefined>(undefined)
   const [deleteModuleId, setDeleteModuleId] = useState<ProjectModule | null>(null)
+  const [selectedModuleForTasks, setSelectedModuleForTasks] = useState<ProjectModule | null>(null)
   const [loading, setLoading] = useState(true)
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
@@ -222,6 +231,13 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setSelectedModuleForTasks(mod)}
+                      >
+                        <ListTree className="w-4 h-4 mr-2" /> Tarefas
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           setEditingModule(mod)
                           setIsModalOpen(true)
@@ -298,6 +314,25 @@ export function ProjectModules({ projectId }: { projectId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={!!selectedModuleForTasks}
+        onOpenChange={(open) => !open && setSelectedModuleForTasks(null)}
+      >
+        <DialogContent className="max-w-5xl w-[95vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background border-slate-200 dark:border-slate-800 shadow-xl">
+          <DialogHeader className="px-6 py-5 border-b shrink-0 bg-white dark:bg-slate-950">
+            <DialogTitle className="text-xl">
+              Estrutura Analítica (WBS) - {selectedModuleForTasks?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Gerencie a hierarquia de tarefas desta disciplina em formato de planilha.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto p-4 md:p-6 bg-slate-50/50 dark:bg-slate-900/20">
+            {selectedModuleForTasks && <ModuleTreeGrid moduleId={selectedModuleForTasks.id} />}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

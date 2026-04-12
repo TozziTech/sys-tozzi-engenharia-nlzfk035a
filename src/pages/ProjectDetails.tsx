@@ -55,6 +55,7 @@ import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
 import { ProjectVersions } from '@/components/ProjectVersions'
 import { ProjectModules } from '@/components/ProjectModules'
+import { ProjectTreeGrid } from '@/components/ProjectTreeGrid'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -344,6 +345,9 @@ export default function ProjectDetails() {
 
           <Tabs defaultValue="modules" className="w-full">
             <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-3 md:grid-cols-8 p-1">
+              <TabsTrigger value="wbs" className="flex-1">
+                WBS
+              </TabsTrigger>
               <TabsTrigger value="modules" className="flex-1">
                 Módulos
               </TabsTrigger>
@@ -444,6 +448,10 @@ export default function ProjectDetails() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="wbs" className="mt-4">
+              <ProjectTreeGrid projectId={project.id} />
             </TabsContent>
 
             <TabsContent value="modules" className="mt-4">

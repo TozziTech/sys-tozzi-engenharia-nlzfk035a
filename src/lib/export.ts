@@ -115,6 +115,32 @@ export function exportProjectHoursCSV(logs: any[], projectName: string) {
   URL.revokeObjectURL(url)
 }
 
+export function exportCalendarCSV(tasks: any[]) {
+  const headers = ['Tarefa', 'Data de Entrega', 'Projeto', 'Disciplina', 'Status', 'Descrição']
+
+  const rows = tasks.map((t) => {
+    const title = `"${(t.title || '').replace(/"/g, '""')}"`
+    const date = t.due_date ? format(new Date(t.due_date), 'dd/MM/yyyy') : ''
+    const project = `"${(t.expand?.project?.name || '').replace(/"/g, '""')}"`
+    const module = `"${(t.expand?.module?.name || '').replace(/"/g, '""')}"`
+    const status = `"${(t.status || '').replace(/"/g, '""')}"`
+    const desc = `"${(t.description || '').replace(/"/g, '""')}"`
+    return [title, date, project, module, status, desc]
+  })
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Calendario_Tarefas_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportTasksCSV(tasks: any[], projectName: string) {
   const headers = ['Tarefa', 'Responsável', 'Data de Entrega', 'Status']
 

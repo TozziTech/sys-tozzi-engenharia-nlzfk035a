@@ -2,11 +2,34 @@ import { useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import useProjectStore from '@/stores/useProjectStore'
 import { useSettingsStore } from '@/stores/useSettingsStore'
+import { useRealtime } from '@/hooks/use-realtime'
+import pb from '@/lib/pocketbase/client'
+import { format } from 'date-fns'
 
 export function RealtimeSync() {
   const { projects, updateProject } = useProjectStore()
   const { realtimeEnabled } = useSettingsStore()
   const { toast } = useToast()
+
+  useRealtime('audit_logs', async (e) => {
+    if (e.action === 'create' && e.record.action === 'Task Rescheduled') {
+      try {
+        if (e.record.user_id === pb.authStore.record?.id) return
+
+        const user = await pb.collection('users').getOne(e.record.user_id)
+        const dateStr = e.record.details?.new_date
+          ? format(new Date(e.record.details.new_date), 'dd/MM/yyyy')
+          : 'Data Indefinida'
+
+        toast({
+          title: 'Tarefa Reagendada',
+          description: `${user.name} moveu a tarefa '${e.record.resource}' para ${dateStr}.`,
+        })
+      } catch (err) {
+        console.error('Failed to fetch user for notification', err)
+      }
+    }
+  })
 
   useEffect(() => {
     if (!realtimeEnabled) return

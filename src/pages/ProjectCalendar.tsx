@@ -14,8 +14,15 @@ import {
   subWeeks,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -27,6 +34,8 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { exportCalendarCSV } from '@/lib/export'
+import { exportCalendarPDF } from '@/lib/exportPdf'
 
 export default function ProjectCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -36,8 +45,16 @@ export default function ProjectCalendar() {
   const [selectedDisciplines, setSelectedDisciplines] = useState<string[]>([])
   const { user } = useAuth()
   const { toast } = useToast()
+  const [settings, setSettings] = useState<any>(null)
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
+
+  useEffect(() => {
+    pb.collection('company_settings')
+      .getFirstListItem('')
+      .then((res) => setSettings(res))
+      .catch(() => {})
+  }, [])
 
   const loadData = async () => {
     try {
@@ -129,6 +146,42 @@ export default function ProjectCalendar() {
     }
   }
 
+  const handleExportCSV = () => {
+    exportCalendarCSV(filteredTasks)
+  }
+
+  const handleExportPDF = () => {
+    const periodLabel =
+      viewMode === 'month'
+        ? format(currentDate, 'MMMM yyyy', { locale: ptBR })
+        : `Semana de ${format(startOfWeek(currentDate, { weekStartsOn: 0 }), 'dd/MM')} a ${format(endOfWeek(currentDate, { weekStartsOn: 0 }), 'dd/MM')}`
+    exportCalendarPDF(filteredTasks, periodLabel, user?.name || 'Usuário', settings)
+  }
+
+  const handleSyncICS = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/calendar/tasks.ics`,
+        {
+          headers: { Authorization: `Bearer ${pb.authStore.token}` },
+        },
+      )
+      if (!response.ok) throw new Error('Falha ao exportar')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'tasks.ics'
+      a.click()
+      window.URL.revokeObjectURL(url)
+
+      toast({ title: 'Calendário exportado com sucesso!' })
+    } catch (e) {
+      toast({ title: 'Erro ao exportar calendário', variant: 'destructive' })
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'concluído':
@@ -155,6 +208,22 @@ export default function ProjectCalendar() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Exportar / Sync</span>
+                <span className="sm:hidden">Exportar</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCSV}>Exportar CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF}>Exportar PDF</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSyncICS}>Sincronizar (ICS)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -134,34 +134,40 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const codigoValue = form.watch('codigo')
   const isCodigoValid = !!codigoValue?.trim()
 
-  const handleMaskedChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    maskFn: (v: string) => string,
-    onChange: (v: string) => void,
-  ) => {
-    const input = e.target
-    const oldVal = input.value
-    const oldCursor = input.selectionStart || 0
-    const unmaskedBeforeCursor = oldVal.slice(0, oldCursor).replace(/\D/g, '')
-    const newVal = maskFn(oldVal)
-    onChange(newVal)
-    window.requestAnimationFrame(() => {
-      if (input) {
-        let newCursor = 0,
-          digitsFound = 0
-        for (let i = 0; i < newVal.length; i++) {
-          if (/\d/.test(newVal[i])) digitsFound++
-          if (digitsFound === unmaskedBeforeCursor.length) {
-            newCursor = i + 1
-            while (newCursor < newVal.length && !/\d/.test(newVal[newCursor])) newCursor++
-            break
+  const handleMaskedChange = useCallback(
+    (
+      e: React.ChangeEvent<HTMLInputElement>,
+      maskFn: (v: string) => string,
+      onChange: (v: string) => void,
+    ) => {
+      const input = e.target
+      const oldVal = input.value
+      const oldCursor = input.selectionStart || 0
+      const unmaskedBeforeCursor = oldVal.slice(0, oldCursor).replace(/\D/g, '')
+      const newVal = maskFn(oldVal)
+      onChange(newVal)
+
+      if (document.activeElement === input) {
+        window.requestAnimationFrame(() => {
+          if (input && document.activeElement === input) {
+            let newCursor = 0,
+              digitsFound = 0
+            for (let i = 0; i < newVal.length; i++) {
+              if (/\d/.test(newVal[i])) digitsFound++
+              if (digitsFound === unmaskedBeforeCursor.length) {
+                newCursor = i + 1
+                while (newCursor < newVal.length && !/\d/.test(newVal[newCursor])) newCursor++
+                break
+              }
+            }
+            if (unmaskedBeforeCursor.length === 0) newCursor = 0
+            input.setSelectionRange(newCursor, newCursor)
           }
-        }
-        if (unmaskedBeforeCursor.length === 0) newCursor = 0
-        input.setSelectionRange(newCursor, newCursor)
+        })
       }
-    })
-  }
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!open) return
@@ -382,43 +388,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="codigo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Código (ID)</FormLabel>
-                          <FormControl>
-                            <Input disabled className="bg-muted font-mono" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cargo / Acesso</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {Object.keys(ROLE_PREFIXES).map((r) => (
-                                <SelectItem key={r} value={r}>
-                                  {r}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
                       name="formacaoSelect"
                       render={({ field }) => (
                         <FormItem>
@@ -465,10 +434,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                     )}
                     <FormField
                       control={form.control}
-                      name="status"
+                      name="role"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Status</FormLabel>
+                          <FormLabel>Cargo / Acesso</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
@@ -476,9 +445,9 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {['Ativo', 'Inativo', 'Em Férias'].map((s) => (
-                                <SelectItem key={s} value={s}>
-                                  {s}
+                              {Object.keys(ROLE_PREFIXES).map((r) => (
+                                <SelectItem key={r} value={r}>
+                                  {r}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -504,6 +473,43 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {['Ativo', 'Inativo', 'Em Férias'].map((s) => (
+                                <SelectItem key={s} value={s}>
+                                  {s}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="codigo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Código (ID)</FormLabel>
+                          <FormControl>
+                            <Input disabled className="bg-muted font-mono" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </div>
 
@@ -512,19 +518,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                   <h4 className="font-semibold text-base text-primary">Contato</h4>
                   <Separator />
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="contato@exemplo.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                     <FormField
                       control={form.control}
                       name="phone"
@@ -556,6 +549,19 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                               {...field}
                               onChange={(e) => handleMaskedChange(e, maskPhone, field.onChange)}
                             />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="contato@exemplo.com" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

@@ -150,7 +150,7 @@ export default function DisciplineDetails() {
 
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [activeTaskTab, setActiveTaskTab] = useState('list')
+  const [activeTaskTab, setActiveTaskTab] = useState('focused')
 
   const isShiftPressed = useRef(false)
 
@@ -519,7 +519,6 @@ export default function DisciplineDetails() {
   })
 
   const isFilterActive = searchQuery !== '' || statusFilter !== 'All'
-  const isFocusedView = activeTaskTab === 'focused'
   const filteredTasks = tasks.filter((task) => {
     const matchSearch =
       task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -590,10 +589,10 @@ export default function DisciplineDetails() {
     <div
       className={cn(
         'container mx-auto p-4 md:p-6 space-y-6 print:p-0 print:m-0 print:max-w-none print:space-y-0 transition-all duration-300',
-        isFocusedView ? 'max-w-full' : 'max-w-6xl',
+        'max-w-full',
       )}
     >
-      <div className={cn('flex items-center gap-2 mb-6 print:hidden', isFocusedView && 'hidden')}>
+      <div className={cn('flex items-center gap-2 mb-6 print:hidden')}>
         <Button variant="ghost" size="sm" asChild className="gap-2">
           <Link to={`/projects/${id}`}>
             <ArrowLeft className="h-4 w-4" />
@@ -604,7 +603,7 @@ export default function DisciplineDetails() {
         <span className="text-sm font-medium">{module.name}</span>
       </div>
 
-      {hasCriticalTasks && !isFocusedView && (
+      {hasCriticalTasks && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 text-red-800 dark:text-red-300 p-4 rounded-lg flex items-start gap-3 print:hidden">
           <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
           <div>
@@ -617,9 +616,8 @@ export default function DisciplineDetails() {
         </div>
       )}
 
-      {!isFocusedView && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:hidden">
-          <Card className="col-span-1">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:hidden">
+        <Card className="col-span-1">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total de Tarefas
@@ -699,19 +697,17 @@ export default function DisciplineDetails() {
               )}
             </CardContent>
           </Card>
-        </div>
-      )}
+      </div>
 
       <div
         className={cn(
           'grid grid-cols-1 gap-6 print:block print:gap-0',
-          isFocusedView ? '' : 'lg:grid-cols-3',
+          'lg:grid-cols-3',
         )}
       >
-        <div className={cn('space-y-6 print:space-y-0', isFocusedView ? '' : 'lg:col-span-2')}>
-          {!isFocusedView && (
-            <Card className="print:hidden">
-              <CardHeader className="pb-4">
+        <div className={cn('space-y-6 print:space-y-0', 'lg:col-span-2')}>
+          <Card className="print:hidden">
+            <CardHeader className="pb-4">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div>
                     <CardTitle className="text-2xl font-bold">{module.name}</CardTitle>
@@ -816,69 +812,34 @@ export default function DisciplineDetails() {
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          <Card
-            className={cn(
-              'print:hidden',
-              isFocusedView && 'border-none shadow-none bg-transparent',
-            )}
-          >
-            {!isFocusedView && (
-              <CardHeader className="pb-4">
-                <div className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Tarefas da Disciplina</CardTitle>
-                    <CardDescription>Lista e cronograma das atividades do módulo.</CardDescription>
-                  </div>
+          <Card className={cn('print:hidden')}>
+            <CardHeader className="pb-4">
+              <div className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Tarefas da Disciplina</CardTitle>
+                  <CardDescription>Lista e cronograma das atividades do módulo.</CardDescription>
                 </div>
-              </CardHeader>
-            )}
-            <CardContent className={cn(isFocusedView && 'p-0')}>
+              </div>
+            </CardHeader>
+            <CardContent>
               <Tabs
-                value={activeTaskTab === 'focused' ? 'list' : activeTaskTab}
+                value={activeTaskTab}
                 onValueChange={setActiveTaskTab}
                 className="w-full"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                   <TabsList>
-                    <TabsTrigger
-                      value="list"
-                      onClick={() => setActiveTaskTab('list')}
-                      className={cn(
-                        activeTaskTab === 'focused' &&
-                          '!bg-transparent !text-muted-foreground !shadow-none',
-                      )}
-                    >
-                      Lista
+                    <TabsTrigger value="focused" onClick={() => setActiveTaskTab('focused')}>
+                      Visão Focada
                     </TabsTrigger>
                     <TabsTrigger value="calendar" onClick={() => setActiveTaskTab('calendar')}>
                       Calendário
                     </TabsTrigger>
-                    <TabsTrigger
-                      value="focused"
-                      onClick={() => setActiveTaskTab('focused')}
-                      className={cn(
-                        activeTaskTab === 'focused' && 'bg-background text-foreground shadow-sm',
-                      )}
-                    >
-                      Visão Focada
-                    </TabsTrigger>
                   </TabsList>
-                  {isFocusedView && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setActiveTaskTab('list')}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Sair da Visão Focada
-                    </Button>
-                  )}
                 </div>
 
-                <TabsContent value="list" className="mt-0">
+                <TabsContent value="focused" className="mt-0">
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4 mt-2 print:hidden">
                     <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
                       <div className="relative w-full sm:w-64">
@@ -1002,17 +963,8 @@ export default function DisciplineDetails() {
                   </div>
 
                   {filteredTasks.length > 0 ? (
-                    <div
-                      className={cn(
-                        'rounded-md border overflow-x-auto',
-                        isFocusedView && 'bg-background shadow-sm',
-                      )}
-                    >
-                      <Table
-                        className={cn(
-                          isFocusedView && '[&_td]:py-2 [&_td]:px-3 [&_th]:py-3 [&_th]:px-3',
-                        )}
-                      >
+                    <div className="rounded-md border overflow-x-auto bg-background shadow-sm">
+                      <Table className="[&_td]:py-2 [&_td]:px-3 [&_th]:py-3 [&_th]:px-3">
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-[40px]">
@@ -1586,15 +1538,13 @@ export default function DisciplineDetails() {
                 )}
               </CardContent>
             </Card>
-          )}
 
-          {!isFocusedView && <ModuleVersions module={module} />}
+          <ModuleVersions module={module} />
         </div>
 
-        {!isFocusedView && (
-          <div className="space-y-6 print:hidden">
-            <Card>
-              <CardHeader>
+        <div className="space-y-6 print:hidden">
+          <Card>
+            <CardHeader>
                 <CardTitle className="text-lg">Equipe Responsável</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -1710,8 +1660,7 @@ export default function DisciplineDetails() {
                 </ScrollArea>
               </CardContent>
             </Card>
-          </div>
-        )}
+        </div>
       </div>
 
       {selectedTaskIds.length > 0 && (

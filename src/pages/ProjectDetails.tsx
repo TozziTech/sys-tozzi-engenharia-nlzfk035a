@@ -58,7 +58,6 @@ import {
 } from '@/components/ui/table'
 import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
-import { ProjectModules } from '@/components/ProjectModules'
 import { ProjectDisciplinesTab } from '@/components/ProjectDisciplinesTab'
 import { ProjectTreeGrid } from '@/components/ProjectTreeGrid'
 import { ProjectFinanceTab } from '@/components/ProjectFinanceTab'
@@ -441,7 +440,9 @@ export default function ProjectDetails() {
             </CardContent>
           </Card>
 
-          <ProjectDisciplinesTab projectId={project.id} />
+          <div className="w-full">
+            <ProjectDisciplinesTab projectId={project.id} />
+          </div>
 
           <Card>
             <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
@@ -541,7 +542,9 @@ export default function ProjectDetails() {
             </CardContent>
           </Card>
 
-          <ProjectTreeGrid projectId={project.id} />
+          <div className="w-full">
+            <ProjectTreeGrid projectId={project.id} />
+          </div>
 
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -853,7 +856,9 @@ export default function ProjectDetails() {
             </TabsContent>
 
             <TabsContent value="finance" className="mt-4 space-y-6">
-              <ProjectFinanceTab project={project} />
+              <div className="w-full">
+                <ProjectFinanceTab project={project} />
+              </div>
             </TabsContent>
           </Tabs>
         </div>
@@ -912,7 +917,9 @@ export default function ProjectDetails() {
             </CardContent>
           </Card>
 
-          <ProjectComments projectId={project.id} />
+          <div className="w-full">
+            <ProjectComments projectId={project.id} />
+          </div>
         </div>
       </div>
 

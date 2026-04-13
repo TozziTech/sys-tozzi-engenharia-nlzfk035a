@@ -34,6 +34,10 @@ export function EditTransactionModal({
   const { categories } = useFinancialCategories()
 
   const [formError, setFormError] = useState<string | null>(null)
+  const [existingAttachment, setExistingAttachment] = useState<string | null>(null)
+  const [newAttachment, setNewAttachment] = useState<File | null>(null)
+  const [removeAttachment, setRemoveAttachment] = useState(false)
+
   const [formData, setFormData] = useState({
     description: '',
     type: 'Entrada',
@@ -50,6 +54,9 @@ export function EditTransactionModal({
   useEffect(() => {
     if (transaction && open) {
       setFormError(null)
+      setExistingAttachment(transaction.attachment || null)
+      setNewAttachment(null)
+      setRemoveAttachment(false)
       setFormData({
         description: transaction.description || '',
         type: transaction.type || 'Entrada',
@@ -93,7 +100,7 @@ export function EditTransactionModal({
     setFormError(null)
 
     try {
-      await pb.collection('financial_records').update(transaction.id, {
+      const data: any = {
         description: formData.description,
         type: formData.type,
         amount: formData.value,
@@ -107,7 +114,15 @@ export function EditTransactionModal({
           formData.is_recurring && formData.end_date
             ? new Date(formData.end_date).toISOString()
             : null,
-      })
+      }
+
+      if (newAttachment) {
+        data.attachment = newAttachment
+      } else if (removeAttachment) {
+        data.attachment = null
+      }
+
+      await pb.collection('financial_records').update(transaction.id, data)
       onOpenChange(false)
     } catch (err) {
       console.error(err)
@@ -189,6 +204,31 @@ export function EditTransactionModal({
                 <SelectItem value="Pago">Pago</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <Label>Comprovante/Anexo</Label>
+            {existingAttachment && !removeAttachment && !newAttachment ? (
+              <div className="flex items-center gap-4 p-2 border rounded-md">
+                <span className="text-sm truncate max-w-[200px]">{existingAttachment}</span>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setRemoveAttachment(true)}
+                >
+                  Remover
+                </Button>
+              </div>
+            ) : (
+              <Input
+                type="file"
+                accept=".pdf,image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  setNewAttachment(e.target.files?.[0] || null)
+                  if (e.target.files?.[0]) setRemoveAttachment(false)
+                }}
+              />
+            )}
           </div>
           <div className="col-span-2 space-y-2">
             <Label>Projeto Vinculado</Label>

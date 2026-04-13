@@ -52,6 +52,7 @@ export function TransactionModal() {
     is_recurring: false,
     frequency: 'Mensal',
     end_date: '',
+    attachment: null as File | null,
   })
 
   const handleSubmit = () => {
@@ -65,7 +66,7 @@ export function TransactionModal() {
       return
     }
     setFormError(null)
-    addTransaction({
+    const payload: any = {
       description: formData.description,
       type: formData.type as any,
       value: formData.value,
@@ -78,7 +79,13 @@ export function TransactionModal() {
       end_date:
         formData.is_recurring && formData.end_date ? new Date(formData.end_date).toISOString() : '',
       recurrence_group_id: formData.is_recurring ? crypto.randomUUID() : '',
-    } as any)
+    }
+
+    if (formData.attachment) {
+      payload.attachment = formData.attachment
+    }
+
+    addTransaction(payload)
     setIsOpen(false)
     setFormData({
       type: 'Entrada',
@@ -91,6 +98,7 @@ export function TransactionModal() {
       is_recurring: false,
       frequency: 'Mensal',
       end_date: '',
+      attachment: null,
     })
   }
 
@@ -167,6 +175,16 @@ export function TransactionModal() {
                 <SelectItem value="Pago">Pago</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="col-span-2 space-y-2">
+            <Label>Comprovante/Anexo</Label>
+            <Input
+              type="file"
+              accept=".pdf,image/jpeg,image/png,image/webp"
+              onChange={(e) =>
+                setFormData({ ...formData, attachment: e.target.files?.[0] || null })
+              }
+            />
           </div>
           <div className="col-span-2 space-y-2">
             <Label>Projeto Vinculado</Label>

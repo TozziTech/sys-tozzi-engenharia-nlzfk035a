@@ -9,6 +9,7 @@ import {
   Trash2,
   Download,
   FileText,
+  Paperclip,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -170,13 +171,14 @@ export function FinancialTransactions() {
                   <TableHead>Data</TableHead>
                   <TableHead>Projeto</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-[60px]">Anexo</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTransactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-slate-500">
+                    <TableCell colSpan={9} className="text-center py-12 text-slate-500">
                       Nenhuma transação encontrada.
                     </TableCell>
                   </TableRow>
@@ -244,6 +246,25 @@ export function FinancialTransactions() {
                             >
                               Pendente
                             </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {tx.attachment && (
+                            <Button variant="ghost" size="icon" asChild title="Ver Anexo">
+                              <a
+                                href={pb.files.getURL(
+                                  {
+                                    id: tx.id,
+                                    collectionId: (tx as any).collectionId || 'financial_records',
+                                  } as any,
+                                  tx.attachment,
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Paperclip className="h-4 w-4" />
+                              </a>
+                            </Button>
                           )}
                         </TableCell>
                         <TableCell>

@@ -41,16 +41,21 @@ export function CreateTaskDialog({
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [parentTask, setParentTask] = useState('none')
+  const [responsible, setResponsible] = useState('none')
 
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [users, setUsers] = useState<any[]>([])
 
   useEffect(() => {
     if (open) {
       setTitle('')
       setDueDate('')
       setParentTask('none')
+      setResponsible('none')
       setErrors({})
+
+      pb.collection('users').getFullList({ sort: 'name' }).then(setUsers).catch(console.error)
     }
   }, [open])
 
@@ -83,6 +88,10 @@ export function CreateTaskDialog({
 
       if (parentTask && parentTask !== 'none') {
         data.parent_task = parentTask
+      }
+
+      if (responsible && responsible !== 'none') {
+        data.responsible = responsible
       }
 
       await createTask(data)
@@ -130,6 +139,23 @@ export function CreateTaskDialog({
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
             />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="responsible">Responsável</Label>
+            <Select value={responsible} onValueChange={setResponsible}>
+              <SelectTrigger id="responsible">
+                <SelectValue placeholder="Sem responsável" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem responsável</SelectItem>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-2">

@@ -106,6 +106,7 @@ export default function DisciplineDetails() {
   const [module, setModule] = useState<ProjectModule | null>(null)
   const [tasks, setTasks] = useState<any[]>([])
   const [logs, setLogs] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -127,6 +128,7 @@ export default function DisciplineDetails() {
   // Column Visibility State
   const [visibleColumns, setVisibleColumns] = useState({
     descricao: true,
+    responsavel: true,
     status: true,
     data: true,
     acoes: true,
@@ -173,11 +175,17 @@ export default function DisciplineDetails() {
       })
       setModule(mod)
 
-      const moduleTasks = await pb.collection('tasks').getFullList({
-        filter: `module = "${moduleId}"`,
-        sort: 'ordem,due_date',
-      })
+      const [moduleTasks, usersList] = await Promise.all([
+        pb.collection('tasks').getFullList({
+          filter: `module = "${moduleId}"`,
+          sort: 'ordem,due_date',
+          expand: 'responsible',
+        }),
+        pb.collection('users').getFullList({ sort: 'name' }),
+      ])
+
       setTasks(moduleTasks)
+      setUsers(usersList)
 
       const moduleLogs = await pb.collection('audit_logs').getFullList({
         filter: `resource = 'project_modules' || resource = 'tasks'`,
@@ -852,6 +860,14 @@ export default function DisciplineDetails() {
                             Descrição
                           </DropdownMenuCheckboxItem>
                           <DropdownMenuCheckboxItem
+                            checked={visibleColumns.responsavel}
+                            onCheckedChange={(c) =>
+                              setVisibleColumns((p) => ({ ...p, responsavel: !!c }))
+                            }
+                          >
+                            Responsável
+                          </DropdownMenuCheckboxItem>
+                          <DropdownMenuCheckboxItem
                             checked={visibleColumns.status}
                             onCheckedChange={(c) =>
                               setVisibleColumns((p) => ({ ...p, status: !!c }))
@@ -930,6 +946,23 @@ export default function DisciplineDetails() {
                                       <p className="max-w-[200px] text-xs">
                                         Refere-se ao título ou resumo da atividade técnica a ser
                                         executada.
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </TableHead>
+                            )}
+                            {visibleColumns.responsavel && (
+                              <TableHead>
+                                <div className="flex items-center gap-1.5">
+                                  Responsável
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="max-w-[200px] text-xs">
+                                        Pessoa encarregada de realizar a tarefa.
                                       </p>
                                     </TooltipContent>
                                   </Tooltip>
@@ -1072,6 +1105,67 @@ export default function DisciplineDetails() {
                                         </span>
                                       )}
                                     </div>
+                                  </TableCell>
+                                )}
+                                {visibleColumns.responsavel && (
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Select
+                                      value={task.responsible || 'unassigned'}
+                                      onValueChange={async (val) => {
+                                        try {
+                                          const newValue = val === 'unassigned' ? null : val
+                                          await pb
+                                            .collection('tasks')
+                                            .update(task.id, { responsible: newValue })
+                                          setTasks((prev) =>
+                                            prev.map((t) =>
+                                              t.id === task.id
+                                                ? { ...t, responsible: newValue }
+                                                : t,
+                                            ),
+                                          )
+                                          toast({ title: 'Responsável atualizado' })
+                                        } catch (e: any) {
+                                          toast({
+                                            title: 'Erro',
+                                            description:
+                                              'Não foi possível atualizar o responsável.',
+                                            variant: 'destructive',
+                                          })
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-8 w-[140px] text-xs border-dashed focus:ring-0 focus:ring-offset-0">
+                                        <SelectValue placeholder="Atribuir" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem
+                                          value="unassigned"
+                                          className="text-muted-foreground italic"
+                                        >
+                                          Sem responsável
+                                        </SelectItem>
+                                        {users.map((u) => (
+                                          <SelectItem key={u.id} value={u.id}>
+                                            <div className="flex items-center gap-2">
+                                              <Avatar className="h-5 w-5">
+                                                <AvatarImage
+                                                  src={
+                                                    u.avatar
+                                                      ? pb.files.getURL(u, u.avatar)
+                                                      : undefined
+                                                  }
+                                                />
+                                                <AvatarFallback className="text-[10px]">
+                                                  {u.name?.charAt(0) || 'U'}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                              <span>{u.name}</span>
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   </TableCell>
                                 )}
                                 {visibleColumns.status && (
@@ -1592,6 +1686,7 @@ export default function DisciplineDetails() {
         onOpenChange={setIsTaskSheetOpen}
         projectId={id || ''}
         onTaskUpdated={loadData}
+        users={users}
       />
     </div>
   )

@@ -61,6 +61,7 @@ export interface Task {
   id: string
   projectId: string
   name: string
+  responsible?: string
 }
 
 export interface Comment {

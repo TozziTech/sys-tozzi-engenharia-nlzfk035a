@@ -11,6 +11,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import pb from '@/lib/pocketbase/client'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 import { Button } from '@/components/ui/button'
 
@@ -20,16 +28,25 @@ interface TaskSheetProps {
   onOpenChange: (open: boolean) => void
   projectId: string
   onTaskUpdated: () => void
+  users?: any[]
 }
 
-export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }: TaskSheetProps) {
+export function TaskSheet({
+  task,
+  open,
+  onOpenChange,
+  projectId,
+  onTaskUpdated,
+  users = [],
+}: TaskSheetProps) {
   const [title, setTitle] = useState('')
   const [concluida, setConcluida] = useState(false)
   const [descricao, setDescricao] = useState('')
+  const [responsible, setResponsible] = useState<string>('unassigned')
   const [thId, setThId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const stateRef = useRef({ title, concluida, descricao, thId })
+  const stateRef = useRef({ title, concluida, descricao, responsible, thId })
 
   useEffect(() => {
     async function fetchTaskData() {
@@ -39,6 +56,7 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
         let fetchedTitle = task.title || task.titulo || ''
         let fetchedConcluida = task.status === 'Concluído' || task.concluida === true
         let fetchedDesc = task.description || task.descricao || ''
+        let fetchedResponsible = task.responsible || 'unassigned'
 
         try {
           const th = await pb
@@ -57,12 +75,14 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
         setConcluida(fetchedConcluida)
 
         setDescricao(fetchedDesc)
+        setResponsible(fetchedResponsible)
         setThId(fetchedThId)
 
         stateRef.current = {
           title: fetchedTitle,
           concluida: fetchedConcluida,
           descricao: fetchedDesc,
+          responsible: fetchedResponsible,
           thId: fetchedThId,
         }
         setIsLoading(false)
@@ -72,8 +92,8 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
   }, [task, open, projectId])
 
   useEffect(() => {
-    stateRef.current = { title, concluida, descricao, thId }
-  }, [title, concluida, descricao, thId])
+    stateRef.current = { title, concluida, descricao, responsible, thId }
+  }, [title, concluida, descricao, responsible, thId])
 
   const saveChanges = useCallback(async () => {
     if (!task || !projectId || isLoading) return
@@ -85,6 +105,7 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
         title: current.title,
         status: statusStr,
         description: current.descricao,
+        responsible: current.responsible === 'unassigned' ? null : current.responsible,
       })
 
       if (current.thId) {
@@ -119,7 +140,7 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
       saveChanges()
     }, 800)
     return () => clearTimeout(timer)
-  }, [title, concluida, descricao, task, open, isLoading, saveChanges])
+  }, [title, concluida, descricao, responsible, task, open, isLoading, saveChanges])
 
   const handleClose = async (isOpen: boolean) => {
     if (!isOpen) {
@@ -173,6 +194,35 @@ export function TaskSheet({ task, open, onOpenChange, projectId, onTaskUpdated }
                 Marcar como concluída
               </Label>
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Responsável
+            </Label>
+            <Select value={responsible} onValueChange={setResponsible} disabled={isLoading}>
+              <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-900 border-dashed">
+                <SelectValue placeholder="Atribuir responsável" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned" className="text-muted-foreground italic">
+                  Sem responsável
+                </SelectItem>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={u.avatar ? pb.files.getURL(u, u.avatar) : undefined} />
+                        <AvatarFallback className="text-[10px]">
+                          {u.name?.charAt(0) || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{u.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-3">

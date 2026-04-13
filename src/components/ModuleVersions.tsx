@@ -145,7 +145,7 @@ export function ModuleVersions({ module }: { module: any }) {
   }
 
   return (
-    <>
+    <div className="w-full flex flex-col">
       <div className="hidden print:block w-full text-black">
         <div className="mb-6">
           <h2 className="text-2xl font-bold">Relatório de Auditoria de Versões</h2>
@@ -363,10 +363,10 @@ export function ModuleVersions({ module }: { module: any }) {
                         })}
                       </span>
                       {version.expand?.approved_by && (
-                        <>
+                        <span className="flex items-center gap-2">
                           <span>•</span>
                           <span>Aprovado por {version.expand.approved_by.name}</span>
-                        </>
+                        </span>
                       )}
                     </div>
                   </div>
@@ -451,6 +451,6 @@ export function ModuleVersions({ module }: { module: any }) {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }

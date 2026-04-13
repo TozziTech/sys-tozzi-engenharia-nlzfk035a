@@ -4,6 +4,7 @@ import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ProjectProvider } from '@/stores/useProjectStore'
 import Dashboard from './pages/Dashboard'
+import ExecutiveDashboard from './pages/ExecutiveDashboard'
 import DeadlineAudit from './pages/DeadlineAudit'
 import DesignerPanel from './pages/DesignerPanel'
 import MeuPainel from './pages/MeuPainel'
@@ -52,6 +53,7 @@ const App = () => (
                 <Route element={<Layout />}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
                   <Route path="/meu-painel" element={<MeuPainel />} />
                   <Route path="/designer-panel" element={<DesignerPanel />} />
                   <Route path="/projects" element={<Projects />} />

@@ -42,6 +42,7 @@ const navigationGroups = [
     label: 'Gestão',
     items: [
       { name: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
+      { name: 'Visão Executiva', href: '/executive-dashboard', icon: LineChart },
       { name: 'Dashboard Geral', href: '/dashboard', icon: LayoutDashboard },
       { name: 'Dashboard Financeiro', href: '/financial-dashboard', icon: LineChart },
       { name: 'Diagnóstico', href: '/diagnostics', icon: AlertTriangle },

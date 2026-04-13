@@ -4,8 +4,9 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import useProjectStore from '@/stores/useProjectStore'
+import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { useTheme } from 'next-themes'
 import { useThemeColor } from '@/components/ThemeProvider'
@@ -20,6 +21,19 @@ export default function Settings() {
   const { theme, setTheme } = useTheme()
   const { themeColor, setThemeColor } = useThemeColor()
 
+  // Company Settings State
+  const [companyForm, setCompanyForm] = useState({
+    id: '',
+    company_name: '',
+    cnpj: '',
+    address: '',
+    phone: '',
+    logo: '',
+  })
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState('')
+  const [savingCompany, setSavingCompany] = useState(false)
+
   const colors = [
     { name: 'Zinc', value: 'zinc', colorClass: 'bg-zinc-900 dark:bg-zinc-100' },
     { name: 'Blue', value: 'blue', colorClass: 'bg-blue-600' },
@@ -27,6 +41,69 @@ export default function Settings() {
     { name: 'Rose', value: 'rose', colorClass: 'bg-rose-600' },
     { name: 'Orange', value: 'orange', colorClass: 'bg-orange-500' },
   ] as const
+
+  useEffect(() => {
+    pb.collection('company_settings')
+      .getFirstListItem('')
+      .then((record) => {
+        setCompanyForm({
+          id: record.id,
+          company_name: record.company_name || '',
+          cnpj: record.cnpj || '',
+          address: record.address || '',
+          phone: record.phone || '',
+          logo: record.logo || '',
+        })
+        if (record.logo) {
+          setLogoPreview(
+            `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${record.id}/${record.logo}`,
+          )
+        }
+      })
+      .catch(() => {}) // Ignore if no settings exist yet
+  }, [])
+
+  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '')
+    if (value.length > 14) value = value.slice(0, 14)
+    value = value.replace(/^(\d{2})(\d)/, '$1.$2')
+    value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    value = value.replace(/\.(\d{3})(\d)/, '.$1/$2')
+    value = value.replace(/(\d{4})(\d)/, '$1-$2')
+    setCompanyForm({ ...companyForm, cnpj: value })
+  }
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '')
+    if (value.length > 11) value = value.slice(0, 11)
+    value = value.replace(/^(\d{2})(\d)/g, '($1) $2')
+    value = value.replace(/(\d)(\d{4})$/, '$1-$2')
+    setCompanyForm({ ...companyForm, phone: value })
+  }
+
+  const handleSaveCompany = async () => {
+    setSavingCompany(true)
+    try {
+      const formData = new FormData()
+      formData.append('company_name', companyForm.company_name)
+      formData.append('cnpj', companyForm.cnpj)
+      formData.append('address', companyForm.address)
+      formData.append('phone', companyForm.phone)
+      if (logoFile) formData.append('logo', logoFile)
+
+      if (companyForm.id) {
+        await pb.collection('company_settings').update(companyForm.id, formData)
+      } else {
+        const res = await pb.collection('company_settings').create(formData)
+        setCompanyForm((prev) => ({ ...prev, id: res.id }))
+      }
+      toast({ title: 'Dados da empresa salvos com sucesso!' })
+    } catch (e) {
+      toast({ title: 'Erro ao salvar os dados da empresa', variant: 'destructive' })
+    } finally {
+      setSavingCompany(false)
+    }
+  }
 
   const handleSaveSlack = () => {
     setSlackWebhookUrl(webhookInput)
@@ -46,6 +123,89 @@ export default function Settings() {
       </div>
 
       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Dados da Empresa</CardTitle>
+            <CardDescription>
+              Gerencie as informações corporativas e o logotipo para os relatórios e exportações.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <Label htmlFor="company_name">Razão Social / Nome Fantasia</Label>
+                <Input
+                  id="company_name"
+                  value={companyForm.company_name}
+                  onChange={(e) => setCompanyForm({ ...companyForm, company_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cnpj">CNPJ</Label>
+                <Input
+                  id="cnpj"
+                  value={companyForm.cnpj}
+                  onChange={handleCnpjChange}
+                  placeholder="00.000.000/0000-00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Endereço Completo</Label>
+                <Input
+                  id="address"
+                  value={companyForm.address}
+                  onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input
+                  id="phone"
+                  value={companyForm.phone}
+                  onChange={handlePhoneChange}
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="logo">Logotipo (PNG, JPG, SVG)</Label>
+                <div className="flex items-center gap-4 mt-1">
+                  {logoPreview ? (
+                    <div className="relative h-16 w-32 border rounded-md overflow-hidden bg-white/50 flex items-center justify-center">
+                      <img
+                        src={logoPreview}
+                        alt="Logo"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-16 w-32 border rounded-md border-dashed flex items-center justify-center text-xs text-muted-foreground bg-muted/20">
+                      Sem logo
+                    </div>
+                  )}
+                  <Input
+                    id="logo"
+                    type="file"
+                    accept="image/png, image/jpeg, image/svg+xml"
+                    className="flex-1"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        setLogoFile(file)
+                        setLogoPreview(URL.createObjectURL(file))
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="pt-2 flex justify-end">
+              <Button onClick={handleSaveCompany} disabled={savingCompany}>
+                {savingCompany ? 'Salvando...' : 'Salvar Empresa'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Aparência</CardTitle>
@@ -148,8 +308,8 @@ export default function Settings() {
                 className="bg-slate-50 dark:bg-slate-900"
               />
             </div>
-            <div className="pt-2">
-              <Button>Salvar Alterações</Button>
+            <div className="pt-2 flex justify-end">
+              <Button>Salvar Perfil</Button>
             </div>
           </CardContent>
         </Card>

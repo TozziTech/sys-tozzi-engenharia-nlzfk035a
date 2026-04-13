@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { getBankAccounts, deleteBankAccount, type BankAccount } from '@/services/bank_accounts'
 import { useRealtime } from '@/hooks/use-realtime'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Plus, Pencil, Trash2, Landmark, Wallet, CreditCard } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { BankAccountForm } from '@/components/bank-accounts/BankAccountForm'
 import {
@@ -47,6 +47,10 @@ export default function BankAccounts() {
 
   useRealtime('bank_accounts', () => loadAccounts())
 
+  const globalBalance = useMemo(() => {
+    return accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
+  }, [accounts])
+
   const handleDelete = async (id: string) => {
     try {
       await deleteBankAccount(id)
@@ -69,103 +73,135 @@ export default function BankAccounts() {
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
+  const getBadgeVariant = (type: string) => {
+    switch (type) {
+      case 'Corrente':
+        return 'default'
+      case 'Poupança':
+        return 'secondary'
+      case 'Investimento':
+        return 'outline'
+      default:
+        return 'secondary'
+    }
+  }
+
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in-up duration-300">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Contas Bancárias</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Landmark className="h-8 w-8 text-primary" />
+            Contas Bancárias
+          </h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie as instituições financeiras e saldos da empresa.
+            Gerencie as instituições financeiras e o saldo consolidado da empresa.
           </p>
         </div>
-        <Button onClick={openNew}>
+        <Button onClick={openNew} className="shrink-0">
           <Plus className="mr-2 h-4 w-4" />
           Nova Conta
         </Button>
       </div>
 
-      <div className="rounded-md border bg-card shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="text-center font-semibold">Nome</TableHead>
-              <TableHead className="text-center font-semibold">Banco</TableHead>
-              <TableHead className="text-center font-semibold">Agência / Conta</TableHead>
-              <TableHead className="text-center font-semibold">Tipo</TableHead>
-              <TableHead className="text-center font-semibold">Saldo</TableHead>
-              <TableHead className="text-center font-semibold w-[120px]">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {accounts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  Nenhuma conta bancária cadastrada.
-                </TableCell>
-              </TableRow>
-            ) : (
-              accounts.map((acc) => (
-                <TableRow key={acc.id} className="hover:bg-muted/30 transition-colors">
-                  <TableCell className="font-medium text-center">{acc.name}</TableCell>
-                  <TableCell className="text-center">{acc.bank_name}</TableCell>
-                  <TableCell className="text-center text-muted-foreground">
-                    {acc.agency || '-'} / {acc.account_number || '-'}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="secondary" className="mx-auto font-normal">
-                      {acc.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center font-medium">
-                    {formatCurrency(acc.balance)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEdit(acc)}
-                        className="h-8 w-8 hover:bg-muted"
+      <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-primary" />
+            Saldo Consolidado Global
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-4xl font-bold tracking-tight text-foreground">
+            {formatCurrency(globalBalance)}
+          </div>
+        </CardContent>
+      </Card>
+
+      {accounts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 px-4 border-2 border-dashed rounded-lg bg-card/50 text-center">
+          <CreditCard className="h-12 w-12 text-muted-foreground/50 mb-4" />
+          <h3 className="text-lg font-medium mb-1">Nenhuma conta encontrada</h3>
+          <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+            Você ainda não cadastrou nenhuma conta bancária. Adicione sua primeira conta para
+            começar a gerenciar os saldos.
+          </p>
+          <Button onClick={openNew} variant="secondary">
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar Primeira Conta
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {accounts.map((acc) => (
+            <Card key={acc.id} className="flex flex-col hover:shadow-md transition-shadow">
+              <CardHeader className="pb-4">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg line-clamp-1" title={acc.name}>
+                      {acc.name}
+                    </CardTitle>
+                    <CardDescription className="font-medium">{acc.bank_name}</CardDescription>
+                  </div>
+                  <Badge variant={getBadgeVariant(acc.type)} className="shrink-0">
+                    {acc.type}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 pb-4">
+                <div className="text-2xl font-bold mb-2">{formatCurrency(acc.balance)}</div>
+                <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  <span>
+                    Ag: {acc.agency || 'N/A'} • CC: {acc.account_number || 'N/A'}
+                  </span>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2 border-t bg-muted/20 pt-4 pb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openEdit(acc)}
+                  className="bg-background"
+                >
+                  <Pencil className="h-4 w-4 mr-1.5" />
+                  Editar
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10 border-destructive/20 bg-background"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1.5" />
+                      Excluir
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tem certeza que deseja excluir a conta "{acc.name}"? Esta ação não pode ser
+                        desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDelete(acc.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja excluir a conta "{acc.name}"? Esta ação não
-                              pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(acc.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <BankAccountForm open={isFormOpen} onOpenChange={setIsFormOpen} account={editingAccount} />
     </div>

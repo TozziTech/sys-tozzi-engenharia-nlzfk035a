@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T22:08:27.890Z",
+  "generatedAt": "2026-04-13T22:26:13.629Z",
   "collections": [
     {
       "name": "users",
@@ -162,6 +162,18 @@
         },
         {
           "name": "altPhone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "birth_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
           "type": "text",
           "required": false,
           "system": false

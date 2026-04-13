@@ -20,7 +20,6 @@ export function PrintDashboardReport({
   userName,
   printMode,
 }: PrintDashboardReportProps) {
-  if (printMode !== 'dashboard') return null
   const { receitas, despesas, saldo } = useMemo(() => {
     const currentMonth = new Date().getMonth()
     const currentYear = new Date().getFullYear()
@@ -43,6 +42,8 @@ export function PrintDashboardReport({
 
     return { receitas: rec, despesas: des, saldo: rec - des }
   }, [financials])
+
+  if (printMode !== 'dashboard') return null
 
   const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(
     new Date(),

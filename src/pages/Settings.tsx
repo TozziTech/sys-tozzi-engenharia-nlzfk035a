@@ -55,7 +55,8 @@ export default function Settings() {
           phone: record.phone || '',
           logo: record.logo || '',
           primary_color: record.primary_color || '#0f172a',
-        })        if (record.logo) {
+        })
+        if (record.logo) {
           setLogoPreview(
             `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${record.id}/${record.logo}`,
           )
@@ -175,13 +176,17 @@ export default function Settings() {
                     id="primary_color"
                     type="color"
                     value={companyForm.primary_color || '#0f172a'}
-                    onChange={(e) => setCompanyForm({ ...companyForm, primary_color: e.target.value })}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, primary_color: e.target.value })
+                    }
                     className="w-16 h-10 p-1 cursor-pointer rounded-md"
                   />
                   <Input
                     type="text"
                     value={companyForm.primary_color || ''}
-                    onChange={(e) => setCompanyForm({ ...companyForm, primary_color: e.target.value })}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, primary_color: e.target.value })
+                    }
                     placeholder="#000000"
                     className="w-32 uppercase"
                     maxLength={7}

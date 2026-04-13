@@ -29,6 +29,7 @@ export default function Settings() {
     address: '',
     phone: '',
     logo: '',
+    primary_color: '#0f172a',
   })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState('')
@@ -53,8 +54,8 @@ export default function Settings() {
           address: record.address || '',
           phone: record.phone || '',
           logo: record.logo || '',
-        })
-        if (record.logo) {
+          primary_color: record.primary_color || '#0f172a',
+        })        if (record.logo) {
           setLogoPreview(
             `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${record.id}/${record.logo}`,
           )
@@ -89,6 +90,7 @@ export default function Settings() {
       formData.append('cnpj', companyForm.cnpj)
       formData.append('address', companyForm.address)
       formData.append('phone', companyForm.phone)
+      formData.append('primary_color', companyForm.primary_color)
       if (logoFile) formData.append('logo', logoFile)
 
       if (companyForm.id) {
@@ -165,6 +167,29 @@ export default function Settings() {
                   onChange={handlePhoneChange}
                   placeholder="(00) 00000-0000"
                 />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="primary_color">Cor Primária (Identidade Visual)</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="primary_color"
+                    type="color"
+                    value={companyForm.primary_color || '#0f172a'}
+                    onChange={(e) => setCompanyForm({ ...companyForm, primary_color: e.target.value })}
+                    className="w-16 h-10 p-1 cursor-pointer rounded-md"
+                  />
+                  <Input
+                    type="text"
+                    value={companyForm.primary_color || ''}
+                    onChange={(e) => setCompanyForm({ ...companyForm, primary_color: e.target.value })}
+                    placeholder="#000000"
+                    className="w-32 uppercase"
+                    maxLength={7}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Esta cor será aplicada aos botões, barras de progresso e relatórios.
+                </p>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="logo">Logotipo (PNG, JPG, SVG)</Label>

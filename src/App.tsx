@@ -38,9 +38,11 @@ import AccessControl from './pages/AccessControl'
 import { AuthProvider } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
 import { AdminGuard } from './components/auth/AdminGuard'
+import { ThemeColorInjector } from './components/ThemeColorInjector'
 
 const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+    <ThemeColorInjector />
     <AuthProvider>
       <ProjectProvider>
         <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>

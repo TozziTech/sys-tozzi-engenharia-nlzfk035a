@@ -28,6 +28,7 @@ export function CompanySettingsModal({
     address: '',
     phone: '',
     logo: '',
+    primary_color: '#0f172a',
   })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState('')
@@ -45,6 +46,7 @@ export function CompanySettingsModal({
             address: record.address || '',
             phone: record.phone || '',
             logo: record.logo || '',
+            primary_color: record.primary_color || '#0f172a',
           })
           if (record.logo) {
             setLogoPreview(
@@ -82,6 +84,7 @@ export function CompanySettingsModal({
       formData.append('cnpj', companyForm.cnpj)
       formData.append('address', companyForm.address)
       formData.append('phone', companyForm.phone)
+      formData.append('primary_color', companyForm.primary_color)
       if (logoFile) formData.append('logo', logoFile)
 
       if (companyForm.id) {
@@ -143,6 +146,26 @@ export function CompanySettingsModal({
               onChange={handlePhoneChange}
               placeholder="(00) 00000-0000"
             />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="modal_primary_color">Cor Primária (Identidade Visual)</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="modal_primary_color"
+                type="color"
+                value={companyForm.primary_color || '#0f172a'}
+                onChange={(e) => setCompanyForm({ ...companyForm, primary_color: e.target.value })}
+                className="w-16 h-10 p-1 cursor-pointer rounded-md"
+              />
+              <Input
+                type="text"
+                value={companyForm.primary_color || ''}
+                onChange={(e) => setCompanyForm({ ...companyForm, primary_color: e.target.value })}
+                placeholder="#000000"
+                className="w-32 uppercase"
+                maxLength={7}
+              />
+            </div>
           </div>
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="modal_logo">Logotipo (PNG, JPG, SVG)</Label>

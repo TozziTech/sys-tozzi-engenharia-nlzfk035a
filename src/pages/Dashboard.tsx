@@ -19,7 +19,14 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { Link } from 'react-router-dom'
 import { Printer } from 'lucide-react'
 import { PrintDashboardReport } from '@/components/PrintDashboardReport'
+import { PrintExecutiveReport } from '@/components/PrintExecutiveReport'
 import { useAuth } from '@/hooks/use-auth'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import { useToast } from '@/hooks/use-toast'
 
 const Dashboard = () => {
@@ -27,16 +34,20 @@ const Dashboard = () => {
   const { toast } = useToast()
   const [projects, setProjects] = useState<any[]>([])
   const [financials, setFinancials] = useState<any[]>([])
+  const [companySettings, setCompanySettings] = useState<any>(null)
+  const [printMode, setPrintMode] = useState<'dashboard' | 'executive' | null>(null)
   const [loading, setLoading] = useState(true)
 
   const loadData = async () => {
     try {
-      const [projs, fins] = await Promise.all([
+      const [projs, fins, settings] = await Promise.all([
         pb.collection('projects').getFullList(),
         pb.collection('financial_records').getFullList({ sort: 'date' }),
+        pb.collection('company_settings').getFullList(),
       ])
       setProjects(projs)
       setFinancials(fins)
+      if (settings.length > 0) setCompanySettings(settings[0])
     } catch (e) {
       console.error(e)
     } finally {
@@ -145,6 +156,14 @@ const Dashboard = () => {
   const activeProjectsCount = projects.filter((p) => p.status !== 'Concluído').length
   const completedProjectsCount = projects.filter((p) => p.status === 'Concluído').length
 
+  const handlePrint = (mode: 'dashboard' | 'executive') => {
+    setPrintMode(mode)
+    setTimeout(() => {
+      window.print()
+      setPrintMode(null)
+    }, 100)
+  }
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 pb-4">
@@ -161,14 +180,22 @@ const Dashboard = () => {
               Gerar Orçamento
             </Button>
           </QuoteGeneratorModal>
-          <Button
-            variant="outline"
-            className="w-full md:w-auto shadow-sm"
-            onClick={() => window.print()}
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Exportar Relatório
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full md:w-auto shadow-sm">
+                <Printer className="mr-2 h-4 w-4" />
+                Exportar Relatórios
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handlePrint('dashboard')}>
+                Dashboard Atual (Resumo)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handlePrint('executive')}>
+                Relatório Executivo (Projetos)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -176,7 +203,15 @@ const Dashboard = () => {
         projects={projects}
         financials={financials}
         bottlenecks={bottlenecks}
+        companySettings={companySettings}
         userName={user?.name || user?.email || 'Administrador'}
+        printMode={printMode}
+      />
+      <PrintExecutiveReport
+        projects={projects}
+        companySettings={companySettings}
+        userName={user?.name || user?.email || 'Administrador'}
+        printMode={printMode}
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 pt-2">

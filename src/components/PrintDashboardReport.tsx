@@ -1,19 +1,26 @@
 import { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 
+import pb from '@/lib/pocketbase/client'
+
 interface PrintDashboardReportProps {
   projects: any[]
   financials: any[]
   bottlenecks: any[]
+  companySettings: any
   userName: string
+  printMode: 'dashboard' | 'executive' | null
 }
 
 export function PrintDashboardReport({
   projects,
   financials,
   bottlenecks,
+  companySettings,
   userName,
+  printMode,
 }: PrintDashboardReportProps) {
+  if (printMode !== 'dashboard') return null
   const { receitas, despesas, saldo } = useMemo(() => {
     const currentMonth = new Date().getMonth()
     const currentYear = new Date().getFullYear()
@@ -58,6 +65,8 @@ export function PrintDashboardReport({
             }
             #dashboard-print-root {
               display: block !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
             @page {
               margin: 1.5cm;
@@ -69,10 +78,27 @@ export function PrintDashboardReport({
         id="dashboard-print-root"
         className="hidden print:block w-full bg-white text-black font-sans"
       >
-        <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Relatório de Gestão</h1>
-            <p className="text-slate-600 mt-1 capitalize">{monthName}</p>
+        <div
+          className="flex justify-between items-start border-b-4 pb-6 mb-8"
+          style={{ borderColor: companySettings?.primary_color || '#1e293b' }}
+        >
+          <div className="flex items-center gap-6">
+            {companySettings?.logo && (
+              <img
+                src={pb.files.getURL(companySettings, companySettings.logo)}
+                alt="Logo"
+                className="w-20 h-20 object-contain"
+              />
+            )}
+            <div>
+              <h1
+                className="text-3xl font-bold text-slate-900"
+                style={{ color: companySettings?.primary_color || '#0f172a' }}
+              >
+                Relatório de Gestão
+              </h1>
+              <p className="text-slate-600 mt-1 capitalize">{monthName}</p>
+            </div>
           </div>
           <div className="text-right text-sm text-slate-600 space-y-1">
             <p>

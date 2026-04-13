@@ -74,6 +74,77 @@
     --sidebar-ring: 212.7 26.8% 83.9%;
   }
 
+  /* Gold Theme */
+  [data-theme-color='gold'] {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 46 65% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 45%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5% 90%;
+    --input: 240 5% 90%;
+    --ring: 46 65% 52%;
+    --radius: 0.5rem;
+    --sidebar-background: 240 5% 98%;
+    --sidebar-foreground: 240 10% 10%;
+    --sidebar-primary: 46 65% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 90%;
+    --sidebar-accent-foreground: 240 10% 10%;
+    --sidebar-border: 240 5% 90%;
+    --sidebar-ring: 46 65% 52%;
+    --chart-1: 46 65% 52%;
+    --chart-2: 240 5% 65%;
+    --chart-3: 46 40% 40%;
+    --chart-4: 240 5% 40%;
+    --chart-5: 46 80% 70%;
+  }
+  .dark[data-theme-color='gold'] {
+    --background: 240 5% 10%;
+    --foreground: 0 0% 95%;
+    --card: 240 5% 13%;
+    --card-foreground: 0 0% 95%;
+    --popover: 240 5% 13%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 46 65% 52%;
+    --primary-foreground: 240 5% 10%;
+    --secondary: 240 5% 18%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 240 5% 18%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 5% 18%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 240 5% 22%;
+    --input: 240 5% 22%;
+    --ring: 46 65% 52%;
+    --sidebar-background: 240 5% 10%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 46 65% 52%;
+    --sidebar-primary-foreground: 240 5% 10%;
+    --sidebar-accent: 240 5% 18%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 240 5% 22%;
+    --sidebar-ring: 46 65% 52%;
+    --chart-1: 46 65% 52%;
+    --chart-2: 240 5% 65%;
+    --chart-3: 46 40% 40%;
+    --chart-4: 240 5% 40%;
+    --chart-5: 46 80% 70%;
+  }
+
   /* Blue Theme */
   [data-theme-color='blue'] {
     --primary: 221.2 83.2% 53.3%;

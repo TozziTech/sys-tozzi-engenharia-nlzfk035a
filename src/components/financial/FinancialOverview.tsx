@@ -38,7 +38,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
         const cId = tx.categoryId || tx.category
         const cat = categories.find((c) => c.id === cId || c.name === cId)
         const catName = cat?.name || 'Sem categoria'
-        const color = cat?.color || '#94a3b8'
+        const color = cat?.color || 'hsl(var(--muted-foreground))'
 
         if (!acc[catName]) {
           acc[catName] = { name: catName, value: 0, fill: color }
@@ -88,8 +88,8 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
   }, [expensesByCategory])
 
   const barConfig = {
-    Entrada: { label: 'Entradas', color: '#10b981' },
-    Saída: { label: 'Saídas', color: '#f43f5e' },
+    Entrada: { label: 'Entradas', color: 'hsl(var(--chart-1))' },
+    Saída: { label: 'Saídas', color: 'hsl(var(--chart-2))' },
   }
 
   return (

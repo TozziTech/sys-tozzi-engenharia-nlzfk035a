@@ -128,7 +128,7 @@ export function Header() {
   })
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b bg-white dark:bg-slate-900 px-4 md:px-6 shadow-sm">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6 shadow-sm">
       <SidebarTrigger className="-ml-1" />
       <div className="flex flex-1 items-center gap-4 md:gap-8">
         <div className="hidden sm:flex items-center">
@@ -147,7 +147,7 @@ export function Header() {
                 variant="outline"
                 role="combobox"
                 aria-expanded={searchOpen}
-                className="w-full justify-start text-muted-foreground bg-slate-100 dark:bg-slate-800 border-transparent md:w-[300px] lg:w-[400px] rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+                className="w-full justify-start text-muted-foreground bg-muted border-transparent md:w-[300px] lg:w-[400px] rounded-full hover:bg-muted/80"
               >
                 <Search className="mr-2 h-4 w-4 shrink-0" />
                 <span className="truncate">Buscar projetos, tarefas, documentos...</span>
@@ -263,7 +263,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="sm"
-              className="hidden md:flex gap-2 text-slate-600 dark:text-slate-300"
+              className="hidden md:flex gap-2 text-muted-foreground hover:text-foreground"
             >
               <Activity className="h-4 w-4" />
               <span>Performance</span>
@@ -289,13 +289,11 @@ export function Header() {
               className="w-[calc(100vw-2rem)] sm:w-80 p-0 mr-4 mt-2 shadow-lg rounded-xl overflow-hidden"
               align="end"
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b bg-rose-50/80 backdrop-blur-sm dark:bg-rose-900/20 border-rose-100 dark:border-rose-900/50">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-destructive/10 backdrop-blur-sm border-destructive/20">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-rose-700 dark:text-rose-400">
-                    Prazos Críticos
-                  </span>
+                  <span className="font-semibold text-sm text-destructive">Prazos Críticos</span>
                   {criticalProjects.length > 0 && (
-                    <span className="flex h-5 items-center justify-center rounded-full bg-rose-200 px-2 text-[10px] font-bold text-rose-700 dark:bg-rose-800 dark:text-rose-200">
+                    <span className="flex h-5 items-center justify-center rounded-full bg-destructive/20 px-2 text-[10px] font-bold text-destructive">
                       {criticalProjects.length}
                     </span>
                   )}
@@ -304,8 +302,8 @@ export function Header() {
               <ScrollArea className="max-h-[360px]">
                 {criticalProjects.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
-                    <div className="p-3 bg-slate-100 rounded-full dark:bg-slate-800">
-                      <Check className="h-6 w-6 text-slate-400 dark:text-slate-500" />
+                    <div className="p-3 bg-muted rounded-full">
+                      <Check className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <span>Nenhum projeto em prazo crítico.</span>
                   </div>
@@ -319,21 +317,16 @@ export function Header() {
                         <div className="flex justify-between items-start gap-3">
                           <Link
                             to={`/projects/${proj.id}`}
-                            className="text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight text-slate-900 dark:text-slate-100"
+                            className="text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight text-foreground"
                           >
                             {proj.name}
                           </Link>
-                          <Badge
-                            variant="destructive"
-                            className="text-[10px] h-5 px-1.5 shrink-0 bg-rose-500 hover:bg-rose-600"
-                          >
+                          <Badge variant="destructive" className="text-[10px] h-5 px-1.5 shrink-0">
                             Crítico
                           </Badge>
                         </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400">
-                          Eng: {proj.engineer}
-                        </p>
-                        <p className="text-[10px] text-slate-500 font-medium mt-1">
+                        <p className="text-xs text-muted-foreground">Eng: {proj.engineer}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium mt-1">
                           Vence em: {new Date(proj.endDate).toLocaleDateString()}
                         </p>
                       </div>
@@ -348,7 +341,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                className="relative text-muted-foreground hover:text-foreground"
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
@@ -362,7 +355,7 @@ export function Header() {
               className="w-[calc(100vw-2rem)] sm:w-80 p-0 mr-4 mt-2 shadow-lg rounded-xl overflow-hidden"
               align="end"
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50/80 backdrop-blur-sm dark:bg-slate-900/80">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50 backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm">Notificações</span>
                   {unreadCount > 0 && (
@@ -385,8 +378,8 @@ export function Header() {
               <ScrollArea className="max-h-[360px]">
                 {allNotifications.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
-                    <div className="p-3 bg-slate-100 rounded-full dark:bg-slate-800">
-                      <Check className="h-6 w-6 text-slate-400 dark:text-slate-500" />
+                    <div className="p-3 bg-muted rounded-full">
+                      <Check className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <span>Tudo em dia! Nenhuma notificação.</span>
                   </div>
@@ -399,13 +392,13 @@ export function Header() {
                       .map((notif) => (
                         <div
                           key={notif.id}
-                          className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group ${!notif.read ? 'bg-primary/5 dark:bg-primary/10 hover:bg-primary/10 dark:hover:bg-primary/20' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                          className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group ${!notif.read ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
                         >
                           <div className="flex justify-between items-start gap-3">
                             <Link
                               to={notif.link || '#'}
                               onClick={() => markNotificationAsRead(notif.id)}
-                              className={`text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight ${!notif.read ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300'}`}
+                              className={`text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight ${!notif.read ? 'text-foreground' : 'text-muted-foreground'}`}
                             >
                               {notif.title}
                             </Link>
@@ -413,11 +406,11 @@ export function Header() {
                               <div className="w-2 h-2 rounded-full bg-primary mt-1 shrink-0" />
                             )}
                           </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                          <p className="text-xs text-muted-foreground leading-relaxed">
                             {notif.description}
                           </p>
                           <div className="flex items-center justify-between mt-1">
-                            <span className="text-[10px] text-slate-400 font-medium">
+                            <span className="text-[10px] text-muted-foreground font-medium">
                               {new Date(notif.timestamp).toLocaleString(undefined, {
                                 day: '2-digit',
                                 month: '2-digit',
@@ -426,7 +419,7 @@ export function Header() {
                               })}
                             </span>
                             {notif.read && (
-                              <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
                                 Lida
                               </span>
                             )}

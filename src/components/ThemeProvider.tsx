@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { ThemeProvider as NextThemesProvider } from 'next-themes'
 
-type ThemeColor = 'zinc' | 'blue' | 'green' | 'rose' | 'orange'
+type ThemeColor = 'zinc' | 'blue' | 'green' | 'rose' | 'orange' | 'gold'
 
 interface ThemeColorContextType {
   themeColor: ThemeColor
@@ -23,7 +23,7 @@ export function ThemeProvider({
   ...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
   const [themeColor, setThemeColor] = React.useState<ThemeColor>(() => {
-    return (localStorage.getItem('theme-color') as ThemeColor) || 'zinc'
+    return (localStorage.getItem('theme-color') as ThemeColor) || 'gold'
   })
 
   React.useEffect(() => {

@@ -23,12 +23,17 @@ export function ThemeToggle() {
     { name: 'Green', value: 'green', colorClass: 'bg-green-600' },
     { name: 'Rose', value: 'rose', colorClass: 'bg-rose-600' },
     { name: 'Orange', value: 'orange', colorClass: 'bg-orange-500' },
+    { name: 'Gold', value: 'gold', colorClass: 'bg-[#D4AF37]' },
   ] as const
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-slate-600 dark:text-slate-300 shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-foreground shrink-0"
+        >
           <Palette className="h-5 w-5 transition-all" />
           <span className="sr-only">Personalizar tema</span>
         </Button>

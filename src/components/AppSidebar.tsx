@@ -83,32 +83,23 @@ export function AppSidebar() {
   const { user } = useAuth()
 
   return (
-    <Sidebar
-      className="border-r border-slate-800"
-      style={
-        {
-          '--sidebar-background': '222.2 84% 4.9%',
-          '--sidebar-foreground': '210 40% 98%',
-          '--sidebar-border': '217.2 32.6% 17.5%',
-          '--sidebar-accent': '217.2 32.6% 17.5%',
-          '--sidebar-accent-foreground': '210 40% 98%',
-        } as React.CSSProperties
-      }
-    >
+    <Sidebar className="border-r border-border">
       <SidebarHeader className="p-4 flex flex-row items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 text-white shadow-sm">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
           <Home className="h-5 w-5" />
         </div>
         <div className="flex flex-col">
-          <span className="font-semibold tracking-tight text-slate-100">Tozzi Engenharia</span>
-          <span className="text-xs text-slate-400">Plataforma</span>
+          <span className="font-semibold tracking-tight text-sidebar-foreground">
+            Tozzi Engenharia
+          </span>
+          <span className="text-xs text-sidebar-foreground/70">Plataforma</span>
         </div>
       </SidebarHeader>
-      <SidebarSeparator className="bg-slate-800" />
+      <SidebarSeparator className="bg-border" />
       <SidebarContent className="scrollbar-hide py-2">
         {navigationGroups.map((group, i) => (
           <SidebarGroup key={group.label} className={i !== 0 ? 'pt-0' : ''}>
-            <SidebarGroupLabel className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mb-1">
+            <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 mb-1">
               {group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -126,8 +117,8 @@ export function AppSidebar() {
                         tooltip={item.name}
                         className={
                           isActive
-                            ? 'bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 hover:text-indigo-300'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+                            ? 'bg-primary/20 text-primary hover:bg-primary/30 hover:text-primary'
+                            : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                         }
                       >
                         <Link to={item.href} className="flex items-center gap-3">
@@ -143,9 +134,12 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter className="p-4 space-y-4 border-t border-slate-800 mt-auto">
+      <SidebarFooter className="p-4 space-y-4 border-t border-border mt-auto">
         <div className="flex items-center justify-between px-2">
-          <Label htmlFor="realtime-sync" className="text-xs text-slate-300 cursor-pointer">
+          <Label
+            htmlFor="realtime-sync"
+            className="text-xs text-sidebar-foreground/80 cursor-pointer"
+          >
             Sync em Tempo Real
           </Label>
           <div className="flex items-center gap-2">
@@ -157,14 +151,14 @@ export function AppSidebar() {
             />
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 p-2 shadow-sm">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-sidebar-accent/50 p-2 shadow-sm">
           <Avatar className="h-9 w-9">
             <AvatarImage src="https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1" />
             <AvatarFallback>AD</AvatarFallback>
           </Avatar>
           <div className="flex flex-col overflow-hidden">
-            <span className="truncate text-sm font-medium text-slate-200">Admin</span>
-            <span className="truncate text-xs text-slate-400">Gestor</span>
+            <span className="truncate text-sm font-medium text-sidebar-foreground">Admin</span>
+            <span className="truncate text-xs text-sidebar-foreground/70">Gestor</span>
           </div>
         </div>
       </SidebarFooter>

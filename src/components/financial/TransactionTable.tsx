@@ -44,9 +44,9 @@ export function TransactionTable({
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   return (
-    <div className="rounded-md border overflow-hidden bg-white dark:bg-slate-950">
+    <div className="rounded-md border overflow-hidden bg-card text-card-foreground">
       <Table>
-        <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
+        <TableHeader className="bg-muted/50">
           <TableRow>
             <TableHead>Descrição</TableHead>
             <TableHead>Categoria</TableHead>
@@ -76,10 +76,7 @@ export function TransactionTable({
                   ? 'TOZZI (Interno)'
                   : projects.find((p: any) => p.id === pId)?.name || 'TOZZI (Interno)'
               return (
-                <TableRow
-                  key={tx.id}
-                  className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
-                >
+                <TableRow key={tx.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       {tx.description}
@@ -94,7 +91,7 @@ export function TransactionTable({
                         {cat.name}
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-slate-500 border-slate-300">
+                      <Badge variant="outline" className="text-muted-foreground border-border">
                         Sem categoria
                       </Badge>
                     )}
@@ -114,7 +111,7 @@ export function TransactionTable({
                     {formatCurrency(tx.value || tx.amount || 0)}
                   </TableCell>
                   <TableCell>{new Date(tx.date).toLocaleDateString('pt-BR')}</TableCell>
-                  <TableCell className="text-slate-600 dark:text-slate-300">{projName}</TableCell>
+                  <TableCell className="text-muted-foreground">{projName}</TableCell>
                   <TableCell>
                     {tx.status === 'Pago' ? (
                       <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white">Pago</Badge>

@@ -39,25 +39,29 @@ export function FinancialCategories() {
   const [editId, setEditId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [color, setColor] = useState('#6366f1')
+  const [monthlyLimit, setMonthlyLimit] = useState<number | ''>('')
 
   const handleOpen = (c?: any) => {
     if (c) {
       setEditId(c.id)
       setName(c.name)
       setColor(c.color || '#6366f1')
+      setMonthlyLimit(c.monthly_limit || '')
     } else {
       setEditId(null)
       setName('')
       setColor('#6366f1')
+      setMonthlyLimit('')
     }
     setIsModalOpen(true)
   }
 
   const handleSave = async () => {
     if (!name.trim()) return
+    const limitVal = monthlyLimit === '' ? null : Number(monthlyLimit)
     try {
-      if (editId) await updateCategory(editId, name.trim(), color)
-      else await addCategory(name.trim(), color)
+      if (editId) await updateCategory(editId, name.trim(), color, limitVal)
+      else await addCategory(name.trim(), color, limitVal)
       setIsModalOpen(false)
     } catch (err) {
       console.error(err)
@@ -104,6 +108,15 @@ export function FinancialCategories() {
                   <span className="text-sm text-slate-500">{color}</span>
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Limite Mensal de Gastos (Opcional)</Label>
+                <Input
+                  type="number"
+                  placeholder="Ex: 1000"
+                  value={monthlyLimit}
+                  onChange={(e) => setMonthlyLimit(e.target.value ? Number(e.target.value) : '')}
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsModalOpen(false)}>
@@ -121,13 +134,14 @@ export function FinancialCategories() {
               <TableRow>
                 <TableHead className="w-16">Cor</TableHead>
                 <TableHead>Nome</TableHead>
+                <TableHead>Limite Mensal</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categories.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-slate-500">
+                  <TableCell colSpan={4} className="text-center py-8 text-slate-500">
                     Nenhuma categoria cadastrada.
                   </TableCell>
                 </TableRow>
@@ -141,6 +155,14 @@ export function FinancialCategories() {
                       />
                     </TableCell>
                     <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>
+                      {c.monthly_limit
+                        ? new Intl.NumberFormat('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          }).format(c.monthly_limit)
+                        : '-'}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon" onClick={() => handleOpen(c)}>

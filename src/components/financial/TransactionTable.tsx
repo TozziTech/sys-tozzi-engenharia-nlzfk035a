@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/select'
 import pb from '@/lib/pocketbase/client'
 import { isBefore, startOfToday, addDays, isWithinInterval, parseISO } from 'date-fns'
+import { Download } from 'lucide-react'
+import { exportFinancialCSV } from '@/lib/export'
 
 interface TableProps {
   transactions: any[]
@@ -105,6 +107,24 @@ export function TransactionTable({
               <SelectItem value="Saída">Saída</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const dataToExport = filteredTransactions.map((tx) => {
+                const cId = tx.categoryId || tx.category
+                const cat = categories.find((c: any) => c.id === cId || c.name === cId)
+                return {
+                  ...tx,
+                  category: cat ? cat.name : 'Sem categoria',
+                }
+              })
+              exportFinancialCSV(dataToExport, 'Filtrado')
+            }}
+            className="ml-auto sm:ml-2"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Exportar CSV
+          </Button>
         </div>
         <div className="text-sm text-muted-foreground">
           Exibindo {filteredTransactions.length} de {transactions.length} registros

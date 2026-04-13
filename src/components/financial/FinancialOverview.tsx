@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Progress } from '@/components/ui/progress'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import {
   ChartContainer,
@@ -96,6 +97,41 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
     Entrada: { label: 'Entradas', color: '#10b981' },
     Saída: { label: 'Saídas', color: '#f43f5e' },
   }
+
+  const monthlyGoals = useMemo(() => {
+    const currentMonth = new Date().getUTCMonth()
+    const currentYear = new Date().getFullYear()
+
+    const expensesThisMonth = transactions.filter((tx) => {
+      if (tx.type !== 'Saída' || !tx.date) return false
+      const d = new Date(tx.date)
+      return d.getUTCMonth() === currentMonth && d.getUTCFullYear() === currentYear
+    })
+
+    return categories
+      .filter((c) => c.monthly_limit && c.monthly_limit > 0)
+      .map((c) => {
+        const spent = expensesThisMonth
+          .filter(
+            (tx) =>
+              (tx.categoryId || tx.category) === c.id || (tx.categoryId || tx.category) === c.name,
+          )
+          .reduce((sum, tx) => sum + (tx.value || tx.amount || 0), 0)
+
+        const limit = c.monthly_limit
+        const percentage = (spent / limit) * 100
+
+        return {
+          id: c.id,
+          name: c.name,
+          spent,
+          limit,
+          percentage,
+          color: c.color || 'hsl(var(--primary))',
+        }
+      })
+      .sort((a, b) => b.percentage - a.percentage)
+  }, [transactions, categories])
 
   return (
     <div className="space-y-6">
@@ -206,6 +242,48 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
           </CardContent>
         </Card>
       </div>
+
+      {monthlyGoals.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Metas de Gastos Mensais</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              {monthlyGoals.map((goal) => {
+                let progressColorClass = 'bg-primary'
+                if (goal.percentage >= 100) {
+                  progressColorClass = 'bg-destructive'
+                } else if (goal.percentage >= 80) {
+                  progressColorClass = 'bg-amber-500'
+                }
+
+                return (
+                  <div key={goal.id} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="font-medium flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: goal.color }}
+                        />
+                        {goal.name}
+                      </div>
+                      <div className="text-muted-foreground font-medium">
+                        {formatCurrency(goal.spent)} / {formatCurrency(goal.limit)}
+                      </div>
+                    </div>
+                    <Progress
+                      value={Math.min(goal.percentage, 100)}
+                      className="h-2"
+                      indicatorClassName={progressColorClass}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

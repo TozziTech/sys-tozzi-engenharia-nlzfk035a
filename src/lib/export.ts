@@ -4,24 +4,28 @@ import { Project } from '@/types/project'
 
 export function exportFinancialCSV(records: any[], periodLabel: string) {
   const headers = [
+    'Identificação',
     'Data',
     'Descrição',
     'Categoria',
     'Conta Bancária',
     'Tipo',
+    'Status',
     'Valor',
     'Conciliado',
   ]
 
   const rows = records.map((r) => {
+    const code = `"${r.code || ''}"`
     const date = `"${format(new Date(r.date || r.created), 'dd/MM/yyyy')}"`
     const desc = `"${(r.description || '').replace(/"/g, '""')}"`
     const cat = `"${(r.category || '').replace(/"/g, '""')}"`
     const account = `"${r.expand?.bank_account?.code ? `${r.expand.bank_account.code} - ` : ''}${(r.expand?.bank_account?.name || r.bank_account || '').replace(/"/g, '""')}"`
     const type = `"${(r.type || '').replace(/"/g, '""')}"`
+    const status = `"${(r.status || 'Pendente').replace(/"/g, '""')}"`
     const val = r.amount ?? r.value ?? 0
     const reconciled = r.reconciled ? '"Sim"' : '"Não"'
-    return [date, desc, cat, account, type, val, reconciled]
+    return [code, date, desc, cat, account, type, status, val, reconciled]
   })
 
   const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')

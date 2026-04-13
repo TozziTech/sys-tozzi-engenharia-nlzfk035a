@@ -89,7 +89,7 @@ export function TaskRow({
       {columns.tarefa && (
         <TableCell className="py-2.5">
           <div className="flex items-center gap-1.5" style={{ paddingLeft: `${depth * 1.5}rem` }}>
-            <div className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800">
+            <div className="grip-handle cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800">
               <GripVertical className="w-3.5 h-3.5 text-slate-400" />
             </div>
 

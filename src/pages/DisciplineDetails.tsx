@@ -364,12 +364,18 @@ export default function DisciplineDetails() {
   }
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
-    if (!(e.target as HTMLElement).closest('.grip-handle')) {
+    const target = e.target as HTMLElement
+    if (!target.closest('.grip-handle')) {
       e.preventDefault()
       return
     }
     setDraggedTaskId(taskId)
     e.dataTransfer.effectAllowed = 'move'
+
+    const row = target.closest('tr')
+    if (row) {
+      e.dataTransfer.setDragImage(row, 20, 20)
+    }
   }
 
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>, targetId: string) => {
@@ -1260,7 +1266,7 @@ export default function DisciplineDetails() {
 
                                     {!isFilterActive ? (
                                       <div className="grip-handle cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-1 shrink-0 px-1 py-2 -ml-1">
-                                        <GripVertical className="h-4 w-4 pointer-events-none" />
+                                        <GripVertical className="h-4 w-4" />
                                       </div>
                                     ) : (
                                       <div className="w-5 shrink-0" />

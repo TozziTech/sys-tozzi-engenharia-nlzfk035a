@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T20:54:29.545Z",
+  "generatedAt": "2026-04-13T21:27:24.585Z",
   "collections": [
     {
       "name": "users",
@@ -123,6 +123,36 @@
             "Estagiário",
             "Visitante"
           ]
+        },
+        {
+          "name": "banco_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "agencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conta",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "chave_pix",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documentos_link",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

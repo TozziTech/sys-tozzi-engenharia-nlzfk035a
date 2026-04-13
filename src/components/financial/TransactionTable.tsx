@@ -50,28 +50,34 @@ export function TransactionTable({
       <Table>
         <TableHeader className="bg-zinc-100 dark:bg-zinc-900/80">
           <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
-            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Data</TableHead>
-            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Tipo</TableHead>
-            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">
+            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+              Data
+            </TableHead>
+            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+              Tipo
+            </TableHead>
+            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
               Categoria
             </TableHead>
-            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">
+            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
               Descrição
             </TableHead>
-            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">
+            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
               Projeto
             </TableHead>
-            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">
+            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
               Responsável
             </TableHead>
-            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Status</TableHead>
-            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300 text-right">
+            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+              Status
+            </TableHead>
+            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
               Valor
             </TableHead>
             <TableHead className="w-[60px] text-center font-semibold text-zinc-700 dark:text-zinc-300">
               Anexo
             </TableHead>
-            <TableHead className="w-[60px]"></TableHead>
+            <TableHead className="w-[60px] text-center"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -100,23 +106,23 @@ export function TransactionTable({
                   key={tx.id}
                   className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 transition-colors"
                 >
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="whitespace-nowrap text-center">
                     {tx.date
                       ? new Date(tx.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
                       : '-'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {tx.type === 'Entrada' ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 inline-flex items-center font-medium">
+                      <span className="text-emerald-600 dark:text-emerald-400 inline-flex items-center justify-center font-medium">
                         <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
                       </span>
                     ) : (
-                      <span className="text-rose-600 dark:text-rose-400 inline-flex items-center font-medium">
+                      <span className="text-rose-600 dark:text-rose-400 inline-flex items-center justify-center font-medium">
                         <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
                       </span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {cat ? (
                       <Badge variant="outline" style={{ borderColor: cat.color, color: cat.color }}>
                         {cat.name}
@@ -127,8 +133,8 @@ export function TransactionTable({
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
-                    <div className="flex items-center gap-2">
+                  <TableCell className="font-medium text-center text-zinc-900 dark:text-zinc-100">
+                    <div className="flex items-center justify-center gap-2">
                       {tx.description}
                       {tx.is_recurring && (
                         <Repeat
@@ -138,11 +144,13 @@ export function TransactionTable({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-zinc-600 dark:text-zinc-400">{projName}</TableCell>
-                  <TableCell className="text-zinc-600 dark:text-zinc-400">
+                  <TableCell className="text-center text-zinc-600 dark:text-zinc-400">
+                    {projName}
+                  </TableCell>
+                  <TableCell className="text-center text-zinc-600 dark:text-zinc-400">
                     {respUser ? respUser.name || respUser.email : '-'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {tx.status === 'Pago' && (
                       <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent">
                         Pago
@@ -171,7 +179,7 @@ export function TransactionTable({
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                  <TableCell className="text-center font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                     {formatCurrency(tx.value || tx.amount || 0)}
                   </TableCell>
                   <TableCell className="text-center">
@@ -199,7 +207,7 @@ export function TransactionTable({
                       </Button>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button

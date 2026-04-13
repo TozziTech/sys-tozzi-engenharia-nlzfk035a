@@ -1,16 +1,5 @@
 import { useState, useMemo } from 'react'
-import {
-  FilterX,
-  ArrowUpRight,
-  ArrowDownRight,
-  Repeat,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Download,
-  FileText,
-  Paperclip,
-} from 'lucide-react'
+import { FilterX, Download, FileText, CalendarIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -19,22 +8,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +28,11 @@ import pb from '@/lib/pocketbase/client'
 import { exportFinancialCSV } from '@/lib/export'
 import { exportFinancialPDF } from '@/lib/exportPdf'
 import { EditTransactionModal } from './EditTransactionModal'
+import { FinancialOverview } from './FinancialOverview'
+import { TransactionTable } from './TransactionTable'
+import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { DateRange } from 'react-day-picker'
+import { cn } from '@/lib/utils'
 
 export function FinancialTransactions() {
   const { projects, transactions } = useProjectStore()
@@ -60,6 +41,10 @@ export function FinancialTransactions() {
 
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  })
   const [editTx, setEditTx] = useState<any>(null)
   const [deleteTx, setDeleteTx] = useState<any>(null)
 
@@ -69,14 +54,30 @@ export function FinancialTransactions() {
         const pId = tx.projectId || (tx as any).project_id
         if (selectedProject !== 'all' && pId !== selectedProject) return false
         if (selectedType !== 'all' && tx.type !== selectedType) return false
+
+        if (dateRange?.from) {
+          const txDate = new Date(tx.date)
+          txDate.setHours(0, 0, 0, 0)
+          const fromDate = new Date(dateRange.from)
+          fromDate.setHours(0, 0, 0, 0)
+          if (txDate < fromDate) return false
+        }
+        if (dateRange?.to) {
+          const txDate = new Date(tx.date)
+          txDate.setHours(0, 0, 0, 0)
+          const toDate = new Date(dateRange.to)
+          toDate.setHours(23, 59, 59, 999)
+          if (txDate > toDate) return false
+        }
         return true
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [transactions, selectedProject, selectedType])
+  }, [transactions, selectedProject, selectedType, dateRange])
 
   const clearFilters = () => {
     setSelectedProject('all')
     setSelectedType('all')
+    setDateRange(undefined)
   }
 
   const handleDelete = async () => {
@@ -104,16 +105,48 @@ export function FinancialTransactions() {
     exportFinancialPDF(filteredTransactions, totals, 'Filtrado', user?.name || 'Usuário')
   }
 
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+      <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap gap-4 w-full xl:w-auto items-center">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={'outline'}
+                className={cn(
+                  'w-full sm:w-[260px] justify-start text-left font-normal bg-white dark:bg-slate-950',
+                  !dateRange && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to, 'dd/MM/yyyy')}
+                    </>
+                  ) : (
+                    format(dateRange.from, 'dd/MM/yyyy')
+                  )
+                ) : (
+                  <span>Filtrar por data</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+
           <Select value={selectedProject} onValueChange={setSelectedProject}>
-            <SelectTrigger className="w-full sm:w-[250px] bg-white dark:bg-slate-950">
-              <SelectValue placeholder="Filtrar por Projeto" />
+            <SelectTrigger className="w-full sm:w-[200px] bg-white dark:bg-slate-950">
+              <SelectValue placeholder="Projeto" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os Projetos</SelectItem>
@@ -127,8 +160,8 @@ export function FinancialTransactions() {
           </Select>
 
           <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-white dark:bg-slate-950">
-              <SelectValue placeholder="Filtrar por Tipo" />
+            <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
+              <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os Tipos</SelectItem>
@@ -138,164 +171,38 @@ export function FinancialTransactions() {
           </Select>
 
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={clearFilters}
-            disabled={selectedProject === 'all' && selectedType === 'all'}
+            disabled={selectedProject === 'all' && selectedType === 'all' && !dateRange}
+            className="text-slate-500"
           >
             <FilterX className="h-4 w-4 mr-2" /> Limpar
           </Button>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" onClick={exportCSV}>
-            <Download className="h-4 w-4 mr-2" /> Exportar CSV
+        <div className="flex gap-2 w-full xl:w-auto">
+          <Button variant="outline" onClick={exportCSV} className="w-full sm:w-auto">
+            <Download className="h-4 w-4 mr-2" /> CSV
           </Button>
-          <Button variant="outline" onClick={exportPDF}>
-            <FileText className="h-4 w-4 mr-2" /> Exportar PDF
+          <Button variant="outline" onClick={exportPDF} className="w-full sm:w-auto">
+            <FileText className="h-4 w-4 mr-2" /> PDF
           </Button>
         </div>
       </div>
+
+      <FinancialOverview transactions={filteredTransactions} categories={categories} />
 
       <Card>
         <CardHeader>
           <CardTitle>Operações e Histórico</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border overflow-hidden bg-white dark:bg-slate-950">
-            <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
-                <TableRow>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Valor (R$)</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Projeto</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[60px]">Anexo</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTransactions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12 text-slate-500">
-                      Nenhuma transação encontrada.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredTransactions.map((tx) => {
-                    const cId = tx.categoryId || (tx as any).category
-                    const pId = tx.projectId || (tx as any).project_id
-                    const cat = categories.find((c) => c.id === cId || c.name === cId)
-                    const projName =
-                      pId === 'tozzi_interno'
-                        ? 'TOZZI (Interno)'
-                        : projects.find((p) => p.id === pId)?.name || 'TOZZI (Interno)'
-                    return (
-                      <TableRow
-                        key={tx.id}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
-                      >
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {tx.description}
-                            {(tx as any).is_recurring && (
-                              <Repeat className="h-4 w-4 text-slate-400" title="Recorrente" />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {cat ? (
-                            <Badge
-                              variant="outline"
-                              style={{ borderColor: cat.color, color: cat.color }}
-                            >
-                              {cat.name}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-slate-500 border-slate-300">
-                              Sem categoria
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {tx.type === 'Entrada' ? (
-                            <span className="text-emerald-600 inline-flex items-center font-medium">
-                              <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
-                            </span>
-                          ) : (
-                            <span className="text-rose-600 inline-flex items-center font-medium">
-                              <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-semibold">
-                          {formatCurrency(tx.value || (tx as any).amount || 0)}
-                        </TableCell>
-                        <TableCell>{new Date(tx.date).toLocaleDateString('pt-BR')}</TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-300">
-                          {projName}
-                        </TableCell>
-                        <TableCell>
-                          {tx.status === 'Pago' ? (
-                            <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                              Pago
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-amber-600 border-amber-500 dark:text-amber-400"
-                            >
-                              Pendente
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {tx.attachment && (
-                            <Button variant="ghost" size="icon" asChild title="Ver Anexo">
-                              <a
-                                href={pb.files.getURL(
-                                  {
-                                    id: tx.id,
-                                    collectionId: (tx as any).collectionId || 'financial_records',
-                                  } as any,
-                                  tx.attachment,
-                                )}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Paperclip className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setEditTx(tx)}>
-                                <Pencil className="h-4 w-4 mr-2" /> Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => setDeleteTx(tx)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <TransactionTable
+            transactions={filteredTransactions}
+            categories={categories}
+            projects={projects}
+            onEdit={setEditTx}
+            onDelete={setDeleteTx}
+          />
         </CardContent>
       </Card>
 
@@ -310,8 +217,7 @@ export function FinancialTransactions() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Transação</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita e todos
-              os relatórios serão atualizados.
+              Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

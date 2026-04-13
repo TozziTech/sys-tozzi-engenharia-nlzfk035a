@@ -21,8 +21,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 import { Button } from '@/components/ui/button'
-import { Paperclip, X, Download, FileText, Image as ImageIcon } from 'lucide-react'
+import { X, Download, FileText, Image as ImageIcon, UploadCloud, Loader2 } from 'lucide-react'
 import { uploadTaskAttachments, deleteTaskAttachment } from '@/services/tasks'
+import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 
 interface TaskSheetProps {
   task: any
@@ -49,7 +51,9 @@ export function TaskSheet({
   const [isLoading, setIsLoading] = useState(false)
   const [attachments, setAttachments] = useState<string[]>([])
   const [localTask, setLocalTask] = useState<any>(task)
+  const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
 
   const stateRef = useRef({ title, concluida, descricao, responsible, thId })
 
@@ -173,13 +177,22 @@ export function TaskSheet({
     }
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
+  const processFiles = async (files: File[]) => {
+    const validFiles = files.filter(
+      (f) => f.type.startsWith('image/') || f.type === 'application/pdf',
+    )
+    if (validFiles.length !== files.length) {
+      toast({
+        title: 'Aviso',
+        description: 'Alguns arquivos foram ignorados. Apenas imagens e PDFs são permitidos.',
+        variant: 'destructive',
+      })
+    }
+    if (validFiles.length === 0) return
 
     setIsLoading(true)
     try {
-      await uploadTaskAttachments(task.id, files)
+      await uploadTaskAttachments(task.id, validFiles)
       const updatedTask = await pb.collection('tasks').getOne(task.id)
       setLocalTask(updatedTask)
       setAttachments(
@@ -190,8 +203,10 @@ export function TaskSheet({
           : [],
       )
       onTaskUpdated()
+      toast({ title: 'Sucesso', description: 'Arquivos anexados com sucesso.' })
     } catch (err) {
       console.error('Failed to upload attachment', err)
+      toast({ title: 'Erro', description: 'Falha ao enviar arquivos.', variant: 'destructive' })
     } finally {
       setIsLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -212,8 +227,10 @@ export function TaskSheet({
           : [],
       )
       onTaskUpdated()
+      toast({ title: 'Sucesso', description: 'Anexo removido.' })
     } catch (err) {
       console.error('Failed to delete attachment', err)
+      toast({ title: 'Erro', description: 'Falha ao remover anexo.', variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
@@ -312,24 +329,51 @@ export function TaskSheet({
               <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                 Anexos
               </Label>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading}
-                className="h-8"
-              >
-                <Paperclip className="w-4 h-4 mr-2" />
-                Adicionar
-              </Button>
+            </div>
+
+            <div
+              className={cn(
+                'border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all',
+                isDragging
+                  ? 'border-primary bg-primary/5 scale-[0.99]'
+                  : 'border-muted-foreground/25 hover:bg-muted/50',
+              )}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setIsDragging(true)
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault()
+                setIsDragging(false)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                setIsDragging(false)
+                if (e.dataTransfer.files?.length) processFiles(Array.from(e.dataTransfer.files))
+              }}
+              onClick={() => fileInputRef.current?.click()}
+            >
               <input
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
                 multiple
-                accept=".pdf,image/png,image/jpeg,image/jpg"
-                onChange={handleFileUpload}
+                accept="image/*,application/pdf"
+                onChange={(e) => {
+                  if (e.target.files?.length) processFiles(Array.from(e.target.files))
+                }}
               />
+              {isLoading ? (
+                <Loader2 className="w-8 h-8 text-primary animate-spin mb-2" />
+              ) : (
+                <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
+              )}
+              <p className="text-sm font-medium">
+                {isLoading ? 'Enviando...' : 'Arraste e solte arquivos aqui'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                ou clique para selecionar (Imagens e PDFs)
+              </p>
             </div>
 
             {attachments.length > 0 ? (

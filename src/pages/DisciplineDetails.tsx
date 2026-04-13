@@ -81,6 +81,7 @@ import {
 import { PieChart, Pie, Cell } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { useAuth } from '@/hooks/use-auth'
+import { queryClient, useQuery, useMutation } from '@/hooks/use-query'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -149,14 +150,90 @@ export default function DisciplineDetails() {
   const navigate = useNavigate()
   const { toast } = useToast()
 
-  const [module, setModule] = useState<ProjectModule | null>(null)
-  const [tasks, setTasks] = useState<any[]>([])
-  const [rawLogs, setRawLogs] = useState<any[]>([])
-  const [users, setUsers] = useState<any[]>([])
-  const [companySettings, setCompanySettings] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [isBulkLoading, setIsBulkLoading] = useState(false)
+
+  const { data: users = [] } = useQuery('users', () =>
+    pb.collection('users').getFullList({ sort: 'name' }),
+  )
+  const { data: companySettingsList = [] } = useQuery('company_settings', () =>
+    pb.collection('company_settings').getFullList(),
+  )
+  const companySettings = companySettingsList[0] || null
+
+  const {
+    data: module,
+    isLoading: moduleLoading,
+    error: moduleError,
+    refetch: refetchModule,
+  } = useQuery(
+    `module_${moduleId}`,
+    () =>
+      pb
+        .collection('project_modules')
+        .getOne<ProjectModule>(moduleId!, { expand: 'project,responsible,designer' }),
+    { enabled: !!moduleId, staleTime: 30000 },
+  )
+
+  const {
+    data: tasks = [],
+    isLoading: tasksLoading,
+    refetch: refetchTasks,
+  } = useQuery(
+    `tasks_${moduleId}`,
+    () =>
+      pb
+        .collection('tasks')
+        .getFullList({
+          filter: `module = "${moduleId}"`,
+          sort: 'ordem,due_date',
+          expand: 'responsible',
+        }),
+    { enabled: !!moduleId, staleTime: 30000 },
+  )
+
+  const { data: rawLogs = [], refetch: refetchLogs } = useQuery(
+    `logs_${moduleId}`,
+    () =>
+      pb
+        .collection('audit_logs')
+        .getList(1, 150, {
+          filter: `resource = 'project_modules' || resource = 'tasks'`,
+          expand: 'user_id',
+          sort: '-created',
+        })
+        .then((res) => res.items),
+    { enabled: !!moduleId, staleTime: 30000 },
+  )
+
+  const loading = moduleLoading || tasksLoading
+  const error = !!moduleError
+
+  const client = queryClient()
+
+  const completeTaskMutation = useMutation(
+    async ({ taskId, status, completed_at }: any) => {
+      return pb.collection('tasks').update(taskId, { status, completed_at })
+    },
+    {
+      onMutate: ({ taskId, status, completed_at }) => {
+        const prevTasks = client.getQueryData(`tasks_${moduleId}`)
+        if (prevTasks) {
+          client.setQueryData(
+            `tasks_${moduleId}`,
+            prevTasks.map((t: any) => (t.id === taskId ? { ...t, status, completed_at } : t)),
+          )
+        }
+        return { prevTasks }
+      },
+      onError: (err, variables, context: any) => {
+        if (context?.prevTasks) client.setQueryData(`tasks_${moduleId}`, context.prevTasks)
+      },
+      onSuccess: () => {
+        client.invalidateQueries(`tasks_${moduleId}`)
+      },
+    },
+  )
 
   // Filtering State
   const [searchQuery, setSearchQuery] = useState('')
@@ -208,26 +285,6 @@ export default function DisciplineDetails() {
 
   const isShiftPressed = useRef(false)
 
-  // --- Debounce Hook ---
-  const useDebouncedCallback = <T extends (...args: any[]) => any>(callback: T, delay: number) => {
-    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const callbackRef = useRef(callback)
-
-    useEffect(() => {
-      callbackRef.current = callback
-    }, [callback])
-
-    return useCallback(
-      (...args: Parameters<T>) => {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current)
-        timeoutRef.current = setTimeout(() => {
-          callbackRef.current(...args)
-        }, delay)
-      },
-      [delay],
-    )
-  }
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Shift') isShiftPressed.current = true
@@ -243,121 +300,60 @@ export default function DisciplineDetails() {
     }
   }, [])
 
-  // --- Data Fetching ---
-  const loadStatic = useCallback(async () => {
-    try {
-      const [usersList, settingsList] = await Promise.all([
-        pb.collection('users').getFullList({ sort: 'name' }),
-        pb.collection('company_settings').getFullList(),
-      ])
-      setUsers(usersList)
-      if (settingsList.length > 0) setCompanySettings(settingsList[0])
-    } catch (e) {
-      console.error('Error loading static data', e)
-    }
-  }, [])
-
-  const loadModule = useCallback(async () => {
-    if (!moduleId) return
-    try {
-      const mod = await pb.collection('project_modules').getOne<ProjectModule>(moduleId, {
-        expand: 'project,responsible,designer',
-      })
-      setModule(mod)
-    } catch (e) {
-      console.error(e)
-      setError(true)
-    }
-  }, [moduleId])
-
-  const loadTasks = useCallback(async () => {
-    if (!moduleId) return
-    try {
-      const moduleTasks = await pb.collection('tasks').getFullList({
-        filter: `module = "${moduleId}"`,
-        sort: 'ordem,due_date',
-        expand: 'responsible',
-      })
-      setTasks(moduleTasks)
-    } catch (e) {
-      console.error(e)
-    }
-  }, [moduleId])
-
-  const loadLogs = useCallback(async () => {
-    try {
-      const logsData = await pb.collection('audit_logs').getList(1, 150, {
-        filter: `resource = 'project_modules' || resource = 'tasks'`,
-        expand: 'user_id',
-        sort: '-created',
-      })
-      setRawLogs(logsData.items)
-    } catch (e) {
-      console.error('Error loading logs', e)
-    }
-  }, [])
-
-  // Run static load only once on mount
-  useEffect(() => {
-    loadStatic()
-  }, [loadStatic])
-
-  // Initial dynamic load
-  useEffect(() => {
-    if (!moduleId) return
-    let isMounted = true
-    const init = async () => {
-      setLoading(true)
-      await Promise.all([loadModule(), loadTasks(), loadLogs()])
-      if (isMounted) setLoading(false)
-    }
-    init()
-    return () => {
-      isMounted = false
-    }
-  }, [moduleId, loadModule, loadTasks, loadLogs])
-
   // Memoized filtered logs
   const logs = useMemo(() => {
     if (!module) return []
     return rawLogs.filter(
-      (l) =>
+      (l: any) =>
         (l.resource === 'project_modules' &&
           (l.details?.module_id === module.id || l.details?.module_name === module.name)) ||
         (l.resource === 'tasks' &&
-          tasks.some((t) => t.id === l.details?.task_id || t.title === l.details?.task_name)),
+          tasks.some((t: any) => t.id === l.details?.task_id || t.title === l.details?.task_name)),
     )
   }, [rawLogs, module, tasks])
 
-  // Debounced fetchers for real-time updates
-  const debouncedLoadModule = useDebouncedCallback(loadModule, 300)
-  const debouncedLoadTasks = useDebouncedCallback(loadTasks, 300)
-  const debouncedLoadLogs = useDebouncedCallback(loadLogs, 300)
+  const debounceTimeout = useRef<any>(null)
+  const handleRealtimeInvalidation = useCallback(
+    (type: string) => {
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current)
+      debounceTimeout.current = setTimeout(() => {
+        if (type === 'module') {
+          client.invalidateQueries(`module_${moduleId}`)
+          client.invalidateQueries(`logs_${moduleId}`)
+        }
+        if (type === 'task') {
+          client.invalidateQueries(`tasks_${moduleId}`)
+          client.invalidateQueries(`logs_${moduleId}`)
+        }
+        if (type === 'logs') {
+          client.invalidateQueries(`logs_${moduleId}`)
+        }
+      }, 300)
+    },
+    [moduleId, client],
+  )
 
   useRealtime('project_modules', (e) => {
     if (e.record.id === moduleId) {
-      debouncedLoadModule()
-      debouncedLoadLogs()
+      handleRealtimeInvalidation('module')
     }
   })
 
   useRealtime('tasks', (e) => {
     if (e.record.module === moduleId) {
-      debouncedLoadTasks()
-      debouncedLoadLogs()
+      handleRealtimeInvalidation('task')
     }
   })
 
   useRealtime('audit_logs', () => {
-    debouncedLoadLogs()
+    handleRealtimeInvalidation('logs')
   })
 
-  // Expose a general loadData for child components that still use it
   const loadData = useCallback(() => {
-    debouncedLoadModule()
-    debouncedLoadTasks()
-    debouncedLoadLogs()
-  }, [debouncedLoadModule, debouncedLoadTasks, debouncedLoadLogs])
+    refetchModule()
+    refetchTasks()
+    refetchLogs()
+  }, [refetchModule, refetchTasks, refetchLogs])
 
   const handleSaveTitle = async (taskId: string) => {
     if (editingTitleId !== taskId) return
@@ -367,7 +363,11 @@ export default function DisciplineDetails() {
     }
     try {
       await pb.collection('tasks').update(taskId, { title: editTitleValue })
-      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, title: editTitleValue } : t)))
+      const prevTasks = client.getQueryData(`tasks_${moduleId}`) || []
+      client.setQueryData(
+        `tasks_${moduleId}`,
+        prevTasks.map((t: any) => (t.id === taskId ? { ...t, title: editTitleValue } : t)),
+      )
       toast({ title: 'Título atualizado' })
     } catch (e: any) {
       toast({
@@ -396,13 +396,13 @@ export default function DisciplineDetails() {
         formData.append('documents', file)
       })
 
-      await pb.collection('project_modules').update(module.id, formData)
+      const updated = await pb.collection('project_modules').update(module.id, formData)
+      client.setQueryData(`module_${moduleId}`, updated)
 
       toast({
         title: 'Arquivos anexados',
         description: 'Os documentos foram enviados com sucesso.',
       })
-      loadData()
     } catch (err: any) {
       console.error(err)
       toast({
@@ -420,7 +420,7 @@ export default function DisciplineDetails() {
     if (!module) return
     try {
       await pb.collection('project_modules').update(module.id, { notes: editNotesValue })
-      setModule({ ...module, notes: editNotesValue })
+      client.setQueryData(`module_${moduleId}`, { ...module, notes: editNotesValue })
       setIsEditingNotes(false)
       toast({ title: 'Observações atualizadas', description: 'O texto foi salvo com sucesso.' })
     } catch (e: any) {
@@ -443,9 +443,9 @@ export default function DisciplineDetails() {
         })
       }
 
-      await pb.collection('project_modules').update(module.id, formData)
+      const updated = await pb.collection('project_modules').update(module.id, formData)
+      client.setQueryData(`module_${moduleId}`, updated)
       toast({ title: 'Documento removido', description: 'O arquivo foi excluído.' })
-      loadData()
     } catch (err) {
       console.error(err)
       toast({
@@ -583,7 +583,7 @@ export default function DisciplineDetails() {
     }
 
     newTasks.sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
-    setTasks(newTasks)
+    client.setQueryData(`tasks_${moduleId}`, newTasks)
 
     if (position === 'inside') {
       setExpandedTaskIds((prev) => {
@@ -685,7 +685,7 @@ export default function DisciplineDetails() {
   const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
   const handleBulkStatusChange = async (status: string) => {
-    setLoading(true)
+    setIsBulkLoading(true)
     try {
       const isConcluido = status === 'Concluído'
       const completed_at = isConcluido ? new Date().toISOString() : ''
@@ -706,9 +706,26 @@ export default function DisciplineDetails() {
         title: 'Status atualizado',
         description: `${selectedTaskIds.length} tarefas atualizadas para ${status}.`,
       })
+      const prevTasks = client.getQueryData(`tasks_${moduleId}`) || []
+      client.setQueryData(
+        `tasks_${moduleId}`,
+        prevTasks.map((t: any) => {
+          if (selectedTaskIds.includes(t.id)) {
+            return {
+              ...t,
+              status,
+              completed_at: isConcluido
+                ? completed_at
+                : t.status === 'Concluído'
+                  ? ''
+                  : t.completed_at,
+            }
+          }
+          return t
+        }),
+      )
       setSelectedTaskIds([])
       setLastSelectedTaskId(null)
-      loadData()
     } catch (error) {
       toast({
         title: 'Erro',
@@ -716,22 +733,26 @@ export default function DisciplineDetails() {
         variant: 'destructive',
       })
     } finally {
-      setLoading(false)
+      setIsBulkLoading(false)
     }
   }
 
   const handleBulkDelete = async () => {
-    setLoading(true)
+    setIsBulkLoading(true)
     try {
       await Promise.all(selectedTaskIds.map((id) => pb.collection('tasks').delete(id)))
       toast({
         title: 'Tarefas excluídas',
         description: `${selectedTaskIds.length} tarefas foram excluídas com sucesso.`,
       })
+      const prevTasks = client.getQueryData(`tasks_${moduleId}`) || []
+      client.setQueryData(
+        `tasks_${moduleId}`,
+        prevTasks.filter((t: any) => !selectedTaskIds.includes(t.id)),
+      )
       setSelectedTaskIds([])
       setLastSelectedTaskId(null)
       setIsBulkDeleteDialogOpen(false)
-      loadData()
     } catch (error) {
       toast({
         title: 'Erro',
@@ -739,7 +760,7 @@ export default function DisciplineDetails() {
         variant: 'destructive',
       })
     } finally {
-      setLoading(false)
+      setIsBulkLoading(false)
     }
   }
 
@@ -859,21 +880,10 @@ export default function DisciplineDetails() {
   }
 
   const handleCompleteTask = async (task: any, checked: boolean) => {
-    try {
-      const status = checked ? 'Concluído' : 'Pendente'
-      const completed_at = checked ? new Date().toISOString() : ''
-
-      await pb.collection('tasks').update(task.id, { status, completed_at })
-
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status, completed_at } : t)))
-      toast({ title: checked ? 'Tarefa concluída' : 'Tarefa reaberta' })
-    } catch (e: any) {
-      toast({
-        title: 'Erro ao atualizar tarefa',
-        description: e.message,
-        variant: 'destructive',
-      })
-    }
+    const status = checked ? 'Concluído' : 'Pendente'
+    const completed_at = checked ? new Date().toISOString() : ''
+    completeTaskMutation.mutate({ taskId: task.id, status, completed_at })
+    toast({ title: checked ? 'Tarefa concluída' : 'Tarefa reaberta' })
   }
 
   return (
@@ -1485,7 +1495,7 @@ export default function DisciplineDetails() {
                                       </span>
                                       {task.description && editingTitleId !== task.id && (
                                         <span className="text-xs text-muted-foreground line-clamp-1 ml-6">
-                                          {task.description}
+                                          {task.description.replace(/<[^>]*>?/gm, ' ')}
                                         </span>
                                       )}
                                     </div>
@@ -1501,8 +1511,11 @@ export default function DisciplineDetails() {
                                           await pb
                                             .collection('tasks')
                                             .update(task.id, { responsible: newValue })
-                                          setTasks((prev) =>
-                                            prev.map((t) =>
+                                          const prevTasks =
+                                            client.getQueryData(`tasks_${moduleId}`) || []
+                                          client.setQueryData(
+                                            `tasks_${moduleId}`,
+                                            prevTasks.map((t: any) =>
                                               t.id === task.id
                                                 ? { ...t, responsible: newValue }
                                                 : t,
@@ -1566,8 +1579,11 @@ export default function DisciplineDetails() {
                                             updateData.completed_at = ''
                                           }
                                           await pb.collection('tasks').update(task.id, updateData)
-                                          setTasks((prev) =>
-                                            prev.map((t) =>
+                                          const prevTasks =
+                                            client.getQueryData(`tasks_${moduleId}`) || []
+                                          client.setQueryData(
+                                            `tasks_${moduleId}`,
+                                            prevTasks.map((t: any) =>
                                               t.id === task.id ? { ...t, ...updateData } : t,
                                             ),
                                           )
@@ -1654,8 +1670,11 @@ export default function DisciplineDetails() {
                                               await pb
                                                 .collection('tasks')
                                                 .update(task.id, { due_date: formattedDate })
-                                              setTasks((prev) =>
-                                                prev.map((t) =>
+                                              const prevTasks =
+                                                client.getQueryData(`tasks_${moduleId}`) || []
+                                              client.setQueryData(
+                                                `tasks_${moduleId}`,
+                                                prevTasks.map((t: any) =>
                                                   t.id === task.id
                                                     ? { ...t, due_date: formattedDate }
                                                     : t,
@@ -2073,16 +2092,16 @@ export default function DisciplineDetails() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isBulkLoading}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={(e) => {
                 e.preventDefault()
                 handleBulkDelete()
               }}
-              disabled={loading}
+              disabled={isBulkLoading}
             >
-              {loading ? 'Excluindo...' : 'Sim, Excluir'}
+              {isBulkLoading ? 'Excluindo...' : 'Sim, Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2251,7 +2270,9 @@ export default function DisciplineDetails() {
                           {task.title}
                         </span>
                         {task.description && (
-                          <span className="text-xs text-slate-500 mt-0.5">{task.description}</span>
+                          <span className="text-xs text-slate-500 mt-0.5">
+                            {task.description.replace(/<[^>]*>?/gm, ' ')}
+                          </span>
                         )}
                       </div>
                     </td>

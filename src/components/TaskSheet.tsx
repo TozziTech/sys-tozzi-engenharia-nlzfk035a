@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor } from '@/components/RichTextEditor'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import pb from '@/lib/pocketbase/client'
@@ -25,6 +26,7 @@ import { X, Download, FileText, Image as ImageIcon, UploadCloud, Loader2 } from 
 import { uploadTaskAttachments, deleteTaskAttachment } from '@/services/tasks'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { useQuery, queryClient } from '@/hooks/use-query'
 
 interface TaskSheetProps {
   task: any
@@ -50,57 +52,58 @@ export function TaskSheet({
   const [thId, setThId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [attachments, setAttachments] = useState<string[]>([])
-  const [localTask, setLocalTask] = useState<any>(task)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
+  const { data: freshTask, isLoading: isQueryLoading } = useQuery(
+    `task_${task?.id}`,
+    () => pb.collection('tasks').getOne(task?.id),
+    { enabled: open && !!task?.id, staleTime: 0 },
+  )
+
+  const [localTask, setLocalTask] = useState<any>(task)
+
   const stateRef = useRef({ title, concluida, descricao, responsible, thId })
 
   useEffect(() => {
-    if (task) setLocalTask(task)
-  }, [task])
+    if (freshTask) setLocalTask(freshTask)
+    else if (task) setLocalTask(task)
+  }, [freshTask, task])
 
   useEffect(() => {
-    async function fetchTaskData() {
-      if (task && open) {
+    async function initTask() {
+      if (open && localTask) {
         setIsLoading(true)
         let fetchedThId = null
-        let fetchedTitle = task.title || task.titulo || ''
-        let fetchedConcluida = task.status === 'Concluído' || task.concluida === true
-        let fetchedDesc = task.description || task.descricao || ''
-        let fetchedResponsible = task.responsible || 'unassigned'
+        let fetchedTitle = localTask.title || localTask.titulo || ''
+        let fetchedConcluida = localTask.status === 'Concluído' || localTask.concluida === true
+        let fetchedDesc = localTask.description || localTask.descricao || ''
+        let fetchedResponsible = localTask.responsible || 'unassigned'
 
-        try {
-          const freshTask = await pb.collection('tasks').getOne(task.id)
-          setLocalTask(freshTask)
-          setAttachments(
-            freshTask.attachments
-              ? Array.isArray(freshTask.attachments)
-                ? freshTask.attachments
-                : [freshTask.attachments]
-              : [],
-          )
-        } catch (err) {
-          console.error('Failed to fetch fresh task', err)
-        }
+        setAttachments(
+          localTask.attachments
+            ? Array.isArray(localTask.attachments)
+              ? localTask.attachments
+              : [localTask.attachments]
+            : [],
+        )
 
         try {
           const th = await pb
             .collection('tarefas_hierarquicas')
-            .getFirstListItem(`titulo="${task.title}" && projeto_id="${projectId}"`)
+            .getFirstListItem(`titulo="${localTask.title}" && projeto_id="${projectId}"`)
 
           fetchedThId = th.id
           fetchedTitle = th.titulo
           fetchedConcluida = th.concluida
           fetchedDesc = th.descricao || ''
         } catch {
-          // Fallback to tasks data if not found in tarefas_hierarquicas
+          // Keep tasks data
         }
 
         setTitle(fetchedTitle)
         setConcluida(fetchedConcluida)
-
         setDescricao(fetchedDesc)
         setResponsible(fetchedResponsible)
         setThId(fetchedThId)
@@ -115,8 +118,10 @@ export function TaskSheet({
         setIsLoading(false)
       }
     }
-    fetchTaskData()
-  }, [task, open, projectId])
+    if (!isQueryLoading) {
+      initTask()
+    }
+  }, [localTask, open, projectId, isQueryLoading])
 
   useEffect(() => {
     stateRef.current = { title, concluida, descricao, responsible, thId }
@@ -155,6 +160,10 @@ export function TaskSheet({
         } catch (err) {
           console.error('Failed to create in tarefas_hierarquicas', err)
         }
+      }
+
+      if (task?.module) {
+        queryClient().invalidateQueries(`tasks_${task.module}`)
       }
     } catch (err) {
       console.error('Auto-save failed', err)
@@ -195,6 +204,7 @@ export function TaskSheet({
       await uploadTaskAttachments(task.id, validFiles)
       const updatedTask = await pb.collection('tasks').getOne(task.id)
       setLocalTask(updatedTask)
+      queryClient().setQueryData(`task_${task.id}`, updatedTask)
       setAttachments(
         updatedTask.attachments
           ? Array.isArray(updatedTask.attachments)
@@ -219,6 +229,7 @@ export function TaskSheet({
       await deleteTaskAttachment(task.id, filename)
       const updatedTask = await pb.collection('tasks').getOne(task.id)
       setLocalTask(updatedTask)
+      queryClient().setQueryData(`task_${task.id}`, updatedTask)
       setAttachments(
         updatedTask.attachments
           ? Array.isArray(updatedTask.attachments)
@@ -315,11 +326,19 @@ export function TaskSheet({
             <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
               Descrição
             </Label>
-            <Textarea
+            <RichTextEditor
               value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              placeholder="Adicione uma descrição detalhada para esta tarefa..."
-              className="min-h-[220px] resize-y leading-relaxed p-4"
+              onChange={setDescricao}
+              onImageUpload={async (file) => {
+                const formData = new FormData()
+                formData.append('attachments', file)
+                const updated = await pb.collection('tasks').update(task.id, formData)
+                const atts = Array.isArray(updated.attachments)
+                  ? updated.attachments
+                  : [updated.attachments]
+                const newAtt = atts[atts.length - 1]
+                return pb.files.getURL(updated, newAtt)
+              }}
               disabled={isLoading}
             />
           </div>

@@ -41,6 +41,21 @@ import {
   Info,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+const PlanilhaFinanceira = () => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Planilha Financeira</CardTitle>
+      <CardDescription>Módulo em desenvolvimento.</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <div className="flex h-32 items-center justify-center rounded-md border border-dashed">
+        <p className="text-sm text-muted-foreground">Em breve</p>
+      </div>
+    </CardContent>
+  </Card>
+)
 
 const getStatusColor = (status: string) => {
   switch (status) {

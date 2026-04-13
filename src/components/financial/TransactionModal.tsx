@@ -100,10 +100,18 @@ export function TransactionModal() {
 
     setIsSubmitting(true)
     try {
-      const record = await pb.collection('financial_records').create(payload)
+      await pb.collection('financial_records').create(payload)
 
       try {
-        addTransaction(record)
+        addTransaction({
+          projectId: formData.projectId,
+          description: formData.description,
+          type: formData.type as 'Entrada' | 'Saída',
+          value: Number(formData.value),
+          date: new Date(formData.date).toISOString(),
+          categoryId: formData.category,
+          status: formData.status as 'Pendente' | 'Pago',
+        })
       } catch (e) {
         // Fallback para caso addTransaction falhe mas o backend tenha sucesso
       }

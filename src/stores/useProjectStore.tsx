@@ -402,19 +402,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setAuditLogs((prev) => [newLog, ...prev])
   }, [])
 
-  const addTransaction = async (t: Omit<Transaction, 'id'>) => {
-    try {
-      await pb.collection('financial_records').create({
-        description: t.description,
-        amount: t.value,
-        type: t.type,
-        category: t.categoryId,
-        project_id: t.projectId,
-        date: new Date(t.date).toISOString(),
-      })
-    } catch (e) {
-      console.error(e)
+  const addTransaction = (t: Omit<Transaction, 'id'>) => {
+    const newTransaction: Transaction = {
+      ...t,
+      id: `tr-${Date.now()}-${Math.random()}`,
     }
+    setTransactions((prev) => [newTransaction, ...prev])
   }
 
   const updateTransaction = async (id: string, data: Partial<Transaction>) => {

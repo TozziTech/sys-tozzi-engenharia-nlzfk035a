@@ -3,11 +3,10 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import useProjectStore from '@/stores/useProjectStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import {
   ChartContainer,
   ChartTooltip,
@@ -15,7 +14,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart'
-import { subDays, isAfter, format } from 'date-fns'
+import { format } from 'date-fns'
 import {
   ArrowLeft,
   Calendar,
@@ -24,10 +23,7 @@ import {
   Clock,
   Edit2,
   Trash2,
-  DollarSign,
   TrendingUp,
-  TrendingDown,
-  Download,
   UploadCloud,
   File,
   FileSpreadsheet,
@@ -119,16 +115,7 @@ export default function ProjectDetails() {
     // Keep projects in sync
   })
 
-  const {
-    projects,
-    deleteProject,
-    transactions,
-    updateTransaction,
-    categories,
-    timeLogs,
-    users,
-    tasks,
-  } = useProjectStore()
+  const { projects, deleteProject, timeLogs, users, tasks } = useProjectStore()
 
   const store = useProjectStore() as any
   const updateProject = store.updateProject
@@ -136,9 +123,6 @@ export default function ProjectDetails() {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [documents, setDocuments] = useState<
-    { id: string; name: string; date: string; size: string }[]
-  >([])
   const [isEditingObservations, setIsEditingObservations] = useState(false)
   const [observationText, setObservationText] = useState('')
   const [pbDocuments, setPbDocuments] = useState<any[]>([])
@@ -343,7 +327,7 @@ export default function ProjectDetails() {
           <Card>
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div>
+                <div className="contents md:block">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={async () => {
@@ -372,7 +356,7 @@ export default function ProjectDetails() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
                 <div className="flex items-center gap-3 text-sm">
                   <Briefcase className="h-4 w-4 text-muted-foreground" />
-                  <div>
+                  <div className="contents md:block">
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                       Disciplina
                     </p>
@@ -381,7 +365,7 @@ export default function ProjectDetails() {
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
+                  <div className="contents md:block">
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                       Engenheiro Resp.
                     </p>
@@ -390,7 +374,7 @@ export default function ProjectDetails() {
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
+                  <div className="contents md:block">
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                       Início
                     </p>
@@ -401,7 +385,7 @@ export default function ProjectDetails() {
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div>
+                  <div className="contents md:block">
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                       Entrega
                     </p>
@@ -411,7 +395,7 @@ export default function ProjectDetails() {
                 {project.cno && (
                   <div className="flex items-center gap-3 text-sm">
                     <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <div>
+                    <div className="contents md:block">
                       <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                         CNO da Obra
                       </p>
@@ -422,7 +406,7 @@ export default function ProjectDetails() {
                 {project.cnpj && (
                   <div className="flex items-center gap-3 text-sm">
                     <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <div>
+                    <div className="contents md:block">
                       <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                         CNPJ da Obra
                       </p>
@@ -509,7 +493,7 @@ export default function ProjectDetails() {
                               observations: observationText,
                             })
                           } else {
-                            window.location.reload() // Recarrega se não tiver método local de update
+                            window.location.reload()
                           }
                           setIsEditingObservations(false)
                           toast({
@@ -606,13 +590,13 @@ export default function ProjectDetails() {
                 <CardContent>
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                      <div>
+                      <div className="contents md:block">
                         <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
                           Horas Estimadas
                         </p>
                         <p className="text-3xl font-bold">{estimatedHours}h</p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right contents md:block">
                         <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
                           Horas Reais
                         </p>
@@ -659,7 +643,7 @@ export default function ProjectDetails() {
 
             <Card>
               <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
+                <div className="contents md:block">
                   <CardTitle className="text-lg">Histórico de Horas</CardTitle>
                   <CardDescription>
                     Registro detalhado de horas apontadas neste projeto.

@@ -13,6 +13,7 @@ import {
   DollarSign,
   HardHat,
   FileText,
+  Landmark,
   Briefcase,
   Shield,
   LineChart,
@@ -48,6 +49,7 @@ const navigationGroups = [
       { name: 'Diagnóstico', href: '/diagnostics', icon: AlertTriangle },
       { name: 'Performance', href: '/performance', icon: Activity },
       { name: 'Auditoria de Prazos', href: '/deadline-audit', icon: Clock },
+      { name: 'Contas Bancárias', href: '/management/bank-accounts', icon: Landmark },
     ],
   },
   {

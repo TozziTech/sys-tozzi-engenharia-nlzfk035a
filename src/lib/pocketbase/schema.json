@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T18:39:47.017Z",
+  "generatedAt": "2026-04-13T18:52:23.612Z",
   "collections": [
     {
       "name": "users",
@@ -1407,6 +1407,71 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_financial_categories_name ON financial_categories (name)"
       ]
+    },
+    {
+      "name": "bank_accounts",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "bank_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "agency",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "account_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "balance",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Corrente", "Poupança", "Investimento"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

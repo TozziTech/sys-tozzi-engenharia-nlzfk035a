@@ -4,6 +4,7 @@ import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ProjectProvider } from '@/stores/useProjectStore'
 import Dashboard from './pages/Dashboard'
+import BankAccounts from './pages/BankAccounts'
 import ExecutiveDashboard from './pages/ExecutiveDashboard'
 import DeadlineAudit from './pages/DeadlineAudit'
 import DesignerPanel from './pages/DesignerPanel'
@@ -86,6 +87,7 @@ const App = () => (
                   <Route path="/pending-report" element={<PendingReport />} />
                   <Route path="/performance" element={<Performance />} />
                   <Route path="/deadline-audit" element={<DeadlineAudit />} />
+                  <Route path="/management/bank-accounts" element={<BankAccounts />} />
                   <Route path="/quotes" element={<Quotes />} />
                   <Route path="/gestao-central" element={<GestaoCentral />} />
                   <Route path="/equipments" element={<Equipments />} />

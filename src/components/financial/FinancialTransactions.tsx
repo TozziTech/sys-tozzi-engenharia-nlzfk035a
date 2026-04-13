@@ -186,7 +186,7 @@ export function FinancialTransactions() {
                   filteredTransactions.map((tx) => {
                     const cId = tx.categoryId || (tx as any).category
                     const pId = tx.projectId || (tx as any).project_id
-                    const cat = categories.find((c) => c.id === cId)
+                    const cat = categories.find((c) => c.id === cId || c.name === cId)
                     const projName =
                       pId === 'tozzi_interno'
                         ? 'TOZZI (Interno)'
@@ -205,7 +205,7 @@ export function FinancialTransactions() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {tx.type === 'Saída' && cat ? (
+                          {cat ? (
                             <Badge
                               variant="outline"
                               style={{ borderColor: cat.color, color: cat.color }}
@@ -213,7 +213,9 @@ export function FinancialTransactions() {
                               {cat.name}
                             </Badge>
                           ) : (
-                            '-'
+                            <Badge variant="outline" className="text-slate-500 border-slate-300">
+                              Sem categoria
+                            </Badge>
                           )}
                         </TableCell>
                         <TableCell>

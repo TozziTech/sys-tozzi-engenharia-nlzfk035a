@@ -50,7 +50,7 @@ const initialFormState = {
 }
 
 export function TransactionModal() {
-  const { projects, addTransaction } = useProjectStore()
+  const { projects } = useProjectStore()
   const { categories, addCategory } = useFinancialCategories()
 
   const [isOpen, setIsOpen] = useState(false)
@@ -67,8 +67,9 @@ export function TransactionModal() {
     setFormError(null)
     setFieldErrors({})
 
-    if (!formData.description || !formData.date || !formData.value) {
-      setFormError('Preencha os campos obrigatórios.')
+    const numericAmount = Number(formData.value)
+    if (!formData.description || !formData.date || isNaN(numericAmount) || numericAmount <= 0) {
+      setFormError('Preencha os campos obrigatórios (incluindo um valor válido).')
       return
     }
     if (!formData.category) {
@@ -87,7 +88,7 @@ export function TransactionModal() {
     const payload = {
       description: formData.description,
       type: formData.type,
-      amount: Number(formData.value),
+      amount: numericAmount,
       date: new Date(formData.date).toISOString(),
       project_id: formData.projectId,
       category: formData.category,
@@ -101,20 +102,6 @@ export function TransactionModal() {
     setIsSubmitting(true)
     try {
       await pb.collection('financial_records').create(payload)
-
-      try {
-        addTransaction({
-          projectId: formData.projectId,
-          description: formData.description,
-          type: formData.type as 'Entrada' | 'Saída',
-          value: Number(formData.value),
-          date: new Date(formData.date).toISOString(),
-          categoryId: formData.category,
-          status: formData.status as 'Pendente' | 'Pago',
-        })
-      } catch (e) {
-        // Fallback para caso addTransaction falhe mas o backend tenha sucesso
-      }
 
       toast.success('Transação criada com sucesso!')
       setIsOpen(false)
@@ -261,7 +248,9 @@ export function TransactionModal() {
                     fieldErrors.category && 'border-red-500',
                   )}
                 >
-                  {formData.category || 'Selecione uma categoria...'}
+                  {formData.category
+                    ? categories.find((c) => c.id === formData.category)?.name || formData.category
+                    : 'Selecione uma categoria...'}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -286,7 +275,10 @@ export function TransactionModal() {
                             onClick={async () => {
                               try {
                                 const newCat = await addCategory(searchCategory)
-                                setFormData({ ...formData, category: newCat.name })
+                                setFormData({
+                                  ...formData,
+                                  category: newCat?.id || newCat?.name || searchCategory,
+                                })
                                 setSearchCategory('')
                                 setOpenCategory(false)
                               } catch (err) {
@@ -320,14 +312,14 @@ export function TransactionModal() {
                           key={c.id}
                           value={c.name}
                           onSelect={() => {
-                            setFormData({ ...formData, category: c.name })
+                            setFormData({ ...formData, category: c.id })
                             setOpenCategory(false)
                           }}
                         >
                           <Check
                             className={cn(
                               'mr-2 h-4 w-4',
-                              formData.category === c.name ? 'opacity-100' : 'opacity-0',
+                              formData.category === c.id ? 'opacity-100' : 'opacity-0',
                             )}
                           />
                           <div

@@ -284,7 +284,6 @@ interface ProjectStore {
   setSlackWebhookUrl: (url: string) => void
   assignTask: (projectName: string, taskName: string, assigneeName: string) => void
   transactions: Transaction[]
-  addTransaction: (t: Omit<Transaction, 'id'>) => void
   updateTransaction: (id: string, data: Partial<Transaction>) => void
   deleteTransaction: (id: string) => void
 
@@ -401,14 +400,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
     setAuditLogs((prev) => [newLog, ...prev])
   }, [])
-
-  const addTransaction = (t: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = {
-      ...t,
-      id: `tr-${Date.now()}-${Math.random()}`,
-    }
-    setTransactions((prev) => [newTransaction, ...prev])
-  }
 
   const updateTransaction = async (id: string, data: Partial<Transaction>) => {
     try {
@@ -718,7 +709,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setSlackWebhookUrl,
         assignTask,
         transactions,
-        addTransaction,
         updateTransaction,
         deleteTransaction,
         categories,

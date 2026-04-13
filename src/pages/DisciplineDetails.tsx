@@ -365,21 +365,26 @@ export default function DisciplineDetails() {
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     const target = e.target as HTMLElement
-    if (!target.closest('.grip-handle')) {
+    if (target.closest('button, input, select, textarea, a, [role="checkbox"]')) {
       e.preventDefault()
       return
     }
-    setDraggedTaskId(taskId)
+
     e.dataTransfer.effectAllowed = 'move'
 
     const row = target.closest('tr')
     if (row) {
       e.dataTransfer.setDragImage(row, 20, 20)
     }
+
+    requestAnimationFrame(() => {
+      setDraggedTaskId(taskId)
+    })
   }
 
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>, targetId: string) => {
     e.preventDefault()
+    e.stopPropagation()
     e.dataTransfer.dropEffect = 'move'
 
     if (!draggedTaskId || draggedTaskId === targetId) {
@@ -407,6 +412,7 @@ export default function DisciplineDetails() {
 
   const handleDrop = async (e: React.DragEvent, targetId: string) => {
     e.preventDefault()
+    e.stopPropagation()
     if (!draggedTaskId || !dropTarget) {
       setDraggedTaskId(null)
       setDropTarget(null)
@@ -1230,16 +1236,16 @@ export default function DisciplineDetails() {
                                 }}
                                 className={cn(
                                   'cursor-pointer hover:bg-muted/50 group transition-colors relative',
-                                  draggedTaskId === task.id && 'opacity-50',
+                                  draggedTaskId === task.id && 'opacity-50 bg-muted',
                                   dropTarget?.id === task.id &&
                                     dropTarget.position === 'before' &&
-                                    'border-t-2 border-t-primary',
+                                    'border-t-2 border-t-primary bg-primary/5',
                                   dropTarget?.id === task.id &&
                                     dropTarget.position === 'after' &&
-                                    'border-b-2 border-b-primary',
+                                    'border-b-2 border-b-primary bg-primary/5',
                                   dropTarget?.id === task.id &&
                                     dropTarget.position === 'inside' &&
-                                    'bg-primary/10',
+                                    'bg-primary/10 ring-1 ring-inset ring-primary/30',
                                 )}
                                 onClick={() => {
                                   setSelectedTask(task)
@@ -1266,13 +1272,13 @@ export default function DisciplineDetails() {
                                     />
 
                                     {!isFilterActive ? (
-                                      <div className="grip-handle cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-1 shrink-0 px-1 py-2 -ml-1">
+                                      <div className="grip-handle cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-1 shrink-0 p-1.5 -ml-1.5 rounded hover:bg-muted">
                                         <GripVertical className="h-4 w-4" />
                                       </div>
                                     ) : (
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <div className="text-muted-foreground/20 cursor-not-allowed mr-1 shrink-0 px-1 py-2 -ml-1">
+                                          <div className="text-muted-foreground/20 cursor-not-allowed mr-1 shrink-0 p-1.5 -ml-1.5">
                                             <GripVertical className="h-4 w-4" />
                                           </div>
                                         </TooltipTrigger>

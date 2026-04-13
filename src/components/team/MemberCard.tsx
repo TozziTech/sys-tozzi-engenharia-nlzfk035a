@@ -182,68 +182,11 @@ export function MemberCard({
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
 
       <CardContent className="p-6 sm:p-8 flex-1 flex flex-col">
-        <div className="flex items-start mb-6">
-          <div
-            className={cn(
-              'flex flex-wrap items-center gap-3 transition-opacity duration-200 w-full',
-              isUpdating && 'opacity-50 pointer-events-none',
-            )}
-          >
-            <Badge
-              variant="secondary"
-              className="font-mono text-xs sm:text-sm px-3 py-1 bg-primary/10 text-primary border-primary/10 rounded-md shadow-sm shrink-0"
-            >
-              {u.codigo || 'S/N'}
-            </Badge>
-
-            <Select
-              value={u.status || 'Ativo'}
-              onValueChange={(val) => handleQuickEdit('status', val)}
-            >
-              <SelectTrigger
-                className={cn(
-                  'h-auto px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 [&>svg]:hidden shrink-0 shadow-none',
-                  getStatusColor(u.status),
-                )}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Ativo">Ativo</SelectItem>
-                <SelectItem value="Inativo">Inativo</SelectItem>
-                <SelectItem value="Em Férias">Em Férias</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {u.role && (
-              <Select
-                value={u.role || 'Projetista'}
-                onValueChange={(val) => handleQuickEdit('role', val)}
-              >
-                <SelectTrigger
-                  className={cn(
-                    'h-auto px-3 py-1 text-xs font-bold tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 whitespace-nowrap [&>svg]:hidden shrink-0 shadow-none',
-                    getRoleColor(u.role),
-                  )}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Administrador">Administrador</SelectItem>
-                  <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
-                  <SelectItem value="Projetista">Projetista</SelectItem>
-                  <SelectItem value="Estagiário">Estagiário</SelectItem>
-                  <SelectItem value="Visitante">Visitante</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        </div>
-
-        <div className="mb-8 flex-1">
+        {/* Name and Formação - Primary Block */}
+        <div className="mb-5">
           <Dialog>
             <DialogTrigger asChild>
-              <button className="text-left w-full group/title mb-2.5 focus:outline-none rounded-md focus-visible:ring-2 focus-visible:ring-ring">
+              <button className="text-left w-full group/title mb-1.5 focus:outline-none rounded-md focus-visible:ring-2 focus-visible:ring-ring">
                 <h3 className="text-2xl font-bold leading-tight text-foreground group-hover/title:text-primary transition-colors">
                   {user.name}
                 </h3>
@@ -468,16 +411,80 @@ export function MemberCard({
               </ScrollArea>
             </DialogContent>
           </Dialog>
-          <div className="space-y-3 mt-4">
-            <p className="text-base font-medium text-muted-foreground flex items-center gap-3">
-              <Briefcase className="h-5 w-5 text-primary/60 shrink-0" />
-              <span>{formacaoDisplay}</span>
-            </p>
+
+          <p className="text-base font-medium text-muted-foreground flex items-center gap-2 mt-1.5">
+            <Briefcase className="h-5 w-5 text-primary/60 shrink-0" />
+            <span>{formacaoDisplay}</span>
+          </p>
+        </div>
+
+        {/* Meta Data Badges - Secondary Block */}
+        <div className="flex items-start mb-6">
+          <div
+            className={cn(
+              'flex flex-wrap items-center gap-2 sm:gap-3 transition-opacity duration-200 w-full',
+              isUpdating && 'opacity-50 pointer-events-none',
+            )}
+          >
+            <Badge
+              variant="secondary"
+              className="font-mono text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-primary/10 rounded-md shadow-sm shrink-0"
+            >
+              {u.codigo || 'S/N'}
+            </Badge>
+
+            <Select
+              value={u.status || 'Ativo'}
+              onValueChange={(val) => handleQuickEdit('status', val)}
+            >
+              <SelectTrigger
+                className={cn(
+                  'h-auto px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 [&>svg]:hidden shrink-0 shadow-none',
+                  getStatusColor(u.status),
+                )}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Ativo">Ativo</SelectItem>
+                <SelectItem value="Inativo">Inativo</SelectItem>
+                <SelectItem value="Em Férias">Em Férias</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {u.role && (
+              <Select
+                value={u.role || 'Projetista'}
+                onValueChange={(val) => handleQuickEdit('role', val)}
+              >
+                <SelectTrigger
+                  className={cn(
+                    'h-auto px-2.5 py-0.5 text-xs font-bold tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 whitespace-nowrap [&>svg]:hidden shrink-0 shadow-none',
+                    getRoleColor(u.role),
+                  )}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Administrador">Administrador</SelectItem>
+                  <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                  <SelectItem value="Projetista">Projetista</SelectItem>
+                  <SelectItem value="Estagiário">Estagiário</SelectItem>
+                  <SelectItem value="Visitante">Visitante</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </div>
+
+        {/* Contact and Projects */}
+        <div className="mb-2 flex-1">
+          <div className="space-y-3">
             <div className="flex items-center gap-3 text-base text-muted-foreground/80">
               <Mail className="h-5 w-5 shrink-0 text-muted-foreground/60" />
               <span className="truncate">{user.email || 'Email não informado'}</span>
             </div>
-            <div className="flex items-center justify-between text-base">
+            <div className="flex items-center justify-between text-base mt-1">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Building2 className="h-5 w-5 shrink-0 text-muted-foreground/60" />
                 <span>
@@ -500,6 +507,7 @@ export function MemberCard({
           </div>
         </div>
 
+        {/* Footer Actions */}
         <div className="mt-auto pt-4 border-t border-border/40">
           <div className="flex items-center justify-end gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
             <Button

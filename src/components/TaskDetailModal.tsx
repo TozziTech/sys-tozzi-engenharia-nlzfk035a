@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { KanbanTask, TaskPriority, TaskStatus } from './KanbanBoard'
 import { format } from 'date-fns'
+import { TaskAttachments } from './TaskAttachments'
 
 interface TaskDetailModalProps {
   isOpen: boolean
@@ -105,22 +106,29 @@ export function TaskDetailModal({
     setNewComment('')
   }
 
+  const handleAttachmentUpdate = (updatedRecord: any) => {
+    const newTask = { ...editedTask, ...updatedRecord }
+    setEditedTask(newTask)
+    onUpdate(newTask)
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[700px] h-[85vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle>Detalhes da Tarefa</DialogTitle>
         </DialogHeader>
         <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-6 pt-2">
-            <TabsList className="w-full grid grid-cols-3">
+          <div className="px-6 pt-2 border-b border-border/50">
+            <TabsList className="w-full grid grid-cols-4 h-11">
               <TabsTrigger value="details">Detalhes</TabsTrigger>
+              <TabsTrigger value="attachments">Anexos</TabsTrigger>
               <TabsTrigger value="comments">Comentários</TabsTrigger>
               <TabsTrigger value="history">Histórico</TabsTrigger>
             </TabsList>
           </div>
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            <TabsContent value="details" className="space-y-4 mt-0">
+          <div className="flex-1 overflow-hidden px-6 py-4">
+            <TabsContent value="details" className="space-y-4 mt-0 h-full overflow-y-auto">
               <div className="space-y-2">
                 <Label>Título</Label>
                 <Input
@@ -177,7 +185,14 @@ export function TaskDetailModal({
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="comments" className="space-y-4 mt-0">
+            <TabsContent value="attachments" className="h-full mt-0">
+              <TaskAttachments
+                taskId={(editedTask as any).id}
+                attachments={(editedTask as any).attachments || []}
+                onUpdate={handleAttachmentUpdate}
+              />
+            </TabsContent>
+            <TabsContent value="comments" className="space-y-4 mt-0 h-full overflow-y-auto">
               <div className="flex gap-2">
                 <Input
                   placeholder="Escreva um comentário..."
@@ -201,7 +216,7 @@ export function TaskDetailModal({
                 ))}
               </div>
             </TabsContent>
-            <TabsContent value="history" className="space-y-4 mt-0">
+            <TabsContent value="history" className="space-y-4 mt-0 h-full overflow-y-auto">
               <div className="relative border-l border-muted-foreground/20 ml-3 space-y-6">
                 {history.map((h) => (
                   <div key={h.id} className="pl-6 relative">

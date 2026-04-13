@@ -49,10 +49,10 @@ export function TaskSheet({
   const [descricao, setDescricao] = useState('')
   const [responsible, setResponsible] = useState<string>('unassigned')
   const [thId, setThId] = useState<string | null>(null)
-  
+
   const [isLoading, setIsLoading] = useState(false)
   const [hasInitialized, setHasInitialized] = useState(false)
-  
+
   const [attachments, setAttachments] = useState<string[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -82,7 +82,7 @@ export function TaskSheet({
         setIsLoading(true)
         try {
           const fresh = await pb.collection('tasks').getOne(task.id)
-          
+
           let fetchedThId = null
           let fetchedTitle = fresh.title || ''
           let fetchedConcluida = fresh.status === 'Concluído'
@@ -122,10 +122,10 @@ export function TaskSheet({
             descricao: fetchedDesc,
             responsible: fetchedResponsible,
           }
-          
+
           setHasInitialized(true)
         } catch (err) {
-          console.error("Failed to init task details", err)
+          console.error('Failed to init task details', err)
         } finally {
           setIsLoading(false)
         }
@@ -159,19 +159,27 @@ export function TaskSheet({
         )
       }
 
-      await pb.collection('tasks').update(task.id, {
-        title: current.title,
-        status: statusStr,
-        description: current.descricao,
-        responsible: current.responsible === 'unassigned' ? null : current.responsible,
-      }, { $autoCancel: false })
+      await pb.collection('tasks').update(
+        task.id,
+        {
+          title: current.title,
+          status: statusStr,
+          description: current.descricao,
+          responsible: current.responsible === 'unassigned' ? null : current.responsible,
+        },
+        { $autoCancel: false },
+      )
 
       if (current.thId) {
-        await pb.collection('tarefas_hierarquicas').update(current.thId, {
-          titulo: current.title,
-          concluida: current.concluida,
-          descricao: current.descricao,
-        }, { $autoCancel: false })
+        await pb.collection('tarefas_hierarquicas').update(
+          current.thId,
+          {
+            titulo: current.title,
+            concluida: current.concluida,
+            descricao: current.descricao,
+          },
+          { $autoCancel: false },
+        )
       } else {
         try {
           const th = await pb.collection('tarefas_hierarquicas').create({
@@ -208,12 +216,12 @@ export function TaskSheet({
     }
 
     if (timerRef.current) clearTimeout(timerRef.current)
-    
+
     timerRef.current = setTimeout(() => {
       saveChanges()
       lastSavedState.current = current
     }, 500)
-    
+
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
@@ -224,7 +232,7 @@ export function TaskSheet({
       if (timerRef.current) {
         clearTimeout(timerRef.current)
       }
-      
+
       const current = { title, concluida, descricao, responsible }
       const saved = lastSavedState.current
       if (
@@ -235,14 +243,14 @@ export function TaskSheet({
       ) {
         await saveChanges()
       }
-      
+
       onTaskUpdated()
       onOpenChange(false)
-      
+
       setTimeout(() => {
-         setTitle('')
-         setDescricao('')
-         setHasInitialized(false)
+        setTitle('')
+        setDescricao('')
+        setHasInitialized(false)
       }, 300)
     }
   }
@@ -321,19 +329,19 @@ export function TaskSheet({
         <div className="flex-1 overflow-y-auto py-6 space-y-7 px-1 custom-scrollbar">
           {!hasInitialized ? (
             <div className="space-y-6">
-               <div className="space-y-2">
-                 <Skeleton className="h-4 w-24" />
-                 <Skeleton className="h-11 w-full" />
-               </div>
-               <Skeleton className="h-16 w-full rounded-xl" />
-               <div className="space-y-2">
-                 <Skeleton className="h-4 w-24" />
-                 <Skeleton className="h-11 w-full" />
-               </div>
-               <div className="space-y-2">
-                 <Skeleton className="h-4 w-24" />
-                 <Skeleton className="h-40 w-full" />
-               </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-11 w-full" />
+              </div>
+              <Skeleton className="h-16 w-full rounded-xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-11 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-40 w-full" />
+              </div>
             </div>
           ) : (
             <>
@@ -383,7 +391,9 @@ export function TaskSheet({
                       <SelectItem key={u.id} value={u.id}>
                         <div className="flex items-center gap-2">
                           <Avatar className="h-5 w-5">
-                            <AvatarImage src={u.avatar ? pb.files.getURL(u, u.avatar) : undefined} />
+                            <AvatarImage
+                              src={u.avatar ? pb.files.getURL(u, u.avatar) : undefined}
+                            />
                             <AvatarFallback className="text-[10px]">
                               {u.name?.charAt(0) || 'U'}
                             </AvatarFallback>
@@ -429,7 +439,7 @@ export function TaskSheet({
                     isDragging
                       ? 'border-primary bg-primary/5 scale-[0.99]'
                       : 'border-muted-foreground/25 hover:bg-muted/50',
-                    isLoading && 'opacity-50 pointer-events-none'
+                    isLoading && 'opacity-50 pointer-events-none',
                   )}
                   onDragOver={(e) => {
                     e.preventDefault()
@@ -511,7 +521,7 @@ export function TaskSheet({
                               size="icon"
                               className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                               onClick={(e) => {
-                                e.stopPropagation();
+                                e.stopPropagation()
                                 handleDeleteAttachment(filename)
                               }}
                               disabled={isLoading}
@@ -532,7 +542,6 @@ export function TaskSheet({
               </div>
             </>
           )}
-        </div>
         </div>
       </SheetContent>
     </Sheet>

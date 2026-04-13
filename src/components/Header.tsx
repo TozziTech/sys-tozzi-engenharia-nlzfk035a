@@ -69,18 +69,14 @@ export function Header() {
           pb
             .collection('projects')
             .getList(1, 5, { filter: `name ~ "${searchQuery.replace(/"/g, '')}"` }),
-          pb
-            .collection('tasks')
-            .getList(1, 5, {
-              filter: `title ~ "${searchQuery.replace(/"/g, '')}"`,
-              expand: 'project,module',
-            }),
-          pb
-            .collection('project_documents')
-            .getList(1, 5, {
-              filter: `name ~ "${searchQuery.replace(/"/g, '')}"`,
-              expand: 'project',
-            }),
+          pb.collection('tasks').getList(1, 5, {
+            filter: `title ~ "${searchQuery.replace(/"/g, '')}"`,
+            expand: 'project,module',
+          }),
+          pb.collection('project_documents').getList(1, 5, {
+            filter: `name ~ "${searchQuery.replace(/"/g, '')}"`,
+            expand: 'project',
+          }),
         ])
         setSearchResults({
           projects: projectsRes.items,

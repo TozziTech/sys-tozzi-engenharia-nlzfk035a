@@ -21,6 +21,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 import { Button } from '@/components/ui/button'
+import { Paperclip, X, Download, FileText, Image as ImageIcon } from 'lucide-react'
+import { uploadTaskAttachments, deleteTaskAttachment } from '@/services/tasks'
 
 interface TaskSheetProps {
   task: any
@@ -45,8 +47,15 @@ export function TaskSheet({
   const [responsible, setResponsible] = useState<string>('unassigned')
   const [thId, setThId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [attachments, setAttachments] = useState<string[]>([])
+  const [localTask, setLocalTask] = useState<any>(task)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const stateRef = useRef({ title, concluida, descricao, responsible, thId })
+
+  useEffect(() => {
+    if (task) setLocalTask(task)
+  }, [task])
 
   useEffect(() => {
     async function fetchTaskData() {
@@ -57,6 +66,20 @@ export function TaskSheet({
         let fetchedConcluida = task.status === 'Concluído' || task.concluida === true
         let fetchedDesc = task.description || task.descricao || ''
         let fetchedResponsible = task.responsible || 'unassigned'
+
+        try {
+          const freshTask = await pb.collection('tasks').getOne(task.id)
+          setLocalTask(freshTask)
+          setAttachments(
+            freshTask.attachments
+              ? Array.isArray(freshTask.attachments)
+                ? freshTask.attachments
+                : [freshTask.attachments]
+              : [],
+          )
+        } catch (err) {
+          console.error('Failed to fetch fresh task', err)
+        }
 
         try {
           const th = await pb
@@ -150,6 +173,52 @@ export function TaskSheet({
     }
   }
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setIsLoading(true)
+    try {
+      await uploadTaskAttachments(task.id, files)
+      const updatedTask = await pb.collection('tasks').getOne(task.id)
+      setLocalTask(updatedTask)
+      setAttachments(
+        updatedTask.attachments
+          ? Array.isArray(updatedTask.attachments)
+            ? updatedTask.attachments
+            : [updatedTask.attachments]
+          : [],
+      )
+      onTaskUpdated()
+    } catch (err) {
+      console.error('Failed to upload attachment', err)
+    } finally {
+      setIsLoading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDeleteAttachment = async (filename: string) => {
+    setIsLoading(true)
+    try {
+      await deleteTaskAttachment(task.id, filename)
+      const updatedTask = await pb.collection('tasks').getOne(task.id)
+      setLocalTask(updatedTask)
+      setAttachments(
+        updatedTask.attachments
+          ? Array.isArray(updatedTask.attachments)
+            ? updatedTask.attachments
+            : [updatedTask.attachments]
+          : [],
+      )
+      onTaskUpdated()
+    } catch (err) {
+      console.error('Failed to delete attachment', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   if (!task) return null
 
   return (
@@ -238,37 +307,88 @@ export function TaskSheet({
             />
           </div>
 
-          <div className="bg-slate-100 dark:bg-slate-900 p-4 rounded-xl border border-border text-xs text-slate-600 dark:text-slate-400 space-y-3 mt-8 shadow-inner">
-            <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 uppercase tracking-wider text-[10px]">
-              Metadados
-            </h4>
-            <div className="flex justify-between items-center border-b border-border/50 pb-2">
-              <span className="font-medium">ID da Tarefa:</span>
-              <span className="font-mono bg-white dark:bg-slate-950 px-2 py-0.5 rounded text-[10px]">
-                {task.id}
-              </span>
-            </div>
-            <div className="flex justify-between items-center border-b border-border/50 pb-2">
-              <span className="font-medium">Projeto:</span>
-              <span
-                className="font-mono truncate max-w-[150px] bg-white dark:bg-slate-950 px-2 py-0.5 rounded text-[10px]"
-                title={projectId}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Anexos
+              </Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="h-8"
               >
-                {projectId}
-              </span>
+                <Paperclip className="w-4 h-4 mr-2" />
+                Adicionar
+              </Button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                multiple
+                accept=".pdf,image/png,image/jpeg,image/jpg"
+                onChange={handleFileUpload}
+              />
             </div>
-            {task.parent_task && (
-              <div className="flex justify-between items-center border-b border-border/50 pb-2">
-                <span className="font-medium">Tarefa Pai:</span>
-                <span className="font-mono truncate max-w-[150px] bg-white dark:bg-slate-950 px-2 py-0.5 rounded text-[10px]">
-                  {task.parent_task}
-                </span>
+
+            {attachments.length > 0 ? (
+              <div className="space-y-2 mt-3">
+                {attachments.map((filename) => {
+                  const url = pb.files.getURL(localTask, filename)
+                  const isImage = filename.match(/\.(jpeg|jpg|gif|png)$/i)
+
+                  return (
+                    <div
+                      key={filename}
+                      className="flex items-center justify-between p-2 border rounded-md bg-slate-50 dark:bg-slate-900/50"
+                    >
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center text-sm text-blue-600 hover:underline truncate max-w-[200px]"
+                      >
+                        {isImage ? (
+                          <ImageIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                        ) : (
+                          <FileText className="w-4 h-4 mr-2 flex-shrink-0" />
+                        )}
+                        <span className="truncate">{filename}</span>
+                      </a>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-500"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            window.open(url, '_blank')
+                          }}
+                          title="Download"
+                        >
+                          <Download className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                          onClick={() => handleDeleteAttachment(filename)}
+                          disabled={isLoading}
+                          title="Remover"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500 text-center p-4 border border-dashed rounded-md bg-slate-50 dark:bg-slate-900/50">
+                Nenhum anexo adicionado.
               </div>
             )}
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Criado em:</span>
-              <span>{new Date(task.created).toLocaleString()}</span>
-            </div>
           </div>
         </div>
       </SheetContent>

@@ -86,9 +86,8 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import { HelpCircle, Columns, Download, Tag, X } from 'lucide-react'
+import { HelpCircle, Columns, Download, X } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { ManageTagsDialog } from '@/components/ManageTagsDialog'
 import { getContrastYIQ } from '@/lib/colors'
 
 // Funções de exportação (placeholders preventivos para evitar erros de compilação)
@@ -121,10 +120,11 @@ export default function DisciplineDetails() {
 
   const { user } = useAuth()
 
-  // Tags & Column Visibility State
-  const [allTags, setAllTags] = useState<any[]>([])
-  const [tagFilter, setTagFilter] = useState<string[]>([])
+  // Inline Editing State
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null)
+  const [editTitleValue, setEditTitleValue] = useState('')
 
+  // Column Visibility State
   const [visibleColumns, setVisibleColumns] = useState({
     descricao: true,
     status: true,
@@ -173,13 +173,9 @@ export default function DisciplineDetails() {
       })
       setModule(mod)
 
-      const tagsData = await pb.collection('tags').getFullList({ sort: 'name' })
-      setAllTags(tagsData)
-
       const moduleTasks = await pb.collection('tasks').getFullList({
         filter: `module = "${moduleId}"`,
         sort: 'ordem,due_date',
-        expand: 'tags',
       })
       setTasks(moduleTasks)
 
@@ -214,7 +210,27 @@ export default function DisciplineDetails() {
   useRealtime('project_modules', loadData)
   useRealtime('tasks', loadData)
   useRealtime('audit_logs', loadData)
-  useRealtime('tags', loadData)
+
+  const handleSaveTitle = async (taskId: string) => {
+    if (editingTitleId !== taskId) return
+    if (!editTitleValue.trim()) {
+      setEditingTitleId(null)
+      return
+    }
+    try {
+      await pb.collection('tasks').update(taskId, { title: editTitleValue })
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, title: editTitleValue } : t)))
+      toast({ title: 'Título atualizado' })
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao atualizar título',
+        description: e.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setEditingTitleId(null)
+    }
+  }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !module) return
@@ -492,7 +508,7 @@ export default function DisciplineDetails() {
     return daysUntilDue <= 3
   })
 
-  const isFilterActive = searchQuery !== '' || statusFilter !== 'All' || tagFilter.length > 0
+  const isFilterActive = searchQuery !== '' || statusFilter !== 'All'
   const filteredTasks = tasks.filter((task) => {
     const matchSearch =
       task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -501,8 +517,7 @@ export default function DisciplineDetails() {
       statusFilter === 'All' ||
       task.status === statusFilter ||
       (statusFilter === 'Pendente' && !task.status)
-    const matchTags = tagFilter.length === 0 || tagFilter.some((id) => task.tags?.includes(id))
-    return matchSearch && matchStatus && matchTags
+    return matchSearch && matchStatus
   })
 
   const totalTasks = tasks.length
@@ -815,59 +830,6 @@ export default function DisciplineDetails() {
                           </SelectContent>
                         </Select>
                       </div>
-
-                      <div className="w-full sm:w-auto">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="gap-2 w-full justify-start sm:w-auto"
-                            >
-                              <Tag className="h-4 w-4" />
-                              <span>Filtro de Tags</span>
-                              {tagFilter.length > 0 && (
-                                <Badge variant="secondary" className="ml-1 px-1 py-0 h-5 text-xs">
-                                  {tagFilter.length}
-                                </Badge>
-                              )}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-56">
-                            <DropdownMenuLabel>Filtrar por Tags</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {allTags.map((tag) => (
-                              <DropdownMenuCheckboxItem
-                                key={tag.id}
-                                checked={tagFilter.includes(tag.id)}
-                                onCheckedChange={(c) => {
-                                  setTagFilter((prev) =>
-                                    c ? [...prev, tag.id] : prev.filter((id) => id !== tag.id),
-                                  )
-                                }}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: tag.color }}
-                                  />
-                                  {tag.name}
-                                </div>
-                              </DropdownMenuCheckboxItem>
-                            ))}
-                            {tagFilter.length > 0 && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => setTagFilter([])}
-                                  className="justify-center text-sm text-muted-foreground"
-                                >
-                                  Limpar Filtros
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -914,14 +876,8 @@ export default function DisciplineDetails() {
                         </DropdownMenuContent>
                       </DropdownMenu>
 
-                      <ManageTagsDialog>
-                        <Button variant="outline" className="gap-2 w-full sm:w-auto">
-                          <Tag className="h-4 w-4" />
-                          <span className="hidden sm:inline">Gerenciar Tags</span>
-                        </Button>
-                      </ManageTagsDialog>
-
                       <DropdownMenu>
+                        {' '}
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="gap-2 w-full sm:w-auto">
                             <Download className="h-4 w-4" />
@@ -1067,10 +1023,34 @@ export default function DisciplineDetails() {
                                     ) : (
                                       <div className="w-6" />
                                     )}
-                                    <div className="flex flex-col gap-0.5">
+                                    <div className="flex flex-col gap-0.5 w-full">
                                       <span className="flex items-center gap-2">
-                                        {task.title}
-                                        {urgency.level !== 'none' && (
+                                        {editingTitleId === task.id ? (
+                                          <Input
+                                            autoFocus
+                                            value={editTitleValue}
+                                            onChange={(e) => setEditTitleValue(e.target.value)}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') handleSaveTitle(task.id)
+                                              if (e.key === 'Escape') setEditingTitleId(null)
+                                            }}
+                                            onBlur={() => handleSaveTitle(task.id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="h-7 text-sm py-1 px-2 w-full max-w-[300px]"
+                                          />
+                                        ) : (
+                                          <span
+                                            className="cursor-pointer hover:text-primary transition-colors border-b border-transparent hover:border-primary/50"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              setEditingTitleId(task.id)
+                                              setEditTitleValue(task.title)
+                                            }}
+                                          >
+                                            {task.title}
+                                          </span>
+                                        )}
+                                        {urgency.level !== 'none' && editingTitleId !== task.id && (
                                           <Badge
                                             variant="outline"
                                             className={cn(
@@ -1086,7 +1066,7 @@ export default function DisciplineDetails() {
                                           </Badge>
                                         )}
                                       </span>
-                                      {task.description && (
+                                      {task.description && editingTitleId !== task.id && (
                                         <span className="text-xs text-muted-foreground line-clamp-1">
                                           {task.description}
                                         </span>
@@ -1095,31 +1075,61 @@ export default function DisciplineDetails() {
                                   </TableCell>
                                 )}
                                 {visibleColumns.status && (
-                                  <TableCell>
-                                    <Badge
-                                      variant={
-                                        task.status === 'Concluído' ? 'default' : 'secondary'
-                                      }
-                                      className={
-                                        task.status === 'Concluído'
-                                          ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-none'
-                                          : task.status === 'Atrasado'
-                                            ? 'bg-red-500 hover:bg-red-600 text-white border-none'
-                                            : task.status === 'Revisão'
-                                              ? 'bg-purple-500 hover:bg-purple-600 text-white border-none'
-                                              : task.status === 'Não Realizado'
-                                                ? 'bg-gray-500 hover:bg-gray-600 text-white border-none'
-                                                : task.status === 'Espera'
-                                                  ? 'bg-orange-500 hover:bg-orange-600 text-white border-none'
-                                                  : task.status === 'Em Andamento'
-                                                    ? 'bg-blue-500 hover:bg-blue-600 text-white border-none'
-                                                    : ''
-                                      }
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Select
+                                      value={task.status || 'Pendente'}
+                                      onValueChange={async (val) => {
+                                        try {
+                                          await pb
+                                            .collection('tasks')
+                                            .update(task.id, { status: val })
+                                          setTasks((prev) =>
+                                            prev.map((t) =>
+                                              t.id === task.id ? { ...t, status: val } : t,
+                                            ),
+                                          )
+                                          toast({ title: 'Status atualizado' })
+                                        } catch (e: any) {
+                                          toast({
+                                            title: 'Erro',
+                                            description: 'Não foi possível atualizar o status.',
+                                            variant: 'destructive',
+                                          })
+                                        }
+                                      }}
                                     >
-                                      {task.status || 'Pendente'}
-                                    </Badge>
+                                      <SelectTrigger
+                                        className={cn(
+                                          'h-7 w-[130px] border-none text-xs font-medium focus:ring-0 focus:ring-offset-0',
+                                          task.status === 'Concluído'
+                                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                                            : task.status === 'Atrasado'
+                                              ? 'bg-red-500 hover:bg-red-600 text-white'
+                                              : task.status === 'Revisão'
+                                                ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                                                : task.status === 'Não Realizado'
+                                                  ? 'bg-gray-500 hover:bg-gray-600 text-white'
+                                                  : task.status === 'Espera'
+                                                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                                                    : task.status === 'Em Andamento'
+                                                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                                      : 'bg-slate-500 hover:bg-slate-600 text-white',
+                                        )}
+                                      >
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent onClick={(e) => e.stopPropagation()}>
+                                        <SelectItem value="Atrasado">Atrasado</SelectItem>
+                                        <SelectItem value="Revisão">Revisão</SelectItem>
+                                        <SelectItem value="Não Realizado">Não Realizado</SelectItem>
+                                        <SelectItem value="Espera">Espera</SelectItem>
+                                        <SelectItem value="Pendente">Pendente</SelectItem>
+                                        <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                                        <SelectItem value="Concluído">Concluído</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   </TableCell>
-                                )}
+                                )}{' '}
                                 {visibleColumns.data && (
                                   <TableCell
                                     className={cn(
@@ -1474,62 +1484,6 @@ export default function DisciplineDetails() {
             {selectedTaskIds.length} selecionada{selectedTaskIds.length > 1 ? 's' : ''}
           </Badge>
           <div className="w-px h-6 bg-border mx-1" />
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-full border-none bg-muted/50 hover:bg-muted"
-              >
-                <Tag className="h-4 w-4 mr-2" />
-                Atribuir Tags
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Adicionar Tag</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {allTags.map((tag) => (
-                <DropdownMenuItem
-                  key={tag.id}
-                  onClick={async () => {
-                    setLoading(true)
-                    try {
-                      await Promise.all(
-                        selectedTaskIds.map(async (id) => {
-                          const task = tasks.find((t) => t.id === id)
-                          if (task && !task.tags?.includes(tag.id)) {
-                            const newTags = [...(task.tags || []), tag.id]
-                            await pb.collection('tasks').update(id, { tags: newTags })
-                          }
-                        }),
-                      )
-                      toast({
-                        title: 'Tags adicionadas',
-                        description: 'As tags foram atribuídas às tarefas selecionadas.',
-                      })
-                      setSelectedTaskIds([])
-                      setLastSelectedTaskId(null)
-                      loadData()
-                    } catch (e) {
-                      toast({
-                        title: 'Erro',
-                        description: 'Falha ao adicionar tags.',
-                        variant: 'destructive',
-                      })
-                    } finally {
-                      setLoading(false)
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
-                    {tag.name}
-                  </div>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
 
           <Select onValueChange={handleBulkStatusChange} value="">
             <SelectTrigger className="w-[160px] h-8 rounded-full border-none bg-muted/50 hover:bg-muted">

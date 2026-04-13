@@ -37,6 +37,14 @@ import { maskCPF, maskRG, maskPhone, validateCPF } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
 
+const ROLE_PREFIXES: Record<string, string> = {
+  Administrador: 'ADM',
+  'Gerente de Projeto': 'GER',
+  Projetista: 'PROJ',
+  Estagiário: 'ESTG',
+  Visitante: 'VIST',
+}
+
 const formSchema = z
   .object({
     name: z.string().min(1, 'O nome do membro é obrigatório.'),
@@ -108,25 +116,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
-  const handleMaskedChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    maskFn: (v: string) => string,
-    onChange: (v: string) => void,
-  ) => {
-    const input = e.target
-    const oldCursor = input.selectionStart
-    const oldVal = input.value
-    const newVal = maskFn(oldVal)
-
-    onChange(newVal)
-
-    window.requestAnimationFrame(() => {
-      if (input && oldCursor !== null) {
-        input.setSelectionRange(oldCursor, oldCursor)
-      }
-    })
-  }
-
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -158,29 +147,107 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     },
   })
 
-  useEffect(() => {
-    if (open) {
-      const fetchNextCodigo = async () => {
-        try {
-          const records = await pb
-            .collection('users')
-            .getFullList({ filter: 'codigo ~ "PER-"', fields: 'codigo' })
-          let maxNum = 0
-          for (const record of records) {
-            const match = record.codigo.match(/PER-(\d+)/)
-            if (match) {
-              const num = parseInt(match[1], 10)
-              if (num > maxNum) maxNum = num
-            }
+  const role = form.watch('role')
+  const cepValue = form.watch('cep')
+  const formacaoSelectValue = form.watch('formacaoSelect')
+  const codigoValue = form.watch('codigo')
+  const isCodigoValid = !!codigoValue?.trim()
+
+  const handleMaskedChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    maskFn: (v: string) => string,
+    onChange: (v: string) => void,
+  ) => {
+    const input = e.target
+    const oldVal = input.value
+    const oldCursor = input.selectionStart || 0
+    const unmaskedBeforeCursor = oldVal.slice(0, oldCursor).replace(/\D/g, '')
+
+    const newVal = maskFn(oldVal)
+    onChange(newVal)
+
+    window.requestAnimationFrame(() => {
+      if (input) {
+        let newCursor = 0
+        let digitsFound = 0
+        for (let i = 0; i < newVal.length; i++) {
+          if (/\d/.test(newVal[i])) {
+            digitsFound++
           }
-          const nextNum = maxNum + 1
-          form.setValue('codigo', `PER-${nextNum.toString().padStart(3, '0')}`)
-        } catch (e) {
-          console.error('Error fetching codigos', e)
+          if (digitsFound === unmaskedBeforeCursor.length) {
+            newCursor = i + 1
+            while (newCursor < newVal.length && !/\d/.test(newVal[newCursor])) {
+              newCursor++
+            }
+            break
+          }
         }
+        if (unmaskedBeforeCursor.length === 0) newCursor = 0
+        input.setSelectionRange(newCursor, newCursor)
       }
-      if (!form.getValues('codigo')) fetchNextCodigo()
-    } else {
+    })
+  }
+
+  // Handle sequential code generation
+  useEffect(() => {
+    if (!open) return
+    let isMounted = true
+    const prefix = ROLE_PREFIXES[role] || 'PER'
+
+    const fetchNextCodigo = async () => {
+      try {
+        const records = await pb
+          .collection('users')
+          .getFullList({ filter: `codigo ~ "^${prefix}-"`, fields: 'codigo' })
+        let maxNum = 0
+        for (const record of records) {
+          const match = record.codigo.match(new RegExp(`^${prefix}-(\\d+)`))
+          if (match) {
+            const num = parseInt(match[1], 10)
+            if (num > maxNum) maxNum = num
+          }
+        }
+        const nextNum = maxNum + 1
+        if (isMounted) {
+          form.setValue('codigo', `${prefix}-${nextNum.toString().padStart(3, '0')}`)
+        }
+      } catch (e) {
+        console.error('Error fetching codigos', e)
+      }
+    }
+
+    fetchNextCodigo()
+    return () => {
+      isMounted = false
+    }
+  }, [open, role, form])
+
+  // Handle CEP auto-fill
+  useEffect(() => {
+    if (!cepValue) return
+    const cleanCep = cepValue.replace(/\D/g, '')
+    if (cleanCep.length === 8) {
+      fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.erro) {
+            form.setValue('logradouro', data.logradouro || '')
+            form.setValue('bairro', data.bairro || '')
+            form.setValue('cidade', data.localidade || '')
+            form.setValue('uf', data.uf || '')
+          } else {
+            toast({ title: 'CEP não encontrado', variant: 'destructive' })
+          }
+        })
+        .catch(() => {
+          toast({ title: 'Erro ao buscar CEP', variant: 'destructive' })
+        })
+    }
+  }, [cepValue, form, toast])
+
+  // Handle reset on close
+  useEffect(() => {
+    if (!open) {
       form.reset()
     }
   }, [open, form])
@@ -314,10 +381,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
     }
   }
 
-  const formacaoSelectValue = form.watch('formacaoSelect')
-  const codigoValue = form.watch('codigo')
-  const isCodigoValid = !!codigoValue?.trim()
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -325,7 +388,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
           <Plus className="mr-2 h-4 w-4" /> Adicionar Membro
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[700px] h-[90vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[750px] h-[90vh] flex flex-col p-0 overflow-hidden">
         <div className="p-6 pb-4">
           <DialogHeader>
             <DialogTitle className="text-xl">Novo Membro</DialogTitle>
@@ -341,10 +404,12 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
             className="flex-1 overflow-hidden flex flex-col"
           >
             <ScrollArea className="flex-1 px-6">
-              <div className="flex flex-col gap-6 py-4 pb-6">
-                {/* Section: Dados Gerais */}
+              <div className="flex flex-col gap-8 py-4 pb-6">
+                {/* Section: Dados Pessoais */}
                 <div className="space-y-4">
-                  <h4 className="font-semibold text-sm text-primary">Dados Gerais</h4>
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <h4 className="font-semibold text-base text-primary">Dados Pessoais</h4>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -369,12 +434,15 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           </FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="Ex: PER-001"
+                              placeholder="Automático"
                               disabled
-                              className="bg-muted text-muted-foreground"
+                              className="bg-muted text-muted-foreground font-mono"
                               {...field}
                             />
                           </FormControl>
+                          <FormDescription>
+                            Gerado automaticamente com base no cargo.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -463,116 +531,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telefone</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="(00) 00000-0000"
-                              maxLength={15}
-                              {...field}
-                              onChange={(e) => handleMaskedChange(e, maskPhone, field.onChange)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="altPhone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telefone Alternativo</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="(00) 00000-0000"
-                              maxLength={15}
-                              {...field}
-                              onChange={(e) => handleMaskedChange(e, maskPhone, field.onChange)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
-                </div>
-
-                {/* Section: Dados Profissionais */}
-                <div className="pt-6 border-t border-border/50 space-y-4">
-                  <h4 className="font-semibold text-sm text-primary">Dados Profissionais</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="formacaoSelect"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Formação</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Engenheiro Civil">Engenheiro Civil</SelectItem>
-                              <SelectItem value="Engenheiro Elétrico">
-                                Engenheiro Elétrico
-                              </SelectItem>
-                              <SelectItem value="Engenheiro Mecânico">
-                                Engenheiro Mecânico
-                              </SelectItem>
-                              <SelectItem value="Arquiteto">Arquiteto</SelectItem>
-                              <SelectItem value="Topógrafo">Topógrafo</SelectItem>
-                              <SelectItem value="Outros">Outros</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    {formacaoSelectValue === 'Outros' && (
-                      <FormField
-                        control={form.control}
-                        name="formacaoCustom"
-                        render={({ field }) => (
-                          <FormItem className="animate-in fade-in zoom-in duration-200">
-                            <FormLabel>Especifique a Formação</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Sua formação..." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                    <FormField
-                      control={form.control}
-                      name="crea"
-                      render={({ field }) => (
-                        <FormItem className={formacaoSelectValue !== 'Outros' ? 'col-span-1' : ''}>
-                          <FormLabel>Registro CREA/CAU</FormLabel>
-                          <FormControl>
-                            <Input placeholder="123456/UF" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* Section: Dados Pessoais & Endereço */}
-                <div className="pt-6 border-t border-border/50 space-y-4">
-                  <h4 className="font-semibold text-sm text-primary">Dados Pessoais & Endereço</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
@@ -623,6 +582,51 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         </FormItem>
                       )}
                     />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="(00) 00000-0000"
+                              maxLength={15}
+                              {...field}
+                              onChange={(e) => handleMaskedChange(e, maskPhone, field.onChange)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="altPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone Alternativo</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="(00) 00000-0000"
+                              maxLength={15}
+                              {...field}
+                              onChange={(e) => handleMaskedChange(e, maskPhone, field.onChange)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Section: Endereço */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <h4 className="font-semibold text-base text-primary">Endereço</h4>
                   </div>
                   <div className="grid grid-cols-12 gap-4">
                     <FormField
@@ -721,9 +725,81 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                   </div>
                 </div>
 
+                {/* Section: Dados Profissionais */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <h4 className="font-semibold text-base text-primary">Dados Profissionais</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="formacaoSelect"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Formação</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Engenheiro Civil">Engenheiro Civil</SelectItem>
+                              <SelectItem value="Engenheiro Elétrico">
+                                Engenheiro Elétrico
+                              </SelectItem>
+                              <SelectItem value="Engenheiro Mecânico">
+                                Engenheiro Mecânico
+                              </SelectItem>
+                              <SelectItem value="Arquiteto">Arquiteto</SelectItem>
+                              <SelectItem value="Topógrafo">Topógrafo</SelectItem>
+                              <SelectItem value="Outros">Outros</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {formacaoSelectValue === 'Outros' && (
+                      <FormField
+                        control={form.control}
+                        name="formacaoCustom"
+                        render={({ field }) => (
+                          <FormItem className="animate-in fade-in zoom-in duration-200">
+                            <FormLabel>Especifique a Formação</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Sua formação..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    <FormField
+                      control={form.control}
+                      name="crea"
+                      render={({ field }) => (
+                        <FormItem className={formacaoSelectValue !== 'Outros' ? 'col-span-1' : ''}>
+                          <FormLabel>Registro CREA/CAU</FormLabel>
+                          <FormControl>
+                            <Input placeholder="123456/UF" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
                 {/* Section: Dados Financeiros */}
-                <div className="pt-6 border-t border-border/50 space-y-4">
-                  <h4 className="font-semibold text-sm text-primary">Dados Financeiros</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <h4 className="font-semibold text-base text-primary">Dados Financeiros</h4>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -781,8 +857,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                 </div>
 
                 {/* Section: Documentação */}
-                <div className="pt-6 border-t border-border/50 space-y-4">
-                  <h4 className="font-semibold text-sm text-primary">Documentação</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <h4 className="font-semibold text-base text-primary">Documentação</h4>
+                  </div>
                   <div className="grid grid-cols-1 gap-4">
                     <FormField
                       control={form.control}

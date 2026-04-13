@@ -153,6 +153,7 @@ export default function DisciplineDetails() {
   const [tasks, setTasks] = useState<any[]>([])
   const [logs, setLogs] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
+  const [companySettings, setCompanySettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -230,14 +231,19 @@ export default function DisciplineDetails() {
       })
       setModule(mod)
 
-      const [moduleTasks, usersList] = await Promise.all([
+      const [moduleTasks, usersList, settingsList] = await Promise.all([
         pb.collection('tasks').getFullList({
           filter: `module = "${moduleId}"`,
           sort: 'ordem,due_date',
           expand: 'responsible',
         }),
         pb.collection('users').getFullList({ sort: 'name' }),
+        pb.collection('company_settings').getFullList(),
       ])
+
+      if (settingsList.length > 0) {
+        setCompanySettings(settingsList[0])
+      }
 
       setTasks(moduleTasks)
       setUsers(usersList)
@@ -2022,12 +2028,12 @@ export default function DisciplineDetails() {
 
       <div
         id="discipline-print-report"
-        className="hidden print:block w-full bg-white text-black font-sans pb-10"
+        className="hidden print:block w-full bg-white text-black font-sans pb-16"
       >
         <style type="text/css">
           {`
             @media print {
-              @page { margin: 1cm; }
+              @page { margin: 1.5cm; }
               body * {
                 visibility: hidden;
               }
@@ -2040,31 +2046,70 @@ export default function DisciplineDetails() {
                 top: 0;
                 width: 100%;
               }
+              .page-footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                text-align: center;
+                font-size: 10px;
+                color: #64748b;
+                border-top: 1px solid #e2e8f0;
+                padding-top: 8px;
+                padding-bottom: 8px;
+              }
+              table { page-break-inside:auto; width: 100%; }
+              tr    { page-break-inside:avoid; page-break-after:auto }
+              thead { display:table-header-group }
+              tfoot { display:table-footer-group }
             }
           `}
         </style>
-        <div className="border-b border-slate-200 pb-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+
+        <div className="page-footer hidden print:block">
+          Gerado em {format(new Date(), 'dd/MM/yyyy HH:mm')} -{' '}
+          {companySettings?.company_name || 'Relatório do Sistema'}
+        </div>
+
+        <div className="border-b-2 border-slate-800 pb-6 mb-6 flex items-start justify-between">
+          <div className="flex items-center gap-6">
+            {companySettings?.logo ? (
               <img
-                src="https://img.usecurling.com/i?q=company+logo&color=blue&shape=fill"
-                alt="Logo"
-                className="w-16 h-16 object-contain"
+                src={pb.files.getURL(companySettings, companySettings.logo)}
+                alt="Company Logo"
+                className="w-24 h-24 object-contain"
               />
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Relatório da Disciplina</h1>
-                <p className="text-slate-600 font-medium">{module.name}</p>
-                <p className="text-sm text-slate-500">
-                  Projeto: {(module.expand?.project as any)?.name || 'N/A'}
-                </p>
+            ) : (
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                {companySettings?.company_name || 'Empresa'}
               </div>
+            )}
+            <div className="text-sm text-slate-600">
+              {companySettings?.company_name && (
+                <p className="font-bold text-slate-800 text-base">{companySettings.company_name}</p>
+              )}
+              {companySettings?.cnpj && <p>CNPJ: {companySettings.cnpj}</p>}
+              {companySettings?.address && <p>{companySettings.address}</p>}
+              {companySettings?.phone && <p>{companySettings.phone}</p>}
             </div>
-            <div className="text-right text-sm text-slate-600 space-y-1">
+          </div>
+          <div className="text-right">
+            <h1 className="text-3xl font-bold text-slate-900 uppercase tracking-widest">
+              Relatório
+            </h1>
+            <h2 className="text-xl text-slate-700 mt-1 font-medium">{module.name}</h2>
+            <div className="mt-4 text-sm text-slate-600">
               <p>
-                <strong>Gerado em:</strong> {format(new Date(), 'dd/MM/yyyy HH:mm')}
+                <strong>Projeto:</strong> {(module.expand?.project as any)?.name || 'N/A'}
               </p>
               <p>
-                <strong>Progresso Geral:</strong> {calculatedProgress}%
+                <strong>Gerente:</strong> {responsible?.name || 'Não atribuído'}
+              </p>
+              <p>
+                <strong>Projetista:</strong> {designer?.name || 'Não atribuído'}
+              </p>
+              <p className="mt-2 text-primary font-medium">
+                Progresso Geral: {calculatedProgress}%
               </p>
             </div>
           </div>
@@ -2091,40 +2136,70 @@ export default function DisciplineDetails() {
 
         {allFlattenedTasks.length > 0 ? (
           <table className="w-full text-sm text-left border-collapse">
-            <thead>
-              <tr className="border-b-2 border-slate-300">
-                <th className="py-3 px-2 font-semibold text-slate-800">Tarefa</th>
-                <th className="py-3 px-2 font-semibold text-slate-800 w-32">Status</th>
-                <th className="py-3 px-2 font-semibold text-slate-800 w-48">Responsável</th>
-                <th className="py-3 px-2 font-semibold text-slate-800 w-32 text-right">Prazo</th>
+            <thead className="bg-slate-50">
+              <tr className="border-b-2 border-slate-800">
+                <th className="py-3 px-3 font-semibold text-slate-800 text-left">
+                  Tarefa / Atividade
+                </th>
+                <th className="py-3 px-3 font-semibold text-slate-800 w-32 text-left">Status</th>
+                <th className="py-3 px-3 font-semibold text-slate-800 w-48 text-left">
+                  Responsável
+                </th>
+                <th className="py-3 px-3 font-semibold text-slate-800 w-32 text-right">Prazo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {allFlattenedTasks.map((task) => (
-                <tr key={task.id} className="break-inside-avoid">
-                  <td className="py-3 px-2 align-top text-slate-800 flex items-center">
-                    <div style={{ width: `${(task.depth || 0) * 16}px` }} className="shrink-0" />
-                    <span
-                      className={
-                        task.status === 'Concluído' ? 'line-through text-slate-500' : 'font-medium'
-                      }
-                    >
-                      {task.title}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 align-top">
-                    <span className="text-xs px-2 py-1 bg-slate-100 border border-slate-200 rounded-full text-slate-700 font-medium">
-                      {task.status || 'Pendente'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 align-top text-slate-600">
-                    {task.expand?.responsible?.name || '-'}
-                  </td>
-                  <td className="py-3 px-2 align-top text-right text-slate-600">
-                    {task.due_date ? format(new Date(task.due_date), 'dd/MM/yyyy') : '-'}
-                  </td>
-                </tr>
-              ))}
+              {allFlattenedTasks.map((task) => {
+                const isConcluido = task.status === 'Concluído'
+                return (
+                  <tr
+                    key={task.id}
+                    className={`break-inside-avoid ${isConcluido ? 'bg-slate-50/50' : ''}`}
+                  >
+                    <td className="py-3 px-3 align-top text-slate-800 flex items-start gap-2">
+                      <div style={{ width: `${(task.depth || 0) * 16}px` }} className="shrink-0" />
+                      {task.depth > 0 && (
+                        <div className="w-3 h-3 border-l-2 border-b-2 border-slate-300 mt-1 shrink-0 rounded-bl" />
+                      )}
+                      <div className="flex flex-col">
+                        <span
+                          className={
+                            isConcluido
+                              ? 'line-through text-slate-500'
+                              : 'font-semibold text-slate-800'
+                          }
+                        >
+                          {task.title}
+                        </span>
+                        {task.description && (
+                          <span className="text-xs text-slate-500 mt-0.5">{task.description}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 align-top">
+                      <span
+                        className={`text-[10px] uppercase font-bold px-2.5 py-1 border rounded-full whitespace-nowrap ${
+                          task.status === 'Concluído'
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            : task.status === 'Atrasado'
+                              ? 'bg-red-100 text-red-800 border-red-200'
+                              : task.status === 'Em Andamento'
+                                ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {task.status || 'Pendente'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 align-top text-slate-600 font-medium">
+                      {task.expand?.responsible?.name || '-'}
+                    </td>
+                    <td className="py-3 px-3 align-top text-right text-slate-600">
+                      {task.due_date ? format(new Date(task.due_date), 'dd/MM/yyyy') : '-'}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         ) : (

@@ -115,6 +115,8 @@ export function FinancialTransactions() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <FinancialOverview transactions={filteredTransactions} categories={categories} />
+
       <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
         <div className="flex flex-wrap gap-4 w-full xl:w-auto items-center">
           <Popover>
@@ -214,8 +216,6 @@ export function FinancialTransactions() {
           </Button>
         </div>
       </div>
-
-      <FinancialOverview transactions={filteredTransactions} categories={categories} />
 
       <Card>
         <CardHeader>

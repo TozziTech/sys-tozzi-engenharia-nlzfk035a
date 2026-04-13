@@ -9,13 +9,19 @@ migrate(
     app.save(collection)
 
     // Migrate existing records to have a unique code
-    const records = app.findRecordsByFilter('financial_records', '1=1', 'created', 10000, 0)
-    for (let i = 0; i < records.length; i++) {
-      if (!records[i].get('code')) {
-        const num = String(i + 1).padStart(3, '0')
-        records[i].set('code', `FIN-${num}`)
-        app.saveNoValidate(records[i])
+    try {
+      const records = app.findRecordsByFilter('financial_records', '', 'created', 10000, 0)
+      if (records) {
+        for (let i = 0; i < records.length; i++) {
+          if (!records[i].get('code')) {
+            const num = String(i + 1).padStart(3, '0')
+            records[i].set('code', `FIN-${num}`)
+            app.saveNoValidate(records[i])
+          }
+        }
       }
+    } catch (err) {
+      console.log('Migration error in records update:', err)
     }
 
     // Add unique index

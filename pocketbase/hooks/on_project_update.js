@@ -37,22 +37,29 @@ onRecordUpdateRequest((e) => {
       const auditLogs = $app.findCollectionByNameOrId('audit_logs')
       const log = new Record(auditLogs)
 
+      let userId = ''
       if (e.auth) {
-        log.set('user_id', e.auth.id)
+        userId = e.auth.id
       } else {
-        const fallbackUser = $app.findFirstRecordByFilter('users', '1=1')
-        if (fallbackUser) log.set('user_id', fallbackUser.id)
+        try {
+          const fallbackUser = $app.findFirstRecordByFilter('users', '1=1')
+          if (fallbackUser) userId = fallbackUser.id
+        } catch (_) {}
       }
 
-      log.set('action', 'Update')
-      log.set('resource', original.get('name') || 'Projeto')
+      if (userId) {
+        log.set('user_id', userId)
+      }
+
+      log.set('action', 'update')
+      log.set('resource', 'projects')
       log.set('details', changes)
 
-      $app.saveNoValidate(log)
+      $app.save(log)
     } catch (err) {
       console.log('Audit log error:', err)
     }
   }
 
-  e.next()
+  return e.next()
 }, 'projects')

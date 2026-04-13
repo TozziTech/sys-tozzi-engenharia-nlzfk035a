@@ -38,7 +38,7 @@ onRecordUpdateRequest((e) => {
       const log = new Record(auditLogs)
 
       let userId = ''
-      if (e.auth) {
+      if (e.auth && e.auth.id) {
         userId = e.auth.id
       } else {
         try {
@@ -49,13 +49,16 @@ onRecordUpdateRequest((e) => {
 
       if (userId) {
         log.set('user_id', userId)
+        log.set('action', 'update')
+        log.set('resource', 'projects')
+        log.set('details', changes)
+
+        // Using saveNoValidate to prevent internal validation errors from bleeding
+        // into the main request context and blocking the project update.
+        $app.saveNoValidate(log)
+      } else {
+        console.log('Audit log skipped: no valid user_id found')
       }
-
-      log.set('action', 'update')
-      log.set('resource', 'projects')
-      log.set('details', changes)
-
-      $app.save(log)
     } catch (err) {
       console.log('Audit log error:', err)
     }

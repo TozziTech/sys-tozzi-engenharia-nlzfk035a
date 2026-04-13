@@ -38,8 +38,20 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
-import { TaskRow, type TaskNode } from './TaskRow'
-import { TaskSheet } from './TaskSheet'
+export interface TaskNode {
+  id: string
+  projeto_id: string
+  titulo: string
+  concluida: boolean
+  dados_customizados?: any
+  created: string
+  updated: string
+  parent_id?: string
+  parent_task?: string
+  ordem?: number
+  descricao?: string
+  children: TaskNode[]
+}
 
 const buildTree = (tasks: any[]): TaskNode[] => {
   const map = new Map<string, TaskNode>()
@@ -409,5 +421,195 @@ export function ProjectTreeGrid({ projectId }: { projectId: string }) {
       </div>
     )
 
-  return null
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => handleAddTask()} size="sm" className="gap-2">
+            <PlusCircle className="h-4 w-4" />
+            Nova Tarefa
+          </Button>
+          <div className="flex rounded-md border border-input p-1 bg-muted/50">
+            {(['todas', 'aberto', 'concluidas', 'pendentes'] as const).map((f) => (
+              <Button
+                key={f}
+                variant={filter === f ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setFilter(f)}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Columns className="h-4 w-4" />
+                Colunas
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuCheckboxItem
+                checked={columns.tarefa}
+                onCheckedChange={(c) => setColumns((p) => ({ ...p, tarefa: c }))}
+              >
+                Tarefa
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={columns.responsavel}
+                onCheckedChange={(c) => setColumns((p) => ({ ...p, responsavel: c }))}
+              >
+                Responsável
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={columns.dataEntrega}
+                onCheckedChange={(c) => setColumns((p) => ({ ...p, dataEntrega: c }))}
+              >
+                Data de Entrega
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={columns.status}
+                onCheckedChange={(c) => setColumns((p) => ({ ...p, status: c }))}
+              >
+                Status
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button variant="outline" size="sm" onClick={handleExportCSV} title="Exportar CSV">
+            <Download className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-md border bg-card overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {columns.tarefa && <TableHead className="w-[40%]">Tarefa</TableHead>}
+              {columns.responsavel && <TableHead>Responsável</TableHead>}
+              {columns.dataEntrega && <TableHead>Data de Entrega</TableHead>}
+              {columns.status && <TableHead>Status</TableHead>}
+              {columns.acoes && <TableHead className="text-right">Ações</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visibleNodes.length > 0 ? (
+              visibleNodes.map(({ task, depth }) => (
+                <TableRow key={task.id}>
+                  {columns.tarefa && (
+                    <TableCell>
+                      <div
+                        className="flex items-center gap-2"
+                        style={{ paddingLeft: `${depth * 1.5}rem` }}
+                      >
+                        {task.children?.length > 0 ? (
+                          <button
+                            onClick={() => handleToggleExpand(task.id)}
+                            className="w-4 h-4 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                          >
+                            {expandedIds.has(task.id) ? '-' : '+'}
+                          </button>
+                        ) : (
+                          <div className="w-4 h-4" />
+                        )}
+                        <span className="font-medium text-sm">{task.titulo}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {columns.responsavel && (
+                    <TableCell className="text-muted-foreground text-sm">
+                      {users.find((u) => u.id === task.dados_customizados?.responsible)?.name ||
+                        'Não atribuído'}
+                    </TableCell>
+                  )}
+                  {columns.dataEntrega && (
+                    <TableCell className="text-muted-foreground text-sm">
+                      {task.dados_customizados?.due_date
+                        ? new Date(task.dados_customizados.due_date).toLocaleDateString('pt-BR')
+                        : '-'}
+                    </TableCell>
+                  )}
+                  {columns.status && (
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          task.concluida
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : isOverdue(task.dados_customizados?.due_date)
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                              : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        }`}
+                      >
+                        {task.concluida
+                          ? 'Concluída'
+                          : isOverdue(task.dados_customizados?.due_date)
+                            ? 'Atrasada'
+                            : 'Em andamento'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {columns.acoes && (
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleAddTask(task.id)}
+                          title="Adicionar subtarefa"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDel(task.id)}
+                          title="Excluir tarefa"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  Nenhuma tarefa encontrada.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Tarefa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta tarefa? Todas as subtarefas também serão
+              removidas. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteTask}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
 }

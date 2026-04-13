@@ -1,4 +1,4 @@
-import React, { Fragment } from 'react'
+import React from 'react'
 
 interface MarkdownRendererProps {
   content: string
@@ -24,7 +24,11 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           </a>
         )
       }
-      return <Fragment key={i}>{parseBoldItalic(part)}</Fragment>
+      return (
+        <span key={i} className="contents">
+          {parseBoldItalic(part)}
+        </span>
+      )
     })
   }
 
@@ -39,7 +43,11 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           </strong>
         )
       }
-      return <Fragment key={i}>{parseItalic(part)}</Fragment>
+      return (
+        <span key={i} className="contents">
+          {parseItalic(part)}
+        </span>
+      )
     })
   }
 
@@ -57,7 +65,11 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           </em>
         )
       }
-      return <Fragment key={i}>{part}</Fragment>
+      return (
+        <span key={i} className="contents">
+          {part}
+        </span>
+      )
     })
   }
 

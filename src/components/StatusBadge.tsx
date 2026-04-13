@@ -34,24 +34,28 @@ export function StatusBadge({ status, endDate, className }: StatusBadgeProps) {
 
   if (isCritical) {
     return (
-      <Badge
-        variant="outline"
-        className={cn(
-          'rounded-full font-medium whitespace-nowrap bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
-          className,
-        )}
-      >
-        Crítico (≤3 dias)
-      </Badge>
+      <span className="contents">
+        <Badge
+          variant="outline"
+          className={cn(
+            'rounded-full font-medium whitespace-nowrap bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800',
+            className,
+          )}
+        >
+          Crítico (≤3 dias)
+        </Badge>
+      </span>
     )
   }
 
   return (
-    <Badge
-      variant="outline"
-      className={cn('rounded-full font-medium whitespace-nowrap', colors[status], className)}
-    >
-      {status}
-    </Badge>
+    <span className="contents">
+      <Badge
+        variant="outline"
+        className={cn('rounded-full font-medium whitespace-nowrap', colors[status], className)}
+      >
+        {status}
+      </Badge>
+    </span>
   )
 }

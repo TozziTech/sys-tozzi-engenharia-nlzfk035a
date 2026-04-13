@@ -34,6 +34,7 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle,
+  Star,
 } from 'lucide-react'
 import { exportProjectHoursCSV } from '@/lib/export'
 import { exportProjectHoursPDF } from '@/lib/exportPdf'
@@ -143,35 +144,76 @@ export default function ProjectDetails() {
   >([])
   const [isEditingObservations, setIsEditingObservations] = useState(false)
   const [observationText, setObservationText] = useState('')
+  const [pbDocuments, setPbDocuments] = useState<any[]>([])
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false)
+
+  const loadDocuments = useCallback(async () => {
+    if (!id) return
+    try {
+      const records = await pb
+        .collection('project_documents')
+        .getFullList({ filter: `project = "${id}"`, sort: '-created' })
+      setPbDocuments(records)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [id])
+
+  useEffect(() => {
+    loadDocuments()
+  }, [loadDocuments])
+
+  useRealtime('project_documents', loadDocuments)
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
 
-  const handleFileUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files.length > 0) {
-        const newDocs = Array.from(e.target.files).map((file) => ({
-          id: crypto.randomUUID(),
-          name: file.name,
-          date: new Date().toLocaleDateString('pt-BR'),
-          size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-        }))
-        setDocuments((prev) => [...prev, ...newDocs])
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setIsUploadingDoc(true)
+      try {
+        for (const file of Array.from(e.target.files)) {
+          const formData = new FormData()
+          formData.append('project', id!)
+          formData.append('name', file.name)
+          formData.append('file', file)
+          formData.append('type', 'Other')
+          await pb.collection('project_documents').create(formData)
+        }
         toast({
           title: 'Documentos anexados',
-          description: `${newDocs.length} arquivo(s) adicionado(s) com sucesso.`,
+          description: `${e.target.files.length} arquivo(s) adicionado(s) com sucesso.`,
         })
+      } catch (err) {
+        console.error(err)
+        toast({
+          title: 'Erro ao anexar',
+          description: 'Ocorreu um erro ao fazer upload dos arquivos.',
+          variant: 'destructive',
+        })
+      } finally {
+        setIsUploadingDoc(false)
+        if (e.target) e.target.value = ''
       }
-    },
-    [toast],
-  )
+    }
+  }
 
-  const handleDeleteDoc = useCallback(
-    (docId: string) => {
-      setDocuments((prev) => prev.filter((d) => d.id !== docId))
-      toast({ title: 'Documento removido', description: 'O arquivo foi excluído.' })
-    },
-    [toast],
-  )
+  const handleDeleteDoc = async (docId: string) => {
+    try {
+      await pb.collection('project_documents').delete(docId)
+      toast({ title: 'Documento removido', description: 'O arquivo foi excluído com sucesso.' })
+    } catch (err) {
+      toast({ title: 'Erro ao excluir', variant: 'destructive' })
+    }
+  }
+
+  const handleDocTypeChange = async (docId: string, newType: string) => {
+    try {
+      await pb.collection('project_documents').update(docId, { type: newType })
+      toast({ title: 'Categoria atualizada' })
+    } catch (err) {
+      toast({ title: 'Erro ao atualizar categoria', variant: 'destructive' })
+    }
+  }
 
   const handleDelete = useCallback(() => {
     if (!project) return
@@ -305,7 +347,25 @@ export default function ProjectDetails() {
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
-                  <CardTitle className="text-2xl font-bold">{project.name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        try {
+                          await pb
+                            .collection('projects')
+                            .update(project.id, { is_priority: !project.is_priority })
+                          updateProject(project.id, { is_priority: !project.is_priority })
+                        } catch (e) {
+                          console.error(e)
+                        }
+                      }}
+                      className={`focus:outline-none transition-colors ${project.is_priority ? 'text-yellow-500 hover:text-yellow-600' : 'text-slate-300 hover:text-yellow-400'}`}
+                      title={project.is_priority ? 'Remover prioridade' : 'Marcar como prioridade'}
+                    >
+                      <Star className={`h-6 w-6 ${project.is_priority ? 'fill-current' : ''}`} />
+                    </button>
+                    <CardTitle className="text-2xl font-bold">{project.name}</CardTitle>
+                  </div>
                   <CardDescription className="text-base mt-1">{project.client}</CardDescription>
                 </div>
                 <StatusBadge status={project.status} className="px-3 py-1 text-sm font-medium" />
@@ -673,53 +733,80 @@ export default function ProjectDetails() {
                 <CardHeader>
                   <CardTitle className="text-lg">Documentos do Projeto</CardTitle>
                   <CardDescription>
-                    Faça o upload e gerencie os arquivos relacionados a este projeto. (Os dados
-                    serão perdidos ao recarregar a página)
+                    Repositório centralizado para contratos, especificações técnicas e plantas.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div
-                    className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer"
-                    onClick={() => document.getElementById('file-upload')?.click()}
+                    className={`border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-8 flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${isUploadingDoc ? 'opacity-50 bg-slate-50 dark:bg-slate-900/50' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                    onClick={() =>
+                      !isUploadingDoc && document.getElementById('file-upload')?.click()
+                    }
                   >
                     <div className="p-3 bg-primary/10 rounded-full mb-4">
                       <UploadCloud className="h-6 w-6 text-primary" />
                     </div>
                     <h3 className="text-sm font-semibold mb-1">
-                      Clique ou arraste arquivos para cá
+                      {isUploadingDoc
+                        ? 'Enviando arquivos...'
+                        : 'Clique ou arraste arquivos para cá'}
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      PDF, DOCX, XLSX, JPG, PNG (Max 10MB)
+                      PDF, DOCX, DWG, Imagens (Max 10MB)
                     </p>
                     <input
                       type="file"
                       id="file-upload"
                       className="hidden"
                       multiple
+                      disabled={isUploadingDoc}
                       onChange={handleFileUpload}
                     />
                   </div>
 
-                  {documents.length > 0 ? (
+                  {pbDocuments.length > 0 ? (
                     <div className="rounded-md border overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Nome do Arquivo</TableHead>
+                            <TableHead>Categoria</TableHead>
                             <TableHead>Data de Adição</TableHead>
-                            <TableHead>Tamanho</TableHead>
                             <TableHead className="w-[100px] text-right">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {documents.map((doc) => (
+                          {pbDocuments.map((doc) => (
                             <TableRow key={doc.id}>
-                              <TableCell className="font-medium flex items-center gap-2 whitespace-nowrap">
-                                <File className="h-4 w-4 text-muted-foreground" />
-                                {doc.name}
+                              <TableCell className="font-medium">
+                                <a
+                                  href={pb.files.getUrl(doc, doc.file)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 whitespace-nowrap hover:text-primary hover:underline"
+                                >
+                                  <File className="h-4 w-4 text-muted-foreground" />
+                                  {doc.name}
+                                </a>
                               </TableCell>
-                              <TableCell className="whitespace-nowrap">{doc.date}</TableCell>
-                              <TableCell className="whitespace-nowrap">{doc.size}</TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                <Select
+                                  value={doc.type}
+                                  onValueChange={(val) => handleDocTypeChange(doc.id, val)}
+                                >
+                                  <SelectTrigger className="h-8 w-[130px] text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Contract">Contrato</SelectItem>
+                                    <SelectItem value="Technical">Técnico/Planta</SelectItem>
+                                    <SelectItem value="Other">Outros</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {new Date(doc.created).toLocaleDateString('pt-BR')}
+                              </TableCell>
                               <TableCell className="text-right">
                                 <Button
                                   variant="ghost"

@@ -11,6 +11,7 @@ import {
   FileText,
   TrendingDown,
   Users,
+  Star,
 } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
@@ -288,6 +289,61 @@ const Dashboard = () => {
         userName={user?.name || user?.email || 'Administrador'}
         printMode={printMode}
       />
+
+      {projects.filter((p) => p.is_priority && p.status !== 'Concluído').length > 0 && (
+        <div className="mt-6 mb-8 animate-fade-in-down">
+          <div className="flex items-center gap-2 mb-4">
+            <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+            <h3 className="text-xl font-bold">Projetos Prioritários</h3>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {projects
+              .filter((p) => p.is_priority && p.status !== 'Concluído')
+              .map((p) => (
+                <Card
+                  key={p.id}
+                  className="border-yellow-200 dark:border-yellow-900/50 bg-yellow-50/30 dark:bg-yellow-900/10 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden"
+                >
+                  <div className="absolute top-0 left-0 w-1 h-full bg-yellow-500" />
+                  <CardHeader className="pb-2 pl-5">
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-base line-clamp-1">
+                        <Link to={`/projects/${p.id}`} className="hover:underline">
+                          {p.name}
+                        </Link>
+                      </CardTitle>
+                      <Badge
+                        variant="outline"
+                        className="bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800"
+                      >
+                        Prioridade
+                      </Badge>
+                    </div>
+                    <CardDescription className="line-clamp-1">{p.client}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pl-5">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">Progresso</span>
+                      <span className="font-medium">{p.progress}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-yellow-500"
+                        style={{ width: `${p.progress || 0}%` }}
+                      />
+                    </div>
+                    {p.end_date && (
+                      <div className="flex items-center gap-2 mt-4 text-xs text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" />
+                        Entrega: {new Date(p.end_date).toLocaleDateString('pt-BR')}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="overview" className="w-full mt-4">
         <div className="flex items-center justify-between mb-4">

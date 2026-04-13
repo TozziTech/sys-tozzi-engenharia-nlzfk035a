@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Edit2, Eye, Trash2, AlertCircle } from 'lucide-react'
+import { Edit2, Eye, Trash2, AlertCircle, Star } from 'lucide-react'
 import { Project } from '@/types/project'
 import { Badge } from '@/components/ui/badge'
 import { differenceInDays, startOfDay } from 'date-fns'
@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import useProjectStore from '@/stores/useProjectStore'
+import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 
 interface ProjectTableProps {
@@ -86,6 +87,23 @@ export function ProjectTable({ projects }: ProjectTableProps) {
             >
               <TableCell className="font-medium text-slate-900">
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      pb.collection('projects')
+                        .update(project.id, { is_priority: !project.is_priority })
+                        .then(() =>
+                          useProjectStore
+                            .getState()
+                            .updateProject(project.id, { is_priority: !project.is_priority }),
+                        )
+                        .catch(console.error)
+                    }}
+                    className={`focus:outline-none transition-colors ${project.is_priority ? 'text-yellow-500 hover:text-yellow-600' : 'text-slate-300 hover:text-yellow-400'}`}
+                    title={project.is_priority ? 'Remover prioridade' : 'Marcar como prioridade'}
+                  >
+                    <Star className={`h-4 w-4 ${project.is_priority ? 'fill-current' : ''}`} />
+                  </button>
                   {project.name}
                   {isCritical(project) && (
                     <Badge

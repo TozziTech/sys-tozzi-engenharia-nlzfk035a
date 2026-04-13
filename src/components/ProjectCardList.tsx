@@ -6,7 +6,7 @@ import { Project } from '@/types/project'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusBadge } from './StatusBadge'
 import { AnimatedProgress } from './AnimatedProgress'
-import { CalendarDays, User, Layers, Edit2, Trash2, AlertCircle } from 'lucide-react'
+import { CalendarDays, User, Layers, Edit2, Trash2, AlertCircle, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { differenceInDays, startOfDay } from 'date-fns'
@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import useProjectStore from '@/stores/useProjectStore'
+import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 
 interface ProjectCardListProps {
@@ -72,8 +73,26 @@ export function ProjectCardList({ projects }: ProjectCardListProps) {
             <div className="flex justify-between items-start gap-4">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <CardTitle className="text-lg font-bold text-slate-900 leading-tight">
-                    {project.name}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      pb.collection('projects')
+                        .update(project.id, { is_priority: !project.is_priority })
+                        .then(() =>
+                          useProjectStore
+                            .getState()
+                            .updateProject(project.id, { is_priority: !project.is_priority }),
+                        )
+                        .catch(console.error)
+                    }}
+                    className={`focus:outline-none transition-colors z-20 relative ${project.is_priority ? 'text-yellow-500 hover:text-yellow-600' : 'text-slate-300 hover:text-yellow-400'}`}
+                  >
+                    <Star className={`h-5 w-5 ${project.is_priority ? 'fill-current' : ''}`} />
+                  </button>
+                  <CardTitle className="text-lg font-bold text-slate-900 leading-tight z-20 relative">
+                    <Link to={`/projects/${project.id}`} className="hover:underline">
+                      {project.name}
+                    </Link>
                   </CardTitle>
                   {isCritical(project) && (
                     <Badge

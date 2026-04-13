@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   format,
   addMonths,
@@ -14,7 +15,16 @@ import {
   subWeeks,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, Download } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Filter,
+  Download,
+  Briefcase,
+  Layers,
+  CheckSquare,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -37,15 +47,27 @@ import { cn } from '@/lib/utils'
 import { exportCalendarCSV } from '@/lib/export'
 import { exportCalendarPDF } from '@/lib/exportPdf'
 
+type CalendarEvent = {
+  id: string
+  realId: string
+  title: string
+  date: string
+  type: 'project' | 'module' | 'task'
+  status: string
+  projectName?: string
+  link: string
+  discipline?: string
+}
+
 export default function ProjectCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
-  const [tasks, setTasks] = useState<any[]>([])
-  const [modules, setModules] = useState<any[]>([])
+  const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedDisciplines, setSelectedDisciplines] = useState<string[]>([])
   const { user } = useAuth()
   const { toast } = useToast()
   const [settings, setSettings] = useState<any>(null)
+  const navigate = useNavigate()
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
@@ -58,15 +80,70 @@ export default function ProjectCalendar() {
 
   const loadData = async () => {
     try {
-      const [tasksRes, modulesRes] = await Promise.all([
+      const [tasksRes, modulesRes, projectsRes] = await Promise.all([
         pb.collection('tasks').getFullList({
           expand: 'project,module',
           filter: 'due_date != ""',
         }),
-        pb.collection('project_modules').getFullList(),
+        pb.collection('project_modules').getFullList({
+          expand: 'project',
+          filter: 'deadline != ""',
+        }),
+        pb.collection('projects').getFullList({
+          filter: 'end_date != ""',
+        }),
       ])
-      setTasks(tasksRes)
-      setModules(modulesRes)
+
+      const allEvents: CalendarEvent[] = []
+
+      projectsRes.forEach((p) => {
+        if (p.end_date) {
+          allEvents.push({
+            id: `proj_${p.id}`,
+            realId: p.id,
+            title: `Projeto: ${p.name}`,
+            date: p.end_date.split(' ')[0],
+            type: 'project',
+            status: p.status,
+            link: `/projects/${p.id}`,
+            discipline: p.discipline,
+          })
+        }
+      })
+
+      modulesRes.forEach((m) => {
+        if (m.deadline) {
+          allEvents.push({
+            id: `mod_${m.id}`,
+            realId: m.id,
+            title: `Disciplina: ${m.name}`,
+            projectName: m.expand?.project?.name,
+            date: m.deadline.split(' ')[0],
+            type: 'module',
+            status: m.status,
+            link: `/projects/${m.project}`,
+            discipline: m.name,
+          })
+        }
+      })
+
+      tasksRes.forEach((t) => {
+        if (t.due_date) {
+          allEvents.push({
+            id: `task_${t.id}`,
+            realId: t.id,
+            title: `Tarefa: ${t.title}`,
+            projectName: t.expand?.project?.name,
+            date: t.due_date.split(' ')[0],
+            type: 'task',
+            status: t.status,
+            link: `/projects/${t.project}`,
+            discipline: t.expand?.module?.name,
+          })
+        }
+      })
+
+      setEvents(allEvents)
     } catch (e) {
       console.error(e)
     }
@@ -78,33 +155,30 @@ export default function ProjectCalendar() {
 
   useRealtime('tasks', () => loadData())
   useRealtime('project_modules', () => loadData())
+  useRealtime('projects', () => loadData())
 
   const uniqueDisciplines = useMemo(() => {
-    const names = new Set(modules.map((m) => m.name))
+    const names = new Set(events.map((e) => e.discipline).filter(Boolean) as string[])
     return Array.from(names).sort()
-  }, [modules])
+  }, [events])
 
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
+  const filteredEvents = useMemo(() => {
+    return events.filter((e) => {
       if (selectedDisciplines.length > 0) {
-        const moduleName = t.expand?.module?.name
-        if (!moduleName || !selectedDisciplines.includes(moduleName)) return false
+        if (!e.discipline || !selectedDisciplines.includes(e.discipline)) return false
       }
       return true
     })
-  }, [tasks, selectedDisciplines])
+  }, [events, selectedDisciplines])
 
-  const tasksByDate = useMemo(() => {
-    const map: Record<string, any[]> = {}
-    filteredTasks.forEach((t) => {
-      const dateStr = t.due_date ? format(new Date(t.due_date), 'yyyy-MM-dd') : null
-      if (dateStr) {
-        if (!map[dateStr]) map[dateStr] = []
-        map[dateStr].push(t)
-      }
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, CalendarEvent[]> = {}
+    filteredEvents.forEach((e) => {
+      if (!map[e.date]) map[e.date] = []
+      map[e.date].push(e)
     })
     return map
-  }, [filteredTasks])
+  }, [filteredEvents])
 
   const days = useMemo(() => {
     if (viewMode === 'month') {
@@ -118,28 +192,31 @@ export default function ProjectCalendar() {
     }
   }, [currentDate, viewMode])
 
-  const handlePrev = () => {
+  const handlePrev = () =>
     setCurrentDate((prev) => (viewMode === 'month' ? subMonths(prev, 1) : subWeeks(prev, 1)))
-  }
-
-  const handleNext = () => {
+  const handleNext = () =>
     setCurrentDate((prev) => (viewMode === 'month' ? addMonths(prev, 1) : addWeeks(prev, 1)))
-  }
-
-  const handleToday = () => {
-    setCurrentDate(new Date())
-  }
+  const handleToday = () => setCurrentDate(new Date())
 
   const handleDrop = async (e: React.DragEvent, targetDate: Date) => {
     e.preventDefault()
-    const taskId = e.dataTransfer.getData('text/plain')
-    if (!taskId || !canEdit) return
+    const payload = e.dataTransfer.getData('text/plain')
+    if (!payload || !canEdit) return
 
+    const [type, realId] = payload.split('|')
     const dateStr = format(targetDate, 'yyyy-MM-dd 12:00:00.000Z')
+
     try {
-      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, due_date: dateStr } : t)))
-      await pb.collection('tasks').update(taskId, { due_date: dateStr })
-      toast({ title: 'Data atualizada com sucesso!' })
+      if (type === 'task') {
+        await pb.collection('tasks').update(realId, { due_date: dateStr })
+        toast({ title: 'Data da tarefa atualizada!' })
+      } else if (type === 'module') {
+        await pb.collection('project_modules').update(realId, { deadline: dateStr })
+        toast({ title: 'Prazo da disciplina atualizado!' })
+      } else if (type === 'project') {
+        await pb.collection('projects').update(realId, { end_date: dateStr })
+        toast({ title: 'Entrega do projeto atualizada!' })
+      }
     } catch (error) {
       toast({ title: 'Erro ao atualizar data', variant: 'destructive' })
       loadData()
@@ -147,7 +224,7 @@ export default function ProjectCalendar() {
   }
 
   const handleExportCSV = () => {
-    exportCalendarCSV(filteredTasks)
+    exportCalendarCSV(filteredEvents as any)
   }
 
   const handleExportPDF = () => {
@@ -155,16 +232,14 @@ export default function ProjectCalendar() {
       viewMode === 'month'
         ? format(currentDate, 'MMMM yyyy', { locale: ptBR })
         : `Semana de ${format(startOfWeek(currentDate, { weekStartsOn: 0 }), 'dd/MM')} a ${format(endOfWeek(currentDate, { weekStartsOn: 0 }), 'dd/MM')}`
-    exportCalendarPDF(filteredTasks, periodLabel, user?.name || 'Usuário', settings)
+    exportCalendarPDF(filteredEvents as any, periodLabel, user?.name || 'Usuário', settings)
   }
 
   const handleSyncICS = async () => {
     try {
       const response = await fetch(
         `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/calendar/tasks.ics`,
-        {
-          headers: { Authorization: `Bearer ${pb.authStore.token}` },
-        },
+        { headers: { Authorization: `Bearer ${pb.authStore.token}` } },
       )
       if (!response.ok) throw new Error('Falha ao exportar')
 
@@ -172,7 +247,7 @@ export default function ProjectCalendar() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'tasks.ics'
+      a.download = 'calendar.ics'
       a.click()
       window.URL.revokeObjectURL(url)
 
@@ -182,17 +257,29 @@ export default function ProjectCalendar() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'concluído':
-      case 'concluido':
-        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-500/20 dark:text-green-300 dark:border-green-500/30'
-      case 'em andamento':
-        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30'
-      case 'pendente':
-      default:
-        return 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+  const getStatusColor = (status: string, type: string) => {
+    const s = status?.toLowerCase() || ''
+    const isDone = s === 'concluído' || s === 'concluido'
+    const isProg = s === 'em andamento'
+
+    if (type === 'project') {
+      return isDone
+        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300'
+        : 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-300'
     }
+
+    if (isDone)
+      return 'bg-green-50 text-green-800 border-green-200 dark:bg-green-500/20 dark:text-green-300'
+    if (isProg)
+      return 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300'
+
+    return 'bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
+  }
+
+  const getTypeIcon = (type: string) => {
+    if (type === 'project') return <Briefcase className="w-3 h-3 mr-1 shrink-0" />
+    if (type === 'module') return <Layers className="w-3 h-3 mr-1 shrink-0" />
+    return <CheckSquare className="w-3 h-3 mr-1 shrink-0" />
   }
 
   return (
@@ -201,10 +288,10 @@ export default function ProjectCalendar() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <CalendarIcon className="h-8 w-8 text-primary" />
-            Calendário Master
+            Calendário de Entregas
           </h2>
           <p className="text-muted-foreground mt-1">
-            Acompanhe os prazos de tarefas e disciplinas de todos os projetos.
+            Visão unificada de prazos de projetos, disciplinas e tarefas.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -279,7 +366,19 @@ export default function ProjectCalendar() {
         </div>
       </div>
 
-      <Card className="shadow-sm">
+      <div className="flex gap-4 text-xs font-medium text-muted-foreground bg-muted/40 p-3 rounded-lg border">
+        <div className="flex items-center gap-1.5">
+          <Briefcase className="w-4 h-4 text-indigo-500" /> Projetos (Entrega Final)
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Layers className="w-4 h-4 text-blue-500" /> Disciplinas / Módulos
+        </div>
+        <div className="flex items-center gap-1.5">
+          <CheckSquare className="w-4 h-4 text-slate-500" /> Tarefas Individuais
+        </div>
+      </div>
+
+      <Card className="shadow-sm border-muted/60">
         <CardHeader className="flex flex-col sm:flex-row items-center justify-between pb-4">
           <CardTitle className="text-xl font-semibold capitalize">
             {viewMode === 'month'
@@ -322,7 +421,14 @@ export default function ProjectCalendar() {
               >
                 {days.map((day, i) => {
                   const dateKey = format(day, 'yyyy-MM-dd')
-                  const dayTasks = tasksByDate[dateKey] || []
+                  const dayEvents = eventsByDate[dateKey] || []
+
+                  // Sort: Projects > Modules > Tasks
+                  dayEvents.sort((a, b) => {
+                    const order = { project: 0, module: 1, task: 2 }
+                    return order[a.type] - order[b.type]
+                  })
+
                   return (
                     <div
                       key={i}
@@ -356,34 +462,40 @@ export default function ProjectCalendar() {
                           {format(day, 'd')}
                         </span>
                       </div>
-                      <div className="space-y-1.5 flex-1">
-                        {dayTasks.map((t) => (
+                      <div className="space-y-1.5 flex-1 max-h-[160px] overflow-y-auto pr-1 scrollbar-thin">
+                        {dayEvents.map((e) => (
                           <div
-                            key={t.id}
+                            key={e.id}
                             draggable={canEdit}
-                            onDragStart={(e) => {
+                            onDragStart={(ev) => {
                               if (canEdit) {
-                                e.dataTransfer.setData('text/plain', t.id)
-                                e.currentTarget.style.opacity = '0.5'
+                                ev.dataTransfer.setData('text/plain', `${e.type}|${e.realId}`)
+                                ev.currentTarget.style.opacity = '0.5'
                               }
                             }}
-                            onDragEnd={(e) => {
-                              e.currentTarget.style.opacity = '1'
+                            onDragEnd={(ev) => {
+                              ev.currentTarget.style.opacity = '1'
                             }}
+                            onClick={() => navigate(e.link)}
                             className={cn(
-                              'text-[11px] leading-tight p-1.5 rounded-md border shadow-sm transition-all hover:brightness-95',
-                              canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
-                              getStatusColor(t.status),
+                              'text-[11px] leading-tight p-1.5 rounded-md border shadow-sm transition-all hover:brightness-95 cursor-pointer',
+                              getStatusColor(e.status, e.type),
+                              e.type === 'project'
+                                ? 'border-l-4 border-l-indigo-500 font-bold'
+                                : '',
+                              e.type === 'module' ? 'border-l-4 border-l-blue-500' : '',
                             )}
-                            title={`${t.title} - ${t.expand?.project?.name || ''}`}
+                            title={`${e.title} ${e.projectName ? `- ${e.projectName}` : ''}`}
                           >
-                            <div className="font-semibold truncate mb-0.5">{t.title}</div>
-                            <div className="flex justify-between items-center opacity-80 text-[10px]">
-                              <span className="truncate max-w-[60%]">
-                                {t.expand?.project?.name || 'Sem projeto'}
-                              </span>
-                              <span className="truncate">{t.expand?.module?.name || ''}</span>
+                            <div className="flex items-start">
+                              {getTypeIcon(e.type)}
+                              <div className="truncate flex-1 font-semibold">{e.title}</div>
                             </div>
+                            {e.projectName && (
+                              <div className="text-[10px] opacity-80 truncate pl-4 mt-0.5">
+                                {e.projectName}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

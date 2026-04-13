@@ -132,4 +132,5 @@ export interface Project {
   observations?: string
   cno?: string
   cnpj?: string
+  is_priority?: boolean
 }

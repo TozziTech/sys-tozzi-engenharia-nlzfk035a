@@ -93,12 +93,29 @@ import {
 import { HelpCircle, Columns, Download, X } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
-// Funções de exportação (placeholders preventivos para evitar erros de compilação)
+// Funções de exportação
 const exportDisciplineTasksCSV = (tasks: any[], moduleName: string) => {
-  console.log('Export CSV', tasks, moduleName)
-}
-const exportDisciplineTasksPDF = (tasks: any[], moduleName: string, userName: string) => {
-  console.log('Export PDF', tasks, moduleName, userName)
+  if (!tasks || tasks.length === 0) return
+  const headers = ['Tarefa', 'Status', 'Responsável', 'Prazo']
+  const csvData = tasks.map((t) => [
+    `"${(t.title || '').replace(/"/g, '""')}"`,
+    t.status || 'Pendente',
+    t.expand?.responsible?.name || 'Não atribuído',
+    t.due_date ? format(new Date(t.due_date), 'dd/MM/yyyy') : 'Sem prazo',
+  ])
+  const csvContent = [headers.join(','), ...csvData.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  link.setAttribute('href', url)
+  link.setAttribute('download', `tarefas_${moduleName.replace(/\s+/g, '_')}.csv`)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 const buildTree = (tasksList: any[]) => {
@@ -666,6 +683,12 @@ export default function DisciplineDetails() {
     return flattenTree(roots, 0, expandedTaskIds)
   }, [tasks, isFilterActive, filteredTasks, expandedTaskIds])
 
+  const allFlattenedTasks = useMemo(() => {
+    const roots = buildTree(tasks)
+    const allIds = new Set(tasks.map((t) => t.id))
+    return flattenTree(roots, 0, allIds)
+  }, [tasks])
+
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Carregando...</div>
   }
@@ -695,6 +718,8 @@ export default function DisciplineDetails() {
   const concludedTasks = tasks.filter((t) => t.status === 'Concluído').length
   const inProgressTasks = tasks.filter((t) => t.status === 'Em Andamento').length
   const pendingTasks = tasks.filter((t) => !t.status || t.status === 'Pendente').length
+
+  const calculatedProgress = totalTasks > 0 ? Math.round((concludedTasks / totalTasks) * 100) : 0
 
   const chartData = [
     { name: 'Concluído', value: concludedTasks, fill: 'var(--color-concluido)' },
@@ -797,57 +822,68 @@ export default function DisciplineDetails() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:hidden">
-        <Card className="col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total de Tarefas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalTasks}</div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Concluídas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
-              {concludedTasks}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Em Andamento
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">
-              {inProgressTasks}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">
-              {pendingTasks}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-2 md:col-span-4 lg:col-span-1">
-          <CardHeader className="pb-0 pt-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground text-center">
-              Progresso
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 flex items-center justify-center h-[80px]">
-            {totalTasks > 0 ? (
+      {totalTasks === 0 ? (
+        <div className="bg-muted/20 border border-dashed rounded-lg p-6 text-center print:hidden">
+          <p className="text-muted-foreground font-medium">
+            Nenhuma tarefa disponível (No tasks available)
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Crie tarefas para visualizar o progresso da disciplina.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:hidden">
+          <Card className="col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total de Tarefas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalTasks}</div>
+            </CardContent>
+          </Card>
+          <Card className="col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Concluídas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
+                {concludedTasks}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Em Andamento
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">
+                {inProgressTasks}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">
+                {pendingTasks}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="col-span-2 md:col-span-4 lg:col-span-1">
+            <CardHeader className="pb-0 pt-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground text-center">
+                Progresso
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex items-center justify-center h-[80px]">
               <ChartContainer
                 config={chartConfig}
                 className="h-[80px] w-full max-w-[120px] aspect-square"
@@ -869,14 +905,10 @@ export default function DisciplineDetails() {
                   <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                 </PieChart>
               </ChartContainer>
-            ) : (
-              <div className="text-xs text-muted-foreground flex h-full items-center">
-                Sem dados
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div
         className={cn(
@@ -926,9 +958,9 @@ export default function DisciplineDetails() {
                   <CheckCircle className="h-4 w-4 text-muted-foreground" />
                   <div className="w-full">
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1">
-                      Progresso ({module.progress || 0}%)
+                      Progresso ({calculatedProgress}%)
                     </p>
-                    <Progress value={module.progress || 0} className="h-2 w-full max-w-[150px]" />
+                    <Progress value={calculatedProgress} className="h-2 w-full max-w-[150px]" />
                   </div>
                 </div>
               </div>
@@ -1112,17 +1144,15 @@ export default function DisciplineDetails() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => exportDisciplineTasksCSV(filteredTasks, module.name)}
+                            disabled={totalTasks === 0}
                           >
                             Exportar para CSV
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() =>
-                              exportDisciplineTasksPDF(
-                                filteredTasks,
-                                module.name,
-                                user?.name || 'Usuário',
-                              )
-                            }
+                            onClick={() => {
+                              setTimeout(() => window.print(), 100)
+                            }}
+                            disabled={totalTasks === 0}
                           >
                             Exportar para PDF
                           </DropdownMenuItem>
@@ -1989,6 +2019,120 @@ export default function DisciplineDetails() {
         availableParents={tasks.map((t) => ({ id: t.id, title: t.title }))}
         defaultParentId={createParentId}
       />
+
+      <div
+        id="discipline-print-report"
+        className="hidden print:block w-full bg-white text-black font-sans pb-10"
+      >
+        <style type="text/css">
+          {`
+            @media print {
+              @page { margin: 1cm; }
+              body * {
+                visibility: hidden;
+              }
+              #discipline-print-report, #discipline-print-report * {
+                visibility: visible;
+              }
+              #discipline-print-report {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+              }
+            }
+          `}
+        </style>
+        <div className="border-b border-slate-200 pb-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <img
+                src="https://img.usecurling.com/i?q=company+logo&color=blue&shape=fill"
+                alt="Logo"
+                className="w-16 h-16 object-contain"
+              />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Relatório da Disciplina</h1>
+                <p className="text-slate-600 font-medium">{module.name}</p>
+                <p className="text-sm text-slate-500">
+                  Projeto: {(module.expand?.project as any)?.name || 'N/A'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right text-sm text-slate-600 space-y-1">
+              <p>
+                <strong>Gerado em:</strong> {format(new Date(), 'dd/MM/yyyy HH:mm')}
+              </p>
+              <p>
+                <strong>Progresso Geral:</strong> {calculatedProgress}%
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-8 flex gap-4">
+          <div className="bg-slate-50 p-4 rounded border border-slate-200 flex-1 text-center">
+            <p className="text-xs text-slate-500 uppercase font-semibold">Total</p>
+            <p className="text-2xl font-bold text-slate-800">{totalTasks}</p>
+          </div>
+          <div className="bg-emerald-50 p-4 rounded border border-emerald-200 flex-1 text-center">
+            <p className="text-xs text-emerald-600 uppercase font-semibold">Concluídas</p>
+            <p className="text-2xl font-bold text-emerald-700">{concludedTasks}</p>
+          </div>
+          <div className="bg-blue-50 p-4 rounded border border-blue-200 flex-1 text-center">
+            <p className="text-xs text-blue-600 uppercase font-semibold">Em Andamento</p>
+            <p className="text-2xl font-bold text-blue-700">{inProgressTasks}</p>
+          </div>
+          <div className="bg-slate-50 p-4 rounded border border-slate-200 flex-1 text-center">
+            <p className="text-xs text-slate-500 uppercase font-semibold">Pendentes</p>
+            <p className="text-2xl font-bold text-slate-700">{pendingTasks}</p>
+          </div>
+        </div>
+
+        {allFlattenedTasks.length > 0 ? (
+          <table className="w-full text-sm text-left border-collapse">
+            <thead>
+              <tr className="border-b-2 border-slate-300">
+                <th className="py-3 px-2 font-semibold text-slate-800">Tarefa</th>
+                <th className="py-3 px-2 font-semibold text-slate-800 w-32">Status</th>
+                <th className="py-3 px-2 font-semibold text-slate-800 w-48">Responsável</th>
+                <th className="py-3 px-2 font-semibold text-slate-800 w-32 text-right">Prazo</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {allFlattenedTasks.map((task) => (
+                <tr key={task.id} className="break-inside-avoid">
+                  <td className="py-3 px-2 align-top text-slate-800 flex items-center">
+                    <div style={{ width: `${(task.depth || 0) * 16}px` }} className="shrink-0" />
+                    <span
+                      className={
+                        task.status === 'Concluído' ? 'line-through text-slate-500' : 'font-medium'
+                      }
+                    >
+                      {task.title}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 align-top">
+                    <span className="text-xs px-2 py-1 bg-slate-100 border border-slate-200 rounded-full text-slate-700 font-medium">
+                      {task.status || 'Pendente'}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 align-top text-slate-600">
+                    {task.expand?.responsible?.name || '-'}
+                  </td>
+                  <td className="py-3 px-2 align-top text-right text-slate-600">
+                    {task.due_date ? format(new Date(task.due_date), 'dd/MM/yyyy') : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="text-center py-10 text-slate-500 border border-dashed rounded-lg">
+            Nenhuma tarefa registrada para esta disciplina.
+          </div>
+        )}
+      </div>
     </div>
   )
 }

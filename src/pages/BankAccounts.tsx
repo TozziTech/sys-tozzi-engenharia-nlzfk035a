@@ -12,7 +12,18 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, Pencil, Trash2, Landmark, Wallet, CreditCard } from 'lucide-react'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Landmark,
+  Wallet,
+  CreditCard,
+  ArrowRightLeft,
+  CheckCircle,
+} from 'lucide-react'
+import { TransferForm } from '@/components/bank-accounts/TransferForm'
+import { ReconciliationDashboard } from '@/components/bank-accounts/ReconciliationDashboard'
 import { useToast } from '@/hooks/use-toast'
 import { BankAccountForm } from '@/components/bank-accounts/BankAccountForm'
 import {
@@ -31,6 +42,8 @@ export default function BankAccounts() {
   const [accounts, setAccounts] = useState<BankAccount[]>([])
   const [editingAccount, setEditingAccount] = useState<BankAccount | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isTransferOpen, setIsTransferOpen] = useState(false)
+  const [reconciliationAccount, setReconciliationAccount] = useState<BankAccount | undefined>()
   const [activeTab, setActiveTab] = useState('Todas')
   const { toast } = useToast()
 
@@ -105,10 +118,20 @@ export default function BankAccounts() {
             Gerencie as instituições financeiras e o saldo consolidado da empresa.
           </p>
         </div>
-        <Button onClick={openNew} className="shrink-0">
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Conta
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button
+            onClick={() => setIsTransferOpen(true)}
+            variant="outline"
+            className="bg-background"
+          >
+            <ArrowRightLeft className="mr-2 h-4 w-4" />
+            Transferência
+          </Button>
+          <Button onClick={openNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Conta
+          </Button>
+        </div>
       </div>
 
       <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20 shadow-sm">
@@ -163,9 +186,19 @@ export default function BankAccounts() {
                   <CardHeader className="pb-4">
                     <div className="flex justify-between items-start gap-4">
                       <div className="space-y-1">
-                        <CardTitle className="text-lg line-clamp-1" title={acc.name}>
-                          {acc.name}
-                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-lg line-clamp-1" title={acc.name}>
+                            {acc.name}
+                          </CardTitle>
+                          {acc.code && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs font-mono text-muted-foreground"
+                            >
+                              {acc.code}
+                            </Badge>
+                          )}
+                        </div>
                         <CardDescription className="font-medium">{acc.bank_name}</CardDescription>
                       </div>
                       <Badge variant={getBadgeVariant(acc.type)} className="shrink-0">
@@ -182,7 +215,16 @@ export default function BankAccounts() {
                       </span>
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-end gap-2 border-t bg-muted/20 pt-4 pb-4">
+                  <CardFooter className="flex justify-end gap-2 border-t bg-muted/20 pt-4 pb-4 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setReconciliationAccount(acc)}
+                      className="bg-background"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1.5 text-emerald-500" />
+                      Conciliar
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -231,6 +273,14 @@ export default function BankAccounts() {
       )}
 
       <BankAccountForm open={isFormOpen} onOpenChange={setIsFormOpen} account={editingAccount} />
+      <TransferForm open={isTransferOpen} onOpenChange={setIsTransferOpen} accounts={accounts} />
+      {reconciliationAccount && (
+        <ReconciliationDashboard
+          open={!!reconciliationAccount}
+          onOpenChange={(open) => !open && setReconciliationAccount(undefined)}
+          account={reconciliationAccount}
+        />
+      )}
     </div>
   )
 }

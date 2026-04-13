@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T19:16:36.056Z",
+  "generatedAt": "2026-04-13T19:51:08.477Z",
   "collections": [
     {
       "name": "users",
@@ -638,6 +638,12 @@
           "required": false,
           "system": false,
           "collectionRef": "bank_accounts"
+        },
+        {
+          "name": "reconciled",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -1476,9 +1482,15 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE UNIQUE INDEX `idx_bank_accounts_code` ON `bank_accounts` (code)"]
     }
   ]
 }

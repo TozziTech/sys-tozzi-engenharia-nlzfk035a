@@ -182,13 +182,11 @@ export default function DisciplineDetails() {
   } = useQuery(
     `tasks_${moduleId}`,
     () =>
-      pb
-        .collection('tasks')
-        .getFullList({
-          filter: `module = "${moduleId}"`,
-          sort: 'ordem,due_date',
-          expand: 'responsible',
-        }),
+      pb.collection('tasks').getFullList({
+        filter: `module = "${moduleId}"`,
+        sort: 'ordem,due_date',
+        expand: 'responsible',
+      }),
     { enabled: !!moduleId, staleTime: 30000 },
   )
 
@@ -206,7 +204,9 @@ export default function DisciplineDetails() {
     { enabled: !!moduleId, staleTime: 30000 },
   )
 
-  const loading = moduleLoading || tasksLoading
+  // Only show full loading screen if we have no data at all
+  const loading = (moduleLoading && !module) || (tasksLoading && tasks.length === 0 && !tasks)
+
   const error = !!moduleError
 
   const client = queryClient()

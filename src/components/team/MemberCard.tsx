@@ -181,17 +181,17 @@ export function MemberCard({
     <Card className="flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-border/40 bg-card rounded-2xl group relative">
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-      <CardContent className="p-6 flex-1 flex flex-col">
-        <div className="flex justify-between items-start mb-4">
+      <CardContent className="p-6 sm:p-8 flex-1 flex flex-col">
+        <div className="flex justify-between items-start mb-6">
           <div
             className={cn(
-              'flex flex-wrap items-center gap-2 transition-opacity duration-200',
+              'flex flex-wrap items-center gap-3 transition-opacity duration-200',
               isUpdating && 'opacity-50 pointer-events-none',
             )}
           >
             <Badge
               variant="secondary"
-              className="font-mono text-[10px] sm:text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-primary/10 rounded-md shadow-sm shrink-0"
+              className="font-mono text-xs sm:text-sm px-3 py-1 bg-primary/10 text-primary border-primary/10 rounded-md shadow-sm shrink-0"
             >
               {u.codigo || 'S/N'}
             </Badge>
@@ -202,7 +202,7 @@ export function MemberCard({
             >
               <SelectTrigger
                 className={cn(
-                  'h-auto px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 [&>svg]:hidden shrink-0 shadow-none',
+                  'h-auto px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 [&>svg]:hidden shrink-0 shadow-none',
                   getStatusColor(u.status),
                 )}
               >
@@ -222,7 +222,7 @@ export function MemberCard({
               >
                 <SelectTrigger
                   className={cn(
-                    'h-auto px-2 py-0.5 text-[10px] font-bold tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 whitespace-nowrap [&>svg]:hidden shrink-0 shadow-none',
+                    'h-auto px-3 py-1 text-xs font-bold tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 whitespace-nowrap [&>svg]:hidden shrink-0 shadow-none',
                     getRoleColor(u.role),
                   )}
                 >
@@ -238,15 +238,15 @@ export function MemberCard({
               </Select>
             )}
           </div>
-          <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity ml-2">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
               onClick={handleExportPDF}
               title="Exportar Relatório PDF"
             >
-              <FileDown className="h-4 w-4" />
+              <FileDown className="h-5 w-5" />
             </Button>
             <MemberEditDialog
               user={user}
@@ -259,10 +259,10 @@ export function MemberCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                   onClick={() => setIsDeleteDialogOpen(true)}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-5 w-5" />
                 </Button>
                 <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                   <AlertDialogContent>
@@ -289,11 +289,11 @@ export function MemberCard({
           </div>
         </div>
 
-        <div className="mb-6 flex-1">
+        <div className="mb-8 flex-1">
           <Dialog>
             <DialogTrigger asChild>
-              <button className="text-left w-full group/title mb-1.5 focus:outline-none rounded-md focus-visible:ring-2 focus-visible:ring-ring">
-                <h3 className="text-xl font-bold leading-tight text-foreground group-hover/title:text-primary transition-colors line-clamp-2">
+              <button className="text-left w-full group/title mb-2.5 focus:outline-none rounded-md focus-visible:ring-2 focus-visible:ring-ring">
+                <h3 className="text-2xl font-bold leading-tight text-foreground group-hover/title:text-primary transition-colors">
                   {user.name}
                 </h3>
               </button>
@@ -517,29 +517,29 @@ export function MemberCard({
               </ScrollArea>
             </DialogContent>
           </Dialog>
-          <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 line-clamp-1 mt-2">
-            <Briefcase className="h-4 w-4 text-primary/60 shrink-0" />
-            <span className="truncate">{formacaoDisplay}</span>
+          <p className="text-base font-medium text-muted-foreground flex items-center gap-2 mt-3">
+            <Briefcase className="h-5 w-5 text-primary/60 shrink-0" />
+            <span>{formacaoDisplay}</span>
           </p>
         </div>
 
-        <div className="mt-auto pt-4 border-t border-border/40 space-y-3">
-          <div className="flex items-center gap-2.5 text-sm text-muted-foreground/80">
-            <Mail className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+        <div className="mt-auto pt-6 border-t border-border/40 space-y-4">
+          <div className="flex items-center gap-3 text-base text-muted-foreground/80">
+            <Mail className="h-5 w-5 shrink-0 text-muted-foreground/60" />
             <span className="truncate">{user.email || 'Email não informado'}</span>
           </div>
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Building2 className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+          <div className="flex items-center justify-between text-base">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Building2 className="h-5 w-5 shrink-0 text-muted-foreground/60" />
               <span className="font-semibold text-foreground">{userProjects.length}</span> Projetos
             </div>
             {user.crea && (
               <Badge
                 variant="outline"
-                className="text-[10px] font-mono text-muted-foreground border-border/40 rounded-md bg-muted/20"
+                className="text-xs font-mono text-muted-foreground border-border/40 rounded-md bg-muted/20 px-2.5 py-0.5"
               >
                 CREA:{' '}
-                <span className="truncate max-w-[80px] ml-1" title={user.crea}>
+                <span className="ml-1" title={user.crea}>
                   {user.crea}
                 </span>
               </Badge>
@@ -787,9 +787,9 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+          className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
         >
-          <Edit2 className="h-4 w-4" />
+          <Edit2 className="h-5 w-5" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[650px] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">

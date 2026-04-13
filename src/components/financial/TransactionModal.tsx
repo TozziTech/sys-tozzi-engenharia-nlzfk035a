@@ -44,6 +44,7 @@ const initialFormState = {
   projectId: '',
   category: '',
   responsible: 'none',
+  bankAccount: 'none',
   is_recurring: false,
   frequency: 'Mensal',
   end_date: '',
@@ -58,6 +59,7 @@ export function TransactionModal() {
   const [openCategory, setOpenCategory] = useState(false)
   const [searchCategory, setSearchCategory] = useState('')
   const [users, setUsers] = useState<any[]>([])
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
 
   const [formData, setFormData] = useState(initialFormState)
 
@@ -68,6 +70,10 @@ export function TransactionModal() {
   useEffect(() => {
     if (isOpen) {
       pb.collection('users').getFullList({ sort: 'name' }).then(setUsers).catch(console.error)
+      pb.collection('bank_accounts')
+        .getFullList({ sort: 'name' })
+        .then(setBankAccounts)
+        .catch(console.error)
     }
   }, [isOpen])
 
@@ -101,6 +107,7 @@ export function TransactionModal() {
       project_id: formData.projectId,
       category: formData.category,
       responsible: formData.responsible === 'none' ? '' : formData.responsible,
+      bank_account: formData.bankAccount === 'none' ? '' : formData.bankAccount,
       is_recurring: formData.is_recurring,
       frequency: formData.is_recurring ? formData.frequency : '',
       end_date:
@@ -260,6 +267,26 @@ export function TransactionModal() {
                 {users.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.name || u.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="col-span-2 space-y-2">
+            <Label>Conta Bancária</Label>
+            <Select
+              value={formData.bankAccount}
+              onValueChange={(v) => setFormData({ ...formData, bankAccount: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma conta..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem conta vinculada</SelectItem>
+                {bankAccounts.map((acc) => (
+                  <SelectItem key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.bank_name})
                   </SelectItem>
                 ))}
               </SelectContent>

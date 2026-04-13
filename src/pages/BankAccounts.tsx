@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, Pencil, Trash2, Landmark, Wallet, CreditCard } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { BankAccountForm } from '@/components/bank-accounts/BankAccountForm'
@@ -30,6 +31,7 @@ export default function BankAccounts() {
   const [accounts, setAccounts] = useState<BankAccount[]>([])
   const [editingAccount, setEditingAccount] = useState<BankAccount | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('Todas')
   const { toast } = useToast()
 
   const loadAccounts = async () => {
@@ -50,6 +52,11 @@ export default function BankAccounts() {
   const globalBalance = useMemo(() => {
     return accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
   }, [accounts])
+
+  const filteredAccounts = useMemo(() => {
+    if (activeTab === 'Todas') return accounts
+    return accounts.filter((a) => a.type === activeTab)
+  }, [accounts, activeTab])
 
   const handleDelete = async (id: string) => {
     try {
@@ -132,75 +139,95 @@ export default function BankAccounts() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {accounts.map((acc) => (
-            <Card key={acc.id} className="flex flex-col hover:shadow-md transition-shadow">
-              <CardHeader className="pb-4">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg line-clamp-1" title={acc.name}>
-                      {acc.name}
-                    </CardTitle>
-                    <CardDescription className="font-medium">{acc.bank_name}</CardDescription>
-                  </div>
-                  <Badge variant={getBadgeVariant(acc.type)} className="shrink-0">
-                    {acc.type}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 pb-4">
-                <div className="text-2xl font-bold mb-2">{formatCurrency(acc.balance)}</div>
-                <div className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <CreditCard className="h-3.5 w-3.5" />
-                  <span>
-                    Ag: {acc.agency || 'N/A'} • CC: {acc.account_number || 'N/A'}
-                  </span>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-end gap-2 border-t bg-muted/20 pt-4 pb-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openEdit(acc)}
-                  className="bg-background"
-                >
-                  <Pencil className="h-4 w-4 mr-1.5" />
-                  Editar
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+        <Tabs
+          defaultValue="Todas"
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full"
+        >
+          <TabsList className="mb-6 bg-muted/50 p-1">
+            <TabsTrigger value="Todas">Todas</TabsTrigger>
+            <TabsTrigger value="Corrente">Corrente</TabsTrigger>
+            <TabsTrigger value="Poupança">Poupança</TabsTrigger>
+            <TabsTrigger value="Investimento">Investimento</TabsTrigger>
+          </TabsList>
+
+          {filteredAccounts.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              Nenhuma conta encontrada para este filtro.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredAccounts.map((acc) => (
+                <Card key={acc.id} className="flex flex-col hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-4">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="space-y-1">
+                        <CardTitle className="text-lg line-clamp-1" title={acc.name}>
+                          {acc.name}
+                        </CardTitle>
+                        <CardDescription className="font-medium">{acc.bank_name}</CardDescription>
+                      </div>
+                      <Badge variant={getBadgeVariant(acc.type)} className="shrink-0">
+                        {acc.type}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 pb-4">
+                    <div className="text-2xl font-bold mb-2">{formatCurrency(acc.balance)}</div>
+                    <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5" />
+                      <span>
+                        Ag: {acc.agency || 'N/A'} • CC: {acc.account_number || 'N/A'}
+                      </span>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end gap-2 border-t bg-muted/20 pt-4 pb-4">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-destructive hover:bg-destructive/10 border-destructive/20 bg-background"
+                      onClick={() => openEdit(acc)}
+                      className="bg-background"
                     >
-                      <Trash2 className="h-4 w-4 mr-1.5" />
-                      Excluir
+                      <Pencil className="h-4 w-4 mr-1.5" />
+                      Editar
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tem certeza que deseja excluir a conta "{acc.name}"? Esta ação não pode ser
-                        desfeita.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleDelete(acc.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Excluir
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10 border-destructive/20 bg-background"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1.5" />
+                          Excluir
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja excluir a conta "{acc.name}"? Esta ação não pode
+                            ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(acc.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </Tabs>
       )}
 
       <BankAccountForm open={isFormOpen} onOpenChange={setIsFormOpen} account={editingAccount} />

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T18:59:38.720Z",
+  "generatedAt": "2026-04-13T19:16:36.056Z",
   "collections": [
     {
       "name": "users",
@@ -631,6 +631,13 @@
           "required": false,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "bank_account",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "bank_accounts"
         }
       ],
       "indexes": []

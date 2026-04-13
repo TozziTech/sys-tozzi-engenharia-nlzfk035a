@@ -38,6 +38,7 @@ export function EditTransactionModal({
   const [newAttachment, setNewAttachment] = useState<File | null>(null)
   const [removeAttachment, setRemoveAttachment] = useState(false)
   const [users, setUsers] = useState<any[]>([])
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
 
   const [formData, setFormData] = useState({
     description: '',
@@ -47,6 +48,7 @@ export function EditTransactionModal({
     projectId: '',
     categoryId: '',
     responsible: 'none',
+    bankAccount: 'none',
     status: 'Pendente',
     is_recurring: false,
     frequency: 'Mensal',
@@ -56,6 +58,10 @@ export function EditTransactionModal({
   useEffect(() => {
     if (open) {
       pb.collection('users').getFullList({ sort: 'name' }).then(setUsers).catch(console.error)
+      pb.collection('bank_accounts')
+        .getFullList({ sort: 'name' })
+        .then(setBankAccounts)
+        .catch(console.error)
     }
   }, [open])
 
@@ -73,6 +79,7 @@ export function EditTransactionModal({
         projectId: transaction.projectId || transaction.project_id || '',
         categoryId: transaction.categoryId || transaction.category || '',
         responsible: transaction.responsible || 'none',
+        bankAccount: transaction.bank_account || 'none',
         status: transaction.status || 'Pendente',
         is_recurring: transaction.is_recurring || false,
         frequency: transaction.frequency || 'Mensal',
@@ -117,6 +124,7 @@ export function EditTransactionModal({
         project_id: formData.projectId,
         category: formData.type === 'Saída' ? formData.categoryId : '',
         responsible: formData.responsible === 'none' ? '' : formData.responsible,
+        bank_account: formData.bankAccount === 'none' ? '' : formData.bankAccount,
         status: formData.status,
         is_recurring: formData.is_recurring,
         frequency: formData.is_recurring ? formData.frequency : '',
@@ -259,6 +267,26 @@ export function EditTransactionModal({
                 {users.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.name || u.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="col-span-2 space-y-2">
+            <Label>Conta Bancária</Label>
+            <Select
+              value={formData.bankAccount}
+              onValueChange={(v) => setFormData({ ...formData, bankAccount: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma conta..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem conta vinculada</SelectItem>
+                {bankAccounts.map((acc) => (
+                  <SelectItem key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.bank_name})
                   </SelectItem>
                 ))}
               </SelectContent>

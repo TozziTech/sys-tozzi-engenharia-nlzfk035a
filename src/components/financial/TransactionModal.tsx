@@ -48,7 +48,7 @@ export function TransactionModal() {
     description: '',
     date: new Date().toISOString().split('T')[0],
     projectId: '',
-    categoryId: '',
+    category: '',
     is_recurring: false,
     frequency: 'Mensal',
     end_date: '',
@@ -56,7 +56,14 @@ export function TransactionModal() {
   })
 
   const handleSubmit = () => {
-    if (!formData.description || !formData.date || !formData.value) return
+    if (!formData.description || !formData.date || !formData.value) {
+      setFormError('Preencha os campos obrigatórios.')
+      return
+    }
+    if (!formData.category) {
+      setFormError('Por favor, selecione uma categoria.')
+      return
+    }
     if (
       formData.is_recurring &&
       formData.end_date &&
@@ -73,7 +80,7 @@ export function TransactionModal() {
       date: new Date(formData.date).toISOString(),
       projectId: formData.projectId,
       status: formData.status as any,
-      categoryId: formData.type === 'Saída' ? formData.categoryId : undefined,
+      category: formData.category,
       is_recurring: formData.is_recurring,
       frequency: formData.is_recurring ? formData.frequency : '',
       end_date:
@@ -94,7 +101,7 @@ export function TransactionModal() {
       description: '',
       date: new Date().toISOString().split('T')[0],
       projectId: '',
-      categoryId: '',
+      category: '',
       is_recurring: false,
       frequency: 'Mensal',
       end_date: '',
@@ -130,7 +137,6 @@ export function TransactionModal() {
                 setFormData({
                   ...formData,
                   type: v,
-                  categoryId: v === 'Entrada' ? '' : formData.categoryId,
                 })
               }
             >
@@ -205,102 +211,101 @@ export function TransactionModal() {
               </SelectContent>
             </Select>
           </div>
-          {formData.type === 'Saída' && (
-            <div className="col-span-2 space-y-2">
-              <Label>Categoria de Despesa</Label>
-              <Popover open={openCategory} onOpenChange={setOpenCategory}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openCategory}
-                    className="w-full justify-between font-normal"
-                  >
-                    {formData.categoryId
-                      ? categories.find((c) => c.id === formData.categoryId)?.name
-                      : 'Selecione uma categoria...'}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[450px] p-0" align="start">
-                  <Command>
-                    <CommandInput
-                      placeholder="Buscar ou adicionar..."
-                      value={searchCategory}
-                      onValueChange={setSearchCategory}
-                    />
-                    <CommandList>
-                      <CommandEmpty>
-                        <div className="p-3 flex flex-col items-center gap-3">
-                          <span className="text-sm text-muted-foreground">
-                            Nenhuma categoria encontrada.
-                          </span>
-                          {searchCategory && (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="w-full"
-                              onClick={async () => {
-                                try {
-                                  const newCat = await addCategory(searchCategory)
-                                  setFormData({ ...formData, categoryId: newCat.id })
-                                  setSearchCategory('')
-                                  setOpenCategory(false)
-                                } catch (err) {
-                                  console.error(err)
-                                }
-                              }}
-                            >
-                              Adicionar "{searchCategory}"
-                            </Button>
+          <div className="col-span-2 space-y-2">
+            <Label>Categoria</Label>
+            <Popover open={openCategory} onOpenChange={setOpenCategory}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openCategory}
+                  className={cn(
+                    'w-full justify-between font-normal',
+                    !formData.category && 'text-muted-foreground',
+                  )}
+                >
+                  {formData.category || 'Selecione uma categoria...'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[450px] p-0" align="start">
+                <Command>
+                  <CommandInput
+                    placeholder="Buscar ou adicionar..."
+                    value={searchCategory}
+                    onValueChange={setSearchCategory}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      <div className="p-3 flex flex-col items-center gap-3">
+                        <span className="text-sm text-muted-foreground">
+                          Nenhuma categoria encontrada.
+                        </span>
+                        {searchCategory && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="w-full"
+                            onClick={async () => {
+                              try {
+                                const newCat = await addCategory(searchCategory)
+                                setFormData({ ...formData, category: newCat.name })
+                                setSearchCategory('')
+                                setOpenCategory(false)
+                              } catch (err) {
+                                console.error(err)
+                              }
+                            }}
+                          >
+                            Adicionar "{searchCategory}"
+                          </Button>
+                        )}
+                      </div>
+                    </CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="none"
+                        onSelect={() => {
+                          setFormData({ ...formData, category: '' })
+                          setOpenCategory(false)
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            !formData.category ? 'opacity-100' : 'opacity-0',
                           )}
-                        </div>
-                      </CommandEmpty>
-                      <CommandGroup>
+                        />
+                        Sem categoria
+                      </CommandItem>
+                      {categories.map((c) => (
                         <CommandItem
-                          value="none"
+                          key={c.id}
+                          value={c.name}
                           onSelect={() => {
-                            setFormData({ ...formData, categoryId: '' })
+                            setFormData({ ...formData, category: c.name })
                             setOpenCategory(false)
                           }}
                         >
                           <Check
                             className={cn(
                               'mr-2 h-4 w-4',
-                              !formData.categoryId ? 'opacity-100' : 'opacity-0',
+                              formData.category === c.name ? 'opacity-100' : 'opacity-0',
                             )}
                           />
-                          Sem categoria
+                          <div
+                            className="w-3 h-3 rounded-full mr-2"
+                            style={{ backgroundColor: c.color || '#ccc' }}
+                          />
+                          {c.name}
                         </CommandItem>
-                        {categories.map((c) => (
-                          <CommandItem
-                            key={c.id}
-                            value={c.name}
-                            onSelect={() => {
-                              setFormData({ ...formData, categoryId: c.id })
-                              setOpenCategory(false)
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                'mr-2 h-4 w-4',
-                                formData.categoryId === c.id ? 'opacity-100' : 'opacity-0',
-                              )}
-                            />
-                            <div
-                              className="w-3 h-3 rounded-full mr-2"
-                              style={{ backgroundColor: c.color || '#ccc' }}
-                            />
-                            {c.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
           <div className="col-span-2 space-y-4 border rounded-md p-4 bg-slate-50 dark:bg-slate-900/50 mt-2">
             <div className="flex items-center space-x-2">
               <Switch
@@ -344,10 +349,10 @@ export function TransactionModal() {
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                   />
                 </div>
-                {formError && <p className="col-span-2 text-sm text-red-500">{formError}</p>}
               </div>
             )}
           </div>
+          {formError && <div className="col-span-2 text-sm text-red-500">{formError}</div>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setIsOpen(false)}>

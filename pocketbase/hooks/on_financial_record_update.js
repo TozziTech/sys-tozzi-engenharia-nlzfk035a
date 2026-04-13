@@ -1,16 +1,24 @@
 onRecordUpdate((e) => {
-  let oldData = null
+  const oldData = new DynamicModel({
+    amount: 0.0,
+    type: '',
+    status: '',
+    bank_account: '',
+  })
+
+  let hasOldData = false
   try {
-    oldData = $app
+    $app
       .db()
       .newQuery('SELECT amount, type, status, bank_account FROM financial_records WHERE id = {:id}')
       .bind({ id: e.record.id })
-      .one()
+      .one(oldData)
+    hasOldData = true
   } catch (err) {
     // Record might not exist yet or no rows returned
   }
 
-  if (oldData) {
+  if (hasOldData) {
     const oldStatus = oldData.status
     const oldAccount = oldData.bank_account
     const oldAmount = oldData.amount || 0

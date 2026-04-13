@@ -120,7 +120,7 @@ export function EditTransactionModal({
         description: formData.description,
         type: formData.type,
         amount: formData.value,
-        date: formData.date ? new Date(formData.date).toISOString() : null,
+        date: formData.date ? new Date(formData.date).toISOString() : '',
         project_id: formData.projectId,
         category: formData.type === 'Saída' ? formData.categoryId : '',
         responsible: formData.responsible === 'none' ? '' : formData.responsible,
@@ -131,7 +131,7 @@ export function EditTransactionModal({
         end_date:
           formData.is_recurring && formData.end_date
             ? new Date(formData.end_date).toISOString()
-            : null,
+            : '',
       }
 
       const submitData = new FormData()

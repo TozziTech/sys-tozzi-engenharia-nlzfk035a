@@ -1,5 +1,16 @@
-import { Search, Bell, Plus, Check, AlertTriangle, Activity, Database } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import {
+  Search,
+  Bell,
+  Plus,
+  Check,
+  AlertTriangle,
+  Activity,
+  Database,
+  FolderGit2,
+  CheckSquare,
+  FileText,
+} from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -7,11 +18,21 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { useState, useEffect } from 'react'
 import useProjectStore from '@/stores/useProjectStore'
 import { ThemeToggle } from './ThemeToggle'
+import pb from '@/lib/pocketbase/client'
 
 export function Header() {
+  const navigate = useNavigate()
   const {
     projects,
     globalSearch,
@@ -23,6 +44,57 @@ export function Header() {
   } = useProjectStore()
 
   const [localNotifications, setLocalNotifications] = useState<any[]>([])
+
+  // Global Search State
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState({
+    projects: [] as any[],
+    tasks: [] as any[],
+    documents: [] as any[],
+  })
+  const [isSearching, setIsSearching] = useState(false)
+
+  useEffect(() => {
+    if (!searchQuery) {
+      setSearchResults({ projects: [], tasks: [], documents: [] })
+      setIsSearching(false)
+      return
+    }
+
+    setIsSearching(true)
+    const timer = setTimeout(async () => {
+      try {
+        const [projectsRes, tasksRes, documentsRes] = await Promise.all([
+          pb
+            .collection('projects')
+            .getList(1, 5, { filter: `name ~ "${searchQuery.replace(/"/g, '')}"` }),
+          pb
+            .collection('tasks')
+            .getList(1, 5, {
+              filter: `title ~ "${searchQuery.replace(/"/g, '')}"`,
+              expand: 'project,module',
+            }),
+          pb
+            .collection('project_documents')
+            .getList(1, 5, {
+              filter: `name ~ "${searchQuery.replace(/"/g, '')}"`,
+              expand: 'project',
+            }),
+        ])
+        setSearchResults({
+          projects: projectsRes.items,
+          tasks: tasksRes.items,
+          documents: documentsRes.items,
+        })
+      } catch (e) {
+        console.error('Search error:', e)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   useEffect(() => {
     const handleAddNotification = (e: any) => {
@@ -73,14 +145,122 @@ export function Header() {
           </Tooltip>
         </div>
         <div className="relative flex-1 md:grow-0">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Buscar projetos..."
-            className="w-full rounded-full bg-slate-100 dark:bg-slate-800 pl-9 md:w-[300px] lg:w-[400px] border-transparent focus-visible:ring-primary"
-            value={globalSearch}
-            onChange={(e) => setGlobalSearch(e.target.value)}
-          />
+          <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={searchOpen}
+                className="w-full justify-start text-muted-foreground bg-slate-100 dark:bg-slate-800 border-transparent md:w-[300px] lg:w-[400px] rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
+                <Search className="mr-2 h-4 w-4 shrink-0" />
+                <span className="truncate">Buscar projetos, tarefas, documentos...</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-[calc(100vw-2rem)] md:w-[300px] lg:w-[400px] p-0 rounded-xl overflow-hidden shadow-lg border-border"
+              align="start"
+            >
+              <Command shouldFilter={false} className="bg-transparent">
+                <CommandInput
+                  placeholder="Digite para buscar..."
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
+                  className="border-none focus:ring-0"
+                />
+                <CommandList>
+                  {isSearching && searchQuery ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">Buscando...</div>
+                  ) : (
+                    <>
+                      <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+
+                      {searchResults.projects.length > 0 && (
+                        <CommandGroup heading="Projetos">
+                          {searchResults.projects.map((p) => (
+                            <CommandItem
+                              key={`p-${p.id}`}
+                              onSelect={() => {
+                                navigate(`/projects/${p.id}`)
+                                setSearchOpen(false)
+                              }}
+                              className="flex items-center gap-2 cursor-pointer py-2"
+                            >
+                              <FolderGit2 className="h-4 w-4 text-primary shrink-0" />
+                              <div className="flex flex-col overflow-hidden">
+                                <span className="truncate">{p.name}</span>
+                                {p.client && (
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {p.client}
+                                  </span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+
+                      {searchResults.tasks.length > 0 && (
+                        <CommandGroup heading="Tarefas">
+                          {searchResults.tasks.map((t) => (
+                            <CommandItem
+                              key={`t-${t.id}`}
+                              onSelect={() => {
+                                if (t.project && t.module) {
+                                  navigate(`/projects/${t.project}/disciplines/${t.module}`)
+                                } else if (t.project) {
+                                  navigate(`/projects/${t.project}`)
+                                } else {
+                                  navigate(`/activities`)
+                                }
+                                setSearchOpen(false)
+                              }}
+                              className="flex items-center gap-2 cursor-pointer py-2"
+                            >
+                              <CheckSquare className="h-4 w-4 text-emerald-500 shrink-0" />
+                              <div className="flex flex-col overflow-hidden">
+                                <span className="truncate">{t.title}</span>
+                                {t.expand?.project?.name && (
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {t.expand.project.name}
+                                  </span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+
+                      {searchResults.documents.length > 0 && (
+                        <CommandGroup heading="Documentos">
+                          {searchResults.documents.map((d) => (
+                            <CommandItem
+                              key={`d-${d.id}`}
+                              onSelect={() => {
+                                navigate(d.project ? `/projects/${d.project}` : '#')
+                                setSearchOpen(false)
+                              }}
+                              className="flex items-center gap-2 cursor-pointer py-2"
+                            >
+                              <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                              <div className="flex flex-col overflow-hidden">
+                                <span className="truncate">{d.name}</span>
+                                {d.expand?.project?.name && (
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {d.expand.project.name}
+                                  </span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                    </>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Link to="/performance">

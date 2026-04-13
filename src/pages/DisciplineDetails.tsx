@@ -699,8 +699,13 @@ export default function DisciplineDetails() {
         </Card>
       </div>
 
-      <div className={cn('grid grid-cols-1 gap-6 print:block print:gap-0', 'lg:grid-cols-3')}>
-        <div className={cn('space-y-6 print:space-y-0', 'lg:col-span-2')}>
+      <div
+        className={cn(
+          'grid grid-cols-1 gap-6 print:block print:gap-0',
+          !isFocusedView && 'lg:grid-cols-3',
+        )}
+      >
+        <div className={cn('space-y-6 print:space-y-0', !isFocusedView && 'lg:col-span-2')}>
           <Card className="print:hidden">
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -1528,125 +1533,127 @@ export default function DisciplineDetails() {
           <ModuleVersions module={module} />
         </div>
 
-        <div className="space-y-6 print:hidden">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Equipe Responsável</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  Responsável (Gerente)
-                </p>
-                {responsible ? (
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage
-                        src={
-                          responsible.avatar
-                            ? pb.files.getURL(responsible, responsible.avatar)
-                            : `https://img.usecurling.com/ppl/thumbnail?seed=${responsible.id}`
-                        }
-                      />
-                      <AvatarFallback>{responsible.name?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">{responsible.name}</p>
-                      <p className="text-xs text-muted-foreground">{responsible.email}</p>
+        {!isFocusedView && (
+          <div className="space-y-6 print:hidden">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Equipe Responsável</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                    Responsável (Gerente)
+                  </p>
+                  {responsible ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage
+                          src={
+                            responsible.avatar
+                              ? pb.files.getURL(responsible, responsible.avatar)
+                              : `https://img.usecurling.com/ppl/thumbnail?seed=${responsible.id}`
+                          }
+                        />
+                        <AvatarFallback>{responsible.name?.charAt(0) || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{responsible.name}</p>
+                        <p className="text-xs text-muted-foreground">{responsible.email}</p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Não atribuído</p>
-                )}
-              </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Não atribuído</p>
+                  )}
+                </div>
 
-              <div className="pt-4 border-t border-border">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  Projetista (Designer)
-                </p>
-                {designer ? (
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage
-                        src={
-                          designer.avatar
-                            ? pb.files.getURL(designer, designer.avatar)
-                            : `https://img.usecurling.com/ppl/thumbnail?seed=${designer.id}`
-                        }
-                      />
-                      <AvatarFallback>{designer.name?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">{designer.name}</p>
-                      <p className="text-xs text-muted-foreground">{designer.email}</p>
+                <div className="pt-4 border-t border-border">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                    Projetista (Designer)
+                  </p>
+                  {designer ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage
+                          src={
+                            designer.avatar
+                              ? pb.files.getURL(designer, designer.avatar)
+                              : `https://img.usecurling.com/ppl/thumbnail?seed=${designer.id}`
+                          }
+                        />
+                        <AvatarFallback>{designer.name?.charAt(0) || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{designer.name}</p>
+                        <p className="text-xs text-muted-foreground">{designer.email}</p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Não atribuído</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Não atribuído</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card className="flex flex-col h-[500px]">
-            <CardHeader className="pb-3 shrink-0">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="h-5 w-5 text-primary" />
-                Histórico de Atividades
-              </CardTitle>
-              <CardDescription>Registro de alterações na disciplina</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden p-0">
-              <ScrollArea className="h-full px-6 pb-6">
-                {logs.length > 0 ? (
-                  <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6 pt-2">
-                    {logs.map((log) => {
-                      const user = log.expand?.user_id
-                      return (
-                        <div key={log.id} className="pl-6 relative">
-                          <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
-                          <div className="flex flex-col gap-1 mb-1">
-                            <div className="flex items-center gap-2">
-                              {user && (
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage
-                                    src={
-                                      user.avatar ? pb.files.getURL(user, user.avatar) : undefined
-                                    }
-                                  />
-                                  <AvatarFallback className="text-[10px]">
-                                    {user.name?.charAt(0) || 'U'}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                              <span className="font-medium text-sm">
-                                {user ? user.name : 'Sistema'}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(log.created), 'dd/MM/yyyy HH:mm')}
+            <Card className="flex flex-col h-[500px]">
+              <CardHeader className="pb-3 shrink-0">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  Histórico de Atividades
+                </CardTitle>
+                <CardDescription>Registro de alterações na disciplina</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-hidden p-0">
+                <ScrollArea className="h-full px-6 pb-6">
+                  {logs.length > 0 ? (
+                    <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6 pt-2">
+                      {logs.map((log) => {
+                        const user = log.expand?.user_id
+                        return (
+                          <div key={log.id} className="pl-6 relative">
+                            <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
+                            <div className="flex flex-col gap-1 mb-1">
+                              <div className="flex items-center gap-2">
+                                {user && (
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarImage
+                                      src={
+                                        user.avatar ? pb.files.getURL(user, user.avatar) : undefined
+                                      }
+                                    />
+                                    <AvatarFallback className="text-[10px]">
+                                      {user.name?.charAt(0) || 'U'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                )}
+                                <span className="font-medium text-sm">
+                                  {user ? user.name : 'Sistema'}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(log.created), 'dd/MM/yyyy HH:mm')}
+                                </span>
+                              </div>
+                              <span className="text-sm text-foreground/80 mt-1">
+                                {log.action === 'Create' && 'Criou este registro'}
+                                {log.action === 'Update' && 'Atualizou informações'}
+                                {log.action === 'Delete' && 'Removeu um registro'}
+                                {log.resource === 'tasks' &&
+                                  ` na tarefa "${log.details?.task_name || 'Desconhecida'}"`}
                               </span>
                             </div>
-                            <span className="text-sm text-foreground/80 mt-1">
-                              {log.action === 'Create' && 'Criou este registro'}
-                              {log.action === 'Update' && 'Atualizou informações'}
-                              {log.action === 'Delete' && 'Removeu um registro'}
-                              {log.resource === 'tasks' &&
-                                ` na tarefa "${log.details?.task_name || 'Desconhecida'}"`}
-                            </span>
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    Nenhuma atividade registrada ainda.
-                  </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      Nenhuma atividade registrada ainda.
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       {selectedTaskIds.length > 0 && (

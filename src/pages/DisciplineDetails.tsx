@@ -170,7 +170,10 @@ export default function DisciplineDetails() {
 
   // Drag and Drop State
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
-  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{
+    id: string
+    position: 'before' | 'after' | 'inside'
+  } | null>(null)
 
   // Notes edit state
   const [isEditingNotes, setIsEditingNotes] = useState(false)
@@ -351,49 +354,133 @@ export default function DisciplineDetails() {
     }
   }
 
-  const onDragStart = (e: React.DragEvent, taskId: string) => {
+  const isDescendant = (childId: string, ancestorId: string, tasksList: any[]): boolean => {
+    let current = tasksList.find((t) => t.id === childId)
+    while (current && current.parent_task) {
+      if (current.parent_task === ancestorId) return true
+      current = tasksList.find((t) => t.id === current.parent_task)
+    }
+    return false
+  }
+
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    if (!(e.target as HTMLElement).closest('.grip-handle')) {
+      e.preventDefault()
+      return
+    }
     setDraggedTaskId(taskId)
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  const onDragOver = (e: React.DragEvent, taskId: string) => {
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>, targetId: string) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    if (taskId !== dragOverTaskId) {
-      setDragOverTaskId(taskId)
-    }
-  }
 
-  const onDrop = async (e: React.DragEvent, targetId: string) => {
-    e.preventDefault()
     if (!draggedTaskId || draggedTaskId === targetId) {
-      setDraggedTaskId(null)
-      setDragOverTaskId(null)
+      setDropTarget(null)
       return
     }
 
-    const fullTasks = [...tasks]
-    const draggedIdx = fullTasks.findIndex((t) => t.id === draggedTaskId)
-    const targetIdx = fullTasks.findIndex((t) => t.id === targetId)
+    if (isDescendant(targetId, draggedTaskId, tasks)) {
+      setDropTarget(null)
+      return
+    }
 
-    if (draggedIdx === -1 || targetIdx === -1) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    let position: 'before' | 'after' | 'inside' = 'inside'
 
-    const [draggedItem] = fullTasks.splice(draggedIdx, 1)
-    fullTasks.splice(targetIdx, 0, draggedItem)
+    if (y < rect.height * 0.25) position = 'before'
+    else if (y > rect.height * 0.75) position = 'after'
 
-    setTasks(fullTasks)
+    setDropTarget((prev) => {
+      if (prev?.id === targetId && prev?.position === position) return prev
+      return { id: targetId, position }
+    })
+  }
+
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    if (!draggedTaskId || !dropTarget) {
+      setDraggedTaskId(null)
+      setDropTarget(null)
+      return
+    }
+
+    const { position } = dropTarget
+    const currentDraggedId = draggedTaskId
     setDraggedTaskId(null)
-    setDragOverTaskId(null)
+    setDropTarget(null)
+
+    if (currentDraggedId === targetId || isDescendant(targetId, currentDraggedId, tasks)) return
+
+    const draggedTask = tasks.find((t) => t.id === currentDraggedId)
+    const targetTask = tasks.find((t) => t.id === targetId)
+    if (!draggedTask || !targetTask) return
+
+    let newParentId = targetTask.parent_task
+    if (position === 'inside') {
+      newParentId = targetTask.id
+    }
+
+    let newTasks = [...tasks]
+    newTasks = newTasks.filter((t) => t.id !== currentDraggedId)
+
+    const updatedDraggedTask = { ...draggedTask, parent_task: newParentId || null }
+
+    const siblings = newTasks
+      .filter((t) => (t.parent_task || null) === (newParentId || null))
+      .sort((a, b) => a.ordem - b.ordem)
+
+    let newIndex = siblings.length
+    if (position === 'before') {
+      newIndex = Math.max(
+        0,
+        siblings.findIndex((t) => t.id === targetId),
+      )
+    } else if (position === 'after') {
+      const idx = siblings.findIndex((t) => t.id === targetId)
+      newIndex = idx !== -1 ? idx + 1 : siblings.length
+    }
+
+    siblings.splice(newIndex, 0, updatedDraggedTask)
+
+    const updates: { id: string; data: any }[] = []
+    siblings.forEach((t, i) => {
+      t.ordem = i
+      const oldTask = tasks.find((ot) => ot.id === t.id)
+      if (oldTask?.ordem !== i || t.id === currentDraggedId) {
+        updates.push({
+          id: t.id,
+          data: {
+            ordem: i,
+            ...(t.id === currentDraggedId ? { parent_task: newParentId || '' } : {}),
+          },
+        })
+      }
+    })
+
+    newTasks = newTasks.map((t) => {
+      const sib = siblings.find((s) => s.id === t.id)
+      return sib ? sib : t
+    })
+    if (!newTasks.find((t) => t.id === currentDraggedId)) {
+      newTasks.push(updatedDraggedTask)
+    }
+
+    newTasks.sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+    setTasks(newTasks)
+
+    if (position === 'inside') {
+      setExpandedTaskIds((prev) => {
+        const next = new Set(prev)
+        next.add(targetId)
+        return next
+      })
+    }
 
     try {
-      await Promise.all(
-        fullTasks.map((t, index) => {
-          if (t.ordem !== index) {
-            t.ordem = index
-            return pb.collection('tasks').update(t.id, { ordem: index })
-          }
-        }),
-      )
+      await Promise.all(updates.map((u) => pb.collection('tasks').update(u.id, u.data)))
 
       if (id) {
         try {
@@ -401,10 +488,11 @@ export default function DisciplineDetails() {
             filter: `projeto_id = "${id}"`,
           })
           await Promise.all(
-            fullTasks.map(async (t, index) => {
-              const th = thList.find((x) => x.titulo === t.title)
-              if (th && th.ordem !== index) {
-                await pb.collection('tarefas_hierarquicas').update(th.id, { ordem: index })
+            updates.map(async (u) => {
+              const taskTitle = tasks.find((t) => t.id === u.id)?.title
+              const th = thList.find((x) => x.titulo === taskTitle)
+              if (th) {
+                await pb.collection('tarefas_hierarquicas').update(th.id, { ordem: u.data.ordem })
               }
             }),
           )
@@ -1126,17 +1214,25 @@ export default function DisciplineDetails() {
                               <TableRow
                                 key={task.id}
                                 draggable={!isFilterActive}
-                                onDragStart={(e) => !isFilterActive && onDragStart(e, task.id)}
-                                onDragOver={(e) => !isFilterActive && onDragOver(e, task.id)}
-                                onDrop={(e) => !isFilterActive && onDrop(e, task.id)}
+                                onDragStart={(e) => !isFilterActive && handleDragStart(e, task.id)}
+                                onDragOver={(e) => !isFilterActive && handleDragOver(e, task.id)}
+                                onDrop={(e) => !isFilterActive && handleDrop(e, task.id)}
                                 onDragEnd={() => {
                                   setDraggedTaskId(null)
-                                  setDragOverTaskId(null)
+                                  setDropTarget(null)
                                 }}
                                 className={cn(
-                                  'cursor-pointer hover:bg-muted/50 group transition-colors',
+                                  'cursor-pointer hover:bg-muted/50 group transition-colors relative',
                                   draggedTaskId === task.id && 'opacity-50',
-                                  dragOverTaskId === task.id && 'border-t-2 border-t-primary',
+                                  dropTarget?.id === task.id &&
+                                    dropTarget.position === 'before' &&
+                                    'border-t-2 border-t-primary',
+                                  dropTarget?.id === task.id &&
+                                    dropTarget.position === 'after' &&
+                                    'border-b-2 border-b-primary',
+                                  dropTarget?.id === task.id &&
+                                    dropTarget.position === 'inside' &&
+                                    'bg-primary/10',
                                 )}
                                 onClick={() => {
                                   setSelectedTask(task)
@@ -1163,8 +1259,8 @@ export default function DisciplineDetails() {
                                     />
 
                                     {!isFilterActive ? (
-                                      <div className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-1 shrink-0">
-                                        <GripVertical className="h-4 w-4" />
+                                      <div className="grip-handle cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-1 shrink-0 px-1 py-2 -ml-1">
+                                        <GripVertical className="h-4 w-4 pointer-events-none" />
                                       </div>
                                     ) : (
                                       <div className="w-5 shrink-0" />

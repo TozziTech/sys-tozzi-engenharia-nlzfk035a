@@ -16,6 +16,7 @@ import {
   Edit2,
   Search,
   GripVertical,
+  PlusCircle,
 } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -149,6 +150,7 @@ export default function DisciplineDetails() {
 
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [activeTaskTab, setActiveTaskTab] = useState('list')
 
   const isShiftPressed = useRef(false)
 
@@ -517,6 +519,7 @@ export default function DisciplineDetails() {
   })
 
   const isFilterActive = searchQuery !== '' || statusFilter !== 'All'
+  const isFocusedView = activeTaskTab === 'focused'
   const filteredTasks = tasks.filter((task) => {
     const matchSearch =
       task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -584,8 +587,13 @@ export default function DisciplineDetails() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6 print:p-0 print:m-0 print:max-w-none print:space-y-0">
-      <div className="flex items-center gap-2 mb-6 print:hidden">
+    <div
+      className={cn(
+        'container mx-auto p-4 md:p-6 space-y-6 print:p-0 print:m-0 print:max-w-none print:space-y-0 transition-all duration-300',
+        isFocusedView ? 'max-w-full' : 'max-w-6xl',
+      )}
+    >
+      <div className={cn('flex items-center gap-2 mb-6 print:hidden', isFocusedView && 'hidden')}>
         <Button variant="ghost" size="sm" asChild className="gap-2">
           <Link to={`/projects/${id}`}>
             <ArrowLeft className="h-4 w-4" />
@@ -596,7 +604,7 @@ export default function DisciplineDetails() {
         <span className="text-sm font-medium">{module.name}</span>
       </div>
 
-      {hasCriticalTasks && (
+      {hasCriticalTasks && !isFocusedView && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 text-red-800 dark:text-red-300 p-4 rounded-lg flex items-start gap-3 print:hidden">
           <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
           <div>
@@ -609,205 +617,266 @@ export default function DisciplineDetails() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:hidden">
-        <Card className="col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total de Tarefas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalTasks}</div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Concluídas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
-              {concludedTasks}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Em Andamento
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">
-              {inProgressTasks}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">
-              {pendingTasks}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-2 md:col-span-4 lg:col-span-1">
-          <CardHeader className="pb-0 pt-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground text-center">
-              Progresso
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 flex items-center justify-center h-[80px]">
-            {totalTasks > 0 ? (
-              <ChartContainer
-                config={chartConfig}
-                className="h-[80px] w-full max-w-[120px] aspect-square"
-              >
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={20}
-                    outerRadius={35}
-                    strokeWidth={2}
-                    paddingAngle={2}
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <div className="text-xs text-muted-foreground flex h-full items-center">
-                Sem dados
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block print:gap-0">
-        <div className="lg:col-span-2 space-y-6 print:space-y-0">
-          <Card className="print:hidden">
-            <CardHeader className="pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div>
-                  <CardTitle className="text-2xl font-bold">{module.name}</CardTitle>
-                  {module.expand?.project && (
-                    <CardDescription className="text-base mt-1">
-                      Projeto: {(module.expand.project as any).name}
-                    </CardDescription>
-                  )}
-                </div>
-                <Badge className={`px-3 py-1 text-sm font-medium ${getStatusColor(module.status)}`}>
-                  {module.status}
-                </Badge>
-              </div>
+      {!isFocusedView && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:hidden">
+          <Card className="col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total de Tarefas
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
-                <div className="flex items-center gap-3 text-sm">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                      Prazo (Deadline)
-                    </p>
-                    <p className="font-medium flex items-center gap-2">
-                      {module.deadline
-                        ? format(new Date(module.deadline), 'dd/MM/yyyy')
-                        : 'Não definido'}
-                      {module.deadline &&
-                        differenceInDays(new Date(module.deadline), new Date()) <= 3 &&
-                        module.status !== 'Concluído' && (
-                          <AlertTriangle className="h-4 w-4 text-orange-500" />
-                        )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-sm">
-                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                  <div className="w-full">
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1">
-                      Progresso ({module.progress || 0}%)
-                    </p>
-                    <Progress value={module.progress || 0} className="h-2 w-full max-w-[150px]" />
-                  </div>
-                </div>
+              <div className="text-2xl font-bold">{totalTasks}</div>
+            </CardContent>
+          </Card>
+          <Card className="col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Concluídas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
+                {concludedTasks}
               </div>
+            </CardContent>
+          </Card>
+          <Card className="col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Em Andamento
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">
+                {inProgressTasks}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">
+                {pendingTasks}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="col-span-2 md:col-span-4 lg:col-span-1">
+            <CardHeader className="pb-0 pt-3">
+              <CardTitle className="text-xs font-medium text-muted-foreground text-center">
+                Progresso
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex items-center justify-center h-[80px]">
+              {totalTasks > 0 ? (
+                <ChartContainer
+                  config={chartConfig}
+                  className="h-[80px] w-full max-w-[120px] aspect-square"
+                >
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={20}
+                      outerRadius={35}
+                      strokeWidth={2}
+                      paddingAngle={2}
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  </PieChart>
+                </ChartContainer>
+              ) : (
+                <div className="text-xs text-muted-foreground flex h-full items-center">
+                  Sem dados
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-muted-foreground text-sm font-medium">Observações</p>
-                  {!isEditingNotes && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-xs"
+      <div
+        className={cn(
+          'grid grid-cols-1 gap-6 print:block print:gap-0',
+          isFocusedView ? '' : 'lg:grid-cols-3',
+        )}
+      >
+        <div className={cn('space-y-6 print:space-y-0', isFocusedView ? '' : 'lg:col-span-2')}>
+          {!isFocusedView && (
+            <Card className="print:hidden">
+              <CardHeader className="pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-2xl font-bold">{module.name}</CardTitle>
+                    {module.expand?.project && (
+                      <CardDescription className="text-base mt-1">
+                        Projeto: {(module.expand.project as any).name}
+                      </CardDescription>
+                    )}
+                  </div>
+                  <Badge
+                    className={`px-3 py-1 text-sm font-medium ${getStatusColor(module.status)}`}
+                  >
+                    {module.status}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
+                  <div className="flex items-center gap-3 text-sm">
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                        Prazo (Deadline)
+                      </p>
+                      <p className="font-medium flex items-center gap-2">
+                        {module.deadline
+                          ? format(new Date(module.deadline), 'dd/MM/yyyy')
+                          : 'Não definido'}
+                        {module.deadline &&
+                          differenceInDays(new Date(module.deadline), new Date()) <= 3 &&
+                          module.status !== 'Concluído' && (
+                            <AlertTriangle className="h-4 w-4 text-orange-500" />
+                          )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-sm">
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    <div className="w-full">
+                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1">
+                        Progresso ({module.progress || 0}%)
+                      </p>
+                      <Progress value={module.progress || 0} className="h-2 w-full max-w-[150px]" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-muted-foreground text-sm font-medium">Observações</p>
+                    {!isEditingNotes && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs"
+                        onClick={() => {
+                          setEditNotesValue(module.notes || '')
+                          setIsEditingNotes(true)
+                        }}
+                      >
+                        <Edit2 className="h-3 w-3 mr-1" /> Editar
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingNotes ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={editNotesValue}
+                        onChange={(e) => setEditNotesValue(e.target.value)}
+                        className="min-h-[100px] text-sm"
+                        placeholder="Adicione observações aqui..."
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsEditingNotes(false)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button size="sm" onClick={handleSaveNotes}>
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="text-sm whitespace-pre-wrap cursor-pointer hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors min-h-[40px]"
                       onClick={() => {
                         setEditNotesValue(module.notes || '')
                         setIsEditingNotes(true)
                       }}
                     >
-                      <Edit2 className="h-3 w-3 mr-1" /> Editar
+                      {module.notes || (
+                        <span className="text-muted-foreground italic">
+                          Nenhuma observação registrada. Clique para adicionar.
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card
+            className={cn(
+              'print:hidden',
+              isFocusedView && 'border-none shadow-none bg-transparent',
+            )}
+          >
+            {!isFocusedView && (
+              <CardHeader className="pb-4">
+                <div className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Tarefas da Disciplina</CardTitle>
+                    <CardDescription>Lista e cronograma das atividades do módulo.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            )}
+            <CardContent className={cn(isFocusedView && 'p-0')}>
+              <Tabs
+                value={activeTaskTab === 'focused' ? 'list' : activeTaskTab}
+                onValueChange={setActiveTaskTab}
+                className="w-full"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                  <TabsList>
+                    <TabsTrigger
+                      value="list"
+                      onClick={() => setActiveTaskTab('list')}
+                      className={cn(
+                        activeTaskTab === 'focused' &&
+                          '!bg-transparent !text-muted-foreground !shadow-none',
+                      )}
+                    >
+                      Lista
+                    </TabsTrigger>
+                    <TabsTrigger value="calendar" onClick={() => setActiveTaskTab('calendar')}>
+                      Calendário
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="focused"
+                      onClick={() => setActiveTaskTab('focused')}
+                      className={cn(
+                        activeTaskTab === 'focused' && 'bg-background text-foreground shadow-sm',
+                      )}
+                    >
+                      Visão Focada
+                    </TabsTrigger>
+                  </TabsList>
+                  {isFocusedView && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveTaskTab('list')}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Sair da Visão Focada
                     </Button>
                   )}
                 </div>
-                {isEditingNotes ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={editNotesValue}
-                      onChange={(e) => setEditNotesValue(e.target.value)}
-                      className="min-h-[100px] text-sm"
-                      placeholder="Adicione observações aqui..."
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setIsEditingNotes(false)}>
-                        Cancelar
-                      </Button>
-                      <Button size="sm" onClick={handleSaveNotes}>
-                        Salvar
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className="text-sm whitespace-pre-wrap cursor-pointer hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors min-h-[40px]"
-                    onClick={() => {
-                      setEditNotesValue(module.notes || '')
-                      setIsEditingNotes(true)
-                    }}
-                  >
-                    {module.notes || (
-                      <span className="text-muted-foreground italic">
-                        Nenhuma observação registrada. Clique para adicionar.
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="print:hidden">
-            <CardHeader className="pb-4">
-              <div className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">Tarefas da Disciplina</CardTitle>
-                  <CardDescription>Lista e cronograma das atividades do módulo.</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="list" className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="list">Lista</TabsTrigger>
-                  <TabsTrigger value="calendar">Calendário</TabsTrigger>
-                </TabsList>
 
                 <TabsContent value="list" className="mt-0">
                   <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4 mt-2 print:hidden">
@@ -892,8 +961,18 @@ export default function DisciplineDetails() {
                         </DropdownMenuContent>
                       </DropdownMenu>
 
+                      <Button
+                        className="gap-2 w-full sm:w-auto"
+                        onClick={() => {
+                          setSelectedTask({ module: moduleId, project: id })
+                          setIsTaskSheetOpen(true)
+                        }}
+                      >
+                        <PlusCircle className="h-4 w-4" />
+                        <span className="hidden sm:inline">Nova Tarefa</span>
+                      </Button>
+
                       <DropdownMenu>
-                        {' '}
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" className="gap-2 w-full sm:w-auto">
                             <Download className="h-4 w-4" />
@@ -923,8 +1002,17 @@ export default function DisciplineDetails() {
                   </div>
 
                   {filteredTasks.length > 0 ? (
-                    <div className="rounded-md border overflow-x-auto">
-                      <Table>
+                    <div
+                      className={cn(
+                        'rounded-md border overflow-x-auto',
+                        isFocusedView && 'bg-background shadow-sm',
+                      )}
+                    >
+                      <Table
+                        className={cn(
+                          isFocusedView && '[&_td]:py-2 [&_td]:px-3 [&_th]:py-3 [&_th]:px-3',
+                        )}
+                      >
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-[40px]">
@@ -1423,203 +1511,207 @@ export default function DisciplineDetails() {
             </CardContent>
           </Card>
 
-          <Card className="print:hidden">
-            <CardHeader>
-              <CardTitle className="text-lg">Arquivos da Disciplina</CardTitle>
-              <CardDescription>
-                Documentos, plantas e relatórios associados a este módulo.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div
-                className={`border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
-                onClick={() => document.getElementById('module-file-upload')?.click()}
-              >
-                <div className="p-3 bg-primary/10 rounded-full mb-3">
-                  <UploadCloud className="h-6 w-6 text-primary" />
+          {!isFocusedView && (
+            <Card className="print:hidden">
+              <CardHeader>
+                <CardTitle className="text-lg">Arquivos da Disciplina</CardTitle>
+                <CardDescription>
+                  Documentos, plantas e relatórios associados a este módulo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div
+                  className={`border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+                  onClick={() => document.getElementById('module-file-upload')?.click()}
+                >
+                  <div className="p-3 bg-primary/10 rounded-full mb-3">
+                    <UploadCloud className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-semibold mb-1">
+                    {uploading ? 'Enviando...' : 'Clique ou arraste arquivos para cá'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Max 50MB por arquivo</p>
+                  <input
+                    type="file"
+                    id="module-file-upload"
+                    className="hidden"
+                    multiple
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
                 </div>
-                <h3 className="text-sm font-semibold mb-1">
-                  {uploading ? 'Enviando...' : 'Clique ou arraste arquivos para cá'}
-                </h3>
-                <p className="text-xs text-muted-foreground">Max 50MB por arquivo</p>
-                <input
-                  type="file"
-                  id="module-file-upload"
-                  className="hidden"
-                  multiple
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                />
-              </div>
 
-              {module.documents && module.documents.length > 0 ? (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome do Arquivo</TableHead>
-                        <TableHead className="w-[100px] text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {module.documents.map((docName, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium flex items-center gap-2">
-                            <File className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <a
-                              href={pb.files.getURL(module, docName)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:underline text-primary break-all"
-                            >
-                              {docName}
-                            </a>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteDoc(docName)}
-                              className="hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                {module.documents && module.documents.length > 0 ? (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome do Arquivo</TableHead>
+                          <TableHead className="w-[100px] text-right">Ações</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-6 text-sm text-muted-foreground border rounded-md bg-muted/20">
-                  Nenhum documento anexado ainda.
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {module.documents.map((docName, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium flex items-center gap-2">
+                              <File className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <a
+                                href={pb.files.getURL(module, docName)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline text-primary break-all"
+                              >
+                                {docName}
+                              </a>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteDoc(docName)}
+                                className="hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-sm text-muted-foreground border rounded-md bg-muted/20">
+                    Nenhum documento anexado ainda.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-          <ModuleVersions module={module} />
+          {!isFocusedView && <ModuleVersions module={module} />}
         </div>
 
-        <div className="space-y-6 print:hidden">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Equipe Responsável</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  Responsável (Gerente)
-                </p>
-                {responsible ? (
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage
-                        src={
-                          responsible.avatar
-                            ? pb.files.getURL(responsible, responsible.avatar)
-                            : `https://img.usecurling.com/ppl/thumbnail?seed=${responsible.id}`
-                        }
-                      />
-                      <AvatarFallback>{responsible.name?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">{responsible.name}</p>
-                      <p className="text-xs text-muted-foreground">{responsible.email}</p>
+        {!isFocusedView && (
+          <div className="space-y-6 print:hidden">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Equipe Responsável</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                    Responsável (Gerente)
+                  </p>
+                  {responsible ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage
+                          src={
+                            responsible.avatar
+                              ? pb.files.getURL(responsible, responsible.avatar)
+                              : `https://img.usecurling.com/ppl/thumbnail?seed=${responsible.id}`
+                          }
+                        />
+                        <AvatarFallback>{responsible.name?.charAt(0) || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{responsible.name}</p>
+                        <p className="text-xs text-muted-foreground">{responsible.email}</p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Não atribuído</p>
-                )}
-              </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Não atribuído</p>
+                  )}
+                </div>
 
-              <div className="pt-4 border-t border-border">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  Projetista (Designer)
-                </p>
-                {designer ? (
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage
-                        src={
-                          designer.avatar
-                            ? pb.files.getURL(designer, designer.avatar)
-                            : `https://img.usecurling.com/ppl/thumbnail?seed=${designer.id}`
-                        }
-                      />
-                      <AvatarFallback>{designer.name?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">{designer.name}</p>
-                      <p className="text-xs text-muted-foreground">{designer.email}</p>
+                <div className="pt-4 border-t border-border">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                    Projetista (Designer)
+                  </p>
+                  {designer ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage
+                          src={
+                            designer.avatar
+                              ? pb.files.getURL(designer, designer.avatar)
+                              : `https://img.usecurling.com/ppl/thumbnail?seed=${designer.id}`
+                          }
+                        />
+                        <AvatarFallback>{designer.name?.charAt(0) || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{designer.name}</p>
+                        <p className="text-xs text-muted-foreground">{designer.email}</p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Não atribuído</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Não atribuído</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card className="flex flex-col h-[500px]">
-            <CardHeader className="pb-3 shrink-0">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="h-5 w-5 text-primary" />
-                Histórico de Atividades
-              </CardTitle>
-              <CardDescription>Registro de alterações na disciplina</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden p-0">
-              <ScrollArea className="h-full px-6 pb-6">
-                {logs.length > 0 ? (
-                  <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6 pt-2">
-                    {logs.map((log) => {
-                      const user = log.expand?.user_id
-                      return (
-                        <div key={log.id} className="pl-6 relative">
-                          <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
-                          <div className="flex flex-col gap-1 mb-1">
-                            <div className="flex items-center gap-2">
-                              {user && (
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage
-                                    src={
-                                      user.avatar ? pb.files.getURL(user, user.avatar) : undefined
-                                    }
-                                  />
-                                  <AvatarFallback className="text-[10px]">
-                                    {user.name?.charAt(0) || 'U'}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                              <span className="font-medium text-sm">
-                                {user ? user.name : 'Sistema'}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(log.created), 'dd/MM/yyyy HH:mm')}
+            <Card className="flex flex-col h-[500px]">
+              <CardHeader className="pb-3 shrink-0">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  Histórico de Atividades
+                </CardTitle>
+                <CardDescription>Registro de alterações na disciplina</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-hidden p-0">
+                <ScrollArea className="h-full px-6 pb-6">
+                  {logs.length > 0 ? (
+                    <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6 pt-2">
+                      {logs.map((log) => {
+                        const user = log.expand?.user_id
+                        return (
+                          <div key={log.id} className="pl-6 relative">
+                            <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
+                            <div className="flex flex-col gap-1 mb-1">
+                              <div className="flex items-center gap-2">
+                                {user && (
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarImage
+                                      src={
+                                        user.avatar ? pb.files.getURL(user, user.avatar) : undefined
+                                      }
+                                    />
+                                    <AvatarFallback className="text-[10px]">
+                                      {user.name?.charAt(0) || 'U'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                )}
+                                <span className="font-medium text-sm">
+                                  {user ? user.name : 'Sistema'}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(log.created), 'dd/MM/yyyy HH:mm')}
+                                </span>
+                              </div>
+                              <span className="text-sm text-foreground/80 mt-1">
+                                {log.action === 'Create' && 'Criou este registro'}
+                                {log.action === 'Update' && 'Atualizou informações'}
+                                {log.action === 'Delete' && 'Removeu um registro'}
+                                {log.resource === 'tasks' &&
+                                  ` na tarefa "${log.details?.task_name || 'Desconhecida'}"`}
                               </span>
                             </div>
-                            <span className="text-sm text-foreground/80 mt-1">
-                              {log.action === 'Create' && 'Criou este registro'}
-                              {log.action === 'Update' && 'Atualizou informações'}
-                              {log.action === 'Delete' && 'Removeu um registro'}
-                              {log.resource === 'tasks' &&
-                                ` na tarefa "${log.details?.task_name || 'Desconhecida'}"`}
-                            </span>
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    Nenhuma atividade registrada ainda.
-                  </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      Nenhuma atividade registrada ainda.
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       {selectedTaskIds.length > 0 && (

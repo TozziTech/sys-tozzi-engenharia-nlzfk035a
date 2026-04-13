@@ -33,9 +33,13 @@ export function useFinancialCategories() {
     return await pb.collection('financial_categories').create({ name, color: color || '#6366f1' })
   }
 
+  const updateCategory = async (id: string, name: string, color: string) => {
+    return await pb.collection('financial_categories').update(id, { name, color })
+  }
+
   const deleteCategory = async (id: string) => {
     return await pb.collection('financial_categories').delete(id)
   }
 
-  return { categories, addCategory, deleteCategory }
+  return { categories, addCategory, updateCategory, deleteCategory }
 }

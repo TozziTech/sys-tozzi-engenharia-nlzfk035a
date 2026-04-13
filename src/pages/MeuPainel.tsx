@@ -271,197 +271,212 @@ export default function MeuPainel() {
 
   return (
     <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500 max-w-7xl mx-auto w-full">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-          Meu Painel
-        </h2>
-        <p className="text-slate-500 dark:text-slate-400">
-          Bem-vindo(a), {user.name || 'Projetista'}. Aqui está o resumo das suas atribuições ativas.
-        </p>
-      </div>
-
-      {isUsingMock && (
-        <Alert className="bg-blue-50/50 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800">
-          <Info className="h-4 w-4" />
-          <AlertTitle>Modo de Demonstração</AlertTitle>
-          <AlertDescription>
-            Você ainda não possui projetos atribuídos na base de dados. Exibindo dados de exemplo
-            para demonstração.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-primary/5 border-primary/20 dark:bg-primary/10">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-primary">Projetos Ativos</CardTitle>
-            <Briefcase className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{activeProjectsCount}</div>
-            <p className="text-xs text-primary/70 mt-1">Projetos onde você está alocado</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tarefas Pendentes</CardTitle>
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingTasksCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Em todos os seus projetos</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Horas no Mês</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{hoursThisMonth.toFixed(1)}h</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Mês atual ({format(new Date(), 'MMMM', { locale: ptBR })})
+      <Tabs defaultValue="dashboard" className="w-full space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+              Meu Painel
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400">
+              Bem-vindo(a), {user.name || 'Projetista'}. Aqui está o resumo das suas atribuições
+              ativas.
             </p>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          <TabsList>
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="financeiro">Planilha Financeira</TabsTrigger>
+          </TabsList>
+        </div>
 
-      <div>
-        <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <FolderKanban className="h-5 w-5" />
-          Meus Projetos
-        </h3>
+        <TabsContent value="dashboard" className="space-y-6">
+          {isUsingMock && (
+            <Alert className="bg-blue-50/50 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Modo de Demonstração</AlertTitle>
+              <AlertDescription>
+                Você ainda não possui projetos atribuídos na base de dados. Exibindo dados de
+                exemplo para demonstração.
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((proj) => (
-            <Card
-              key={proj.id}
-              className="flex flex-col overflow-hidden hover:shadow-md transition-shadow"
-            >
-              <CardHeader className="pb-4 border-b">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1.5 pr-2">
-                    <CardTitle className="text-lg leading-tight line-clamp-2">
-                      {proj.name}
-                    </CardTitle>
-                    <CardDescription className="font-medium text-primary">
-                      Disciplina: {proj.discipline}
-                    </CardDescription>
-                  </div>
-                  <Badge className={getStatusColor(proj.status || '')} variant="outline">
-                    {getStatusIcon(proj.status || '')}
-                    {proj.status || 'Pendente'}
-                  </Badge>
-                </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="bg-primary/5 border-primary/20 dark:bg-primary/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-primary">Projetos Ativos</CardTitle>
+                <Briefcase className="h-4 w-4 text-primary" />
               </CardHeader>
-              <CardContent className="py-5 flex-1 space-y-5">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4" /> Prazo
-                    </span>
-                    <span className="font-medium">
-                      {proj.end_date
-                        ? format(new Date(proj.end_date), 'dd/MM/yyyy')
-                        : 'Não definido'}
-                    </span>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary">{activeProjectsCount}</div>
+                <p className="text-xs text-primary/70 mt-1">Projetos onde você está alocado</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tarefas Pendentes</CardTitle>
+                <CheckSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{pendingTasksCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">Em todos os seus projetos</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Horas no Mês</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{hoursThisMonth.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mês atual ({format(new Date(), 'MMMM', { locale: ptBR })})
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <FolderKanban className="h-5 w-5" />
+              Meus Projetos
+            </h3>
+
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              {projects.map((proj) => (
+                <Card
+                  key={proj.id}
+                  className="flex flex-col overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <CardHeader className="pb-4 border-b">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1.5 pr-2">
+                        <CardTitle className="text-lg leading-tight line-clamp-2">
+                          {proj.name}
+                        </CardTitle>
+                        <CardDescription className="font-medium text-primary">
+                          Disciplina: {proj.discipline}
+                        </CardDescription>
+                      </div>
+                      <Badge className={getStatusColor(proj.status || '')} variant="outline">
+                        {getStatusIcon(proj.status || '')}
+                        {proj.status || 'Pendente'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="py-5 flex-1 space-y-5">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-slate-500 flex items-center gap-1.5">
+                          <Calendar className="h-4 w-4" /> Prazo
+                        </span>
+                        <span className="font-medium">
+                          {proj.end_date
+                            ? format(new Date(proj.end_date), 'dd/MM/yyyy')
+                            : 'Não definido'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-slate-500 flex items-center gap-1.5">
+                          <Briefcase className="h-4 w-4" /> Cliente
+                        </span>
+                        <span className="font-medium truncate max-w-[150px]" title={proj.client}>
+                          {proj.client}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm font-medium">
+                        <span className="text-slate-600 dark:text-slate-300">Progresso</span>
+                        <span>{proj.progress || 0}%</span>
+                      </div>
+                      <Progress value={proj.progress || 0} className="h-2" />
+                    </div>
+                  </CardContent>
+                  <CardFooter className="pt-4 border-t bg-slate-50/50 dark:bg-slate-900/50 flex flex-wrap gap-2">
+                    <Button asChild variant="outline" className="flex-1 text-xs sm:text-sm">
+                      <Link to={`/projects/${proj.id}`}>Acessar Tarefas</Link>
+                    </Button>
+                    <Button
+                      variant="default"
+                      className="flex-1 text-xs sm:text-sm"
+                      onClick={() => {
+                        setSelectedProjectId(proj.id)
+                        setIsHoursDialogOpen(true)
+                      }}
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      Registrar Horas
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <Dialog open={isHoursDialogOpen} onOpenChange={setIsHoursDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Registrar Horas</DialogTitle>
+                <DialogDescription>
+                  Aponte suas horas de trabalho para o projeto selecionado.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Projeto</Label>
+                  <Input
+                    value={projects.find((p) => p.id === selectedProjectId)?.name || ''}
+                    disabled
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="date">Data</Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={hoursLog.date}
+                      onChange={(e) => setHoursLog({ ...hoursLog, date: e.target.value })}
+                    />
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 flex items-center gap-1.5">
-                      <Briefcase className="h-4 w-4" /> Cliente
-                    </span>
-                    <span className="font-medium truncate max-w-[150px]" title={proj.client}>
-                      {proj.client}
-                    </span>
+                  <div className="space-y-2">
+                    <Label htmlFor="hours">Horas (h)</Label>
+                    <Input
+                      id="hours"
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={hoursLog.hours}
+                      onChange={(e) => setHoursLog({ ...hoursLog, hours: e.target.value })}
+                      placeholder="Ex: 4.5"
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm font-medium">
-                    <span className="text-slate-600 dark:text-slate-300">Progresso</span>
-                    <span>{proj.progress || 0}%</span>
-                  </div>
-                  <Progress value={proj.progress || 0} className="h-2" />
+                  <Label htmlFor="description">Descrição do Trabalho</Label>
+                  <Textarea
+                    id="description"
+                    value={hoursLog.description}
+                    onChange={(e) => setHoursLog({ ...hoursLog, description: e.target.value })}
+                    placeholder="Descreva brevemente o que foi realizado..."
+                    className="resize-none h-24"
+                  />
                 </div>
-              </CardContent>
-              <CardFooter className="pt-4 border-t bg-slate-50/50 dark:bg-slate-900/50 flex flex-wrap gap-2">
-                <Button asChild variant="outline" className="flex-1 text-xs sm:text-sm">
-                  <Link to={`/projects/${proj.id}`}>Acessar Tarefas</Link>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsHoursDialogOpen(false)}>
+                  Cancelar
                 </Button>
-                <Button
-                  variant="default"
-                  className="flex-1 text-xs sm:text-sm"
-                  onClick={() => {
-                    setSelectedProjectId(proj.id)
-                    setIsHoursDialogOpen(true)
-                  }}
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Registrar Horas
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      </div>
+                <Button onClick={handleLogHours}>Salvar Registro</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
 
-      <Dialog open={isHoursDialogOpen} onOpenChange={setIsHoursDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Registrar Horas</DialogTitle>
-            <DialogDescription>
-              Aponte suas horas de trabalho para o projeto selecionado.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Projeto</Label>
-              <Input
-                value={projects.find((p) => p.id === selectedProjectId)?.name || ''}
-                disabled
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="date">Data</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={hoursLog.date}
-                  onChange={(e) => setHoursLog({ ...hoursLog, date: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="hours">Horas (h)</Label>
-                <Input
-                  id="hours"
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  value={hoursLog.hours}
-                  onChange={(e) => setHoursLog({ ...hoursLog, hours: e.target.value })}
-                  placeholder="Ex: 4.5"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição do Trabalho</Label>
-              <Textarea
-                id="description"
-                value={hoursLog.description}
-                onChange={(e) => setHoursLog({ ...hoursLog, description: e.target.value })}
-                placeholder="Descreva brevemente o que foi realizado..."
-                className="resize-none h-24"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsHoursDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleLogHours}>Salvar Registro</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <TabsContent value="financeiro" className="space-y-6">
+          <PlanilhaFinanceira />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

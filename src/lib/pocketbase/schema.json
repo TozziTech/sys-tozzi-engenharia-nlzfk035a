@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T23:09:05.484Z",
+  "generatedAt": "2026-04-13T23:35:45.967Z",
   "collections": [
     {
       "name": "users",
@@ -1557,6 +1557,84 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX `idx_bank_accounts_code` ON `bank_accounts` (code)"]
+    },
+    {
+      "name": "servicos_financeiros",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "projeto_servico",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Pendente", "Em Andamento", "Concluído", "Cancelado"]
+        },
+        {
+          "name": "valor_total",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_servicos_financeiros_user ON servicos_financeiros (user_id)"]
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Check, ChevronsUpDown } from 'lucide-react'
+import { Plus, Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,6 +31,23 @@ import {
 import useProjectStore from '@/stores/useProjectStore'
 import { useFinancialCategories } from '@/hooks/use-financial-categories'
 import { cn } from '@/lib/utils'
+import pb from '@/lib/pocketbase/client'
+import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
+import { toast } from 'sonner'
+
+const initialFormState = {
+  type: 'Entrada',
+  status: 'Pendente',
+  value: 0,
+  description: '',
+  date: new Date().toISOString().split('T')[0],
+  projectId: '',
+  category: '',
+  is_recurring: false,
+  frequency: 'Mensal',
+  end_date: '',
+  attachment: null as File | null,
+}
 
 export function TransactionModal() {
   const { projects, addTransaction } = useProjectStore()
@@ -39,23 +56,17 @@ export function TransactionModal() {
   const [isOpen, setIsOpen] = useState(false)
   const [openCategory, setOpenCategory] = useState(false)
   const [searchCategory, setSearchCategory] = useState('')
+
+  const [formData, setFormData] = useState(initialFormState)
+
   const [formError, setFormError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [formData, setFormData] = useState({
-    type: 'Entrada',
-    status: 'Pendente',
-    value: 0,
-    description: '',
-    date: new Date().toISOString().split('T')[0],
-    projectId: '',
-    category: '',
-    is_recurring: false,
-    frequency: 'Mensal',
-    end_date: '',
-    attachment: null as File | null,
-  })
+  const handleSubmit = async () => {
+    setFormError(null)
+    setFieldErrors({})
 
-  const handleSubmit = () => {
     if (!formData.description || !formData.date || !formData.value) {
       setFormError('Preencha os campos obrigatórios.')
       return
@@ -72,14 +83,13 @@ export function TransactionModal() {
       setFormError('A Data Final deve ser igual ou posterior à data inicial.')
       return
     }
-    setFormError(null)
-    const payload: any = {
+
+    const payload = {
       description: formData.description,
-      type: formData.type as any,
-      value: formData.value,
+      type: formData.type,
+      amount: Number(formData.value),
       date: new Date(formData.date).toISOString(),
-      projectId: formData.projectId,
-      status: formData.status as any,
+      project_id: formData.projectId,
       category: formData.category,
       is_recurring: formData.is_recurring,
       frequency: formData.is_recurring ? formData.frequency : '',
@@ -88,25 +98,27 @@ export function TransactionModal() {
       recurrence_group_id: formData.is_recurring ? crypto.randomUUID() : '',
     }
 
-    if (formData.attachment) {
-      payload.attachment = formData.attachment
-    }
+    setIsSubmitting(true)
+    try {
+      const record = await pb.collection('financial_records').create(payload)
 
-    addTransaction(payload)
-    setIsOpen(false)
-    setFormData({
-      type: 'Entrada',
-      status: 'Pendente',
-      value: 0,
-      description: '',
-      date: new Date().toISOString().split('T')[0],
-      projectId: '',
-      category: '',
-      is_recurring: false,
-      frequency: 'Mensal',
-      end_date: '',
-      attachment: null,
-    })
+      try {
+        addTransaction(record)
+      } catch (e) {
+        // Fallback para caso addTransaction falhe mas o backend tenha sucesso
+      }
+
+      toast.success('Transação criada com sucesso!')
+      setIsOpen(false)
+      setFormData({ ...initialFormState })
+    } catch (err: any) {
+      console.error(err)
+      const errors = extractFieldErrors(err)
+      setFieldErrors(errors)
+      setFormError(getErrorMessage(err) || 'Erro ao salvar transação.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -122,15 +134,19 @@ export function TransactionModal() {
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4 py-4">
           <div className="col-span-2 space-y-2">
-            <Label>Descrição</Label>
+            <Label className={cn(fieldErrors.description && 'text-red-500')}>Descrição</Label>
             <Input
+              className={cn(fieldErrors.description && 'border-red-500')}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Ex: Compra de materiais..."
             />
+            {fieldErrors.description && (
+              <span className="text-xs text-red-500">{fieldErrors.description}</span>
+            )}
           </div>
           <div className="space-y-2">
-            <Label>Tipo</Label>
+            <Label className={cn(fieldErrors.type && 'text-red-500')}>Tipo</Label>
             <Select
               value={formData.type}
               onValueChange={(v) =>
@@ -140,7 +156,7 @@ export function TransactionModal() {
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className={cn(fieldErrors.type && 'border-red-500')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -148,24 +164,31 @@ export function TransactionModal() {
                 <SelectItem value="Saída">Saída</SelectItem>
               </SelectContent>
             </Select>
+            {fieldErrors.type && <span className="text-xs text-red-500">{fieldErrors.type}</span>}
           </div>
           <div className="space-y-2">
-            <Label>Valor (R$)</Label>
+            <Label className={cn(fieldErrors.amount && 'text-red-500')}>Valor (R$)</Label>
             <Input
               type="number"
               min="0"
               step="0.01"
+              className={cn(fieldErrors.amount && 'border-red-500')}
               value={formData.value || ''}
               onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
             />
+            {fieldErrors.amount && (
+              <span className="text-xs text-red-500">{fieldErrors.amount}</span>
+            )}
           </div>
           <div className="space-y-2">
-            <Label>Data</Label>
+            <Label className={cn(fieldErrors.date && 'text-red-500')}>Data</Label>
             <Input
               type="date"
+              className={cn(fieldErrors.date && 'border-red-500')}
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
             />
+            {fieldErrors.date && <span className="text-xs text-red-500">{fieldErrors.date}</span>}
           </div>
           <div className="space-y-2">
             <Label>Status</Label>
@@ -193,12 +216,14 @@ export function TransactionModal() {
             />
           </div>
           <div className="col-span-2 space-y-2">
-            <Label>Projeto Vinculado</Label>
+            <Label className={cn(fieldErrors.project_id && 'text-red-500')}>
+              Projeto Vinculado
+            </Label>
             <Select
               value={formData.projectId}
               onValueChange={(v) => setFormData({ ...formData, projectId: v })}
             >
-              <SelectTrigger>
+              <SelectTrigger className={cn(fieldErrors.project_id && 'border-red-500')}>
                 <SelectValue placeholder="Selecione um projeto" />
               </SelectTrigger>
               <SelectContent>
@@ -210,9 +235,12 @@ export function TransactionModal() {
                 ))}
               </SelectContent>
             </Select>
+            {fieldErrors.project_id && (
+              <span className="text-xs text-red-500">{fieldErrors.project_id}</span>
+            )}
           </div>
           <div className="col-span-2 space-y-2">
-            <Label>Categoria</Label>
+            <Label className={cn(fieldErrors.category && 'text-red-500')}>Categoria</Label>
             <Popover open={openCategory} onOpenChange={setOpenCategory}>
               <PopoverTrigger asChild>
                 <Button
@@ -222,6 +250,7 @@ export function TransactionModal() {
                   className={cn(
                     'w-full justify-between font-normal',
                     !formData.category && 'text-muted-foreground',
+                    fieldErrors.category && 'border-red-500',
                   )}
                 >
                   {formData.category || 'Selecione uma categoria...'}
@@ -305,6 +334,9 @@ export function TransactionModal() {
                 </Command>
               </PopoverContent>
             </Popover>
+            {fieldErrors.category && (
+              <span className="text-xs text-red-500">{fieldErrors.category}</span>
+            )}
           </div>
           <div className="col-span-2 space-y-4 border rounded-md p-4 bg-slate-50 dark:bg-slate-900/50 mt-2">
             <div className="flex items-center space-x-2">
@@ -326,12 +358,12 @@ export function TransactionModal() {
             {formData.is_recurring && (
               <div className="grid grid-cols-2 gap-4 pt-2">
                 <div className="space-y-2">
-                  <Label>Frequência</Label>
+                  <Label className={cn(fieldErrors.frequency && 'text-red-500')}>Frequência</Label>
                   <Select
                     value={formData.frequency}
                     onValueChange={(v) => setFormData({ ...formData, frequency: v })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={cn(fieldErrors.frequency && 'border-red-500')}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -340,28 +372,41 @@ export function TransactionModal() {
                       <SelectItem value="Anual">Anual</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldErrors.frequency && (
+                    <span className="text-xs text-red-500">{fieldErrors.frequency}</span>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Data Final (Opcional)</Label>
+                  <Label className={cn(fieldErrors.end_date && 'text-red-500')}>
+                    Data Final (Opcional)
+                  </Label>
                   <Input
                     type="date"
+                    className={cn(fieldErrors.end_date && 'border-red-500')}
                     value={formData.end_date || ''}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                   />
+                  {fieldErrors.end_date && (
+                    <span className="text-xs text-red-500">{fieldErrors.end_date}</span>
+                  )}
                 </div>
               </div>
             )}
           </div>
-          {formError && <div className="col-span-2 text-sm text-red-500">{formError}</div>}
+          {formError && (
+            <div className="col-span-2 text-sm text-red-500 font-medium">{formError}</div>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>
+          <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>
             Cancelar
           </Button>
           <Button
             onClick={handleSubmit}
+            disabled={isSubmitting}
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
+            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Salvar
           </Button>
         </DialogFooter>

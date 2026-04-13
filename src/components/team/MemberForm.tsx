@@ -67,6 +67,21 @@ const formSchema = z
   })
   .refine(
     (data) => {
+      if (!data.documentos_link) return true
+      try {
+        new URL(data.documentos_link)
+        return true
+      } catch {
+        return false
+      }
+    },
+    {
+      message: 'Insira uma URL válida (ex: https://...).',
+      path: ['documentos_link'],
+    },
+  )
+  .refine(
+    (data) => {
       if (data.formacaoSelect === 'Outros' && !data.formacaoCustom) return false
       return true
     },
@@ -92,6 +107,25 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+
+  const handleMaskedChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    maskFn: (v: string) => string,
+    onChange: (v: string) => void,
+  ) => {
+    const input = e.target
+    const oldCursor = input.selectionStart
+    const oldVal = input.value
+    const newVal = maskFn(oldVal)
+
+    onChange(newVal)
+
+    window.requestAnimationFrame(() => {
+      if (input && oldCursor !== null) {
+        input.setSelectionRange(oldCursor, oldCursor)
+      }
+    })
+  }
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -203,6 +237,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
         cpf: data.cpf,
         rg: data.rg,
         phone: data.phone,
+        altPhone: data.altPhone,
         status: data.status,
         banco_nome: data.bank_bank,
         agencia: data.bank_agency,
@@ -439,7 +474,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                               placeholder="(00) 00000-0000"
                               maxLength={15}
                               {...field}
-                              onChange={(e) => field.onChange(maskPhone(e.target.value))}
+                              onChange={(e) => handleMaskedChange(e, maskPhone, field.onChange)}
                             />
                           </FormControl>
                           <FormMessage />
@@ -457,7 +492,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                               placeholder="(00) 00000-0000"
                               maxLength={15}
                               {...field}
-                              onChange={(e) => field.onChange(maskPhone(e.target.value))}
+                              onChange={(e) => handleMaskedChange(e, maskPhone, field.onChange)}
                             />
                           </FormControl>
                           <FormMessage />
@@ -550,7 +585,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                               placeholder="000.000.000-00"
                               maxLength={14}
                               {...field}
-                              onChange={(e) => field.onChange(maskCPF(e.target.value))}
+                              onChange={(e) => handleMaskedChange(e, maskCPF, field.onChange)}
                             />
                           </FormControl>
                           <FormMessage />
@@ -566,9 +601,9 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormControl>
                             <Input
                               placeholder="00.000.000-0"
-                              maxLength={12}
+                              maxLength={14}
                               {...field}
-                              onChange={(e) => field.onChange(maskRG(e.target.value))}
+                              onChange={(e) => handleMaskedChange(e, maskRG, field.onChange)}
                             />
                           </FormControl>
                           <FormMessage />
@@ -597,7 +632,22 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-4">
                           <FormLabel>CEP</FormLabel>
                           <FormControl>
-                            <Input placeholder="00000-000" {...field} />
+                            <Input
+                              placeholder="00000-000"
+                              maxLength={9}
+                              {...field}
+                              onChange={(e) =>
+                                handleMaskedChange(
+                                  e,
+                                  (val) =>
+                                    val
+                                      .replace(/\D/g, '')
+                                      .replace(/^(\d{5})(\d)/, '$1-$2')
+                                      .slice(0, 9),
+                                  field.onChange,
+                                )
+                              }
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

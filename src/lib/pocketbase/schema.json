@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T21:31:40.980Z",
+  "generatedAt": "2026-04-13T21:36:34.917Z",
   "collections": [
     {
       "name": "users",
@@ -8,8 +8,8 @@
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
         "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "update": "@request.auth.id = id || @request.auth.role = 'Administrador'",
+        "delete": "@request.auth.role = 'Administrador'"
       },
       "fields": [
         {
@@ -150,6 +150,18 @@
         },
         {
           "name": "documentos_link",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "altPhone",
           "type": "text",
           "required": false,
           "system": false

@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Shield } from 'lucide-react'
+import { Shield, Info } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -34,6 +35,16 @@ export function RoleManagementModal({ users, onUpdate }: { users: any[]; onUpdat
   const { toast } = useToast()
 
   const roles = ['Administrador', 'Gerente de Projeto', 'Projetista', 'Estagiário', 'Visitante']
+
+  const roleDescriptions: Record<string, string> = {
+    Administrador: 'Acesso total ao sistema, configurações, faturamento e exclusão de dados.',
+    'Gerente de Projeto':
+      'Pode criar, editar e gerenciar projetos, equipe e relatórios, sem acesso financeiro ou configurações.',
+    Projetista:
+      'Pode visualizar projetos atribuídos, atualizar status de tarefas e registrar horas.',
+    Estagiário: 'Acesso limitado para visualização de tarefas e registro de horas sob supervisão.',
+    Visitante: 'Acesso somente leitura a projetos compartilhados, sem permissão de edição.',
+  }
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     setUpdatingId(userId)
@@ -77,7 +88,7 @@ export function RoleManagementModal({ users, onUpdate }: { users: any[]; onUpdat
               <TableRow>
                 <TableHead className="pl-6">Membro</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead className="w-[220px] pr-6">Nível de Acesso</TableHead>
+                <TableHead className="w-[280px] pr-6">Nível de Acesso</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -95,22 +106,44 @@ export function RoleManagementModal({ users, onUpdate }: { users: any[]; onUpdat
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{user.email}</TableCell>
                   <TableCell className="pr-6">
-                    <Select
-                      value={user.role || ''}
-                      onValueChange={(val) => handleRoleChange(user.id, val)}
-                      disabled={updatingId === user.id}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Sem acesso" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roles.map((r) => (
-                          <SelectItem key={r} value={r}>
-                            {r}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={user.role || ''}
+                        onValueChange={(val) => handleRoleChange(user.id, val)}
+                        disabled={updatingId === user.id}
+                      >
+                        <SelectTrigger className="h-9 flex-1">
+                          <SelectValue placeholder="Sem acesso" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              <div className="flex flex-col gap-0.5">
+                                <span>{r}</span>
+                                <span className="text-[10px] text-muted-foreground line-clamp-1">
+                                  {roleDescriptions[r]}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="p-2 text-muted-foreground hover:text-foreground cursor-help transition-colors">
+                            <Info className="h-4 w-4" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-[250px] p-3 text-sm">
+                          <p className="font-semibold mb-1">{user.role || 'Sem acesso'}</p>
+                          <p className="text-muted-foreground">
+                            {user.role
+                              ? roleDescriptions[user.role]
+                              : 'Nenhum nível de acesso definido.'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

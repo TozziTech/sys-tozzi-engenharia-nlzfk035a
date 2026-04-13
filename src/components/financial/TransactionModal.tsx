@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +43,7 @@ const initialFormState = {
   date: new Date().toISOString().split('T')[0],
   projectId: '',
   category: '',
+  responsible: 'none',
   is_recurring: false,
   frequency: 'Mensal',
   end_date: '',
@@ -56,12 +57,19 @@ export function TransactionModal() {
   const [isOpen, setIsOpen] = useState(false)
   const [openCategory, setOpenCategory] = useState(false)
   const [searchCategory, setSearchCategory] = useState('')
+  const [users, setUsers] = useState<any[]>([])
 
   const [formData, setFormData] = useState(initialFormState)
 
   const [formError, setFormError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      pb.collection('users').getFullList({ sort: 'name' }).then(setUsers).catch(console.error)
+    }
+  }, [isOpen])
 
   const handleSubmit = async () => {
     setFormError(null)
@@ -92,16 +100,26 @@ export function TransactionModal() {
       date: new Date(formData.date).toISOString(),
       project_id: formData.projectId,
       category: formData.category,
+      responsible: formData.responsible === 'none' ? '' : formData.responsible,
       is_recurring: formData.is_recurring,
       frequency: formData.is_recurring ? formData.frequency : '',
       end_date:
         formData.is_recurring && formData.end_date ? new Date(formData.end_date).toISOString() : '',
       recurrence_group_id: formData.is_recurring ? crypto.randomUUID() : '',
+      status: formData.status,
+    }
+
+    const submitData = new FormData()
+    for (const [key, value] of Object.entries(payload)) {
+      submitData.append(key, value as any)
+    }
+    if (formData.attachment) {
+      submitData.append('attachment', formData.attachment)
     }
 
     setIsSubmitting(true)
     try {
-      await pb.collection('financial_records').create(payload)
+      await pb.collection('financial_records').create(submitData)
 
       toast.success('Transação criada com sucesso!')
       setIsOpen(false)
@@ -123,7 +141,7 @@ export function TransactionModal() {
           <Plus className="h-4 w-4 mr-2" /> Nova Transação
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Adicionar Nova Transação</DialogTitle>
         </DialogHeader>
@@ -202,16 +220,7 @@ export function TransactionModal() {
               </SelectContent>
             </Select>
           </div>
-          <div className="col-span-2 space-y-2">
-            <Label>Comprovante/Anexo</Label>
-            <Input
-              type="file"
-              accept=".pdf,image/jpeg,image/png,image/webp"
-              onChange={(e) =>
-                setFormData({ ...formData, attachment: e.target.files?.[0] || null })
-              }
-            />
-          </div>
+
           <div className="col-span-2 space-y-2">
             <Label className={cn(fieldErrors.project_id && 'text-red-500')}>
               Projeto Vinculado
@@ -236,6 +245,27 @@ export function TransactionModal() {
               <span className="text-xs text-red-500">{fieldErrors.project_id}</span>
             )}
           </div>
+
+          <div className="col-span-2 space-y-2">
+            <Label>Responsável</Label>
+            <Select
+              value={formData.responsible}
+              onValueChange={(v) => setFormData({ ...formData, responsible: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um responsável..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem responsável</SelectItem>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name || u.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="col-span-2 space-y-2">
             <Label className={cn(fieldErrors.category && 'text-red-500')}>Categoria</Label>
             <Popover open={openCategory} onOpenChange={setOpenCategory}>
@@ -340,6 +370,7 @@ export function TransactionModal() {
               <span className="text-xs text-red-500">{fieldErrors.category}</span>
             )}
           </div>
+
           <div className="col-span-2 space-y-4 border rounded-md p-4 bg-slate-50 dark:bg-slate-900/50 mt-2">
             <div className="flex items-center space-x-2">
               <Switch
@@ -395,6 +426,18 @@ export function TransactionModal() {
               </div>
             )}
           </div>
+
+          <div className="col-span-2 space-y-2 mt-2">
+            <Label>Comprovante/Anexo</Label>
+            <Input
+              type="file"
+              accept=".pdf,image/jpeg,image/png,image/webp"
+              onChange={(e) =>
+                setFormData({ ...formData, attachment: e.target.files?.[0] || null })
+              }
+            />
+          </div>
+
           {formError && (
             <div className="col-span-2 text-sm text-red-500 font-medium">{formError}</div>
           )}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { FilterX, Download, FileText, CalendarIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,12 +41,18 @@ export function FinancialTransactions() {
 
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
+  const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   })
   const [editTx, setEditTx] = useState<any>(null)
   const [deleteTx, setDeleteTx] = useState<any>(null)
+  const [users, setUsers] = useState<any[]>([])
+
+  useEffect(() => {
+    pb.collection('users').getFullList({ sort: 'name' }).then(setUsers).catch(console.error)
+  }, [])
 
   const filteredTransactions = useMemo(() => {
     return transactions
@@ -54,6 +60,7 @@ export function FinancialTransactions() {
         const pId = tx.projectId || (tx as any).project_id
         if (selectedProject !== 'all' && pId !== selectedProject) return false
         if (selectedType !== 'all' && tx.type !== selectedType) return false
+        if (selectedStatus !== 'all' && tx.status !== selectedStatus) return false
 
         if (dateRange?.from) {
           const txDate = new Date(tx.date)
@@ -72,11 +79,12 @@ export function FinancialTransactions() {
         return true
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [transactions, selectedProject, selectedType, dateRange])
+  }, [transactions, selectedProject, selectedType, selectedStatus, dateRange])
 
   const clearFilters = () => {
     setSelectedProject('all')
     setSelectedType('all')
+    setSelectedStatus('all')
     setDateRange(undefined)
   }
 
@@ -170,10 +178,28 @@ export function FinancialTransactions() {
             </SelectContent>
           </Select>
 
+          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Status</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="Pago">Pago</SelectItem>
+              <SelectItem value="Atrasado">Atrasado</SelectItem>
+              <SelectItem value="Cancelado">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Button
             variant="ghost"
             onClick={clearFilters}
-            disabled={selectedProject === 'all' && selectedType === 'all' && !dateRange}
+            disabled={
+              selectedProject === 'all' &&
+              selectedType === 'all' &&
+              selectedStatus === 'all' &&
+              !dateRange
+            }
             className="text-slate-500"
           >
             <FilterX className="h-4 w-4 mr-2" /> Limpar
@@ -200,6 +226,7 @@ export function FinancialTransactions() {
             transactions={filteredTransactions}
             categories={categories}
             projects={projects}
+            users={users}
             onEdit={setEditTx}
             onDelete={setDeleteTx}
           />

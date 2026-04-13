@@ -37,6 +37,7 @@ export function EditTransactionModal({
   const [existingAttachment, setExistingAttachment] = useState<string | null>(null)
   const [newAttachment, setNewAttachment] = useState<File | null>(null)
   const [removeAttachment, setRemoveAttachment] = useState(false)
+  const [users, setUsers] = useState<any[]>([])
 
   const [formData, setFormData] = useState({
     description: '',
@@ -45,11 +46,18 @@ export function EditTransactionModal({
     date: '',
     projectId: '',
     categoryId: '',
+    responsible: 'none',
     status: 'Pendente',
     is_recurring: false,
     frequency: 'Mensal',
     end_date: '',
   })
+
+  useEffect(() => {
+    if (open) {
+      pb.collection('users').getFullList({ sort: 'name' }).then(setUsers).catch(console.error)
+    }
+  }, [open])
 
   useEffect(() => {
     if (transaction && open) {
@@ -64,6 +72,7 @@ export function EditTransactionModal({
         date: transaction.date ? new Date(transaction.date).toISOString().split('T')[0] : '',
         projectId: transaction.projectId || transaction.project_id || '',
         categoryId: transaction.categoryId || transaction.category || '',
+        responsible: transaction.responsible || 'none',
         status: transaction.status || 'Pendente',
         is_recurring: transaction.is_recurring || false,
         frequency: transaction.frequency || 'Mensal',
@@ -107,6 +116,7 @@ export function EditTransactionModal({
         date: formData.date ? new Date(formData.date).toISOString() : null,
         project_id: formData.projectId,
         category: formData.type === 'Saída' ? formData.categoryId : '',
+        responsible: formData.responsible === 'none' ? '' : formData.responsible,
         status: formData.status,
         is_recurring: formData.is_recurring,
         frequency: formData.is_recurring ? formData.frequency : '',
@@ -116,13 +126,20 @@ export function EditTransactionModal({
             : null,
       }
 
-      if (newAttachment) {
-        data.attachment = newAttachment
-      } else if (removeAttachment) {
-        data.attachment = null
+      const submitData = new FormData()
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== null && value !== undefined) {
+          submitData.append(key, value as any)
+        }
       }
 
-      await pb.collection('financial_records').update(transaction.id, data)
+      if (newAttachment) {
+        submitData.append('attachment', newAttachment)
+      } else if (removeAttachment) {
+        submitData.append('attachment', '')
+      }
+
+      await pb.collection('financial_records').update(transaction.id, submitData)
       onOpenChange(false)
     } catch (err) {
       console.error(err)
@@ -132,7 +149,7 @@ export function EditTransactionModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Transação</DialogTitle>
         </DialogHeader>
@@ -207,31 +224,7 @@ export function EditTransactionModal({
               </SelectContent>
             </Select>
           </div>
-          <div className="col-span-2 space-y-2">
-            <Label>Comprovante/Anexo</Label>
-            {existingAttachment && !removeAttachment && !newAttachment ? (
-              <div className="flex items-center gap-4 p-2 border rounded-md">
-                <span className="text-sm truncate max-w-[200px]">{existingAttachment}</span>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setRemoveAttachment(true)}
-                >
-                  Remover
-                </Button>
-              </div>
-            ) : (
-              <Input
-                type="file"
-                accept=".pdf,image/jpeg,image/png,image/webp"
-                onChange={(e) => {
-                  setNewAttachment(e.target.files?.[0] || null)
-                  if (e.target.files?.[0]) setRemoveAttachment(false)
-                }}
-              />
-            )}
-          </div>
+
           <div className="col-span-2 space-y-2">
             <Label>Projeto Vinculado</Label>
             <Select
@@ -251,6 +244,27 @@ export function EditTransactionModal({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="col-span-2 space-y-2">
+            <Label>Responsável</Label>
+            <Select
+              value={formData.responsible}
+              onValueChange={(v) => setFormData({ ...formData, responsible: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um responsável..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem responsável</SelectItem>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name || u.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {formData.type === 'Saída' && (
             <div className="col-span-2 space-y-2">
               <Label>Categoria de Despesa</Label>
@@ -317,6 +331,33 @@ export function EditTransactionModal({
               </div>
             )}
           </div>
+
+          <div className="col-span-2 space-y-2 mt-2">
+            <Label>Comprovante/Anexo</Label>
+            {existingAttachment && !removeAttachment && !newAttachment ? (
+              <div className="flex items-center gap-4 p-2 border rounded-md">
+                <span className="text-sm truncate max-w-[200px]">{existingAttachment}</span>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setRemoveAttachment(true)}
+                >
+                  Remover
+                </Button>
+              </div>
+            ) : (
+              <Input
+                type="file"
+                accept=".pdf,image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  setNewAttachment(e.target.files?.[0] || null)
+                  if (e.target.files?.[0]) setRemoveAttachment(false)
+                }}
+              />
+            )}
+          </div>
+
           {formError && <p className="col-span-2 text-sm text-red-500 font-medium">{formError}</p>}
         </div>
         <DialogFooter>

@@ -29,6 +29,7 @@ interface TableProps {
   transactions: any[]
   categories: any[]
   projects: any[]
+  users: any[]
   onEdit: (tx: any) => void
   onDelete: (tx: any) => void
 }
@@ -37,6 +38,7 @@ export function TransactionTable({
   transactions,
   categories,
   projects,
+  users,
   onEdit,
   onDelete,
 }: TableProps) {
@@ -59,6 +61,9 @@ export function TransactionTable({
             <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">
               Projeto
             </TableHead>
+            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">
+              Responsável
+            </TableHead>
             <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Status</TableHead>
             <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300 text-right">
               Valor
@@ -73,7 +78,7 @@ export function TransactionTable({
           {transactions.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={9}
+                colSpan={10}
                 className="text-center py-12 text-slate-500 dark:text-zinc-500"
               >
                 Nenhuma transação encontrada.
@@ -88,6 +93,7 @@ export function TransactionTable({
                 pId === 'tozzi_interno'
                   ? 'TOZZI (Interno)'
                   : projects.find((p: any) => p.id === pId)?.name || 'TOZZI (Interno)'
+              const respUser = users.find((u: any) => u.id === tx.responsible)
 
               return (
                 <TableRow
@@ -133,6 +139,9 @@ export function TransactionTable({
                     </div>
                   </TableCell>
                   <TableCell className="text-zinc-600 dark:text-zinc-400">{projName}</TableCell>
+                  <TableCell className="text-zinc-600 dark:text-zinc-400">
+                    {respUser ? respUser.name || respUser.email : '-'}
+                  </TableCell>
                   <TableCell>
                     {tx.status === 'Pago' && (
                       <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent">

@@ -44,25 +44,38 @@ export function TransactionTable({
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   return (
-    <div className="rounded-md border overflow-hidden bg-card text-card-foreground">
+    <div className="rounded-md border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-card text-card-foreground">
       <Table>
-        <TableHeader className="bg-muted/50">
-          <TableRow>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Categoria</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Valor (R$)</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead>Projeto</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-[60px]">Anexo</TableHead>
-            <TableHead></TableHead>
+        <TableHeader className="bg-zinc-100 dark:bg-zinc-900/80">
+          <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
+            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Data</TableHead>
+            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Tipo</TableHead>
+            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">
+              Categoria
+            </TableHead>
+            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">
+              Descrição
+            </TableHead>
+            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">
+              Projeto
+            </TableHead>
+            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300">Status</TableHead>
+            <TableHead className="font-semibold text-zinc-700 dark:text-zinc-300 text-right">
+              Valor
+            </TableHead>
+            <TableHead className="w-[60px] text-center font-semibold text-zinc-700 dark:text-zinc-300">
+              Anexo
+            </TableHead>
+            <TableHead className="w-[60px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {transactions.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-12 text-slate-500">
+              <TableCell
+                colSpan={9}
+                className="text-center py-12 text-slate-500 dark:text-zinc-500"
+              >
                 Nenhuma transação encontrada.
               </TableCell>
             </TableRow>
@@ -75,15 +88,27 @@ export function TransactionTable({
                 pId === 'tozzi_interno'
                   ? 'TOZZI (Interno)'
                   : projects.find((p: any) => p.id === pId)?.name || 'TOZZI (Interno)'
+
               return (
-                <TableRow key={tx.id} className="hover:bg-muted/50 transition-colors">
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {tx.description}
-                      {tx.is_recurring && (
-                        <Repeat className="h-4 w-4 text-slate-400" title="Recorrente" />
-                      )}
-                    </div>
+                <TableRow
+                  key={tx.id}
+                  className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 transition-colors"
+                >
+                  <TableCell className="whitespace-nowrap">
+                    {tx.date
+                      ? new Date(tx.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                      : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {tx.type === 'Entrada' ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 inline-flex items-center font-medium">
+                        <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
+                      </span>
+                    ) : (
+                      <span className="text-rose-600 dark:text-rose-400 inline-flex items-center font-medium">
+                        <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {cat ? (
@@ -96,26 +121,39 @@ export function TransactionTable({
                       </Badge>
                     )}
                   </TableCell>
+                  <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
+                    <div className="flex items-center gap-2">
+                      {tx.description}
+                      {tx.is_recurring && (
+                        <Repeat
+                          className="h-4 w-4 text-zinc-400 dark:text-zinc-500"
+                          title="Recorrente"
+                        />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-zinc-600 dark:text-zinc-400">{projName}</TableCell>
                   <TableCell>
-                    {tx.type === 'Entrada' ? (
-                      <span className="text-emerald-600 inline-flex items-center font-medium">
-                        <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
-                      </span>
-                    ) : (
-                      <span className="text-rose-600 inline-flex items-center font-medium">
-                        <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
-                      </span>
+                    {tx.status === 'Pago' && (
+                      <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent">
+                        Pago
+                      </Badge>
                     )}
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {formatCurrency(tx.value || tx.amount || 0)}
-                  </TableCell>
-                  <TableCell>{new Date(tx.date).toLocaleDateString('pt-BR')}</TableCell>
-                  <TableCell className="text-muted-foreground">{projName}</TableCell>
-                  <TableCell>
-                    {tx.status === 'Pago' ? (
-                      <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white">Pago</Badge>
-                    ) : (
+                    {tx.status === 'Pendente' && (
+                      <Badge
+                        variant="outline"
+                        className="text-amber-600 border-amber-500 dark:text-amber-400"
+                      >
+                        Pendente
+                      </Badge>
+                    )}
+                    {tx.status === 'Atrasado' && <Badge variant="destructive">Atrasado</Badge>}
+                    {tx.status === 'Cancelado' && (
+                      <Badge variant="secondary" className="dark:bg-zinc-800 dark:text-zinc-300">
+                        Cancelado
+                      </Badge>
+                    )}
+                    {!tx.status && (
                       <Badge
                         variant="outline"
                         className="text-amber-600 border-amber-500 dark:text-amber-400"
@@ -124,9 +162,18 @@ export function TransactionTable({
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                    {formatCurrency(tx.value || tx.amount || 0)}
+                  </TableCell>
+                  <TableCell className="text-center">
                     {tx.attachment && (
-                      <Button variant="ghost" size="icon" asChild title="Ver Anexo">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        asChild
+                        title="Ver Anexo"
+                        className="hover:text-amber-500 dark:hover:text-amber-400"
+                      >
                         <a
                           href={pb.files.getURL(
                             {
@@ -146,15 +193,28 @@ export function TransactionTable({
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="hover:text-amber-500 dark:hover:text-amber-400"
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(tx)}>
+                      <DropdownMenuContent
+                        align="end"
+                        className="dark:bg-zinc-900 dark:border-zinc-800"
+                      >
+                        <DropdownMenuItem
+                          onClick={() => onEdit(tx)}
+                          className="focus:text-amber-500 dark:focus:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30 cursor-pointer"
+                        >
                           <Pencil className="h-4 w-4 mr-2" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onDelete(tx)} className="text-red-600">
+                        <DropdownMenuItem
+                          onClick={() => onDelete(tx)}
+                          className="text-red-600 focus:text-red-600 dark:focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/30 cursor-pointer"
+                        >
                           <Trash2 className="h-4 w-4 mr-2" /> Excluir
                         </DropdownMenuItem>
                       </DropdownMenuContent>

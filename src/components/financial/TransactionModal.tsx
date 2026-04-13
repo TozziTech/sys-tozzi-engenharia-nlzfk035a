@@ -197,6 +197,8 @@ export function TransactionModal() {
               <SelectContent>
                 <SelectItem value="Pendente">Pendente</SelectItem>
                 <SelectItem value="Pago">Pago</SelectItem>
+                <SelectItem value="Atrasado">Atrasado</SelectItem>
+                <SelectItem value="Cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
           </div>

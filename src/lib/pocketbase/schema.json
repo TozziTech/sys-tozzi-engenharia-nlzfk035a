@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T16:52:12.819Z",
+  "generatedAt": "2026-04-13T18:04:04.492Z",
   "collections": [
     {
       "name": "users",
@@ -609,6 +609,19 @@
         {
           "name": "recurrence_group_id",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Pendente", "Pago", "Atrasado", "Cancelado"]
+        },
+        {
+          "name": "attachment",
+          "type": "file",
           "required": false,
           "system": false
         }

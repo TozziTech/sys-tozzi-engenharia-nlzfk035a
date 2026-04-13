@@ -547,6 +547,8 @@ export default function DisciplineDetails() {
     pendente: { label: 'Pendente', color: 'hsl(var(--chart-3, 215 16% 47%))' },
   }
 
+  const isFocusedView = activeTaskTab === 'focused'
+
   const allSelected = filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -618,200 +620,187 @@ export default function DisciplineDetails() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 print:hidden">
         <Card className="col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total de Tarefas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalTasks}</div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Concluídas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
-                {concludedTasks}
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total de Tarefas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalTasks}</div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Concluídas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
+              {concludedTasks}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Em Andamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">
+              {inProgressTasks}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">
+              {pendingTasks}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-2 md:col-span-4 lg:col-span-1">
+          <CardHeader className="pb-0 pt-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground text-center">
+              Progresso
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 flex items-center justify-center h-[80px]">
+            {totalTasks > 0 ? (
+              <ChartContainer
+                config={chartConfig}
+                className="h-[80px] w-full max-w-[120px] aspect-square"
+              >
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={20}
+                    outerRadius={35}
+                    strokeWidth={2}
+                    paddingAngle={2}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="text-xs text-muted-foreground flex h-full items-center">
+                Sem dados
               </div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Em Andamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">
-                {inProgressTasks}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">
-                {pendingTasks}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-2 md:col-span-4 lg:col-span-1">
-            <CardHeader className="pb-0 pt-3">
-              <CardTitle className="text-xs font-medium text-muted-foreground text-center">
-                Progresso
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 flex items-center justify-center h-[80px]">
-              {totalTasks > 0 ? (
-                <ChartContainer
-                  config={chartConfig}
-                  className="h-[80px] w-full max-w-[120px] aspect-square"
-                >
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={20}
-                      outerRadius={35}
-                      strokeWidth={2}
-                      paddingAngle={2}
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  </PieChart>
-                </ChartContainer>
-              ) : (
-                <div className="text-xs text-muted-foreground flex h-full items-center">
-                  Sem dados
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      <div
-        className={cn(
-          'grid grid-cols-1 gap-6 print:block print:gap-0',
-          'lg:grid-cols-3',
-        )}
-      >
+      <div className={cn('grid grid-cols-1 gap-6 print:block print:gap-0', 'lg:grid-cols-3')}>
         <div className={cn('space-y-6 print:space-y-0', 'lg:col-span-2')}>
           <Card className="print:hidden">
             <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-2xl font-bold">{module.name}</CardTitle>
+                  {module.expand?.project && (
+                    <CardDescription className="text-base mt-1">
+                      Projeto: {(module.expand.project as any).name}
+                    </CardDescription>
+                  )}
+                </div>
+                <Badge className={`px-3 py-1 text-sm font-medium ${getStatusColor(module.status)}`}>
+                  {module.status}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
+                <div className="flex items-center gap-3 text-sm">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <CardTitle className="text-2xl font-bold">{module.name}</CardTitle>
-                    {module.expand?.project && (
-                      <CardDescription className="text-base mt-1">
-                        Projeto: {(module.expand.project as any).name}
-                      </CardDescription>
-                    )}
-                  </div>
-                  <Badge
-                    className={`px-3 py-1 text-sm font-medium ${getStatusColor(module.status)}`}
-                  >
-                    {module.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
-                  <div className="flex items-center gap-3 text-sm">
-                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                        Prazo (Deadline)
-                      </p>
-                      <p className="font-medium flex items-center gap-2">
-                        {module.deadline
-                          ? format(new Date(module.deadline), 'dd/MM/yyyy')
-                          : 'Não definido'}
-                        {module.deadline &&
-                          differenceInDays(new Date(module.deadline), new Date()) <= 3 &&
-                          module.status !== 'Concluído' && (
-                            <AlertTriangle className="h-4 w-4 text-orange-500" />
-                          )}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-sm">
-                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                    <div className="w-full">
-                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1">
-                        Progresso ({module.progress || 0}%)
-                      </p>
-                      <Progress value={module.progress || 0} className="h-2 w-full max-w-[150px]" />
-                    </div>
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                      Prazo (Deadline)
+                    </p>
+                    <p className="font-medium flex items-center gap-2">
+                      {module.deadline
+                        ? format(new Date(module.deadline), 'dd/MM/yyyy')
+                        : 'Não definido'}
+                      {module.deadline &&
+                        differenceInDays(new Date(module.deadline), new Date()) <= 3 &&
+                        module.status !== 'Concluído' && (
+                          <AlertTriangle className="h-4 w-4 text-orange-500" />
+                        )}
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-border">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-muted-foreground text-sm font-medium">Observações</p>
-                    {!isEditingNotes && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-xs"
-                        onClick={() => {
-                          setEditNotesValue(module.notes || '')
-                          setIsEditingNotes(true)
-                        }}
-                      >
-                        <Edit2 className="h-3 w-3 mr-1" /> Editar
-                      </Button>
-                    )}
+                <div className="flex items-center gap-3 text-sm">
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                  <div className="w-full">
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1">
+                      Progresso ({module.progress || 0}%)
+                    </p>
+                    <Progress value={module.progress || 0} className="h-2 w-full max-w-[150px]" />
                   </div>
-                  {isEditingNotes ? (
-                    <div className="space-y-2">
-                      <Textarea
-                        value={editNotesValue}
-                        onChange={(e) => setEditNotesValue(e.target.value)}
-                        className="min-h-[100px] text-sm"
-                        placeholder="Adicione observações aqui..."
-                      />
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditingNotes(false)}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button size="sm" onClick={handleSaveNotes}>
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      className="text-sm whitespace-pre-wrap cursor-pointer hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors min-h-[40px]"
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-muted-foreground text-sm font-medium">Observações</p>
+                  {!isEditingNotes && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs"
                       onClick={() => {
                         setEditNotesValue(module.notes || '')
                         setIsEditingNotes(true)
                       }}
                     >
-                      {module.notes || (
-                        <span className="text-muted-foreground italic">
-                          Nenhuma observação registrada. Clique para adicionar.
-                        </span>
-                      )}
-                    </div>
+                      <Edit2 className="h-3 w-3 mr-1" /> Editar
+                    </Button>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+                {isEditingNotes ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editNotesValue}
+                      onChange={(e) => setEditNotesValue(e.target.value)}
+                      className="min-h-[100px] text-sm"
+                      placeholder="Adicione observações aqui..."
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setIsEditingNotes(false)}>
+                        Cancelar
+                      </Button>
+                      <Button size="sm" onClick={handleSaveNotes}>
+                        Salvar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="text-sm whitespace-pre-wrap cursor-pointer hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors min-h-[40px]"
+                    onClick={() => {
+                      setEditNotesValue(module.notes || '')
+                      setIsEditingNotes(true)
+                    }}
+                  >
+                    {module.notes || (
+                      <span className="text-muted-foreground italic">
+                        Nenhuma observação registrada. Clique para adicionar.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className={cn('print:hidden')}>
             <CardHeader className="pb-4">
@@ -823,11 +812,7 @@ export default function DisciplineDetails() {
               </div>
             </CardHeader>
             <CardContent>
-              <Tabs
-                value={activeTaskTab}
-                onValueChange={setActiveTaskTab}
-                className="w-full"
-              >
+              <Tabs value={activeTaskTab} onValueChange={setActiveTaskTab} className="w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                   <TabsList>
                     <TabsTrigger value="focused" onClick={() => setActiveTaskTab('focused')}>
@@ -1538,6 +1523,7 @@ export default function DisciplineDetails() {
                 )}
               </CardContent>
             </Card>
+          )}
 
           <ModuleVersions module={module} />
         </div>
@@ -1545,121 +1531,121 @@ export default function DisciplineDetails() {
         <div className="space-y-6 print:hidden">
           <Card>
             <CardHeader>
-                <CardTitle className="text-lg">Equipe Responsável</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                    Responsável (Gerente)
-                  </p>
-                  {responsible ? (
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage
-                          src={
-                            responsible.avatar
-                              ? pb.files.getURL(responsible, responsible.avatar)
-                              : `https://img.usecurling.com/ppl/thumbnail?seed=${responsible.id}`
-                          }
-                        />
-                        <AvatarFallback>{responsible.name?.charAt(0) || 'U'}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{responsible.name}</p>
-                        <p className="text-xs text-muted-foreground">{responsible.email}</p>
-                      </div>
+              <CardTitle className="text-lg">Equipe Responsável</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                  Responsável (Gerente)
+                </p>
+                {responsible ? (
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={
+                          responsible.avatar
+                            ? pb.files.getURL(responsible, responsible.avatar)
+                            : `https://img.usecurling.com/ppl/thumbnail?seed=${responsible.id}`
+                        }
+                      />
+                      <AvatarFallback>{responsible.name?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium">{responsible.name}</p>
+                      <p className="text-xs text-muted-foreground">{responsible.email}</p>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">Não atribuído</p>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Não atribuído</p>
+                )}
+              </div>
 
-                <div className="pt-4 border-t border-border">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                    Projetista (Designer)
-                  </p>
-                  {designer ? (
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage
-                          src={
-                            designer.avatar
-                              ? pb.files.getURL(designer, designer.avatar)
-                              : `https://img.usecurling.com/ppl/thumbnail?seed=${designer.id}`
-                          }
-                        />
-                        <AvatarFallback>{designer.name?.charAt(0) || 'U'}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{designer.name}</p>
-                        <p className="text-xs text-muted-foreground">{designer.email}</p>
-                      </div>
+              <div className="pt-4 border-t border-border">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                  Projetista (Designer)
+                </p>
+                {designer ? (
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={
+                          designer.avatar
+                            ? pb.files.getURL(designer, designer.avatar)
+                            : `https://img.usecurling.com/ppl/thumbnail?seed=${designer.id}`
+                        }
+                      />
+                      <AvatarFallback>{designer.name?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium">{designer.name}</p>
+                      <p className="text-xs text-muted-foreground">{designer.email}</p>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">Não atribuído</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Não atribuído</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="flex flex-col h-[500px]">
-              <CardHeader className="pb-3 shrink-0">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  Histórico de Atividades
-                </CardTitle>
-                <CardDescription>Registro de alterações na disciplina</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-hidden p-0">
-                <ScrollArea className="h-full px-6 pb-6">
-                  {logs.length > 0 ? (
-                    <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6 pt-2">
-                      {logs.map((log) => {
-                        const user = log.expand?.user_id
-                        return (
-                          <div key={log.id} className="pl-6 relative">
-                            <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
-                            <div className="flex flex-col gap-1 mb-1">
-                              <div className="flex items-center gap-2">
-                                {user && (
-                                  <Avatar className="h-5 w-5">
-                                    <AvatarImage
-                                      src={
-                                        user.avatar ? pb.files.getURL(user, user.avatar) : undefined
-                                      }
-                                    />
-                                    <AvatarFallback className="text-[10px]">
-                                      {user.name?.charAt(0) || 'U'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                )}
-                                <span className="font-medium text-sm">
-                                  {user ? user.name : 'Sistema'}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {format(new Date(log.created), 'dd/MM/yyyy HH:mm')}
-                                </span>
-                              </div>
-                              <span className="text-sm text-foreground/80 mt-1">
-                                {log.action === 'Create' && 'Criou este registro'}
-                                {log.action === 'Update' && 'Atualizou informações'}
-                                {log.action === 'Delete' && 'Removeu um registro'}
-                                {log.resource === 'tasks' &&
-                                  ` na tarefa "${log.details?.task_name || 'Desconhecida'}"`}
+          <Card className="flex flex-col h-[500px]">
+            <CardHeader className="pb-3 shrink-0">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                Histórico de Atividades
+              </CardTitle>
+              <CardDescription>Registro de alterações na disciplina</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden p-0">
+              <ScrollArea className="h-full px-6 pb-6">
+                {logs.length > 0 ? (
+                  <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6 pt-2">
+                    {logs.map((log) => {
+                      const user = log.expand?.user_id
+                      return (
+                        <div key={log.id} className="pl-6 relative">
+                          <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
+                          <div className="flex flex-col gap-1 mb-1">
+                            <div className="flex items-center gap-2">
+                              {user && (
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage
+                                    src={
+                                      user.avatar ? pb.files.getURL(user, user.avatar) : undefined
+                                    }
+                                  />
+                                  <AvatarFallback className="text-[10px]">
+                                    {user.name?.charAt(0) || 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                              <span className="font-medium text-sm">
+                                {user ? user.name : 'Sistema'}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(log.created), 'dd/MM/yyyy HH:mm')}
                               </span>
                             </div>
+                            <span className="text-sm text-foreground/80 mt-1">
+                              {log.action === 'Create' && 'Criou este registro'}
+                              {log.action === 'Update' && 'Atualizou informações'}
+                              {log.action === 'Delete' && 'Removeu um registro'}
+                              {log.resource === 'tasks' &&
+                                ` na tarefa "${log.details?.task_name || 'Desconhecida'}"`}
+                            </span>
                           </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      Nenhuma atividade registrada ainda.
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    Nenhuma atividade registrada ainda.
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

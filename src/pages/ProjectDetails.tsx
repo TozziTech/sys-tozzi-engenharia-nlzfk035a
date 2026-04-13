@@ -327,7 +327,7 @@ export default function ProjectDetails() {
           <Card>
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="contents md:block">
+                <div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={async () => {
@@ -356,7 +356,7 @@ export default function ProjectDetails() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
                 <div className="flex items-center gap-3 text-sm">
                   <Briefcase className="h-4 w-4 text-muted-foreground" />
-                  <div className="contents md:block">
+                  <div>
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                       Disciplina
                     </p>
@@ -365,7 +365,7 @@ export default function ProjectDetails() {
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <User className="h-4 w-4 text-muted-foreground" />
-                  <div className="contents md:block">
+                  <div>
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                       Engenheiro Resp.
                     </p>
@@ -374,7 +374,7 @@ export default function ProjectDetails() {
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div className="contents md:block">
+                  <div>
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                       Início
                     </p>
@@ -385,7 +385,7 @@ export default function ProjectDetails() {
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div className="contents md:block">
+                  <div>
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                       Entrega
                     </p>
@@ -395,7 +395,7 @@ export default function ProjectDetails() {
                 {project.cno && (
                   <div className="flex items-center gap-3 text-sm">
                     <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <div className="contents md:block">
+                    <div>
                       <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                         CNO da Obra
                       </p>
@@ -406,7 +406,7 @@ export default function ProjectDetails() {
                 {project.cnpj && (
                   <div className="flex items-center gap-3 text-sm">
                     <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <div className="contents md:block">
+                    <div>
                       <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                         CNPJ da Obra
                       </p>
@@ -590,13 +590,13 @@ export default function ProjectDetails() {
                 <CardContent>
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
-                      <div className="contents md:block">
+                      <div>
                         <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
                           Horas Estimadas
                         </p>
                         <p className="text-3xl font-bold">{estimatedHours}h</p>
                       </div>
-                      <div className="text-right contents md:block">
+                      <div className="text-right">
                         <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
                           Horas Reais
                         </p>
@@ -643,7 +643,7 @@ export default function ProjectDetails() {
 
             <Card>
               <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="contents md:block">
+                <div>
                   <CardTitle className="text-lg">Histórico de Horas</CardTitle>
                   <CardDescription>
                     Registro detalhado de horas apontadas neste projeto.

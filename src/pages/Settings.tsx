@@ -36,7 +36,7 @@ export default function Settings() {
     address: '',
     phone: '',
     logo: '',
-    primary_color: '#0f172a',
+    primary_color: '#D4AF37',
   })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState('')
@@ -57,9 +57,11 @@ export default function Settings() {
     { name: 'Green', value: 'green', colorClass: 'bg-green-600' },
     { name: 'Rose', value: 'rose', colorClass: 'bg-rose-600' },
     { name: 'Orange', value: 'orange', colorClass: 'bg-orange-500' },
+    { name: 'Gold', value: 'gold', colorClass: 'bg-[#D4AF37]' },
   ] as const
 
   const PREDEFINED_PALETTES = [
+    { name: 'Gold / Dourado', color: '#D4AF37' },
     { name: 'Corporate Blue', color: '#1e3a8a' },
     { name: 'Industrial Gray', color: '#475569' },
     { name: 'Construction Orange', color: '#ea580c' },
@@ -96,7 +98,7 @@ export default function Settings() {
           address: record.address || '',
           phone: record.phone || '',
           logo: record.logo || '',
-          primary_color: record.primary_color || '#0f172a',
+          primary_color: record.primary_color || '#D4AF37',
         })
         if (record.logo) {
           setLogoPreview(
@@ -251,7 +253,7 @@ export default function Settings() {
                   <Input
                     id="primary_color"
                     type="color"
-                    value={companyForm.primary_color || '#0f172a'}
+                    value={companyForm.primary_color || '#D4AF37'}
                     onChange={(e) =>
                       setCompanyForm({ ...companyForm, primary_color: e.target.value })
                     }
@@ -259,7 +261,7 @@ export default function Settings() {
                   />
                   <Input
                     type="text"
-                    value={companyForm.primary_color || ''}
+                    value={companyForm.primary_color || '#D4AF37'}
                     onChange={(e) =>
                       setCompanyForm({ ...companyForm, primary_color: e.target.value })
                     }

@@ -41,6 +41,22 @@ export function hexToHsl(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`
 }
 
+export function getForegroundHsl(hex: string): string {
+  hex = hex.replace(/^#/, '')
+  if (hex.length === 3)
+    hex = hex
+      .split('')
+      .map((x) => x + x)
+      .join('')
+  if (hex.length !== 6) return '0 0% 98%'
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
+
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.5 ? '240 5.9% 10%' : '0 0% 98%'
+}
+
 export function ThemeColorInjector() {
   const [primaryColor, setPrimaryColor] = useState('')
 
@@ -62,13 +78,16 @@ export function ThemeColorInjector() {
   if (!primaryColor) return null
 
   const hsl = hexToHsl(primaryColor)
+  const fgHsl = getForegroundHsl(primaryColor)
   if (!hsl) return null
 
   return (
     <style>{`
       :root, .dark, [data-theme-color] {
         --primary: ${hsl} !important;
+        --primary-foreground: ${fgHsl} !important;
         --ring: ${hsl} !important;
+        --chart-1: ${hsl} !important;
       }
     `}</style>
   )

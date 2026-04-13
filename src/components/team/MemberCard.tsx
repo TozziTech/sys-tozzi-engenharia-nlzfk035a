@@ -182,10 +182,10 @@ export function MemberCard({
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
 
       <CardContent className="p-6 sm:p-8 flex-1 flex flex-col">
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex items-start mb-6">
           <div
             className={cn(
-              'flex flex-wrap items-center gap-3 transition-opacity duration-200',
+              'flex flex-wrap items-center gap-3 transition-opacity duration-200 w-full',
               isUpdating && 'opacity-50 pointer-events-none',
             )}
           >
@@ -236,55 +236,6 @@ export function MemberCard({
                   <SelectItem value="Visitante">Visitante</SelectItem>
                 </SelectContent>
               </Select>
-            )}
-          </div>
-          <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity ml-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
-              onClick={handleExportPDF}
-              title="Exportar Relatório PDF"
-            >
-              <FileDown className="h-5 w-5" />
-            </Button>
-            <MemberEditDialog
-              user={user}
-              onSave={onUpdate}
-              open={isEditOpen}
-              onOpenChange={setIsEditOpen}
-            />
-            {onDelete && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                >
-                  <Trash2 className="h-5 w-5" />
-                </Button>
-                <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir Membro</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tem certeza que deseja remover {user.name} da equipe? Esta ação não pode ser
-                        desfeita.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => onDelete(user.id)}
-                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                      >
-                        Excluir
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </>
             )}
           </div>
         </div>
@@ -543,6 +494,56 @@ export function MemberCard({
                   {user.crea}
                 </span>
               </Badge>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 opacity-40 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+              onClick={handleExportPDF}
+              title="Exportar Relatório PDF"
+            >
+              <FileDown className="h-5 w-5" />
+            </Button>
+            <MemberEditDialog
+              user={user}
+              onSave={onUpdate}
+              open={isEditOpen}
+              onOpenChange={setIsEditOpen}
+            />
+            {onDelete && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-5 w-5" />
+                </Button>
+                <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir Membro</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tem certeza que deseja remover {user.name} da equipe? Esta ação não pode ser
+                        desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDelete(user.id)}
+                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      >
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
             )}
           </div>
         </div>

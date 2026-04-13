@@ -1,0 +1,191 @@
+import { useState, useEffect } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
+
+export function CompanySettingsModal({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const { toast } = useToast()
+
+  const [companyForm, setCompanyForm] = useState({
+    id: '',
+    company_name: '',
+    cnpj: '',
+    address: '',
+    phone: '',
+    logo: '',
+  })
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState('')
+  const [savingCompany, setSavingCompany] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      pb.collection('company_settings')
+        .getFirstListItem('')
+        .then((record) => {
+          setCompanyForm({
+            id: record.id,
+            company_name: record.company_name || '',
+            cnpj: record.cnpj || '',
+            address: record.address || '',
+            phone: record.phone || '',
+            logo: record.logo || '',
+          })
+          if (record.logo) {
+            setLogoPreview(
+              `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${record.id}/${record.logo}`,
+            )
+          }
+        })
+        .catch(() => {}) // Ignore if no settings exist yet
+    }
+  }, [open])
+
+  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '')
+    if (value.length > 14) value = value.slice(0, 14)
+    value = value.replace(/^(\d{2})(\d)/, '$1.$2')
+    value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    value = value.replace(/\.(\d{3})(\d)/, '.$1/$2')
+    value = value.replace(/(\d{4})(\d)/, '$1-$2')
+    setCompanyForm({ ...companyForm, cnpj: value })
+  }
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '')
+    if (value.length > 11) value = value.slice(0, 11)
+    value = value.replace(/^(\d{2})(\d)/g, '($1) $2')
+    value = value.replace(/(\d)(\d{4})$/, '$1-$2')
+    setCompanyForm({ ...companyForm, phone: value })
+  }
+
+  const handleSaveCompany = async () => {
+    setSavingCompany(true)
+    try {
+      const formData = new FormData()
+      formData.append('company_name', companyForm.company_name)
+      formData.append('cnpj', companyForm.cnpj)
+      formData.append('address', companyForm.address)
+      formData.append('phone', companyForm.phone)
+      if (logoFile) formData.append('logo', logoFile)
+
+      if (companyForm.id) {
+        await pb.collection('company_settings').update(companyForm.id, formData)
+      } else {
+        const res = await pb.collection('company_settings').create(formData)
+        setCompanyForm((prev) => ({ ...prev, id: res.id }))
+      }
+      toast({ title: 'Dados da empresa salvos com sucesso!' })
+      onOpenChange(false)
+    } catch (e) {
+      toast({ title: 'Erro ao salvar os dados da empresa', variant: 'destructive' })
+    } finally {
+      setSavingCompany(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Dados da Empresa</DialogTitle>
+          <DialogDescription>
+            Configure as informações da empresa que aparecerão nos orçamentos.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="modal_company_name">Razão Social / Nome Fantasia</Label>
+            <Input
+              id="modal_company_name"
+              value={companyForm.company_name}
+              onChange={(e) => setCompanyForm({ ...companyForm, company_name: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="modal_cnpj">CNPJ</Label>
+            <Input
+              id="modal_cnpj"
+              value={companyForm.cnpj}
+              onChange={handleCnpjChange}
+              placeholder="00.000.000/0000-00"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="modal_address">Endereço Completo</Label>
+            <Input
+              id="modal_address"
+              value={companyForm.address}
+              onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="modal_phone">Telefone</Label>
+            <Input
+              id="modal_phone"
+              value={companyForm.phone}
+              onChange={handlePhoneChange}
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="modal_logo">Logotipo (PNG, JPG, SVG)</Label>
+            <div className="flex items-center gap-4 mt-1">
+              {logoPreview ? (
+                <div className="relative h-16 w-32 border rounded-md overflow-hidden bg-white/50 flex items-center justify-center">
+                  <img
+                    src={logoPreview}
+                    alt="Logo"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="h-16 w-32 border rounded-md border-dashed flex items-center justify-center text-xs text-muted-foreground bg-muted/20">
+                  Sem logo
+                </div>
+              )}
+              <Input
+                id="modal_logo"
+                type="file"
+                accept="image/png, image/jpeg, image/svg+xml"
+                className="flex-1"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    setLogoFile(file)
+                    setLogoPreview(URL.createObjectURL(file))
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSaveCompany} disabled={savingCompany}>
+            {savingCompany ? 'Salvando...' : 'Salvar Empresa'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

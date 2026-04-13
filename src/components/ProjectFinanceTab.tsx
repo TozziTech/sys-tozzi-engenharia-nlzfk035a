@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { subDays, isAfter } from 'date-fns'
 import useProjectStore from '@/stores/useProjectStore'
+import { useFinancialCategories } from '@/hooks/use-financial-categories'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
@@ -36,7 +37,8 @@ const formatCurrency = (value?: number) => {
 }
 
 export function ProjectFinanceTab({ project }: { project: any }) {
-  const { transactions, categories, updateTransaction } = useProjectStore()
+  const { transactions, updateTransaction } = useProjectStore()
+  const { categories } = useFinancialCategories()
   const [periodFilter, setPeriodFilter] = useState<string>('all')
   const [draggedTx, setDraggedTx] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)

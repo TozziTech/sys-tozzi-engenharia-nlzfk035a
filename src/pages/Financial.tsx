@@ -40,15 +40,29 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import useProjectStore from '@/stores/useProjectStore'
 import type { Transaction } from '@/types/project'
+import { useFinancialCategories } from '@/hooks/use-financial-categories'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Check, ChevronsUpDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export default function Financial() {
-  const { projects, transactions, addTransaction, categories, addCategory, deleteCategory } =
-    useProjectStore()
+  const { projects, transactions, addTransaction } = useProjectStore()
+  const { categories, addCategory, deleteCategory } = useFinancialCategories()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCatModalOpen, setIsCatModalOpen] = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#6366f1')
+  const [searchCategory, setSearchCategory] = useState('')
+  const [openCategory, setOpenCategory] = useState(false)
 
   const [formData, setFormData] = useState<any>({
     type: 'Entrada',
@@ -132,10 +146,14 @@ export default function Financial() {
     })
   }
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (newCatName.trim()) {
-      addCategory({ name: newCatName.trim(), color: newCatColor })
-      setNewCatName('')
+      try {
+        await addCategory(newCatName.trim(), newCatColor)
+        setNewCatName('')
+      } catch (err) {
+        console.error(err)
+      }
     }
   }
 
@@ -307,30 +325,101 @@ export default function Financial() {
                 {formData.type === 'Saída' && (
                   <div className="col-span-2 space-y-2">
                     <Label>Categoria de Despesa</Label>
-                    <Select
-                      value={formData.categoryId || 'none'}
-                      onValueChange={(v) =>
-                        setFormData({ ...formData, categoryId: v === 'none' ? undefined : v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sem categoria</SelectItem>
-                        {categories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: c.color }}
-                              />
-                              {c.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={openCategory} onOpenChange={setOpenCategory}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openCategory}
+                          className="w-full justify-between font-normal bg-white dark:bg-slate-950"
+                        >
+                          {formData.categoryId
+                            ? categories.find((category) => category.id === formData.categoryId)
+                                ?.name || 'Selecione uma categoria...'
+                            : 'Selecione uma categoria...'}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[450px] p-0" align="start">
+                        <Command>
+                          <CommandInput
+                            placeholder="Buscar ou adicionar categoria..."
+                            value={searchCategory}
+                            onValueChange={setSearchCategory}
+                          />
+                          <CommandList>
+                            <CommandEmpty>
+                              <div className="p-3 flex flex-col items-center gap-3">
+                                <span className="text-sm text-muted-foreground">
+                                  Nenhuma categoria encontrada.
+                                </span>
+                                {searchCategory && (
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    className="w-full"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={async () => {
+                                      try {
+                                        const newCat = await addCategory(searchCategory)
+                                        setFormData({ ...formData, categoryId: newCat.id })
+                                        setSearchCategory('')
+                                        setOpenCategory(false)
+                                      } catch (err) {
+                                        console.error('Erro ao criar categoria', err)
+                                      }
+                                    }}
+                                  >
+                                    Adicionar "{searchCategory}"
+                                  </Button>
+                                )}
+                              </div>
+                            </CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="none"
+                                onSelect={() => {
+                                  setFormData({ ...formData, categoryId: undefined })
+                                  setOpenCategory(false)
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    !formData.categoryId ? 'opacity-100' : 'opacity-0',
+                                  )}
+                                />
+                                Sem categoria
+                              </CommandItem>
+                              {categories.map((category) => (
+                                <CommandItem
+                                  key={category.id}
+                                  value={category.name}
+                                  onSelect={() => {
+                                    setFormData({ ...formData, categoryId: category.id })
+                                    setOpenCategory(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      'mr-2 h-4 w-4',
+                                      formData.categoryId === category.id
+                                        ? 'opacity-100'
+                                        : 'opacity-0',
+                                    )}
+                                  />
+                                  <div
+                                    className="w-3 h-3 rounded-full mr-2"
+                                    style={{ backgroundColor: category.color || '#ccc' }}
+                                  />
+                                  {category.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 )}
 

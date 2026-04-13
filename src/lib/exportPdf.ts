@@ -888,9 +888,27 @@ export function exportProjectHoursPDF(logs: any[], project: Project, currentUser
   }, 250)
 }
 
-export function exportUserPDF(user: User, projects: Project[]) {
-  const printWindow = window.open('', '_blank')
+export function exportUserPDF(
+  user: any,
+  projects: Project[],
+  settings: any = null,
+  providedWindow: Window | null = null,
+) {
+  const printWindow = providedWindow || window.open('', '_blank')
   if (!printWindow) return
+
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const formatDate = (d: string) => (d ? new Date(d).toLocaleDateString('pt-BR') : 'N/A')
+
+  const addressStr =
+    [user.logradouro, user.numero, user.bairro, user.cidade, user.uf, user.cep]
+      .filter(Boolean)
+      .join(', ') ||
+    user.address ||
+    'N/A'
 
   const html = `
     <!DOCTYPE html>
@@ -914,6 +932,7 @@ export function exportUserPDF(user: User, projects: Project[]) {
             padding-bottom: 20px;
             margin-bottom: 30px;
           }
+          .header img { max-height: 60px; margin-bottom: 10px; }
           .header h1 { margin: 0; color: #111827; font-size: 24px; }
           .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
           
@@ -929,6 +948,7 @@ export function exportUserPDF(user: User, projects: Project[]) {
           }
           
           .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+          .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
           .field { margin-bottom: 10px; }
           .label { font-weight: 600; font-size: 12px; color: #6b7280; text-transform: uppercase; }
           .value { font-size: 14px; color: #111827; margin-top: 2px; }
@@ -959,40 +979,61 @@ export function exportUserPDF(user: User, projects: Project[]) {
       </head>
       <body>
         <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
-          <strong>Nota:</strong> Este é um relatório temporário gerado a partir de dados em memória. A impressão iniciará automaticamente.
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
         </div>
       
         <div class="header">
+          ${logoUrl ? `<img src="${logoUrl}" alt="Logo" />` : ''}
           <h1>${user.name}</h1>
-          <p>${user.specialty || 'Profissional'} • ${user.role || 'Membro da Equipe'}</p>
+          <p>${user.formacao || user.specialty || 'Profissional'} • ${user.role || 'Membro da Equipe'}</p>
         </div>
         
         <div class="section">
-          <h2>Dados Pessoais e Profissionais</h2>
-          <div class="grid">
+          <h2>Dados Pessoais</h2>
+          <div class="grid-3">
             <div class="field"><div class="label">Nome Completo</div><div class="value">${user.name}</div></div>
+            <div class="field"><div class="label">CPF</div><div class="value">${user.cpf || 'N/A'}</div></div>
+            <div class="field"><div class="label">RG</div><div class="value">${user.rg || 'N/A'}</div></div>
             <div class="field"><div class="label">CREA</div><div class="value">${user.crea || 'N/A'}</div></div>
-            <div class="field"><div class="label">Cargo</div><div class="value">${user.role || 'N/A'}</div></div>
-            <div class="field"><div class="label">Especialidade</div><div class="value">${user.specialty || 'N/A'}</div></div>
+            <div class="field"><div class="label">Data de Nasc.</div><div class="value">${formatDate(user.birth_date)}</div></div>
           </div>
         </div>
 
         <div class="section">
-          <h2>Contato</h2>
+          <h2>Dados Profissionais</h2>
+          <div class="grid-3">
+            <div class="field"><div class="label">Código (ID)</div><div class="value">${user.codigo || 'N/A'}</div></div>
+            <div class="field"><div class="label">Formação</div><div class="value">${user.formacao || user.specialty || 'N/A'}</div></div>
+            <div class="field"><div class="label">Cargo</div><div class="value">${user.role || 'N/A'}</div></div>
+            <div class="field"><div class="label">Status Atual</div><div class="value">${user.status || 'N/A'}</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Contato & Endereço</h2>
           <div class="grid">
             <div class="field"><div class="label">Email</div><div class="value">${user.email || 'N/A'}</div></div>
             <div class="field"><div class="label">Telefone</div><div class="value">${user.phone || 'N/A'}</div></div>
-            <div class="field" style="grid-column: span 2;"><div class="label">Endereço</div><div class="value">${user.address || 'N/A'}</div></div>
+            <div class="field"><div class="label">Telefone Alternativo</div><div class="value">${user.altPhone || 'N/A'}</div></div>
+            <div class="field" style="grid-column: span 2;"><div class="label">Endereço Completo</div><div class="value">${addressStr}</div></div>
           </div>
         </div>
 
         <div class="section">
           <h2>Dados Bancários</h2>
           <div class="grid">
-            <div class="field"><div class="label">Banco</div><div class="value">${user.bankData?.bank || 'N/A'}</div></div>
-            <div class="field"><div class="label">Agência</div><div class="value">${user.bankData?.agency || 'N/A'}</div></div>
-            <div class="field"><div class="label">Conta</div><div class="value">${user.bankData?.account || 'N/A'}</div></div>
-            <div class="field"><div class="label">Chave PIX</div><div class="value">${user.bankData?.pix || 'N/A'}</div></div>
+            <div class="field"><div class="label">Banco</div><div class="value">${user.banco_nome || user.bankData?.bank || 'N/A'}</div></div>
+            <div class="field"><div class="label">Agência</div><div class="value">${user.agencia || user.bankData?.agency || 'N/A'}</div></div>
+            <div class="field"><div class="label">Conta</div><div class="value">${user.conta || user.bankData?.account || 'N/A'}</div></div>
+            <div class="field"><div class="label">Chave PIX</div><div class="value">${user.chave_pix || user.bankData?.pix || 'N/A'}</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Notas & Documentos</h2>
+          <div class="grid">
+            <div class="field" style="grid-column: span 2;"><div class="label">Anotações Gerais</div><div class="value">${user.notes || 'N/A'}</div></div>
+            <div class="field" style="grid-column: span 2;"><div class="label">Link para Documentação</div><div class="value">${user.documentos_link ? `<a href="${user.documentos_link}" target="_blank">${user.documentos_link}</a>` : 'N/A'}</div></div>
           </div>
         </div>
 
@@ -1038,6 +1079,7 @@ export function exportUserPDF(user: User, projects: Project[]) {
     </html>
   `
 
+  printWindow.document.open()
   printWindow.document.write(html)
   printWindow.document.close()
   printWindow.focus()

@@ -126,6 +126,42 @@ export function MemberCard({
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
+  const [isUpdating, setIsUpdating] = useState(false)
+  const { toast } = useToast()
+
+  const handleQuickEdit = async (field: 'status' | 'role', value: string) => {
+    const u = user as any
+    if (u[field] === value) return
+
+    setIsUpdating(true)
+    try {
+      const updated = await pb.collection('users').update(user.id, { [field]: value })
+      onUpdate({ ...user, ...updated })
+      toast({
+        title: 'Sucesso',
+        description: `${field === 'status' ? 'Status' : 'Cargo'} atualizado.`,
+      })
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    const pw = window.open('', '_blank')
+    if (!pw) return
+    pw.document.write(
+      '<div style="font-family: sans-serif; padding: 20px; text-align: center;">Gerando relatório...</div>',
+    )
+    try {
+      const settingsList = await pb.collection('company_settings').getFullList()
+      exportUserPDF(user, userProjects, settingsList[0], pw)
+    } catch (e) {
+      exportUserPDF(user, userProjects, null, pw)
+    }
+  }
+
   const u = user as any
   let addrStr = ''
   if (u.logradouro) {
@@ -147,35 +183,71 @@ export function MemberCard({
 
       <CardContent className="p-6 flex-1 flex flex-col">
         <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              'flex flex-wrap items-center gap-2 transition-opacity duration-200',
+              isUpdating && 'opacity-50 pointer-events-none',
+            )}
+          >
             <Badge
               variant="secondary"
-              className="font-mono text-[10px] sm:text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-primary/10 rounded-md shadow-sm"
+              className="font-mono text-[10px] sm:text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-primary/10 rounded-md shadow-sm shrink-0"
             >
               {u.codigo || 'S/N'}
             </Badge>
-            <Badge
-              variant="outline"
-              className={cn(
-                'text-[10px] font-bold uppercase tracking-wider rounded-md border px-2 py-0.5',
-                getStatusColor(u.status),
-              )}
+
+            <Select
+              value={u.status || 'Ativo'}
+              onValueChange={(val) => handleQuickEdit('status', val)}
             >
-              {u.status || 'Ativo'}
-            </Badge>
-            {u.role && (
-              <Badge
-                variant="outline"
+              <SelectTrigger
                 className={cn(
-                  'text-[10px] font-bold tracking-wider rounded-md border px-2 py-0.5 whitespace-nowrap',
-                  getRoleColor(u.role),
+                  'h-auto px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 [&>svg]:hidden shrink-0 shadow-none',
+                  getStatusColor(u.status),
                 )}
               >
-                {u.role}
-              </Badge>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Ativo">Ativo</SelectItem>
+                <SelectItem value="Inativo">Inativo</SelectItem>
+                <SelectItem value="Em Férias">Em Férias</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {u.role && (
+              <Select
+                value={u.role || 'Projetista'}
+                onValueChange={(val) => handleQuickEdit('role', val)}
+              >
+                <SelectTrigger
+                  className={cn(
+                    'h-auto px-2 py-0.5 text-[10px] font-bold tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 whitespace-nowrap [&>svg]:hidden shrink-0 shadow-none',
+                    getRoleColor(u.role),
+                  )}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Administrador">Administrador</SelectItem>
+                  <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                  <SelectItem value="Projetista">Projetista</SelectItem>
+                  <SelectItem value="Estagiário">Estagiário</SelectItem>
+                  <SelectItem value="Visitante">Visitante</SelectItem>
+                </SelectContent>
+              </Select>
             )}
           </div>
           <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+              onClick={handleExportPDF}
+              title="Exportar Relatório PDF"
+            >
+              <FileDown className="h-4 w-4" />
+            </Button>
             <MemberEditDialog
               user={user}
               onSave={onUpdate}
@@ -268,7 +340,7 @@ export function MemberCard({
                   variant="outline"
                   size="sm"
                   className="gap-2 shrink-0 bg-background"
-                  onClick={() => exportUserPDF(user, userProjects)}
+                  onClick={handleExportPDF}
                 >
                   <FileDown className="h-4 w-4" />
                   Exportar PDF

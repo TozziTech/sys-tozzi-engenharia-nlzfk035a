@@ -235,7 +235,9 @@ export default function Team() {
             <MemberCard
               key={member.id}
               user={member}
-              onUpdate={() => {}}
+              onUpdate={(updatedUser) => {
+                setDbUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)))
+              }}
               onDelete={handleDeleteMember}
             />
           ))}

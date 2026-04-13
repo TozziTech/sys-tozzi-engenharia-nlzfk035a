@@ -1479,7 +1479,7 @@ export default function DisciplineDetails() {
                                       </SelectContent>
                                     </Select>
                                   </TableCell>
-                                )}{' '}
+                                )}
                                 {visibleColumns.data && (
                                   <TableCell className="text-right">
                                     <Popover>
@@ -1576,7 +1576,7 @@ export default function DisciplineDetails() {
                               </TableRow>
                             )
                           })}
-                        </TableBody>{' '}
+                        </TableBody>
                       </Table>
                     </div>
                   ) : (

@@ -2,7 +2,6 @@ import { DollarSign } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions'
 import { FinancialCategories } from '@/components/financial/FinancialCategories'
-import { FinancialReports } from '@/components/financial/FinancialReports'
 import { TransactionModal } from '@/components/financial/TransactionModal'
 
 export default function Financial() {
@@ -31,9 +30,6 @@ export default function Financial() {
           <TabsTrigger value="categorias" className="py-2">
             Gestão de Categorias
           </TabsTrigger>
-          <TabsTrigger value="relatorios" className="py-2">
-            Relatórios
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="lancamentos" className="outline-none focus:outline-none m-0">
@@ -42,10 +38,6 @@ export default function Financial() {
 
         <TabsContent value="categorias" className="outline-none focus:outline-none m-0">
           <FinancialCategories />
-        </TabsContent>
-
-        <TabsContent value="relatorios" className="outline-none focus:outline-none m-0">
-          <FinancialReports />
         </TabsContent>
       </Tabs>
     </div>

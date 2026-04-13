@@ -51,6 +51,9 @@ export function TransactionTable({
         <TableHeader className="bg-zinc-100 dark:bg-zinc-900/80">
           <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
             <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+              Código
+            </TableHead>
+            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
               Data
             </TableHead>
             <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
@@ -84,7 +87,7 @@ export function TransactionTable({
           {transactions.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={10}
+                colSpan={11}
                 className="text-center py-12 text-slate-500 dark:text-zinc-500"
               >
                 Nenhuma transação encontrada.
@@ -106,6 +109,9 @@ export function TransactionTable({
                   key={tx.id}
                   className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 transition-colors"
                 >
+                  <TableCell className="whitespace-nowrap text-center font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    {tx.code || '-'}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap text-center">
                     {tx.date
                       ? new Date(tx.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })

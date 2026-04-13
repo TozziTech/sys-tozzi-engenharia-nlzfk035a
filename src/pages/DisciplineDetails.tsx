@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -99,6 +99,32 @@ const exportDisciplineTasksCSV = (tasks: any[], moduleName: string) => {
 }
 const exportDisciplineTasksPDF = (tasks: any[], moduleName: string, userName: string) => {
   console.log('Export PDF', tasks, moduleName, userName)
+}
+
+const buildTree = (tasksList: any[]) => {
+  const map = new Map()
+  tasksList.forEach((t) => map.set(t.id, { ...t, children: [] }))
+  const roots: any[] = []
+
+  tasksList.forEach((t) => {
+    if (t.parent_task && map.has(t.parent_task)) {
+      map.get(t.parent_task).children.push(map.get(t.id))
+    } else {
+      roots.push(map.get(t.id))
+    }
+  })
+  return roots
+}
+
+const flattenTree = (nodes: any[], depth = 0, expanded: Set<string>): any[] => {
+  let result: any[] = []
+  nodes.forEach((node) => {
+    result.push({ ...node, depth })
+    if (expanded.has(node.id) && node.children?.length > 0) {
+      result = result.concat(flattenTree(node.children, depth + 1, expanded))
+    }
+  })
+  return result
 }
 
 export default function DisciplineDetails() {
@@ -514,6 +540,31 @@ export default function DisciplineDetails() {
     }
   }
 
+  const isFilterActive = searchQuery !== '' || statusFilter !== 'All'
+
+  const filteredTasks = useMemo(
+    () =>
+      tasks.filter((task) => {
+        const matchSearch =
+          task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchStatus =
+          statusFilter === 'All' ||
+          task.status === statusFilter ||
+          (statusFilter === 'Pendente' && !task.status)
+        return matchSearch && matchStatus
+      }),
+    [tasks, searchQuery, statusFilter],
+  )
+
+  const displayTasks = useMemo(() => {
+    if (isFilterActive) {
+      return filteredTasks.map((t) => ({ ...t, depth: 0, children: [] }))
+    }
+    const roots = buildTree(tasks)
+    return flattenTree(roots, 0, expandedTaskIds)
+  }, [tasks, isFilterActive, filteredTasks, expandedTaskIds])
+
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Carregando...</div>
   }
@@ -538,52 +589,6 @@ export default function DisciplineDetails() {
     const daysUntilDue = differenceInDays(new Date(t.due_date), new Date())
     return daysUntilDue <= 3
   })
-
-  const isFilterActive = searchQuery !== '' || statusFilter !== 'All'
-  const filteredTasks = tasks.filter((task) => {
-    const matchSearch =
-      task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchStatus =
-      statusFilter === 'All' ||
-      task.status === statusFilter ||
-      (statusFilter === 'Pendente' && !task.status)
-    return matchSearch && matchStatus
-  })
-
-  const buildTree = (tasksList: any[]) => {
-    const map = new Map()
-    tasksList.forEach((t) => map.set(t.id, { ...t, children: [] }))
-    const roots: any[] = []
-
-    tasksList.forEach((t) => {
-      if (t.parent_task && map.has(t.parent_task)) {
-        map.get(t.parent_task).children.push(map.get(t.id))
-      } else {
-        roots.push(map.get(t.id))
-      }
-    })
-    return roots
-  }
-
-  const flattenTree = (nodes: any[], depth = 0, expanded: Set<string>): any[] => {
-    let result: any[] = []
-    nodes.forEach((node) => {
-      result.push({ ...node, depth })
-      if (expanded.has(node.id) && node.children?.length > 0) {
-        result = result.concat(flattenTree(node.children, depth + 1, expanded))
-      }
-    })
-    return result
-  }
-
-  const displayTasks = useMemo(() => {
-    if (isFilterActive) {
-      return filteredTasks.map((t) => ({ ...t, depth: 0, children: [] }))
-    }
-    const roots = buildTree(tasks)
-    return flattenTree(roots, 0, expandedTaskIds)
-  }, [tasks, isFilterActive, filteredTasks, expandedTaskIds])
 
   const totalTasks = tasks.length
   const concludedTasks = tasks.filter((t) => t.status === 'Concluído').length

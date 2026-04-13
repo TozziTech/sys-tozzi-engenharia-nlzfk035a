@@ -4,6 +4,13 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useState, useEffect } from 'react'
 import useProjectStore from '@/stores/useProjectStore'
 import pb from '@/lib/pocketbase/client'
@@ -34,6 +41,15 @@ export default function Settings() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState('')
   const [savingCompany, setSavingCompany] = useState(false)
+
+  // Scheduled Reports State
+  const [scheduleForm, setScheduleForm] = useState({
+    id: '',
+    recipients: '',
+    frequency: 'Semanal',
+    active: false,
+  })
+  const [savingSchedule, setSavingSchedule] = useState(false)
 
   const colors = [
     { name: 'Zinc', value: 'zinc', colorClass: 'bg-zinc-900 dark:bg-zinc-100' },
@@ -89,6 +105,18 @@ export default function Settings() {
         }
       })
       .catch(() => {}) // Ignore if no settings exist yet
+
+    pb.collection('report_schedules')
+      .getFirstListItem('')
+      .then((record) => {
+        setScheduleForm({
+          id: record.id,
+          recipients: record.recipients || '',
+          frequency: record.frequency || 'Semanal',
+          active: record.active || false,
+        })
+      })
+      .catch(() => {})
   }, [])
 
   const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -140,6 +168,28 @@ export default function Settings() {
       title: 'Integração atualizada',
       description: 'A configuração do Webhook do Slack foi salva.',
     })
+  }
+
+  const handleSaveSchedule = async () => {
+    setSavingSchedule(true)
+    try {
+      const data = {
+        recipients: scheduleForm.recipients,
+        frequency: scheduleForm.frequency,
+        active: scheduleForm.active,
+      }
+      if (scheduleForm.id) {
+        await pb.collection('report_schedules').update(scheduleForm.id, data)
+      } else {
+        const res = await pb.collection('report_schedules').create(data)
+        setScheduleForm((prev) => ({ ...prev, id: res.id }))
+      }
+      toast({ title: 'Agendamento salvo com sucesso!' })
+    } catch (e) {
+      toast({ title: 'Erro ao salvar agendamento', variant: 'destructive' })
+    } finally {
+      setSavingSchedule(false)
+    }
   }
 
   return (
@@ -453,6 +503,64 @@ export default function Settings() {
                 </p>
               </div>
               <Switch />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Relatórios Agendados</CardTitle>
+            <CardDescription>
+              Configure o envio automático do Relatório Executivo por e-mail.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <Label className="text-base">Ativar Envio Automático</Label>
+                <p className="text-sm text-muted-foreground">
+                  Habilita a geração e envio automático do relatório para os e-mails configurados.
+                </p>
+              </div>
+              <Switch
+                checked={scheduleForm.active}
+                onCheckedChange={(checked) => setScheduleForm({ ...scheduleForm, active: checked })}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4 border-t">
+              <div className="space-y-2">
+                <Label htmlFor="recipients">E-mails dos Destinatários</Label>
+                <Input
+                  id="recipients"
+                  placeholder="gestor1@empresa.com, gestor2@empresa.com"
+                  value={scheduleForm.recipients}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, recipients: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Separe múltiplos e-mails com vírgula.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="frequency">Frequência de Envio</Label>
+                <Select
+                  value={scheduleForm.frequency}
+                  onValueChange={(val) => setScheduleForm({ ...scheduleForm, frequency: val })}
+                >
+                  <SelectTrigger id="frequency">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Diário">Diário (8:00 AM)</SelectItem>
+                    <SelectItem value="Semanal">Semanal (Segunda-feira)</SelectItem>
+                    <SelectItem value="Mensal">Mensal (Dia 1)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="pt-2 flex justify-end">
+              <Button onClick={handleSaveSchedule} disabled={savingSchedule}>
+                {savingSchedule ? 'Salvando...' : 'Salvar Agendamento'}
+              </Button>
             </div>
           </CardContent>
         </Card>

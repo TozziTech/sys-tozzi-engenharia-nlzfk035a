@@ -220,6 +220,38 @@ export function exportAuditLogsCSV(logs: Log[]) {
   URL.revokeObjectURL(url)
 }
 
+export function exportProductivityCSV(stats: any[]) {
+  const headers = [
+    'Membro',
+    'Tarefas Atribuídas',
+    'Tarefas Concluídas',
+    'Tarefas Pendentes/Atrasadas',
+    'Horas Registradas',
+    'Eficiência (%)',
+  ]
+
+  const rows = stats.map((s) => [
+    `"${(s.name || '').replace(/"/g, '""')}"`,
+    s.totalTasks,
+    s.completedTasks,
+    s.pendingTasks,
+    s.totalHours,
+    s.efficiency,
+  ])
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Produtividade_Equipe_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportExcel(logs: Log[], totalProjects: number) {
   const escapeXml = (unsafe: string) =>
     unsafe.replace(/[<>&'"]/g, (c) => {

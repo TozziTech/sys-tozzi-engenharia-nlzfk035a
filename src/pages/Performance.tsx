@@ -16,17 +16,29 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
-import { Activity, Download } from 'lucide-react'
+import { Activity, Download, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { exportProductivityCSV } from '@/lib/export'
 
 export default function Performance() {
   const [projects, setProjects] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [timeLogs, setTimeLogs] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = async () => {
     try {
-      const projs = await pb.collection('projects').getFullList()
+      const [projs, usrs, tsks, tLogs] = await Promise.all([
+        pb.collection('projects').getFullList(),
+        pb.collection('users').getFullList(),
+        pb.collection('tasks').getFullList(),
+        pb.collection('time_logs').getFullList(),
+      ])
       setProjects(projs)
+      setUsers(usrs)
+      setTasks(tsks)
+      setTimeLogs(tLogs)
     } catch (e) {
       console.error(e)
     } finally {
@@ -39,6 +51,8 @@ export default function Performance() {
   }, [])
 
   useRealtime('projects', () => loadData())
+  useRealtime('tasks', () => loadData())
+  useRealtime('time_logs', () => loadData())
 
   const deadlineStats = useMemo(() => {
     let onTime = 0
@@ -136,6 +150,29 @@ export default function Performance() {
       .sort((a, b) => b.total - a.total)
   }, [projects])
 
+  const productivityStats = useMemo(() => {
+    return users
+      .map((user) => {
+        const userTasks = tasks.filter((t) => t.responsible === user.id)
+        const completed = userTasks.filter((t) => t.status === 'Concluído').length
+        const total = userTasks.length
+        const pending = total - completed
+        const hours = timeLogs
+          .filter((l) => l.user_id === user.id)
+          .reduce((sum, l) => sum + l.hours, 0)
+        const efficiency = total > 0 ? Math.round((completed / total) * 100) : 0
+        return {
+          name: user.name || user.email || 'Desconhecido',
+          totalTasks: total,
+          completedTasks: completed,
+          pendingTasks: pending,
+          totalHours: hours,
+          efficiency,
+        }
+      })
+      .sort((a, b) => b.efficiency - a.efficiency)
+  }, [users, tasks, timeLogs])
+
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6 space-y-8 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -152,13 +189,23 @@ export default function Performance() {
             </p>
           </div>
         </div>
-        <Button
-          onClick={generateMonthlySummary}
-          className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          <Download className="h-4 w-4" />
-          Gerar Resumo Mensal
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={() => exportProductivityCSV(productivityStats)}
+            variant="outline"
+            className="gap-2"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Exportar Produtividade (CSV)
+          </Button>
+          <Button
+            onClick={generateMonthlySummary}
+            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            <Download className="h-4 w-4" />
+            Gerar Resumo Mensal
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

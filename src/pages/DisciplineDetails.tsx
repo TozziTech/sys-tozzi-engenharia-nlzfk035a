@@ -13,6 +13,7 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Edit2,
   Search,
   GripVertical,
@@ -64,6 +65,7 @@ import { useToast } from '@/hooks/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ModuleVersions } from '@/components/ModuleVersions'
 import { TaskSheet } from '@/components/TaskSheet'
+import { CreateTaskDialog } from '@/components/CreateTaskDialog'
 import { cn } from '@/lib/utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -125,6 +127,11 @@ export default function DisciplineDetails() {
   // Inline Editing State
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null)
   const [editTitleValue, setEditTitleValue] = useState('')
+
+  // Subtask and Creation State
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
+  const [createParentId, setCreateParentId] = useState<string>('none')
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
 
   // Column Visibility State
   const [visibleColumns, setVisibleColumns] = useState({
@@ -451,7 +458,21 @@ export default function DisciplineDetails() {
   const handleBulkStatusChange = async (status: string) => {
     setLoading(true)
     try {
-      await Promise.all(selectedTaskIds.map((id) => pb.collection('tasks').update(id, { status })))
+      const isConcluido = status === 'Concluído'
+      const completed_at = isConcluido ? new Date().toISOString() : ''
+
+      await Promise.all(
+        selectedTaskIds.map((id) => {
+          const task = tasks.find((t) => t.id === id)
+          const updateData: any = { status }
+          if (isConcluido) {
+            updateData.completed_at = completed_at
+          } else if (task?.status === 'Concluído') {
+            updateData.completed_at = ''
+          }
+          return pb.collection('tasks').update(id, updateData)
+        }),
+      )
       toast({
         title: 'Status atualizado',
         description: `${selectedTaskIds.length} tarefas atualizadas para ${status}.`,
@@ -530,6 +551,40 @@ export default function DisciplineDetails() {
     return matchSearch && matchStatus
   })
 
+  const buildTree = (tasksList: any[]) => {
+    const map = new Map()
+    tasksList.forEach((t) => map.set(t.id, { ...t, children: [] }))
+    const roots: any[] = []
+
+    tasksList.forEach((t) => {
+      if (t.parent_task && map.has(t.parent_task)) {
+        map.get(t.parent_task).children.push(map.get(t.id))
+      } else {
+        roots.push(map.get(t.id))
+      }
+    })
+    return roots
+  }
+
+  const flattenTree = (nodes: any[], depth = 0, expanded: Set<string>): any[] => {
+    let result: any[] = []
+    nodes.forEach((node) => {
+      result.push({ ...node, depth })
+      if (expanded.has(node.id) && node.children?.length > 0) {
+        result = result.concat(flattenTree(node.children, depth + 1, expanded))
+      }
+    })
+    return result
+  }
+
+  const displayTasks = useMemo(() => {
+    if (isFilterActive) {
+      return filteredTasks.map((t) => ({ ...t, depth: 0, children: [] }))
+    }
+    const roots = buildTree(tasks)
+    return flattenTree(roots, 0, expandedTaskIds)
+  }, [tasks, isFilterActive, filteredTasks, expandedTaskIds])
+
   const totalTasks = tasks.length
   const concludedTasks = tasks.filter((t) => t.status === 'Concluído').length
   const inProgressTasks = tasks.filter((t) => t.status === 'Em Andamento').length
@@ -549,10 +604,10 @@ export default function DisciplineDetails() {
 
   const isFocusedView = activeTaskTab === 'focused'
 
-  const allSelected = filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length
+  const allSelected = displayTasks.length > 0 && selectedTaskIds.length === displayTasks.length
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedTaskIds(filteredTasks.map((t) => t.id))
+      setSelectedTaskIds(displayTasks.map((t) => t.id))
     } else {
       setSelectedTaskIds([])
       setLastSelectedTaskId(null)
@@ -561,14 +616,14 @@ export default function DisciplineDetails() {
 
   const handleSelectRow = (taskId: string, checked: boolean) => {
     if (isShiftPressed.current && lastSelectedTaskId) {
-      const currentIndex = filteredTasks.findIndex((t) => t.id === taskId)
-      const lastIndex = filteredTasks.findIndex((t) => t.id === lastSelectedTaskId)
+      const currentIndex = displayTasks.findIndex((t) => t.id === taskId)
+      const lastIndex = displayTasks.findIndex((t) => t.id === lastSelectedTaskId)
 
       if (currentIndex !== -1 && lastIndex !== -1) {
         const start = Math.min(currentIndex, lastIndex)
         const end = Math.max(currentIndex, lastIndex)
 
-        const tasksInRange = filteredTasks.slice(start, end + 1).map((t) => t.id)
+        const tasksInRange = displayTasks.slice(start, end + 1).map((t) => t.id)
 
         if (checked) {
           setSelectedTaskIds((prev) => Array.from(new Set([...prev, ...tasksInRange])))
@@ -585,6 +640,24 @@ export default function DisciplineDetails() {
     }
 
     setLastSelectedTaskId(taskId)
+  }
+
+  const handleCompleteTask = async (task: any, checked: boolean) => {
+    try {
+      const status = checked ? 'Concluído' : 'Pendente'
+      const completed_at = checked ? new Date().toISOString() : ''
+
+      await pb.collection('tasks').update(task.id, { status, completed_at })
+
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status, completed_at } : t)))
+      toast({ title: checked ? 'Tarefa concluída' : 'Tarefa reaberta' })
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao atualizar tarefa',
+        description: e.message,
+        variant: 'destructive',
+      })
+    }
   }
 
   return (
@@ -915,8 +988,8 @@ export default function DisciplineDetails() {
                       <Button
                         className="gap-2 w-full sm:w-auto"
                         onClick={() => {
-                          setSelectedTask({ module: moduleId, project: id })
-                          setIsTaskSheetOpen(true)
+                          setCreateParentId('none')
+                          setIsCreateTaskOpen(true)
                         }}
                       >
                         <PlusCircle className="h-4 w-4" />
@@ -952,7 +1025,7 @@ export default function DisciplineDetails() {
                     </div>
                   </div>
 
-                  {filteredTasks.length > 0 ? (
+                  {displayTasks.length > 0 ? (
                     <div className="rounded-md border overflow-x-auto bg-background shadow-sm">
                       <Table className="[&_td]:py-2 [&_td]:px-3 [&_th]:py-3 [&_th]:px-3">
                         <TableHeader>
@@ -1041,7 +1114,7 @@ export default function DisciplineDetails() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredTasks.map((task) => {
+                          {displayTasks.map((task) => {
                             const urgency = getUrgencyInfo(task)
 
                             return (
@@ -1078,16 +1151,52 @@ export default function DisciplineDetails() {
                                   />
                                 </TableCell>
                                 {visibleColumns.descricao && (
-                                  <TableCell className="font-medium flex items-center py-3">
+                                  <TableCell className="font-medium flex items-center py-3 min-w-[300px]">
+                                    <div
+                                      style={{ width: `${(task.depth || 0) * 20}px` }}
+                                      className="shrink-0"
+                                    />
+
                                     {!isFilterActive ? (
-                                      <div className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                                      <div className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-1 shrink-0">
                                         <GripVertical className="h-4 w-4" />
                                       </div>
                                     ) : (
-                                      <div className="w-6" />
+                                      <div className="w-5 shrink-0" />
                                     )}
+
+                                    {task.children && task.children.length > 0 ? (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setExpandedTaskIds((prev) => {
+                                            const next = new Set(prev)
+                                            if (next.has(task.id)) next.delete(task.id)
+                                            else next.add(task.id)
+                                            return next
+                                          })
+                                        }}
+                                        className="w-5 h-5 flex items-center justify-center hover:bg-muted rounded mr-1 shrink-0"
+                                      >
+                                        {expandedTaskIds.has(task.id) ? (
+                                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                      </button>
+                                    ) : (
+                                      <div className="w-6 shrink-0" />
+                                    )}
+
                                     <div className="flex flex-col gap-0.5 w-full">
                                       <span className="flex items-center gap-2">
+                                        <Checkbox
+                                          checked={task.status === 'Concluído'}
+                                          onCheckedChange={(c) => handleCompleteTask(task, !!c)}
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="rounded-full w-4 h-4 shrink-0"
+                                          aria-label="Concluir tarefa"
+                                        />
                                         {editingTitleId === task.id ? (
                                           <Input
                                             autoFocus
@@ -1103,7 +1212,12 @@ export default function DisciplineDetails() {
                                           />
                                         ) : (
                                           <span
-                                            className="cursor-pointer hover:text-primary transition-colors border-b border-transparent hover:border-primary/50"
+                                            className={cn(
+                                              'cursor-pointer transition-colors border-b border-transparent hover:border-primary/50',
+                                              task.status === 'Concluído'
+                                                ? 'line-through text-muted-foreground'
+                                                : 'hover:text-primary',
+                                            )}
                                             onClick={(e) => {
                                               e.stopPropagation()
                                               setEditingTitleId(task.id)
@@ -1130,7 +1244,7 @@ export default function DisciplineDetails() {
                                         )}
                                       </span>
                                       {task.description && editingTitleId !== task.id && (
-                                        <span className="text-xs text-muted-foreground line-clamp-1">
+                                        <span className="text-xs text-muted-foreground line-clamp-1 ml-6">
                                           {task.description}
                                         </span>
                                       )}
@@ -1204,12 +1318,17 @@ export default function DisciplineDetails() {
                                       value={task.status || 'Pendente'}
                                       onValueChange={async (val) => {
                                         try {
-                                          await pb
-                                            .collection('tasks')
-                                            .update(task.id, { status: val })
+                                          const isConcluido = val === 'Concluído'
+                                          const updateData: any = { status: val }
+                                          if (isConcluido) {
+                                            updateData.completed_at = new Date().toISOString()
+                                          } else if (task.status === 'Concluído') {
+                                            updateData.completed_at = ''
+                                          }
+                                          await pb.collection('tasks').update(task.id, updateData)
                                           setTasks((prev) =>
                                             prev.map((t) =>
-                                              t.id === task.id ? { ...t, status: val } : t,
+                                              t.id === task.id ? { ...t, ...updateData } : t,
                                             ),
                                           )
                                           toast({ title: 'Status atualizado' })
@@ -1319,17 +1438,32 @@ export default function DisciplineDetails() {
                                 )}
                                 {visibleColumns.acoes && (
                                   <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setSelectedTask(task)
-                                        setIsTaskSheetOpen(true)
-                                      }}
-                                    >
-                                      <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                                    </Button>
+                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setCreateParentId(task.id)
+                                          setIsCreateTaskOpen(true)
+                                        }}
+                                        title="Adicionar subtarefa"
+                                      >
+                                        <PlusCircle className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedTask(task)
+                                          setIsTaskSheetOpen(true)
+                                        }}
+                                        title="Editar tarefa"
+                                      >
+                                        <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 )}
                               </TableRow>
@@ -1721,6 +1855,14 @@ export default function DisciplineDetails() {
         projectId={id || ''}
         onTaskUpdated={loadData}
         users={users}
+      />
+
+      <CreateTaskDialog
+        open={isCreateTaskOpen}
+        onOpenChange={setIsCreateTaskOpen}
+        moduleId={moduleId || ''}
+        availableParents={tasks.map((t) => ({ id: t.id, title: t.title }))}
+        defaultParentId={createParentId}
       />
     </div>
   )

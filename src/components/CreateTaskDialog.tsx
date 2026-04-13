@@ -27,6 +27,7 @@ interface CreateTaskDialogProps {
   onOpenChange: (open: boolean) => void
   moduleId: string
   availableParents: { id: string; title: string }[]
+  defaultParentId?: string
 }
 
 export function CreateTaskDialog({
@@ -34,6 +35,7 @@ export function CreateTaskDialog({
   onOpenChange,
   moduleId,
   availableParents,
+  defaultParentId = 'none',
 }: CreateTaskDialogProps) {
   const { id: projectIdUrl } = useParams<{ id: string }>()
   const { toast } = useToast()
@@ -51,13 +53,13 @@ export function CreateTaskDialog({
     if (open) {
       setTitle('')
       setDueDate('')
-      setParentTask('none')
+      setParentTask(defaultParentId)
       setResponsible('none')
       setErrors({})
 
       pb.collection('users').getFullList({ sort: 'name' }).then(setUsers).catch(console.error)
     }
-  }, [open])
+  }, [open, defaultParentId])
 
   const handleSubmit = async () => {
     if (!title.trim()) {

@@ -151,7 +151,7 @@ export default function DisciplineDetails() {
 
   const [module, setModule] = useState<ProjectModule | null>(null)
   const [tasks, setTasks] = useState<any[]>([])
-  const [logs, setLogs] = useState<any[]>([])
+  const [rawLogs, setRawLogs] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [companySettings, setCompanySettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -208,6 +208,26 @@ export default function DisciplineDetails() {
 
   const isShiftPressed = useRef(false)
 
+  // --- Debounce Hook ---
+  const useDebouncedCallback = <T extends (...args: any[]) => any>(callback: T, delay: number) => {
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const callbackRef = useRef(callback)
+
+    useEffect(() => {
+      callbackRef.current = callback
+    }, [callback])
+
+    return useCallback(
+      (...args: Parameters<T>) => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current)
+        timeoutRef.current = setTimeout(() => {
+          callbackRef.current(...args)
+        }, delay)
+      },
+      [delay],
+    )
+  }
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Shift') isShiftPressed.current = true
@@ -223,62 +243,121 @@ export default function DisciplineDetails() {
     }
   }, [])
 
-  const loadData = useCallback(async () => {
+  // --- Data Fetching ---
+  const loadStatic = useCallback(async () => {
+    try {
+      const [usersList, settingsList] = await Promise.all([
+        pb.collection('users').getFullList({ sort: 'name' }),
+        pb.collection('company_settings').getFullList(),
+      ])
+      setUsers(usersList)
+      if (settingsList.length > 0) setCompanySettings(settingsList[0])
+    } catch (e) {
+      console.error('Error loading static data', e)
+    }
+  }, [])
+
+  const loadModule = useCallback(async () => {
     if (!moduleId) return
     try {
       const mod = await pb.collection('project_modules').getOne<ProjectModule>(moduleId, {
         expand: 'project,responsible,designer',
       })
       setModule(mod)
+    } catch (e) {
+      console.error(e)
+      setError(true)
+    }
+  }, [moduleId])
 
-      const [moduleTasks, usersList, settingsList] = await Promise.all([
-        pb.collection('tasks').getFullList({
-          filter: `module = "${moduleId}"`,
-          sort: 'ordem,due_date',
-          expand: 'responsible',
-        }),
-        pb.collection('users').getFullList({ sort: 'name' }),
-        pb.collection('company_settings').getFullList(),
-      ])
-
-      if (settingsList.length > 0) {
-        setCompanySettings(settingsList[0])
-      }
-
+  const loadTasks = useCallback(async () => {
+    if (!moduleId) return
+    try {
+      const moduleTasks = await pb.collection('tasks').getFullList({
+        filter: `module = "${moduleId}"`,
+        sort: 'ordem,due_date',
+        expand: 'responsible',
+      })
       setTasks(moduleTasks)
-      setUsers(usersList)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [moduleId])
 
-      const moduleLogs = await pb.collection('audit_logs').getFullList({
+  const loadLogs = useCallback(async () => {
+    try {
+      const logsData = await pb.collection('audit_logs').getList(1, 150, {
         filter: `resource = 'project_modules' || resource = 'tasks'`,
         expand: 'user_id',
         sort: '-created',
       })
-
-      const filteredLogs = moduleLogs.filter(
-        (l) =>
-          (l.resource === 'project_modules' &&
-            (l.details?.module_id === moduleId || l.details?.module_name === mod.name)) ||
-          (l.resource === 'tasks' &&
-            moduleTasks.some(
-              (t) => t.id === l.details?.task_id || t.title === l.details?.task_name,
-            )),
-      )
-      setLogs(filteredLogs)
+      setRawLogs(logsData.items)
     } catch (e) {
-      console.error(e)
-      setError(true)
-    } finally {
-      setLoading(false)
+      console.error('Error loading logs', e)
     }
-  }, [moduleId])
+  }, [])
 
+  // Run static load only once on mount
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadStatic()
+  }, [loadStatic])
 
-  useRealtime('project_modules', loadData)
-  useRealtime('tasks', loadData)
-  useRealtime('audit_logs', loadData)
+  // Initial dynamic load
+  useEffect(() => {
+    if (!moduleId) return
+    let isMounted = true
+    const init = async () => {
+      setLoading(true)
+      await Promise.all([loadModule(), loadTasks(), loadLogs()])
+      if (isMounted) setLoading(false)
+    }
+    init()
+    return () => {
+      isMounted = false
+    }
+  }, [moduleId, loadModule, loadTasks, loadLogs])
+
+  // Memoized filtered logs
+  const logs = useMemo(() => {
+    if (!module) return []
+    return rawLogs.filter(
+      (l) =>
+        (l.resource === 'project_modules' &&
+          (l.details?.module_id === module.id || l.details?.module_name === module.name)) ||
+        (l.resource === 'tasks' &&
+          tasks.some((t) => t.id === l.details?.task_id || t.title === l.details?.task_name)),
+    )
+  }, [rawLogs, module, tasks])
+
+  // Debounced fetchers for real-time updates
+  const debouncedLoadModule = useDebouncedCallback(loadModule, 300)
+  const debouncedLoadTasks = useDebouncedCallback(loadTasks, 300)
+  const debouncedLoadLogs = useDebouncedCallback(loadLogs, 300)
+
+  useRealtime('project_modules', (e) => {
+    if (e.record.id === moduleId) {
+      debouncedLoadModule()
+      debouncedLoadLogs()
+    }
+  })
+
+  useRealtime('tasks', (e) => {
+    if (e.record.module === moduleId) {
+      debouncedLoadTasks()
+      debouncedLoadLogs()
+    }
+  })
+
+  useRealtime('audit_logs', () => {
+    debouncedLoadLogs()
+  })
+
+  // Expose a general loadData for child components that still use it
+  const loadData = useCallback(() => {
+    debouncedLoadModule()
+    debouncedLoadTasks()
+    debouncedLoadLogs()
+  }, [debouncedLoadModule, debouncedLoadTasks, debouncedLoadLogs])
 
   const handleSaveTitle = async (taskId: string) => {
     if (editingTitleId !== taskId) return

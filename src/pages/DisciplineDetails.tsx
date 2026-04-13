@@ -506,6 +506,7 @@ export default function DisciplineDetails() {
           console.warn('Silent fail syncing tarefas_hierarquicas', thErr)
         }
       }
+      toast({ title: 'Tarefas reordenadas', description: 'A ordem foi atualizada com sucesso.' })
     } catch (err) {
       console.error(err)
       toast({ title: 'Erro', description: 'Erro ao reordenar tarefas', variant: 'destructive' })
@@ -1269,7 +1270,18 @@ export default function DisciplineDetails() {
                                         <GripVertical className="h-4 w-4" />
                                       </div>
                                     ) : (
-                                      <div className="w-5 shrink-0" />
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="text-muted-foreground/20 cursor-not-allowed mr-1 shrink-0 px-1 py-2 -ml-1">
+                                            <GripVertical className="h-4 w-4" />
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className="text-xs">
+                                            A reordenação está desativada durante o uso de filtros.
+                                          </p>
+                                        </TooltipContent>
+                                      </Tooltip>
                                     )}
 
                                     {task.children && task.children.length > 0 ? (

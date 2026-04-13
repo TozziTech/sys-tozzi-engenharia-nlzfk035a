@@ -2,17 +2,113 @@ import { User, Project } from '@/types/project'
 
 import { format } from 'date-fns'
 
+export function exportBankAccountsPDF(accounts: any[], currentUser: string, settings: any = null) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const totalBalance = accounts.reduce((sum, a) => sum + (a.balance || 0), 0)
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Contas Bancárias</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; color: #374151; max-width: 1000px; margin: 0 auto; padding: 20px; }
+          .header { text-align: center; border-bottom: 3px solid #d4af37; padding-bottom: 20px; margin-bottom: 30px; }
+          .header img { max-height: 60px; margin-bottom: 10px; }
+          .header h1 { margin: 0; color: #1f2937; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+          .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
+          .summary { display: flex; justify-content: center; background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid #d4af37; margin-bottom: 30px; }
+          .summary-item { text-align: center; padding: 0 40px; }
+          .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
+          .summary-value { font-size: 24px; font-weight: 700; color: #1f2937; margin-top: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { text-align: left; padding: 12px; font-size: 14px; vertical-align: middle; }
+          th { font-weight: 600; color: #f9fafb; background-color: #1f2937; font-size: 12px; text-transform: uppercase; border: none; }
+          td { border-bottom: 1px solid #e5e7eb; }
+          tr:nth-child(even) td { background-color: #f9fafb; }
+          .text-right { text-align: right; }
+          .footer { margin-top: 50px; padding-top: 20px; border-top: 1px dashed #e5e7eb; font-size: 12px; color: #9ca3af; text-align: center; }
+          @media print { body { padding: 0; } .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <div class="header">
+          ${logoUrl ? `<img src="${logoUrl}" />` : ''}
+          <h1>Status das Contas Bancárias</h1>
+          <p>Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+        </div>
+        <div class="summary">
+          <div class="summary-item">
+            <div class="summary-label">Saldo Consolidado Total</div>
+            <div class="summary-value">${formatCurrency(totalBalance)}</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Nome da Conta</th>
+              <th>Banco</th>
+              <th>Tipo</th>
+              <th class="text-right">Saldo Atual</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${accounts
+              .map(
+                (a) => `
+              <tr>
+                <td style="font-family: monospace; color: #6b7280;">${a.code || '-'}</td>
+                <td style="font-weight: 500; color: #111827;">${a.name}</td>
+                <td>${a.bank_name}</td>
+                <td>${a.type}</td>
+                <td class="text-right" style="font-weight: 600; color: ${a.balance >= 0 ? '#059669' : '#dc2626'}">${formatCurrency(a.balance || 0)}</td>
+              </tr>
+            `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+        <div class="footer">Documento gerado pelo Sistema de Gerenciamento Financeiro.</div>
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportFinancialPDF(
   records: any[],
   totals: { revenue: number; expenses: number; balance: number },
   periodLabel: string,
   currentUser: string,
+  settings: any = null,
 ) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
 
   const html = `
     <!DOCTYPE html>
@@ -25,18 +121,19 @@ export function exportFinancialPDF(
           body { 
             font-family: system-ui, -apple-system, sans-serif; 
             line-height: 1.5; 
-            color: #1a1a1a; 
+            color: #374151; 
             max-width: 1000px; 
             margin: 0 auto; 
             padding: 20px;
           }
           .header {
             text-align: center;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 3px solid #d4af37;
             padding-bottom: 20px;
             margin-bottom: 30px;
           }
-          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header img { max-height: 60px; margin-bottom: 10px; }
+          .header h1 { margin: 0; color: #1f2937; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
           .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
           
           .summary {
@@ -45,11 +142,12 @@ export function exportFinancialPDF(
             background: #f9fafb;
             padding: 15px;
             border-radius: 8px;
+            border-left: 4px solid #d4af37;
             margin-bottom: 30px;
           }
           .summary-item { text-align: center; }
           .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
-          .summary-value { font-size: 20px; font-weight: 700; color: #111827; margin-top: 5px; }
+          .summary-value { font-size: 20px; font-weight: 700; color: #1f2937; margin-top: 5px; }
           .summary-value.positive { color: #059669; }
           .summary-value.negative { color: #dc2626; }
           
@@ -57,12 +155,17 @@ export function exportFinancialPDF(
           th, td {
             text-align: left;
             padding: 10px;
-            border-bottom: 1px solid #e5e7eb;
             font-size: 14px;
-            vertical-align: top;
+            vertical-align: middle;
           }
-          th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          th { font-weight: 600; color: #f9fafb; background-color: #1f2937; font-size: 12px; text-transform: uppercase; border: none; }
+          td { border-bottom: 1px solid #e5e7eb; }
+          tr:nth-child(even) td { background-color: #f9fafb; }
           .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          
+          .badge-reconciled { display: inline-block; padding: 2px 8px; border-radius: 12px; background: #d1fae5; color: #065f46; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+          .badge-pending { display: inline-block; padding: 2px 8px; border-radius: 12px; background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 600; text-transform: uppercase; }
           
           .footer { 
             margin-top: 50px; 
@@ -85,8 +188,9 @@ export function exportFinancialPDF(
         </div>
       
         <div class="header">
+          ${logoUrl ? `<img src="${logoUrl}" />` : ''}
           <h1>Relatório Financeiro</h1>
-          <p><strong>Período:</strong> ${periodLabel}</p>
+          <p><strong>Período / Filtro:</strong> ${periodLabel}</p>
           <p>Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
         </div>
         
@@ -112,8 +216,10 @@ export function exportFinancialPDF(
             <tr>
               <th>Data</th>
               <th>Descrição</th>
+              <th>Conta Bancária</th>
               <th>Categoria</th>
               <th>Tipo</th>
+              <th class="text-center">Status</th>
               <th class="text-right">Valor</th>
             </tr>
           </thead>
@@ -124,14 +230,22 @@ export function exportFinancialPDF(
                   r.type?.toLowerCase().includes('saída') ||
                   r.type?.toLowerCase().includes('despesa') ||
                   r.amount < 0
+                const accountName = r.expand?.bank_account?.name || r.bank_account || '-'
+                const accountCode = r.expand?.bank_account?.code
+                  ? `${r.expand.bank_account.code} - `
+                  : ''
+                const badgeClass = r.reconciled ? 'badge-reconciled' : 'badge-pending'
+                const badgeText = r.reconciled ? 'Conciliado' : 'Pendente'
                 return `
                 <tr>
                   <td style="white-space: nowrap;">${format(new Date(r.date || r.created), 'dd/MM/yyyy')}</td>
-                  <td>${r.description}</td>
+                  <td style="font-weight: 500; color: #111827;">${r.description}</td>
+                  <td><span style="font-size: 12px; color: #6b7280;">${accountCode}</span>${accountName}</td>
                   <td>${r.category || '-'}</td>
                   <td>${r.type || '-'}</td>
-                  <td class="text-right" style="color: ${isExpense ? '#dc2626' : '#059669'}; font-weight: 500;">
-                    ${isExpense && r.amount > 0 ? '-' : ''}${formatCurrency(Math.abs(r.amount))}
+                  <td class="text-center"><span class="${badgeClass}">${badgeText}</span></td>
+                  <td class="text-right" style="color: ${isExpense ? '#dc2626' : '#059669'}; font-weight: 600;">
+                    ${isExpense && r.amount > 0 ? '-' : ''}${formatCurrency(Math.abs(r.amount ?? r.value ?? 0))}
                   </td>
                 </tr>
               `

@@ -3,15 +3,25 @@ import { Log } from './mock-logs'
 import { Project } from '@/types/project'
 
 export function exportFinancialCSV(records: any[], periodLabel: string) {
-  const headers = ['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor']
+  const headers = [
+    'Data',
+    'Descrição',
+    'Categoria',
+    'Conta Bancária',
+    'Tipo',
+    'Valor',
+    'Conciliado',
+  ]
 
   const rows = records.map((r) => {
     const date = `"${format(new Date(r.date || r.created), 'dd/MM/yyyy')}"`
     const desc = `"${(r.description || '').replace(/"/g, '""')}"`
     const cat = `"${(r.category || '').replace(/"/g, '""')}"`
+    const account = `"${r.expand?.bank_account?.code ? `${r.expand.bank_account.code} - ` : ''}${(r.expand?.bank_account?.name || r.bank_account || '').replace(/"/g, '""')}"`
     const type = `"${(r.type || '').replace(/"/g, '""')}"`
-    const val = r.amount
-    return [date, desc, cat, type, val]
+    const val = r.amount ?? r.value ?? 0
+    const reconciled = r.reconciled ? '"Sim"' : '"Não"'
+    return [date, desc, cat, account, type, val, reconciled]
   })
 
   const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
@@ -23,6 +33,30 @@ export function exportFinancialCSV(records: any[], periodLabel: string) {
   const a = document.createElement('a')
   a.href = url
   a.download = `Financeiro_${periodLabel}_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+export function exportBankAccountsCSV(accounts: any[]) {
+  const headers = ['Código', 'Nome', 'Banco', 'Tipo', 'Saldo Atual']
+
+  const rows = accounts.map((a) => [
+    `"${a.code || ''}"`,
+    `"${(a.name || '').replace(/"/g, '""')}"`,
+    `"${(a.bank_name || '').replace(/"/g, '""')}"`,
+    `"${a.type || ''}"`,
+    a.balance || 0,
+  ])
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Contas_Bancarias_${format(new Date(), 'yyyy-MM-dd')}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }

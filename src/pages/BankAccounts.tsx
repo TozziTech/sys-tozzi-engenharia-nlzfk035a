@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import pb from '@/lib/pocketbase/client'
 import { getBankAccounts, deleteBankAccount, type BankAccount } from '@/services/bank_accounts'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
@@ -21,9 +22,13 @@ import {
   CreditCard,
   ArrowRightLeft,
   CheckCircle,
+  Download,
+  FileText,
+  ShieldAlert,
 } from 'lucide-react'
 import { TransferForm } from '@/components/bank-accounts/TransferForm'
 import { ReconciliationDashboard } from '@/components/bank-accounts/ReconciliationDashboard'
+import { PendingReconciliationAudit } from '@/components/bank-accounts/PendingReconciliationAudit'
 import { useToast } from '@/hooks/use-toast'
 import { BankAccountForm } from '@/components/bank-accounts/BankAccountForm'
 import {
@@ -37,15 +42,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { exportBankAccountsCSV } from '@/lib/export'
+import { exportBankAccountsPDF } from '@/lib/exportPdf'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function BankAccounts() {
   const [accounts, setAccounts] = useState<BankAccount[]>([])
+  const [settings, setSettings] = useState<any>(null)
   const [editingAccount, setEditingAccount] = useState<BankAccount | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isTransferOpen, setIsTransferOpen] = useState(false)
+  const [isAuditOpen, setIsAuditOpen] = useState(false)
   const [reconciliationAccount, setReconciliationAccount] = useState<BankAccount | undefined>()
   const [activeTab, setActiveTab] = useState('Todas')
   const { toast } = useToast()
+  const { user } = useAuth()
 
   const loadAccounts = async () => {
     try {
@@ -56,8 +67,18 @@ export default function BankAccounts() {
     }
   }
 
+  const loadSettings = async () => {
+    try {
+      const s = await pb.collection('company_settings').getFirstListItem('')
+      setSettings(s)
+    } catch (err) {
+      // Ignora, não tem settings
+    }
+  }
+
   useEffect(() => {
     loadAccounts()
+    loadSettings()
   }, [])
 
   useRealtime('bank_accounts', () => loadAccounts())
@@ -90,6 +111,14 @@ export default function BankAccounts() {
     setIsFormOpen(true)
   }
 
+  const handleExportCSV = () => {
+    exportBankAccountsCSV(filteredAccounts)
+  }
+
+  const handleExportPDF = () => {
+    exportBankAccountsPDF(filteredAccounts, user?.name || 'Usuário', settings)
+  }
+
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
@@ -108,7 +137,7 @@ export default function BankAccounts() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in-up duration-300">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Landmark className="h-8 w-8 text-primary" />
@@ -118,7 +147,21 @@ export default function BankAccounts() {
             Gerencie as instituições financeiras e o saldo consolidado da empresa.
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 flex-wrap justify-start md:justify-end">
+          <Button variant="outline" onClick={handleExportCSV} className="bg-background">
+            <Download className="mr-2 h-4 w-4" /> CSV
+          </Button>
+          <Button variant="outline" onClick={handleExportPDF} className="bg-background">
+            <FileText className="mr-2 h-4 w-4" /> PDF
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsAuditOpen(true)}
+            className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 hover:text-amber-800 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50"
+          >
+            <ShieldAlert className="mr-2 h-4 w-4" />
+            Auditoria
+          </Button>
           <Button
             onClick={() => setIsTransferOpen(true)}
             variant="outline"
@@ -274,11 +317,17 @@ export default function BankAccounts() {
 
       <BankAccountForm open={isFormOpen} onOpenChange={setIsFormOpen} account={editingAccount} />
       <TransferForm open={isTransferOpen} onOpenChange={setIsTransferOpen} accounts={accounts} />
+      <PendingReconciliationAudit
+        open={isAuditOpen}
+        onOpenChange={setIsAuditOpen}
+        settings={settings}
+      />
       {reconciliationAccount && (
         <ReconciliationDashboard
           open={!!reconciliationAccount}
           onOpenChange={(open) => !open && setReconciliationAccount(undefined)}
           account={reconciliationAccount}
+          settings={settings}
         />
       )}
     </div>

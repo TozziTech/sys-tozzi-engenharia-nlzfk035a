@@ -17,6 +17,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import {
   getAccountTransactions,
   toggleReconciledStatus,
@@ -25,18 +27,24 @@ import {
 import { type BankAccount } from '@/services/bank_accounts'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, Download, FileText } from 'lucide-react'
+import { exportFinancialCSV } from '@/lib/export'
+import { exportFinancialPDF } from '@/lib/exportPdf'
+import { useAuth } from '@/hooks/use-auth'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   account: BankAccount
+  settings?: any
 }
 
-export function ReconciliationDashboard({ open, onOpenChange, account }: Props) {
+export function ReconciliationDashboard({ open, onOpenChange, account, settings }: Props) {
   const [transactions, setTransactions] = useState<FinancialRecord[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [filter, setFilter] = useState<'all' | 'pending'>('all')
   const { toast } = useToast()
+  const { user } = useAuth()
 
   const loadTransactions = async () => {
     if (!account.id) return
@@ -97,23 +105,65 @@ export function ReconciliationDashboard({ open, onOpenChange, account }: Props) 
 
   const discrepancy = account.balance - reconciledBalance
 
+  const filteredTransactions = useMemo(() => {
+    if (filter === 'pending') return transactions.filter((t) => !t.reconciled)
+    return transactions
+  }, [transactions, filter])
+
+  const handleExportCSV = () => {
+    const label = filter === 'pending' ? 'Pendentes' : 'Todas'
+    exportFinancialCSV(filteredTransactions, `Conciliação_${account.name}_${label}`)
+  }
+
+  const handleExportPDF = () => {
+    const label = filter === 'pending' ? 'Pendentes' : 'Todas'
+    const totals = filteredTransactions.reduce(
+      (acc, tx) => {
+        if (tx.type === 'Entrada') acc.revenue += tx.amount
+        else acc.expenses += tx.amount
+        acc.balance = acc.revenue - acc.expenses
+        return acc
+      },
+      { revenue: 0, expenses: 0, balance: 0 },
+    )
+    exportFinancialPDF(
+      filteredTransactions,
+      totals,
+      `Conciliação ${account.name} - ${label}`,
+      user?.name || 'Usuário',
+      settings,
+    )
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-4xl overflow-hidden flex flex-col p-0">
         <div className="p-6 pb-4 border-b">
           <SheetHeader>
-            <SheetTitle className="text-2xl flex items-center gap-2">
-              Conciliação Bancária
-              {account.code && (
-                <Badge variant="outline" className="ml-2 font-mono">
-                  {account.code}
-                </Badge>
-              )}
-            </SheetTitle>
-            <SheetDescription>
-              Acompanhe e concilie todas as transações da conta <strong>{account.name}</strong> (
-              {account.bank_name}).
-            </SheetDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <SheetTitle className="text-2xl flex items-center gap-2">
+                  Conciliação Bancária
+                  {account.code && (
+                    <Badge variant="outline" className="ml-2 font-mono">
+                      {account.code}
+                    </Badge>
+                  )}
+                </SheetTitle>
+                <SheetDescription>
+                  Acompanhe e concilie todas as transações da conta <strong>{account.name}</strong>{' '}
+                  ({account.bank_name}).
+                </SheetDescription>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                  <Download className="mr-2 h-4 w-4" /> CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                  <FileText className="mr-2 h-4 w-4" /> PDF
+                </Button>
+              </div>
+            </div>
           </SheetHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
@@ -145,8 +195,22 @@ export function ReconciliationDashboard({ open, onOpenChange, account }: Props) 
           </div>
         </div>
 
+        <div className="p-6 pb-0 flex justify-between items-center border-b">
+          <Tabs
+            defaultValue="all"
+            value={filter}
+            onValueChange={(v) => setFilter(v as 'all' | 'pending')}
+            className="w-full max-w-sm mb-4"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="all">Todas</TabsTrigger>
+              <TabsTrigger value="pending">Pendentes</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         <ScrollArea className="flex-1">
-          <div className="p-6 pt-0">
+          <div className="p-6 pt-4">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                 <TableRow>
@@ -158,20 +222,20 @@ export function ReconciliationDashboard({ open, onOpenChange, account }: Props) 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading && transactions.length === 0 ? (
+                {isLoading && filteredTransactions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       Carregando transações...
                     </TableCell>
                   </TableRow>
-                ) : transactions.length === 0 ? (
+                ) : filteredTransactions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Nenhuma transação encontrada para esta conta.
+                      Nenhuma transação encontrada.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  transactions.map((tx) => (
+                  filteredTransactions.map((tx) => (
                     <TableRow key={tx.id} className={tx.reconciled ? 'bg-muted/30' : ''}>
                       <TableCell className="whitespace-nowrap">
                         {tx.date

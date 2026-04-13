@@ -16,6 +16,15 @@ export const getAccountTransactions = async (accountId: string) => {
   return pb.collection('financial_records').getFullList<FinancialRecord>({
     filter: `bank_account = "${accountId}"`,
     sort: '-date,-created',
+    expand: 'bank_account',
+  })
+}
+
+export const getPendingReconciliations = async () => {
+  return pb.collection('financial_records').getFullList<FinancialRecord>({
+    filter: 'reconciled = false || reconciled = null',
+    sort: '-date,-created',
+    expand: 'bank_account',
   })
 }
 

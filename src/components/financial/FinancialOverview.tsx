@@ -53,16 +53,21 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
   }, [transactions, categories])
 
   const cashFlowByMonth = useMemo(() => {
+    const currentYear = new Date().getFullYear()
+
     const grouped = transactions.reduce(
       (acc, tx) => {
+        if (!tx.date) return acc
         const d = new Date(tx.date)
+        if (d.getUTCFullYear() !== currentYear) return acc // Apenas do ano atual
+
         const monthYear = format(d, 'MMM/yy', { locale: ptBR })
         if (!acc[monthYear]) {
           acc[monthYear] = {
             name: monthYear,
             Entrada: 0,
             Saída: 0,
-            sortKey: d.getFullYear() * 100 + d.getMonth(),
+            sortKey: d.getUTCFullYear() * 100 + d.getUTCMonth(),
           }
         }
         const val = tx.value || tx.amount || 0
@@ -88,8 +93,8 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
   }, [expensesByCategory])
 
   const barConfig = {
-    Entrada: { label: 'Entradas', color: 'hsl(var(--chart-1))' },
-    Saída: { label: 'Saídas', color: 'hsl(var(--chart-2))' },
+    Entrada: { label: 'Entradas', color: '#10b981' },
+    Saída: { label: 'Saídas', color: '#f43f5e' },
   }
 
   return (

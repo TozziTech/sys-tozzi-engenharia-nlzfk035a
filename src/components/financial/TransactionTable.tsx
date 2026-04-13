@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Repeat,
   MoreHorizontal,
@@ -6,6 +7,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Paperclip,
+  AlertCircle,
+  AlertTriangle,
+  Filter,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,7 +27,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import pb from '@/lib/pocketbase/client'
+import { isBefore, startOfToday, addDays, isWithinInterval, parseISO } from 'date-fns'
 
 interface TableProps {
   transactions: any[]
@@ -42,213 +54,300 @@ export function TransactionTable({
   onEdit,
   onDelete,
 }: TableProps) {
+  const [statusFilter, setStatusFilter] = useState('Todos')
+  const [typeFilter, setTypeFilter] = useState('Todos')
+
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
-  return (
-    <div className="rounded-md border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-card text-card-foreground">
-      <Table>
-        <TableHeader className="bg-zinc-100 dark:bg-zinc-900/80">
-          <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
-            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-              Código
-            </TableHead>
-            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-              Data
-            </TableHead>
-            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-              Tipo
-            </TableHead>
-            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-              Categoria
-            </TableHead>
-            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-              Descrição
-            </TableHead>
-            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-              Projeto
-            </TableHead>
-            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-              Responsável
-            </TableHead>
-            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-              Status
-            </TableHead>
-            <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-              Valor
-            </TableHead>
-            <TableHead className="w-[60px] text-center font-semibold text-zinc-700 dark:text-zinc-300">
-              Anexo
-            </TableHead>
-            <TableHead className="w-[60px] text-center"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {transactions.length === 0 ? (
-            <TableRow>
-              <TableCell
-                colSpan={11}
-                className="text-center py-12 text-slate-500 dark:text-zinc-500"
-              >
-                Nenhuma transação encontrada.
-              </TableCell>
-            </TableRow>
-          ) : (
-            transactions.map((tx: any) => {
-              const cId = tx.categoryId || tx.category
-              const pId = tx.projectId || tx.project_id
-              const cat = categories.find((c: any) => c.id === cId || c.name === cId)
-              const projName =
-                pId === 'tozzi_interno'
-                  ? 'TOZZI (Interno)'
-                  : projects.find((p: any) => p.id === pId)?.name || 'TOZZI (Interno)'
-              const respUser = users.find((u: any) => u.id === tx.responsible)
+  const today = startOfToday()
+  const next3Days = addDays(today, 3)
 
-              return (
-                <TableRow
-                  key={tx.id}
-                  className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 transition-colors"
+  const filteredTransactions = transactions.filter((tx) => {
+    let matchStatus = true
+    if (statusFilter !== 'Todos') {
+      const txStatus = tx.status || 'Pendente'
+      matchStatus = txStatus === statusFilter
+    }
+
+    let matchType = true
+    if (typeFilter !== 'Todos') {
+      matchType = tx.type === typeFilter
+    }
+
+    return matchStatus && matchType
+  })
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground mr-2" />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos os Status</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="Pago">Pago</SelectItem>
+              <SelectItem value="Atrasado">Atrasado</SelectItem>
+              <SelectItem value="Cancelado">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos os Tipos</SelectItem>
+              <SelectItem value="Entrada">Entrada</SelectItem>
+              <SelectItem value="Saída">Saída</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Exibindo {filteredTransactions.length} de {transactions.length} registros
+        </div>
+      </div>
+      <div className="rounded-md border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-card text-card-foreground">
+        <Table>
+          <TableHeader className="bg-zinc-100 dark:bg-zinc-900/80">
+            <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Código
+              </TableHead>
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Data
+              </TableHead>
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Tipo
+              </TableHead>
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Categoria
+              </TableHead>
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Descrição
+              </TableHead>
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Projeto
+              </TableHead>
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Responsável
+              </TableHead>
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Status
+              </TableHead>
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Valor
+              </TableHead>
+              <TableHead className="w-[60px] text-center font-semibold text-zinc-700 dark:text-zinc-300">
+                Anexo
+              </TableHead>
+              <TableHead className="w-[60px] text-center"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredTransactions.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={11}
+                  className="text-center py-12 text-slate-500 dark:text-zinc-500"
                 >
-                  <TableCell className="whitespace-nowrap text-center font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    {tx.code || '-'}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-center">
-                    {tx.date
-                      ? new Date(tx.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
-                      : '-'}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {tx.type === 'Entrada' ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 inline-flex items-center justify-center font-medium">
-                        <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
-                      </span>
-                    ) : (
-                      <span className="text-rose-600 dark:text-rose-400 inline-flex items-center justify-center font-medium">
-                        <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {cat ? (
-                      <Badge variant="outline" style={{ borderColor: cat.color, color: cat.color }}>
-                        {cat.name}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground border-border">
-                        Sem categoria
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium text-center text-zinc-900 dark:text-zinc-100">
-                    <div className="flex items-center justify-center gap-2">
-                      {tx.description}
-                      {tx.is_recurring && (
-                        <Repeat
-                          className="h-4 w-4 text-zinc-400 dark:text-zinc-500"
-                          title="Recorrente"
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center text-zinc-600 dark:text-zinc-400">
-                    {projName}
-                  </TableCell>
-                  <TableCell className="text-center text-zinc-600 dark:text-zinc-400">
-                    {respUser ? respUser.name || respUser.email : '-'}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {tx.status === 'Pago' && (
-                      <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent">
-                        Pago
-                      </Badge>
-                    )}
-                    {tx.status === 'Pendente' && (
-                      <Badge
-                        variant="outline"
-                        className="text-amber-600 border-amber-500 dark:text-amber-400"
-                      >
-                        Pendente
-                      </Badge>
-                    )}
-                    {tx.status === 'Atrasado' && <Badge variant="destructive">Atrasado</Badge>}
-                    {tx.status === 'Cancelado' && (
-                      <Badge variant="secondary" className="dark:bg-zinc-800 dark:text-zinc-300">
-                        Cancelado
-                      </Badge>
-                    )}
-                    {!tx.status && (
-                      <Badge
-                        variant="outline"
-                        className="text-amber-600 border-amber-500 dark:text-amber-400"
-                      >
-                        Pendente
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                    {formatCurrency(tx.value || tx.amount || 0)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {tx.attachment && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
-                        title="Ver Anexo"
-                        className="hover:text-amber-500 dark:hover:text-amber-400"
-                      >
-                        <a
-                          href={pb.files.getURL(
-                            {
-                              id: tx.id,
-                              collectionId: tx.collectionId || 'financial_records',
-                            } as any,
-                            tx.attachment,
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                  Nenhuma transação encontrada.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredTransactions.map((tx: any) => {
+                const cId = tx.categoryId || tx.category
+                const pId = tx.projectId || tx.project_id
+                const cat = categories.find((c: any) => c.id === cId || c.name === cId)
+                const projName =
+                  pId === 'tozzi_interno'
+                    ? 'TOZZI (Interno)'
+                    : projects.find((p: any) => p.id === pId)?.name || 'TOZZI (Interno)'
+                const respUser = users.find((u: any) => u.id === tx.responsible)
+
+                const txStatus = tx.status || 'Pendente'
+                const isPending = txStatus === 'Pendente'
+                let isOverdue = false
+                let isUpcoming = false
+
+                if (isPending && tx.date) {
+                  const dateStr = String(tx.date).split('T')[0].split(' ')[0]
+                  const date = parseISO(dateStr)
+                  if (isBefore(date, today)) {
+                    isOverdue = true
+                  } else if (isWithinInterval(date, { start: today, end: next3Days })) {
+                    isUpcoming = true
+                  }
+                }
+
+                return (
+                  <TableRow
+                    key={tx.id}
+                    className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 transition-colors"
+                  >
+                    <TableCell className="whitespace-nowrap text-center font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      {tx.code || '-'}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <span
+                          className={
+                            isOverdue
+                              ? 'text-red-600 dark:text-red-400 font-semibold'
+                              : isUpcoming
+                                ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                                : ''
+                          }
                         >
-                          <Paperclip className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                          {tx.date
+                            ? new Date(tx.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                            : '-'}
+                        </span>
+                        {isOverdue && (
+                          <AlertCircle
+                            className="h-4 w-4 text-red-600 dark:text-red-400"
+                            title="Vencido"
+                          />
+                        )}
+                        {isUpcoming && (
+                          <AlertTriangle
+                            className="h-4 w-4 text-amber-500 dark:text-amber-400"
+                            title="Vencendo em breve"
+                          />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {tx.type === 'Entrada' ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 inline-flex items-center justify-center font-medium">
+                          <ArrowUpRight className="mr-1 h-4 w-4" /> Entrada
+                        </span>
+                      ) : (
+                        <span className="text-rose-600 dark:text-rose-400 inline-flex items-center justify-center font-medium">
+                          <ArrowDownRight className="mr-1 h-4 w-4" /> Saída
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {cat ? (
+                        <Badge
+                          variant="outline"
+                          style={{ borderColor: cat.color, color: cat.color }}
+                        >
+                          {cat.name}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground border-border">
+                          Sem categoria
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium text-center text-zinc-900 dark:text-zinc-100">
+                      <div className="flex items-center justify-center gap-2">
+                        {tx.description}
+                        {tx.is_recurring && (
+                          <Repeat
+                            className="h-4 w-4 text-zinc-400 dark:text-zinc-500"
+                            title="Recorrente"
+                          />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center text-zinc-600 dark:text-zinc-400">
+                      {projName}
+                    </TableCell>
+                    <TableCell className="text-center text-zinc-600 dark:text-zinc-400">
+                      {respUser ? respUser.name || respUser.email : '-'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {txStatus === 'Pago' && (
+                        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent">
+                          Pago
+                        </Badge>
+                      )}
+                      {txStatus === 'Pendente' && (
+                        <Badge
+                          variant="outline"
+                          className="text-amber-600 border-amber-500 dark:text-amber-400"
+                        >
+                          Pendente
+                        </Badge>
+                      )}
+                      {txStatus === 'Atrasado' && <Badge variant="destructive">Atrasado</Badge>}
+                      {txStatus === 'Cancelado' && (
+                        <Badge variant="secondary" className="dark:bg-zinc-800 dark:text-zinc-300">
+                          Cancelado
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                      {formatCurrency(tx.value || tx.amount || 0)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {tx.attachment && (
                         <Button
                           variant="ghost"
                           size="icon"
+                          asChild
+                          title="Ver Anexo"
                           className="hover:text-amber-500 dark:hover:text-amber-400"
                         >
-                          <MoreHorizontal className="h-4 w-4" />
+                          <a
+                            href={pb.files.getURL(
+                              {
+                                id: tx.id,
+                                collectionId: tx.collectionId || 'financial_records',
+                              } as any,
+                              tx.attachment,
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Paperclip className="h-4 w-4" />
+                          </a>
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="dark:bg-zinc-900 dark:border-zinc-800"
-                      >
-                        <DropdownMenuItem
-                          onClick={() => onEdit(tx)}
-                          className="focus:text-amber-500 dark:focus:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30 cursor-pointer"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="hover:text-amber-500 dark:hover:text-amber-400"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="dark:bg-zinc-900 dark:border-zinc-800"
                         >
-                          <Pencil className="h-4 w-4 mr-2" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onDelete(tx)}
-                          className="text-red-600 focus:text-red-600 dark:focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/30 cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              )
-            })
-          )}
-        </TableBody>
-      </Table>
+                          <DropdownMenuItem
+                            onClick={() => onEdit(tx)}
+                            className="focus:text-amber-500 dark:focus:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30 cursor-pointer"
+                          >
+                            <Pencil className="h-4 w-4 mr-2" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => onDelete(tx)}
+                            className="text-red-600 focus:text-red-600 dark:focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/30 cursor-pointer"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }

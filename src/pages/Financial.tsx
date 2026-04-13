@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions'
 import { FinancialCategories } from '@/components/financial/FinancialCategories'
 import { TransactionModal } from '@/components/financial/TransactionModal'
+import { FinancialAlerts } from '@/components/financial/FinancialAlerts'
 
 export default function Financial() {
   return (
@@ -21,6 +22,8 @@ export default function Financial() {
           <TransactionModal />
         </div>
       </div>
+
+      <FinancialAlerts />
 
       <Tabs defaultValue="lancamentos" className="w-full space-y-6">
         <TabsList className="bg-muted p-1 w-full justify-start overflow-x-auto h-auto flex-wrap">

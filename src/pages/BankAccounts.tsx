@@ -258,12 +258,12 @@ export default function BankAccounts() {
                       </span>
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-end gap-2 border-t bg-muted/20 pt-4 pb-4 flex-wrap">
+                  <CardFooter className="flex justify-end gap-2 border-t bg-muted/20 pt-4 pb-4 flex-nowrap overflow-x-auto hide-scrollbar">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setReconciliationAccount(acc)}
-                      className="bg-background"
+                      className="bg-background shrink-0"
                     >
                       <CheckCircle className="h-4 w-4 mr-1.5 text-emerald-500" />
                       Conciliar
@@ -272,7 +272,7 @@ export default function BankAccounts() {
                       variant="outline"
                       size="sm"
                       onClick={() => openEdit(acc)}
-                      className="bg-background"
+                      className="bg-background shrink-0"
                     >
                       <Pencil className="h-4 w-4 mr-1.5" />
                       Editar
@@ -282,7 +282,7 @@ export default function BankAccounts() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-destructive hover:bg-destructive/10 border-destructive/20 bg-background"
+                          className="text-destructive hover:bg-destructive/10 border-destructive/20 bg-background shrink-0"
                         >
                           <Trash2 className="h-4 w-4 mr-1.5" />
                           Excluir

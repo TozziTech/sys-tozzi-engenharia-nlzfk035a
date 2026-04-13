@@ -43,6 +43,32 @@ export default function Settings() {
     { name: 'Orange', value: 'orange', colorClass: 'bg-orange-500' },
   ] as const
 
+  const PREDEFINED_PALETTES = [
+    { name: 'Corporate Blue', color: '#1e3a8a' },
+    { name: 'Industrial Gray', color: '#475569' },
+    { name: 'Construction Orange', color: '#ea580c' },
+    { name: 'Forest Green', color: '#166534' },
+    { name: 'Deep Red', color: '#991b1b' },
+  ]
+
+  const handleQuickPalette = async (color: string) => {
+    setCompanyForm((prev) => ({ ...prev, primary_color: color }))
+    try {
+      if (companyForm.id) {
+        await pb.collection('company_settings').update(companyForm.id, { primary_color: color })
+      } else {
+        const formData = new FormData()
+        formData.append('primary_color', color)
+        if (companyForm.company_name) formData.append('company_name', companyForm.company_name)
+        const res = await pb.collection('company_settings').create(formData)
+        setCompanyForm((prev) => ({ ...prev, id: res.id }))
+      }
+      toast({ title: 'Cor primária atualizada com sucesso!' })
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar cor', variant: 'destructive' })
+    }
+  }
+
   useEffect(() => {
     pb.collection('company_settings')
       .getFirstListItem('')
@@ -196,7 +222,30 @@ export default function Settings() {
                   Esta cor será aplicada aos botões, barras de progresso e relatórios.
                 </p>
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-3 md:col-span-2 pt-2 border-t mt-2">
+                <Label>Paletas de Cores Pré-definidas</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Clique para aplicar imediatamente uma cor principal para o sistema e relatórios.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {PREDEFINED_PALETTES.map((palette) => (
+                    <button
+                      key={palette.color}
+                      type="button"
+                      onClick={() => handleQuickPalette(palette.color)}
+                      className={cn(
+                        'flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all',
+                        companyForm.primary_color === palette.color
+                          ? 'border-slate-900 dark:border-slate-100 scale-110 shadow-sm'
+                          : 'border-transparent hover:scale-105',
+                      )}
+                      style={{ backgroundColor: palette.color }}
+                      title={palette.name}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2 md:col-span-2 pt-2 border-t mt-2">
                 <Label htmlFor="logo">Logotipo (PNG, JPG, SVG)</Label>
                 <div className="flex items-center gap-4 mt-1">
                   {logoPreview ? (

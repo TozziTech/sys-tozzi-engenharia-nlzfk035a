@@ -34,6 +34,32 @@ export function CompanySettingsModal({
   const [logoPreview, setLogoPreview] = useState('')
   const [savingCompany, setSavingCompany] = useState(false)
 
+  const PREDEFINED_PALETTES = [
+    { name: 'Corporate Blue', color: '#1e3a8a' },
+    { name: 'Industrial Gray', color: '#475569' },
+    { name: 'Construction Orange', color: '#ea580c' },
+    { name: 'Forest Green', color: '#166534' },
+    { name: 'Deep Red', color: '#991b1b' },
+  ]
+
+  const handleQuickPalette = async (color: string) => {
+    setCompanyForm((prev) => ({ ...prev, primary_color: color }))
+    try {
+      if (companyForm.id) {
+        await pb.collection('company_settings').update(companyForm.id, { primary_color: color })
+      } else {
+        const formData = new FormData()
+        formData.append('primary_color', color)
+        if (companyForm.company_name) formData.append('company_name', companyForm.company_name)
+        const res = await pb.collection('company_settings').create(formData)
+        setCompanyForm((prev) => ({ ...prev, id: res.id }))
+      }
+      toast({ title: 'Cor primária atualizada!' })
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar cor', variant: 'destructive' })
+    }
+  }
+
   useEffect(() => {
     if (open) {
       pb.collection('company_settings')
@@ -167,7 +193,26 @@ export function CompanySettingsModal({
               />
             </div>
           </div>
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-3 md:col-span-2 pt-2 border-t mt-2">
+            <Label>Paletas de Cores Pré-definidas</Label>
+            <div className="flex flex-wrap gap-3">
+              {PREDEFINED_PALETTES.map((palette) => (
+                <button
+                  key={palette.color}
+                  type="button"
+                  onClick={() => handleQuickPalette(palette.color)}
+                  className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
+                    companyForm.primary_color === palette.color
+                      ? 'border-slate-900 scale-110 shadow-sm'
+                      : 'border-transparent hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: palette.color }}
+                  title={palette.name}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2 md:col-span-2 pt-2 border-t mt-2">
             <Label htmlFor="modal_logo">Logotipo (PNG, JPG, SVG)</Label>
             <div className="flex items-center gap-4 mt-1">
               {logoPreview ? (

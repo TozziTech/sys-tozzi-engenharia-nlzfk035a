@@ -148,6 +148,25 @@ export function PrintExecutiveReport({
               ))}
           </tbody>
         </table>
+
+        <div className="mt-20 pt-8 flex justify-around text-center page-break-inside-avoid">
+          <div className="w-64">
+            <div
+              className="w-full border-b-2 mx-auto mb-3"
+              style={{ borderColor: companySettings?.primary_color || '#1e293b' }}
+            ></div>
+            <p className="font-semibold text-sm text-slate-800">Assinatura do Responsável</p>
+            <p className="text-xs text-slate-600 mt-1">{userName}</p>
+          </div>
+          <div className="w-64">
+            <div
+              className="w-full border-b-2 mx-auto mb-3"
+              style={{ borderColor: companySettings?.primary_color || '#1e293b' }}
+            ></div>
+            <p className="font-semibold text-sm text-slate-800">Data</p>
+            <p className="text-xs text-slate-600 mt-1">___ / ___ / ______</p>
+          </div>
+        </div>
       </div>
     </>
   )

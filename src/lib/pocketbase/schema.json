@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T20:27:36.534Z",
+  "generatedAt": "2026-04-13T20:33:00.487Z",
   "collections": [
     {
       "name": "users",
@@ -644,9 +644,15 @@
           "type": "bool",
           "required": false,
           "system": false
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE UNIQUE INDEX `idx_financial_records_code` ON `financial_records` (code)"]
     },
     {
       "name": "company_settings",

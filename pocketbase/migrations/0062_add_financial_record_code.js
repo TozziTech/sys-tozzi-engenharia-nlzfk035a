@@ -10,13 +10,19 @@ migrate(
 
     // Migrate existing records to have a unique code
     try {
-      const records = app.findRecordsByFilter('financial_records', '', 'created', 10000, 0)
+      // Using "1=1" instead of "" avoids panic during query parsing
+      const records = app.findRecordsByFilter('financial_records', '1=1', 'created', 10000, 0)
       if (records) {
         for (let i = 0; i < records.length; i++) {
           if (!records[i].get('code')) {
             const num = String(i + 1).padStart(3, '0')
-            records[i].set('code', `FIN-${num}`)
-            app.saveNoValidate(records[i])
+            const newCode = `FIN-${num}`
+            // Use raw SQL to update, bypassing any model hooks that might panic
+            app
+              .db()
+              .newQuery('UPDATE financial_records SET code = {:code} WHERE id = {:id}')
+              .bind({ code: newCode, id: records[i].get('id') })
+              .execute()
           }
         }
       }
@@ -25,7 +31,7 @@ migrate(
     }
 
     // Add unique index
-    collection.addIndex('idx_financial_records_code', true, 'code', "code != ''")
+    collection.addIndex('idx_financial_records_code', true, 'code', '')
     app.save(collection)
   },
   (app) => {

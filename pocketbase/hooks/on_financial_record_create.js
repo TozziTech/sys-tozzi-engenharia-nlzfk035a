@@ -12,7 +12,7 @@ onRecordCreate((e) => {
           "SELECT IFNULL(MAX(CAST(SUBSTR(code, 5) AS INTEGER)), 0) as maxNum FROM financial_records WHERE code LIKE 'FIN-%'",
         )
         .one(result)
-      maxNum = result.maxNum || 0
+      maxNum = parseInt(result.maxNum, 10) || 0
     } catch (err) {
       console.log('Error finding max code', err)
     }

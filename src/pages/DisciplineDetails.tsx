@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
-  Calendar,
+  Calendar as CalendarIcon,
   CheckCircle,
   UploadCloud,
   File,
@@ -17,6 +17,7 @@ import {
   Search,
   GripVertical,
 } from 'lucide-react'
+import { Calendar } from '@/components/ui/calendar'
 import {
   format,
   differenceInDays,
@@ -88,7 +89,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { HelpCircle, Columns, Download, X } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { getContrastYIQ } from '@/lib/colors'
 
 // Funções de exportação (placeholders preventivos para evitar erros de compilação)
 const exportDisciplineTasksCSV = (tasks: any[], moduleName: string) => {
@@ -703,7 +703,7 @@ export default function DisciplineDetails() {
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
                 <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
                       Prazo (Deadline)
@@ -1131,16 +1131,66 @@ export default function DisciplineDetails() {
                                   </TableCell>
                                 )}{' '}
                                 {visibleColumns.data && (
-                                  <TableCell
-                                    className={cn(
-                                      'text-right',
-                                      urgency.level === 'overdue' && 'text-red-500 font-bold',
-                                      urgency.level === 'urgent' && 'text-orange-500 font-bold',
-                                    )}
-                                  >
-                                    {task.due_date
-                                      ? format(new Date(task.due_date), 'dd/MM/yyyy')
-                                      : '-'}
+                                  <TableCell className="text-right">
+                                    <Popover>
+                                      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                        <Button
+                                          variant="ghost"
+                                          className={cn(
+                                            'w-[130px] justify-end text-right font-normal px-2 h-8',
+                                            !task.due_date && 'text-muted-foreground',
+                                            urgency.level === 'overdue' &&
+                                              'text-red-500 font-bold hover:text-red-600',
+                                            urgency.level === 'urgent' &&
+                                              'text-orange-500 font-bold hover:text-orange-600',
+                                          )}
+                                        >
+                                          {task.due_date ? (
+                                            format(new Date(task.due_date), 'dd/MM/yyyy')
+                                          ) : (
+                                            <span>Selecionar</span>
+                                          )}
+                                          <CalendarIcon className="ml-2 h-4 w-4" />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent
+                                        className="w-auto p-0"
+                                        align="end"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <Calendar
+                                          mode="single"
+                                          selected={
+                                            task.due_date ? new Date(task.due_date) : undefined
+                                          }
+                                          onSelect={async (date: Date | undefined) => {
+                                            try {
+                                              const formattedDate = date
+                                                ? `${format(date, 'yyyy-MM-dd')} 12:00:00.000Z`
+                                                : null
+                                              await pb
+                                                .collection('tasks')
+                                                .update(task.id, { due_date: formattedDate })
+                                              setTasks((prev) =>
+                                                prev.map((t) =>
+                                                  t.id === task.id
+                                                    ? { ...t, due_date: formattedDate }
+                                                    : t,
+                                                ),
+                                              )
+                                              toast({ title: 'Data atualizada' })
+                                            } catch (e: any) {
+                                              toast({
+                                                title: 'Erro',
+                                                description: 'Não foi possível atualizar a data.',
+                                                variant: 'destructive',
+                                              })
+                                            }
+                                          }}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
                                   </TableCell>
                                 )}
                                 {visibleColumns.acoes && (
@@ -1247,7 +1297,7 @@ export default function DisciplineDetails() {
                                             Prazo
                                           </span>
                                           <span className="text-xs font-medium flex items-center gap-1">
-                                            <Calendar className="h-3 w-3" />
+                                            <CalendarIcon className="h-3 w-3" />
                                             {format(new Date(task.due_date), 'dd/MM/yyyy')}
                                           </span>
                                         </div>

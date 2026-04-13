@@ -184,11 +184,19 @@ export function TaskRow({
           <select
             className={cn(
               'bg-transparent text-sm w-full outline-none cursor-pointer rounded px-2 py-1 transition-colors focus:ring-2 focus:ring-primary/50 font-medium',
-              task.concluida
+              task.concluida || task.dados_customizados?.status === 'Concluído'
                 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
-                : task.dados_customizados?.status === 'Em Andamento'
-                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
-                  : 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700',
+                : task.dados_customizados?.status === 'Atrasado'
+                  ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/50'
+                  : task.dados_customizados?.status === 'Revisão'
+                    ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/50'
+                    : task.dados_customizados?.status === 'Não Realizado'
+                      ? 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-950/30 hover:bg-gray-100 dark:hover:bg-gray-900/50'
+                      : task.dados_customizados?.status === 'Espera'
+                        ? 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-900/50'
+                        : task.dados_customizados?.status === 'Em Andamento'
+                          ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                          : 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700',
             )}
             value={task.concluida ? 'Concluído' : task.dados_customizados?.status || 'Pendente'}
             onChange={(e) => {
@@ -199,6 +207,10 @@ export function TaskRow({
               })
             }}
           >
+            <option value="Atrasado">Atrasado</option>
+            <option value="Revisão">Revisão</option>
+            <option value="Não Realizado">Não Realizado</option>
+            <option value="Espera">Espera</option>
             <option value="Pendente">Pendente</option>
             <option value="Em Andamento">Em Andamento</option>
             <option value="Concluído">Concluído</option>

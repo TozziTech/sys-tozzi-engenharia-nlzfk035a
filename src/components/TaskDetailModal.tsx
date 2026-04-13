@@ -165,7 +165,11 @@ export function TaskDetailModal({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="A Fazer">A Fazer</SelectItem>
+                      <SelectItem value="Atrasado">Atrasado</SelectItem>
+                      <SelectItem value="Revisão">Revisão</SelectItem>
+                      <SelectItem value="Não Realizado">Não Realizado</SelectItem>
+                      <SelectItem value="Espera">Espera</SelectItem>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
                       <SelectItem value="Em Andamento">Em Andamento</SelectItem>
                       <SelectItem value="Concluído">Concluído</SelectItem>
                     </SelectContent>

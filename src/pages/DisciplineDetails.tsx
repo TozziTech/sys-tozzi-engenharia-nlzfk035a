@@ -49,6 +49,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -126,7 +127,6 @@ export default function DisciplineDetails() {
 
   const [visibleColumns, setVisibleColumns] = useState({
     descricao: true,
-    tags: true,
     status: true,
     data: true,
     acoes: true,
@@ -135,6 +135,10 @@ export default function DisciplineDetails() {
   // Drag and Drop State
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null)
+
+  // Notes edit state
+  const [isEditingNotes, setIsEditingNotes] = useState(false)
+  const [editNotesValue, setEditNotesValue] = useState('')
 
   // Batch actions state
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
@@ -248,6 +252,19 @@ export default function DisciplineDetails() {
     }
   }
 
+  const handleSaveNotes = async () => {
+    if (!module) return
+    try {
+      await pb.collection('project_modules').update(module.id, { notes: editNotesValue })
+      setModule({ ...module, notes: editNotesValue })
+      setIsEditingNotes(false)
+      toast({ title: 'Observações atualizadas', description: 'O texto foi salvo com sucesso.' })
+    } catch (e: any) {
+      console.error(e)
+      toast({ title: 'Erro', description: 'Falha ao salvar observações.', variant: 'destructive' })
+    }
+  }
+
   const handleDeleteDoc = async (docName: string) => {
     if (!module) return
     try {
@@ -349,8 +366,17 @@ export default function DisciplineDetails() {
         return 'bg-emerald-500 hover:bg-emerald-600 text-white'
       case 'Em Andamento':
         return 'bg-blue-500 hover:bg-blue-600 text-white'
+      case 'Atrasado':
+        return 'bg-red-500 hover:bg-red-600 text-white'
+      case 'Revisão':
+        return 'bg-purple-500 hover:bg-purple-600 text-white'
+      case 'Não Realizado':
+        return 'bg-gray-500 hover:bg-gray-600 text-white'
+      case 'Espera':
+        return 'bg-orange-500 hover:bg-orange-600 text-white'
       case 'Pausado':
         return 'bg-amber-500 hover:bg-amber-600 text-white'
+      case 'Pendente':
       default:
         return 'bg-slate-500 hover:bg-slate-600 text-white'
     }
@@ -691,12 +717,56 @@ export default function DisciplineDetails() {
                 </div>
               </div>
 
-              {module.notes && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <p className="text-muted-foreground text-sm font-medium mb-1">Observações</p>
-                  <p className="text-sm whitespace-pre-wrap">{module.notes}</p>
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-muted-foreground text-sm font-medium">Observações</p>
+                  {!isEditingNotes && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs"
+                      onClick={() => {
+                        setEditNotesValue(module.notes || '')
+                        setIsEditingNotes(true)
+                      }}
+                    >
+                      <Edit2 className="h-3 w-3 mr-1" /> Editar
+                    </Button>
+                  )}
                 </div>
-              )}
+                {isEditingNotes ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editNotesValue}
+                      onChange={(e) => setEditNotesValue(e.target.value)}
+                      className="min-h-[100px] text-sm"
+                      placeholder="Adicione observações aqui..."
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setIsEditingNotes(false)}>
+                        Cancelar
+                      </Button>
+                      <Button size="sm" onClick={handleSaveNotes}>
+                        Salvar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="text-sm whitespace-pre-wrap cursor-pointer hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors min-h-[40px]"
+                    onClick={() => {
+                      setEditNotesValue(module.notes || '')
+                      setIsEditingNotes(true)
+                    }}
+                  >
+                    {module.notes || (
+                      <span className="text-muted-foreground italic">
+                        Nenhuma observação registrada. Clique para adicionar.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -735,6 +805,10 @@ export default function DisciplineDetails() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="All">Todos os Status</SelectItem>
+                            <SelectItem value="Atrasado">Atrasado</SelectItem>
+                            <SelectItem value="Revisão">Revisão</SelectItem>
+                            <SelectItem value="Não Realizado">Não Realizado</SelectItem>
+                            <SelectItem value="Espera">Espera</SelectItem>
                             <SelectItem value="Pendente">Pendente</SelectItem>
                             <SelectItem value="Em Andamento">Em Andamento</SelectItem>
                             <SelectItem value="Concluído">Concluído</SelectItem>
@@ -807,12 +881,6 @@ export default function DisciplineDetails() {
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuLabel>Alternar Colunas</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuCheckboxItem
-                            checked={visibleColumns.tags}
-                            onCheckedChange={(c) => setVisibleColumns((p) => ({ ...p, tags: !!c }))}
-                          >
-                            Tags
-                          </DropdownMenuCheckboxItem>
                           <DropdownMenuCheckboxItem
                             checked={visibleColumns.descricao}
                             onCheckedChange={(c) =>
@@ -894,9 +962,6 @@ export default function DisciplineDetails() {
                                 aria-label="Selecionar todas"
                               />
                             </TableHead>
-                            {visibleColumns.tags && (
-                              <TableHead className="w-[150px]">Tags</TableHead>
-                            )}
                             {visibleColumns.descricao && (
                               <TableHead>
                                 <div className="flex items-center gap-1.5">
@@ -993,24 +1058,6 @@ export default function DisciplineDetails() {
                                     aria-label={`Selecionar tarefa ${task.title}`}
                                   />
                                 </TableCell>
-                                {visibleColumns.tags && (
-                                  <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                      {task.expand?.tags?.map((tag: any) => (
-                                        <Badge
-                                          key={tag.id}
-                                          style={{
-                                            backgroundColor: tag.color,
-                                            color: getContrastYIQ(tag.color),
-                                          }}
-                                          className="text-[10px] px-1.5 py-0 border-none whitespace-nowrap"
-                                        >
-                                          {tag.name}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </TableCell>
-                                )}
                                 {visibleColumns.descricao && (
                                   <TableCell className="font-medium flex items-center py-3">
                                     {!isFilterActive ? (
@@ -1055,8 +1102,18 @@ export default function DisciplineDetails() {
                                       }
                                       className={
                                         task.status === 'Concluído'
-                                          ? 'bg-emerald-500 hover:bg-emerald-600'
-                                          : ''
+                                          ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-none'
+                                          : task.status === 'Atrasado'
+                                            ? 'bg-red-500 hover:bg-red-600 text-white border-none'
+                                            : task.status === 'Revisão'
+                                              ? 'bg-purple-500 hover:bg-purple-600 text-white border-none'
+                                              : task.status === 'Não Realizado'
+                                                ? 'bg-gray-500 hover:bg-gray-600 text-white border-none'
+                                                : task.status === 'Espera'
+                                                  ? 'bg-orange-500 hover:bg-orange-600 text-white border-none'
+                                                  : task.status === 'Em Andamento'
+                                                    ? 'bg-blue-500 hover:bg-blue-600 text-white border-none'
+                                                    : ''
                                       }
                                     >
                                       {task.status || 'Pendente'}
@@ -1479,6 +1536,10 @@ export default function DisciplineDetails() {
               <SelectValue placeholder="Alterar Status" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="Atrasado">Atrasado</SelectItem>
+              <SelectItem value="Revisão">Revisão</SelectItem>
+              <SelectItem value="Não Realizado">Não Realizado</SelectItem>
+              <SelectItem value="Espera">Espera</SelectItem>
               <SelectItem value="Pendente">Pendente</SelectItem>
               <SelectItem value="Em Andamento">Em Andamento</SelectItem>
               <SelectItem value="Concluído">Concluído</SelectItem>

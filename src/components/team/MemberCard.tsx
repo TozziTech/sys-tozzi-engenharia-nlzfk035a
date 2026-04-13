@@ -468,36 +468,40 @@ export function MemberCard({
               </ScrollArea>
             </DialogContent>
           </Dialog>
-          <p className="text-base font-medium text-muted-foreground flex items-center gap-2 mt-3">
-            <Briefcase className="h-5 w-5 text-primary/60 shrink-0" />
-            <span>{formacaoDisplay}</span>
-          </p>
+          <div className="space-y-3 mt-4">
+            <p className="text-base font-medium text-muted-foreground flex items-center gap-3">
+              <Briefcase className="h-5 w-5 text-primary/60 shrink-0" />
+              <span>{formacaoDisplay}</span>
+            </p>
+            <div className="flex items-center gap-3 text-base text-muted-foreground/80">
+              <Mail className="h-5 w-5 shrink-0 text-muted-foreground/60" />
+              <span className="truncate">{user.email || 'Email não informado'}</span>
+            </div>
+            <div className="flex items-center justify-between text-base">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Building2 className="h-5 w-5 shrink-0 text-muted-foreground/60" />
+                <span>
+                  <strong className="font-semibold text-foreground">{userProjects.length}</strong>{' '}
+                  Projetos
+                </span>
+              </div>
+              {user.crea && (
+                <Badge
+                  variant="outline"
+                  className="text-xs font-mono text-muted-foreground border-border/40 rounded-md bg-muted/20 px-2.5 py-0.5"
+                >
+                  CREA:{' '}
+                  <span className="ml-1" title={user.crea}>
+                    {user.crea}
+                  </span>
+                </Badge>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="mt-auto pt-6 border-t border-border/40 space-y-4">
-          <div className="flex items-center gap-3 text-base text-muted-foreground/80">
-            <Mail className="h-5 w-5 shrink-0 text-muted-foreground/60" />
-            <span className="truncate">{user.email || 'Email não informado'}</span>
-          </div>
-          <div className="flex items-center justify-between text-base">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Building2 className="h-5 w-5 shrink-0 text-muted-foreground/60" />
-              <span className="font-semibold text-foreground">{userProjects.length}</span> Projetos
-            </div>
-            {user.crea && (
-              <Badge
-                variant="outline"
-                className="text-xs font-mono text-muted-foreground border-border/40 rounded-md bg-muted/20 px-2.5 py-0.5"
-              >
-                CREA:{' '}
-                <span className="ml-1" title={user.crea}>
-                  {user.crea}
-                </span>
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2 opacity-40 group-hover:opacity-100 transition-opacity">
+        <div className="mt-auto pt-4 border-t border-border/40">
+          <div className="flex items-center justify-end gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
             <Button
               variant="ghost"
               size="icon"

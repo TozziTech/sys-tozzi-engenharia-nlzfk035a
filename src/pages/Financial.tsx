@@ -1,5 +1,15 @@
 import { useState, useMemo } from 'react'
-import { Plus, ArrowUpRight, ArrowDownRight, DollarSign, FilterX, Tags, Trash2 } from 'lucide-react'
+import {
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  DollarSign,
+  FilterX,
+  Tags,
+  Trash2,
+  Repeat,
+} from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -40,7 +50,7 @@ export default function Financial() {
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#6366f1')
 
-  const [formData, setFormData] = useState<Partial<Transaction>>({
+  const [formData, setFormData] = useState<any>({
     type: 'Entrada',
     status: 'Pendente',
     value: 0,
@@ -48,8 +58,12 @@ export default function Financial() {
     date: new Date().toISOString().split('T')[0],
     projectId: '',
     categoryId: '',
+    is_recurring: false,
+    frequency: 'Mensal',
+    end_date: '',
   })
 
+  const [formError, setFormError] = useState<string | null>(null)
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
 
@@ -80,6 +94,14 @@ export default function Financial() {
   const handleSubmit = () => {
     if (!formData.description || !formData.date || !formData.projectId || !formData.value) return
 
+    if (formData.is_recurring && formData.end_date) {
+      if (new Date(formData.end_date) < new Date(formData.date)) {
+        setFormError('A Data Final deve ser igual ou posterior à data inicial.')
+        return
+      }
+    }
+    setFormError(null)
+
     addTransaction({
       description: formData.description,
       type: formData.type as 'Entrada' | 'Saída',
@@ -88,7 +110,12 @@ export default function Financial() {
       projectId: formData.projectId,
       status: formData.status as 'Pendente' | 'Pago',
       categoryId: formData.type === 'Saída' ? formData.categoryId : undefined,
-    })
+      is_recurring: formData.is_recurring,
+      frequency: formData.is_recurring ? formData.frequency : '',
+      end_date:
+        formData.is_recurring && formData.end_date ? new Date(formData.end_date).toISOString() : '',
+      recurrence_group_id: formData.is_recurring ? crypto.randomUUID() : '',
+    } as any)
 
     setIsModalOpen(false)
     setFormData({
@@ -99,6 +126,9 @@ export default function Financial() {
       date: new Date().toISOString().split('T')[0],
       projectId: '',
       categoryId: '',
+      is_recurring: false,
+      frequency: 'Mensal',
+      end_date: '',
     })
   }
 
@@ -303,6 +333,55 @@ export default function Financial() {
                     </Select>
                   </div>
                 )}
+
+                <div className="col-span-2 space-y-4 border rounded-md p-4 bg-slate-50 dark:bg-slate-900/50 mt-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={formData.is_recurring}
+                      onCheckedChange={(c) =>
+                        setFormData({
+                          ...formData,
+                          is_recurring: c,
+                          frequency: formData.frequency || 'Mensal',
+                        })
+                      }
+                      id="recurring"
+                    />
+                    <Label htmlFor="recurring" className="font-semibold cursor-pointer">
+                      Lançamento Recorrente?
+                    </Label>
+                  </div>
+
+                  {formData.is_recurring && (
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div className="space-y-2">
+                        <Label>Frequência</Label>
+                        <Select
+                          value={formData.frequency}
+                          onValueChange={(v) => setFormData({ ...formData, frequency: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Semanal">Semanal</SelectItem>
+                            <SelectItem value="Mensal">Mensal</SelectItem>
+                            <SelectItem value="Anual">Anual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Data Final (Opcional)</Label>
+                        <Input
+                          type="date"
+                          value={formData.end_date || ''}
+                          onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                        />
+                      </div>
+                      {formError && <p className="col-span-2 text-sm text-red-500">{formError}</p>}
+                    </div>
+                  )}
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsModalOpen(false)}>
@@ -393,7 +472,14 @@ export default function Financial() {
                         key={tx.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
                       >
-                        <TableCell className="font-medium">{tx.description}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {tx.description}
+                            {(tx as any).is_recurring && (
+                              <Repeat className="h-4 w-4 text-slate-400" title="Recorrente" />
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {tx.type === 'Saída' && cat ? (
                             <Badge

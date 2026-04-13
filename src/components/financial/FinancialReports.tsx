@@ -76,6 +76,19 @@ export function FinancialReports() {
     [filteredTransactions],
   )
 
+  const totals = useMemo(() => {
+    return filteredTransactions.reduce(
+      (acc, tx) => {
+        const val = tx.value || (tx as any).amount || 0
+        if (tx.type === 'Entrada') acc.revenue += val
+        else if (tx.type === 'Saída') acc.expenses += val
+        acc.balance = acc.revenue - acc.expenses
+        return acc
+      },
+      { revenue: 0, expenses: 0, balance: 0 },
+    )
+  }, [filteredTransactions])
+
   const projectCosts = useMemo(() => {
     const costs: Record<string, number> = {}
     expenses.forEach((tx) => {
@@ -186,9 +199,53 @@ export function FinancialReports() {
             <Download className="h-4 w-4 mr-2" /> Exportar CSV
           </Button>
           <Button variant="outline" onClick={exportPDF}>
-            <FileText className="h-4 w-4 mr-2" /> Exportar Relatório
+            <FileText className="h-4 w-4 mr-2" /> Exportar PDF
           </Button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Total Receitas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">
+              {formatCurrency(totals.revenue)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Total Despesas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-rose-600">
+              {formatCurrency(totals.expenses)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Saldo no Período
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className={cn(
+                'text-2xl font-bold',
+                totals.balance >= 0 ? 'text-emerald-600' : 'text-rose-600',
+              )}
+            >
+              {formatCurrency(totals.balance)}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

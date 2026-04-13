@@ -146,10 +146,10 @@ export function FinancialTransactions() {
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="outline" onClick={exportCSV}>
-            <Download className="h-4 w-4 mr-2" /> CSV
+            <Download className="h-4 w-4 mr-2" /> Exportar CSV
           </Button>
           <Button variant="outline" onClick={exportPDF}>
-            <FileText className="h-4 w-4 mr-2" /> PDF
+            <FileText className="h-4 w-4 mr-2" /> Exportar PDF
           </Button>
         </div>
       </div>

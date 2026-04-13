@@ -72,6 +72,15 @@ export function EditTransactionModal({
       setFormError('Por favor, preencha os campos obrigatórios (Descrição, Valor e Data).')
       return
     }
+    if (isNaN(Number(formData.value)) || Number(formData.value) <= 0) {
+      setFormError('O valor da transação deve ser um número maior que zero.')
+      return
+    }
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+    if (!dateRegex.test(formData.date) || isNaN(new Date(formData.date).getTime())) {
+      setFormError('Por favor, insira uma data válida.')
+      return
+    }
     if (
       formData.is_recurring &&
       formData.end_date &&

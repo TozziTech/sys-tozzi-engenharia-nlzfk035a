@@ -1,39 +1,39 @@
 onRecordUpdateRequest((e) => {
-  let original = null
   try {
-    original = $app.findRecordById('projects', e.record.id)
-  } catch (_) {
-    return e.next()
-  }
-
-  const changes = {}
-  const fields = [
-    'status',
-    'progress',
-    'name',
-    'client',
-    'discipline',
-    'engineer',
-    'budget',
-    'spent',
-    'start_date',
-    'end_date',
-  ]
-
-  for (const field of fields) {
-    const oldVal = original.get(field)
-    const newVal = e.record.get(field)
-
-    const oldStr = oldVal !== null && oldVal !== undefined ? String(oldVal) : ''
-    const newStr = newVal !== null && newVal !== undefined ? String(newVal) : ''
-
-    if (oldStr !== newStr) {
-      changes[field] = { old: oldVal, new: newVal }
-    }
-  }
-
-  if (Object.keys(changes).length > 0) {
+    let original = null
     try {
+      original = $app.findRecordById('projects', e.record.id)
+    } catch (_) {
+      return e.next()
+    }
+
+    const changes = {}
+    const fields = [
+      'status',
+      'progress',
+      'name',
+      'client',
+      'discipline',
+      'engineer',
+      'budget',
+      'spent',
+      'start_date',
+      'end_date',
+    ]
+
+    for (const field of fields) {
+      const oldVal = original.get(field)
+      const newVal = e.record.get(field)
+
+      const oldStr = oldVal !== null && oldVal !== undefined ? String(oldVal) : ''
+      const newStr = newVal !== null && newVal !== undefined ? String(newVal) : ''
+
+      if (oldStr !== newStr) {
+        changes[field] = { old: oldVal, new: newVal }
+      }
+    }
+
+    if (Object.keys(changes).length > 0) {
       const auditLogs = $app.findCollectionByNameOrId('audit_logs')
       const log = new Record(auditLogs)
 
@@ -53,15 +53,13 @@ onRecordUpdateRequest((e) => {
         log.set('resource', 'projects')
         log.set('details', changes)
 
-        // Using saveNoValidate to prevent internal validation errors from bleeding
-        // into the main request context and blocking the project update.
         $app.saveNoValidate(log)
       } else {
         console.log('Audit log skipped: no valid user_id found')
       }
-    } catch (err) {
-      console.log('Audit log error:', err)
     }
+  } catch (err) {
+    console.log('Audit log error in on_project_update:', err)
   }
 
   return e.next()

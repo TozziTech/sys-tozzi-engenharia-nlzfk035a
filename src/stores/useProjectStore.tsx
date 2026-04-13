@@ -503,10 +503,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (p.client !== undefined) payload.client = p.client
       if (p.discipline !== undefined) payload.discipline = p.discipline
       if (p.status !== undefined) payload.status = p.status
-      if (p.progress !== undefined) payload.progress = p.progress
+      if (p.progress !== undefined)
+        payload.progress = typeof p.progress === 'string' ? parseFloat(p.progress) || 0 : p.progress
       if (p.engineer !== undefined) payload.engineer = p.engineer
-      if (p.budget !== undefined) payload.budget = p.budget
-      if (p.spent !== undefined) payload.spent = p.spent
+      if (p.budget !== undefined)
+        payload.budget = typeof p.budget === 'string' ? parseFloat(p.budget) || 0 : p.budget
+      if (p.spent !== undefined)
+        payload.spent = typeof p.spent === 'string' ? parseFloat(p.spent) || 0 : p.spent
       if (p.startDate !== undefined) {
         const d = new Date(p.startDate)
         if (isValid(d)) payload.start_date = d.toISOString()
@@ -518,8 +521,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (p.description !== undefined) payload.description = p.description
 
       await pb.collection('projects').update(id, payload)
+
+      // Optimistic update for UI sync
+      setProjects((prev) => prev.map((proj) => (proj.id === id ? { ...proj, ...p } : proj)))
     } catch (e) {
-      console.error(e)
+      console.error('Error updating project:', e)
+      throw e // Ensure components can handle the error
     }
   }
 

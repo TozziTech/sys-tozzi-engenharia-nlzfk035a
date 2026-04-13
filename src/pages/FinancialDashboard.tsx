@@ -39,8 +39,13 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { Input } from '@/components/ui/input'
+import { useToast } from '@/hooks/use-toast'
+import useProjectStore from '@/stores/useProjectStore'
 
 export default function FinancialDashboard() {
+  const { updateProject } = useProjectStore()
+  const { toast } = useToast()
   const { user } = useAuth()
   const [financials, setFinancials] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
@@ -161,12 +166,33 @@ export default function FinancialDashboard() {
     return projects
       .filter((p) => p.status !== 'Concluído' && p.budget > 0)
       .map((p) => ({
+        id: p.id,
         name: p.name,
         budget: p.budget,
         spent: p.spent || 0,
+        progress: p.progress || 0,
       }))
       .sort((a, b) => b.budget - a.budget)
   }, [projects])
+
+  const handleProgressChange = async (id: string, newProgress: string) => {
+    const val = parseFloat(newProgress)
+    if (isNaN(val) || val < 0 || val > 100) return
+
+    try {
+      await updateProject(id, { progress: val })
+      toast({
+        title: 'Sucesso',
+        description: 'Progresso do projeto atualizado.',
+      })
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao atualizar o progresso do projeto.',
+        variant: 'destructive',
+      })
+    }
+  }
 
   const formatCurrency = (v: number) =>
     `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -411,6 +437,56 @@ export default function FinancialDashboard() {
               </BarChart>
             </ChartContainer>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Atualização de Progresso</CardTitle>
+          <CardDescription>
+            Acompanhe e atualize o progresso dos projetos ativos diretamente do painel financeiro.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {activeProjectsFinancials.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-4">
+                Nenhum projeto ativo disponível.
+              </div>
+            ) : (
+              activeProjectsFinancials.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg bg-card"
+                >
+                  <div>
+                    <h4 className="font-medium text-sm">{p.name}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Orçamento: {formatCurrency(p.budget)} | Custo: {formatCurrency(p.spent)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium whitespace-nowrap">Progresso:</span>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        defaultValue={p.progress}
+                        onBlur={(e) => {
+                          if (e.target.value !== String(p.progress)) {
+                            handleProgressChange(p.id, e.target.value)
+                          }
+                        }}
+                        className="w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -60,14 +60,28 @@ export function PlanilhaFinanceira() {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
+  const [pagamentosPorServico, setPagamentosPorServico] = useState<Record<string, number>>({})
+
   const loadData = async () => {
     if (!user) return
     try {
-      const records = await pb.collection('servicos_financeiros').getFullList({
-        filter: `user_id = "${user.id}"`,
-        sort: '-created',
+      const [records, pgs] = await Promise.all([
+        pb.collection('servicos_financeiros').getFullList({
+          filter: `user_id = "${user.id}"`,
+          sort: '-created',
+        }),
+        pb.collection('pagamentos_servicos').getFullList({
+          filter: `servico_id.user_id = "${user.id}"`,
+        }),
+      ])
+
+      const pagamentosMap: Record<string, number> = {}
+      pgs.forEach((p: any) => {
+        pagamentosMap[p.servico_id] = (pagamentosMap[p.servico_id] || 0) + (p.valor || 0)
       })
+
       setServicos(records)
+      setPagamentosPorServico(pagamentosMap)
     } catch (e) {
       console.error(e)
     }
@@ -77,6 +91,7 @@ export function PlanilhaFinanceira() {
     loadData()
   }, [user])
   useRealtime('servicos_financeiros', loadData)
+  useRealtime('pagamentos_servicos', loadData)
 
   const handleSave = async () => {
     try {
@@ -222,87 +237,105 @@ export function PlanilhaFinanceira() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredServicos.map((s) => (
-                <Fragment key={s.id}>
-                  <TableRow>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleRow(s.id)}
-                        className="h-8 w-8"
-                      >
-                        {expandedRows[s.id] ? (
-                          <ChevronDown className="w-4 h-4" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </TableCell>
-                    <TableCell className="font-medium whitespace-nowrap text-primary">
-                      {s.codigo}
-                    </TableCell>
-                    <TableCell className="font-medium">{s.projeto_servico}</TableCell>
-                    <TableCell
-                      className="text-muted-foreground max-w-[200px] truncate"
-                      title={s.observacoes}
+              filteredServicos.map((s) => {
+                const totalPago = pagamentosPorServico[s.id] || 0
+                const isFullyPaid = totalPago >= (s.valor_total || 0) && (s.valor_total || 0) > 0
+
+                return (
+                  <Fragment key={s.id}>
+                    <TableRow
+                      className={
+                        isFullyPaid
+                          ? 'bg-emerald-50/40 hover:bg-emerald-50/60 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30'
+                          : ''
+                      }
                     >
-                      {s.observacoes || '-'}
-                    </TableCell>
-                    <TableCell>{s.cliente || '-'}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {s.data_inicio ? format(new Date(s.data_inicio), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          s.status === 'Concluído'
-                            ? 'default'
-                            : s.status === 'Cancelado'
-                              ? 'destructive'
-                              : 'secondary'
-                        }
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleRow(s.id)}
+                          className="h-8 w-8"
+                        >
+                          {expandedRows[s.id] ? (
+                            <ChevronDown className="w-4 h-4" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="font-medium whitespace-nowrap text-primary">
+                        {s.codigo}
+                      </TableCell>
+                      <TableCell className="font-medium">{s.projeto_servico}</TableCell>
+                      <TableCell
+                        className="text-muted-foreground max-w-[200px] truncate"
+                        title={s.observacoes}
                       >
-                        {s.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap font-medium">
-                      {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(s.valor_total || 0)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openForm(s)}
-                          title="Editar"
+                        {s.observacoes || '-'}
+                      </TableCell>
+                      <TableCell>{s.cliente || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {s.data_inicio ? format(new Date(s.data_inicio), 'dd/MM/yyyy') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            s.status === 'Concluído'
+                              ? 'default'
+                              : s.status === 'Cancelado'
+                                ? 'destructive'
+                                : 'secondary'
+                          }
                         >
-                          <Edit2 className="w-4 h-4 text-slate-500" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
-                          onClick={() => handleDelete(s.id)}
-                          title="Excluir"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {expandedRows[s.id] && (
-                    <TableRow className="bg-muted/10 hover:bg-muted/10">
-                      <TableCell colSpan={9} className="p-0 border-b">
-                        <ExpandedPaymentRow servico={s} />
+                          {s.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          {isFullyPaid && (
+                            <Badge
+                              variant="outline"
+                              className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-500 dark:border-emerald-500/20"
+                            >
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Pago
+                            </Badge>
+                          )}
+                          <span>{formatCurrency(s.valor_total || 0)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openForm(s)}
+                            title="Editar"
+                          >
+                            <Edit2 className="w-4 h-4 text-slate-500" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                            onClick={() => handleDelete(s.id)}
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  )}
-                </Fragment>
-              ))
+                    {expandedRows[s.id] && (
+                      <TableRow className="bg-muted/10 hover:bg-muted/10">
+                        <TableCell colSpan={9} className="p-0 border-b">
+                          <ExpandedPaymentRow servico={s} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                )
+              })
             )}
           </TableBody>
         </Table>

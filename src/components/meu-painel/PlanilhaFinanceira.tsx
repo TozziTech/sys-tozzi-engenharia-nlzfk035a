@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Edit2,
   Trash2,
@@ -39,8 +40,10 @@ import {
   Clock,
   ChevronDown,
   ChevronRight,
+  Briefcase,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { useToast } from '@/hooks/use-toast'
 import { ExpandedPaymentRow } from './ExpandedPaymentRow'
 import { Fragment } from 'react'
@@ -51,9 +54,11 @@ export function PlanilhaFinanceira() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [servicos, setServicos] = useState<any[]>([])
+  const [pagamentos, setPagamentos] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState<any>({})
   const [statusFilter, setStatusFilter] = useState<string>('Todos')
+  const [paymentFilter, setPaymentFilter] = useState<string>('Todos')
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
 
   const toggleRow = (id: string) => {
@@ -81,6 +86,7 @@ export function PlanilhaFinanceira() {
       })
 
       setServicos(records)
+      setPagamentos(pgs)
       setPagamentosPorServico(pagamentosMap)
     } catch (e) {
       console.error(e)
@@ -131,20 +137,33 @@ export function PlanilhaFinanceira() {
     setIsOpen(true)
   }
 
-  const filteredServicos = servicos.filter(
-    (s) => statusFilter === 'Todos' || s.status === statusFilter,
-  )
+  const filteredServicos = servicos.filter((s) => {
+    const statusMatch = statusFilter === 'Todos' || s.status === statusFilter
+    const totalPago = pagamentosPorServico[s.id] || 0
+    const isFullyPaid = totalPago >= (s.valor_total || 0) && (s.valor_total || 0) > 0
 
-  const totalGeral = filteredServicos
+    let paymentMatch = true
+    if (paymentFilter === 'Pagos') paymentMatch = isFullyPaid
+    if (paymentFilter === 'Pendentes') paymentMatch = !isFullyPaid
+
+    return statusMatch && paymentMatch
+  })
+
+  const currentMonthPrefix = format(new Date(), 'yyyy-MM')
+  const totalRecebidoMesAtual = pagamentos
+    .filter((p) => p.data_pagamento?.startsWith(currentMonthPrefix))
+    .reduce((acc, p) => acc + (p.valor || 0), 0)
+
+  const totalAReceber = servicos
     .filter((s) => s.status !== 'Cancelado')
-    .reduce((acc, s) => acc + (s.valor_total || 0), 0)
+    .reduce((acc, s) => {
+      const totalPago = pagamentosPorServico[s.id] || 0
+      const restante = (s.valor_total || 0) - totalPago
+      return acc + (restante > 0 ? restante : 0)
+    }, 0)
 
-  const totalConcluido = filteredServicos
-    .filter((s) => s.status === 'Concluído')
-    .reduce((acc, s) => acc + (s.valor_total || 0), 0)
-
-  const totalAberto = filteredServicos
-    .filter((s) => s.status === 'Pendente' || s.status === 'Em Andamento')
+  const totalGeral = servicos
+    .filter((s) => s.status !== 'Cancelado')
     .reduce((acc, s) => acc + (s.valor_total || 0), 0)
 
   const formatCurrency = (value: number) =>
@@ -152,12 +171,19 @@ export function PlanilhaFinanceira() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
         <h3 className="text-xl font-semibold">Meus Serviços Financeiros</h3>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full xl:w-auto">
+          <Tabs value={paymentFilter} onValueChange={setPaymentFilter} className="w-full sm:w-auto">
+            <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex">
+              <TabsTrigger value="Todos">Todos</TabsTrigger>
+              <TabsTrigger value="Pendentes">Pendentes</TabsTrigger>
+              <TabsTrigger value="Pagos">Pagos</TabsTrigger>
+            </TabsList>
+          </Tabs>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filtrar por Status" />
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Status do Serviço" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="Todos">Todos os Status</SelectItem>
@@ -167,49 +193,65 @@ export function PlanilhaFinanceira() {
               <SelectItem value="Cancelado">Cancelado</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            onClick={() => exportServicosFinanceirosCSV(filteredServicos)}
-            disabled={filteredServicos.length === 0}
-          >
-            <Download className="w-4 h-4 mr-2" /> Exportar CSV
-          </Button>
-          <Button onClick={() => openForm()}>
-            <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
-          </Button>
+          <div className="flex w-full sm:w-auto gap-2">
+            <Button
+              variant="outline"
+              onClick={() => exportServicosFinanceirosCSV(filteredServicos)}
+              disabled={filteredServicos.length === 0}
+              className="flex-1 sm:flex-none"
+            >
+              <Download className="w-4 h-4 mr-2" /> Exportar
+            </Button>
+            <Button onClick={() => openForm()} className="flex-1 sm:flex-none">
+              <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
+        <Card className="bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+              Recebido (Mês Atual)
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+              {formatCurrency(totalRecebidoMesAtual)}
+            </div>
+            <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-1">
+              Entradas em {format(new Date(), 'MMMM/yyyy', { locale: ptBR })}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-amber-50/50 border-amber-100 dark:bg-amber-950/20 dark:border-amber-900/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              A Receber
+            </CardTitle>
+            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">
+              {formatCurrency(totalAReceber)}
+            </div>
+            <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-1">
+              Saldo pendente de serviços ativos
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Geral</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total em Serviços</CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{formatCurrency(totalGeral)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Concluído</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
-              {formatCurrency(totalConcluido)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total em Aberto</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600 dark:text-amber-500">
-              {formatCurrency(totalAberto)}
-            </div>
+            <p className="text-xs text-muted-foreground mt-1">Valor global (exclui cancelados)</p>
           </CardContent>
         </Card>
       </div>

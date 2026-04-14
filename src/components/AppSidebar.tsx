@@ -63,9 +63,24 @@ const navigationGroups = [
     label: 'Gerenciador de Arquivos/Documentos',
     items: [
       { name: 'Biblioteca', href: '/files/library', icon: BookOpen },
-      { name: 'POPs', href: '/files/pops', icon: FileCheck },
-      { name: 'Projetos Base', href: '/files/base-projects', icon: FileStack },
-      { name: 'Documentos Modelos', href: '/files/templates', icon: FileSpreadsheet },
+      {
+        name: 'POPs',
+        href: '/files/pops',
+        icon: FileCheck,
+        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
+      },
+      {
+        name: 'Projetos Base',
+        href: '/files/base-projects',
+        icon: FileStack,
+        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
+      },
+      {
+        name: 'Documentos Modelos',
+        href: '/files/templates',
+        icon: FileSpreadsheet,
+        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista', 'Estagiário'],
+      },
       { name: 'Cursos', href: '/files/courses', icon: GraduationCap },
     ],
   },
@@ -127,6 +142,12 @@ export function AppSidebar() {
               <SidebarMenu>
                 {group.items.map((item) => {
                   if (item.adminOnly && user?.role !== 'Administrador') return null
+                  if (
+                    (item as any).allowedRoles &&
+                    (!user?.role || !(item as any).allowedRoles.includes(user.role))
+                  )
+                    return null
+
                   const isActive =
                     location.pathname === item.href ||
                     (location.pathname === '/' && item.href === '/dashboard')

@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
   GraduationCap,
   LinkIcon,
+  ShieldAlert,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -50,7 +51,20 @@ export default function DocumentResourcesPage({
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingResource, setEditingResource] = useState<DocumentResource | null>(null)
 
+  const allowedRolesForCategory: Record<string, string[]> = {
+    POPs: ['Administrador', 'Gerente de Projeto', 'Projetista'],
+    'Projetos Base': ['Administrador', 'Gerente de Projeto', 'Projetista'],
+    'Documentos Modelos': ['Administrador', 'Gerente de Projeto', 'Projetista', 'Estagiário'],
+  }
+
+  const allowedRoles = allowedRolesForCategory[category]
+  const hasAccess = !allowedRoles || (user?.role && allowedRoles.includes(user.role))
+
   const loadData = async () => {
+    if (!hasAccess) {
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
       const data = await getDocumentResources(category)
@@ -64,11 +78,15 @@ export default function DocumentResourcesPage({
 
   useEffect(() => {
     loadData()
-  }, [category])
+  }, [category, hasAccess])
 
-  useRealtime('document_resources', () => {
-    loadData()
-  })
+  useRealtime(
+    'document_resources',
+    () => {
+      loadData()
+    },
+    hasAccess,
+  )
 
   const handleDelete = async (id: string) => {
     try {
@@ -94,6 +112,21 @@ export default function DocumentResourcesPage({
       default:
         return <LinkIcon className={className} />
     }
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 text-center">
+        <div className="rounded-full bg-destructive/10 p-6 mb-2">
+          <ShieldAlert className="h-14 w-14 text-destructive" />
+        </div>
+        <h2 className="text-3xl font-bold tracking-tight">Acesso Negado</h2>
+        <p className="text-muted-foreground text-lg max-w-md">
+          Você não tem permissão para acessar a categoria "{category}". Entre em contato com um
+          administrador se precisar de acesso.
+        </p>
+      </div>
+    )
   }
 
   return (

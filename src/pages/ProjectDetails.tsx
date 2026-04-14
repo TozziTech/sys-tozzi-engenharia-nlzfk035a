@@ -29,7 +29,7 @@ import {
   FileSpreadsheet,
   FileText,
   AlertTriangle,
-  CheckCircle,
+  PieChart,
   Star,
 } from 'lucide-react'
 import { exportProjectHoursCSV } from '@/lib/export'
@@ -54,7 +54,7 @@ import {
 } from '@/components/ui/table'
 import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
-import { ProjectDisciplinesTab } from '@/components/ProjectDisciplinesTab'
+import { ProjectModules } from '@/components/ProjectModules'
 import { ProjectFinanceTab } from '@/components/ProjectFinanceTab'
 import {
   AlertDialog,
@@ -89,25 +89,24 @@ const MOCK_HISTORY = [
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [taskMetrics, setTaskMetrics] = useState({ completed: 0, pending: 0, total: 0 })
 
-  const loadMetrics = useCallback(async () => {
+  const [modules, setModules] = useState<any[]>([])
+
+  const loadModules = useCallback(async () => {
     if (!id) return
     try {
-      const th = await pb
-        .collection('tarefas_hierarquicas')
-        .getFullList({ filter: `projeto_id = "${id}"` })
-      const completed = th.filter((t) => t.concluida).length
-      const pending = th.length - completed
-      setTaskMetrics({ completed, pending, total: th.length })
+      const res = await pb
+        .collection('project_modules')
+        .getFullList({ filter: `project = "${id}"` })
+      setModules(res)
     } catch (e) {
       console.error(e)
     }
   }, [id])
 
   useEffect(() => {
-    loadMetrics()
-  }, [loadMetrics])
+    loadModules()
+  }, [loadModules])
 
   // Resolve console runtime warnings caused by vite-plugin-react-uid injecting data-uid into React.Fragment
   useEffect(() => {
@@ -128,7 +127,7 @@ export default function ProjectDetails() {
     }
   }, [])
 
-  useRealtime('tarefas_hierarquicas', loadMetrics)
+  useRealtime('project_modules', loadModules)
   useRealtime('projects', () => {
     // Keep projects in sync
   })
@@ -267,6 +266,19 @@ export default function ProjectDetails() {
     )
   }
 
+  const totalModules = modules.length
+  const modulesByStatus = modules.reduce(
+    (acc, mod) => {
+      acc[mod.status] = (acc[mod.status] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+  const overallProgress =
+    totalModules > 0
+      ? Math.round(modules.reduce((sum, m) => sum + (m.progress || 0), 0) / totalModules)
+      : 0
+
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6">
       <div className="flex items-center justify-between">
@@ -302,38 +314,61 @@ export default function ProjectDetails() {
       <Card className="w-full">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-primary" />
-            Métricas de Tarefas
+            <PieChart className="h-5 w-5 text-primary" />
+            Visão Geral do Projeto
           </CardTitle>
           <CardDescription>
-            Visão geral da distribuição de tarefas concluídas e pendentes
+            Progresso consolidado baseado nas disciplinas e seus status
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {taskMetrics.total > 0 ? (
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm font-medium">
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  {taskMetrics.completed} Concluídas
-                </span>
-                <span className="text-amber-600 dark:text-amber-400">
-                  {taskMetrics.pending} Pendentes
-                </span>
+          {totalModules > 0 ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-3 bg-muted/30 rounded-lg border flex flex-col items-center justify-center text-center">
+                  <span className="text-2xl font-bold text-foreground">{totalModules}</span>
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
+                    Disciplinas
+                  </span>
+                </div>
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-lg flex flex-col items-center justify-center text-center">
+                  <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                    {modulesByStatus['Concluído'] || 0}
+                  </span>
+                  <span className="text-xs text-emerald-600/80 dark:text-emerald-400/80 uppercase tracking-wider mt-1">
+                    Concluídas
+                  </span>
+                </div>
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50 rounded-lg flex flex-col items-center justify-center text-center">
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {modulesByStatus['Em Andamento'] || 0}
+                  </span>
+                  <span className="text-xs text-blue-600/80 dark:text-blue-400/80 uppercase tracking-wider mt-1">
+                    Em Andamento
+                  </span>
+                </div>
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 rounded-lg flex flex-col items-center justify-center text-center">
+                  <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                    {(modulesByStatus['Pendente'] || 0) + (modulesByStatus['Pausado'] || 0)}
+                  </span>
+                  <span className="text-xs text-amber-600/80 dark:text-amber-400/80 uppercase tracking-wider mt-1">
+                    Pend./Paus.
+                  </span>
+                </div>
               </div>
-              <div className="h-4 w-full bg-amber-100 dark:bg-amber-900/30 rounded-full overflow-hidden flex">
-                <div
-                  className="h-full bg-emerald-500 transition-all duration-500"
-                  style={{ width: `${(taskMetrics.completed / taskMetrics.total) * 100}%` }}
-                />
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Progresso Geral (Média das Disciplinas)</span>
+                  <span>{overallProgress}%</span>
+                </div>
+                <Progress value={overallProgress} className="h-3" />
               </div>
-              <p className="text-xs text-muted-foreground text-center">
-                {Math.round((taskMetrics.completed / taskMetrics.total) * 100)}% de progresso nas
-                tarefas
-              </p>
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground text-center py-2">
-              Nenhuma tarefa registrada para este projeto.
+            <div className="text-sm text-muted-foreground text-center py-6 bg-muted/20 rounded-lg border border-dashed">
+              Nenhuma disciplina registrada para este projeto. Adicione disciplinas para acompanhar
+              o progresso.
             </div>
           )}
         </CardContent>
@@ -443,7 +478,7 @@ export default function ProjectDetails() {
           </Card>
 
           <div className="w-full">
-            <ProjectDisciplinesTab projectId={project.id} />
+            <ProjectModules projectId={project.id} />
           </div>
 
           <Card>

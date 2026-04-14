@@ -271,6 +271,34 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                     </p>
                   )}
 
+                  <div className="mb-4 pt-3 border-t border-border/50 text-sm">
+                    {(() => {
+                      const moduleTasks = tasks.filter((t) => t.module === mod.id)
+                      const completedTasks = moduleTasks.filter(
+                        (t) => t.status === 'Concluído' || t.completed_at,
+                      ).length
+                      const pendingTasks = moduleTasks.length - completedTasks
+                      const hasTasks = moduleTasks.length > 0
+
+                      return hasTasks ? (
+                        <span className="text-muted-foreground">
+                          Tarefas:{' '}
+                          <strong className="text-amber-600 dark:text-amber-400 font-medium">
+                            {pendingTasks} pendentes
+                          </strong>{' '}
+                          /{' '}
+                          <strong className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            {completedTasks} concluídas
+                          </strong>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground italic">
+                          Sem tarefas cadastradas
+                        </span>
+                      )
+                    })()}
+                  </div>
+
                   {canEdit && (
                     <div className="flex justify-end gap-2 pt-2 border-t">
                       <Button

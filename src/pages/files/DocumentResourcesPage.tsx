@@ -15,6 +15,8 @@ import {
   Star,
   Search,
   Copy,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
@@ -65,6 +67,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 function ManageTagsDialog({ children }: { children: ReactNode }) {
   return (
@@ -110,6 +121,9 @@ export default function DocumentResourcesPage({
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all')
   const [sortBy, setSortBy] = useState<string>('created_desc')
   const [availableTags, setAvailableTags] = useState<any[]>([])
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    return (localStorage.getItem('document-view-mode') as 'grid' | 'list') || 'grid'
+  })
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
   const { toast } = useToast()
@@ -157,6 +171,10 @@ export default function DocumentResourcesPage({
     loadFavorites()
     pb.collection('tags').getFullList({ sort: 'name' }).then(setAvailableTags).catch(console.error)
   }, [category, hasAccess, user])
+
+  useEffect(() => {
+    localStorage.setItem('document-view-mode', viewMode)
+  }, [viewMode])
 
   useRealtime('document_resources', () => loadData(), hasAccess)
   useRealtime('user_document_favorites', () => loadFavorites(), hasAccess && !!user)
@@ -320,6 +338,19 @@ export default function DocumentResourcesPage({
               <SelectItem value="updated_desc">Última Modificação</SelectItem>
             </SelectContent>
           </Select>
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(v) => v && setViewMode(v as 'grid' | 'list')}
+            className="bg-background border rounded-md h-10 p-1"
+          >
+            <ToggleGroupItem value="grid" aria-label="Grid View" className="h-8 px-2">
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List View" className="h-8 px-2">
+              <List className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
           <Button variant="outline" asChild>
             <Link to="/files/favorites">
               <Star className="mr-2 h-4 w-4" /> Meus Favoritos
@@ -379,6 +410,159 @@ export default function DocumentResourcesPage({
                   ? 'Nenhum documento encontrado para esta disciplina.'
                   : `Não há documentos na categoria "${category}" no momento.`}
           </p>
+        </div>
+      ) : viewMode === 'list' ? (
+        <div className="rounded-md border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[40%]">Título</TableHead>
+                <TableHead className="hidden md:table-cell">Categoria</TableHead>
+                <TableHead className="hidden lg:table-cell">Disciplina / Tags</TableHead>
+                <TableHead className="hidden sm:table-cell">Atualizado em</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {displayedResources.map((resource) => {
+                const isFav = favorites.find((f) => f.document_id === resource.id)
+                return (
+                  <TableRow key={resource.id}>
+                    <TableCell>
+                      <div className="flex items-start gap-3">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full shrink-0 -mt-1"
+                          onClick={() => handleToggleFav(resource.id, isFav?.id)}
+                        >
+                          <Star
+                            className={cn(
+                              'h-4 w-4',
+                              isFav ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground',
+                            )}
+                          />
+                        </Button>
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <span className="font-medium text-base truncate" title={resource.title}>
+                            {resource.title}
+                          </span>
+                          <span
+                            className="text-sm text-muted-foreground line-clamp-1"
+                            title={resource.description || ''}
+                          >
+                            {resource.description || 'Sem descrição'}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <Badge variant="secondary" className="font-normal text-xs whitespace-nowrap">
+                        {resource.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <div className="flex flex-wrap gap-1">
+                        {resource.discipline && (
+                          <Badge
+                            variant="outline"
+                            className="font-normal text-xs text-primary border-primary/20 bg-primary/5 whitespace-nowrap"
+                          >
+                            {resource.discipline}
+                          </Badge>
+                        )}
+                        {resource.expand?.tags?.map((tag: any) => (
+                          <Badge
+                            key={tag.id}
+                            className="font-normal text-xs border-none whitespace-nowrap"
+                            style={{ backgroundColor: tag.color, color: getContrastYIQ(tag.color) }}
+                          >
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell text-muted-foreground text-sm whitespace-nowrap">
+                      {new Date(resource.updated || resource.created).toLocaleDateString('pt-BR')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="default"
+                          size="icon"
+                          className="h-9 w-9"
+                          asChild
+                          title="Acessar Link"
+                        >
+                          <a
+                            href={resource.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => handleAccessLink(resource)}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 bg-background shrink-0"
+                          onClick={() => handleCopyLink(resource.url)}
+                          title="Copiar link"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9 bg-background"
+                              onClick={() => {
+                                setEditingResource(resource)
+                                setIsDialogOpen(true)
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-9 w-9 bg-background text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remover Link?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja remover o documento "{resource.title}"?
+                                    Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(resource.id)}
+                                    className="bg-destructive text-destructive-foreground"
+                                  >
+                                    Remover
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

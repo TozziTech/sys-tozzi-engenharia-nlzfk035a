@@ -2,6 +2,10 @@ onRecordCreate((e) => {
   const status = e.record.get('status')
   const account = e.record.get('bank_account')
 
+  if (e.record.get('is_recurring') && !e.record.get('recurrence_group_id')) {
+    e.record.set('recurrence_group_id', $security.randomString(16))
+  }
+
   if (!e.record.get('code')) {
     let maxNum = 0
     try {

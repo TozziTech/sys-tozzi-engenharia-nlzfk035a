@@ -24,11 +24,15 @@ import { Link } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { ProjectModule } from '@/types/project_modules'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
+import { cn } from '@/lib/utils'
 
 export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   const [modules, setModules] = useState<ProjectModule[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [newModuleName, setNewModuleName] = useState('')
+  const [newModuleStatus, setNewModuleStatus] = useState<ProjectModule['status']>('Pendente')
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const { toast } = useToast()
 
   const loadData = async () => {
@@ -69,18 +73,38 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   }
 
   const handleAdd = async () => {
-    if (!newModuleName.trim()) return
+    setFieldErrors({})
+
+    const errors: FieldErrors = {}
+    if (!newModuleName.trim()) {
+      errors.name = 'O nome da disciplina é obrigatório.'
+    }
+    if (!newModuleStatus) {
+      errors.status = 'O status é obrigatório.'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+
     try {
       await pb.collection('project_modules').create({
         name: newModuleName,
         project: projectId,
-        status: 'Pendente',
+        status: newModuleStatus,
         progress: 0,
       })
       setNewModuleName('')
+      setNewModuleStatus('Pendente')
       toast({ title: 'Módulo adicionado' })
     } catch (e) {
-      toast({ title: 'Erro ao adicionar módulo', variant: 'destructive' })
+      setFieldErrors(extractFieldErrors(e))
+      toast({
+        title: 'Erro ao adicionar módulo',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -106,18 +130,53 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Nome da nova disciplina..."
-            value={newModuleName}
-            onChange={(e) => setNewModuleName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-            className="max-w-sm"
-          />
-          <Button onClick={handleAdd}>
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar
-          </Button>
+        <div className="flex flex-col gap-3 p-4 border rounded-lg bg-muted/30">
+          <h3 className="text-sm font-medium">Adicionar Nova Disciplina</h3>
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-start">
+            <div className="flex-1 w-full space-y-1">
+              <Input
+                placeholder="Nome da nova disciplina..."
+                value={newModuleName}
+                onChange={(e) => {
+                  setNewModuleName(e.target.value)
+                  if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }))
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                className={cn(
+                  fieldErrors.name && 'border-destructive focus-visible:ring-destructive',
+                )}
+              />
+              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
+            </div>
+            <div className="w-full sm:w-[200px] space-y-1">
+              <Select
+                value={newModuleStatus}
+                onValueChange={(v: ProjectModule['status']) => {
+                  setNewModuleStatus(v)
+                  if (fieldErrors.status) setFieldErrors((prev) => ({ ...prev, status: '' }))
+                }}
+              >
+                <SelectTrigger
+                  className={cn(fieldErrors.status && 'border-destructive focus:ring-destructive')}
+                >
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pendente">Pendente</SelectItem>
+                  <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                  <SelectItem value="Concluído">Concluído</SelectItem>
+                  <SelectItem value="Pausado">Pausado</SelectItem>
+                </SelectContent>
+              </Select>
+              {fieldErrors.status && (
+                <p className="text-xs text-destructive">{fieldErrors.status}</p>
+              )}
+            </div>
+            <Button onClick={handleAdd} className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar
+            </Button>
+          </div>
         </div>
 
         <div className="rounded-md border overflow-x-auto">

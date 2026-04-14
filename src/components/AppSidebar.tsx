@@ -17,6 +17,7 @@ import {
   Landmark,
   Briefcase,
   Shield,
+  Contact,
   LineChart,
   Activity,
 } from 'lucide-react'
@@ -69,6 +70,7 @@ const navigationGroups = [
     items: [
       { name: 'Projetistas', href: '/team', icon: Users },
       { name: 'Clientes', href: '/clients', icon: Briefcase },
+      { name: 'Contatos', href: '/contacts', icon: Contact },
       { name: 'Equipamentos', href: '/equipment', icon: HardHat },
     ],
   },

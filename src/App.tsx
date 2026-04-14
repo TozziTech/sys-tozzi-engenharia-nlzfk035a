@@ -22,6 +22,7 @@ import { RealtimeSync } from './components/RealtimeSync'
 import Financial from './pages/Financial'
 import FinancialDashboard from './pages/FinancialDashboard'
 import Clients from './pages/Clients'
+import Contacts from './pages/Contacts'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Gantt from './pages/Gantt'
@@ -73,6 +74,7 @@ const App = () => (
                   <Route path="/financial" element={<Financial />} />
                   <Route path="/financeiro" element={<Finance />} />
                   <Route path="/clients" element={<Clients />} />
+                  <Route path="/contacts" element={<Contacts />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/gantt" element={<Gantt />} />

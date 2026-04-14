@@ -41,6 +41,22 @@ export const validateCPF = (cpf: string) => {
   return rest(10) === values[9] && rest(11) === values[10]
 }
 
+export const getContrastYIQ = (hexcolor: string) => {
+  if (!hexcolor) return 'black'
+  hexcolor = hexcolor.replace('#', '')
+  if (hexcolor.length === 3) {
+    hexcolor = hexcolor
+      .split('')
+      .map((c) => c + c)
+      .join('')
+  }
+  const r = parseInt(hexcolor.substring(0, 2), 16)
+  const g = parseInt(hexcolor.substring(2, 4), 16)
+  const b = parseInt(hexcolor.substring(4, 6), 16)
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000
+  return yiq >= 128 ? 'black' : 'white'
+}
+
 export const maskPhone = (value: string) => {
   const digits = value.replace(/\D/g, '')
   if (digits.length <= 10) {

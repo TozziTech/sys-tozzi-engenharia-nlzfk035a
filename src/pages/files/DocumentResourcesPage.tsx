@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Plus,
@@ -45,7 +45,37 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { cn } from '@/lib/utils'
+import { cn, getContrastYIQ } from '@/lib/utils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+
+function ManageTagsDialog({ children }: { children: ReactNode }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Gerenciar Tags</DialogTitle>
+        </DialogHeader>
+        <div className="py-6 text-center text-muted-foreground">
+          Funcionalidade de gerenciamento de tags em desenvolvimento.
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 export default function DocumentResourcesPage({
   category,

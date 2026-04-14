@@ -34,6 +34,7 @@ import Activities from './pages/Activities'
 import PendingReport from './pages/PendingReport'
 import Finance from './pages/Finance'
 import Quotes from './pages/Quotes'
+import ContractGenerator from './pages/ContractGenerator'
 import GestaoCentral from './pages/GestaoCentral'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
@@ -89,6 +90,7 @@ const App = () => (
                   <Route path="/deadline-audit" element={<DeadlineAudit />} />
                   <Route path="/management/bank-accounts" element={<BankAccounts />} />
                   <Route path="/quotes" element={<Quotes />} />
+                  <Route path="/operations/contract-generator" element={<ContractGenerator />} />
                   <Route path="/gestao-central" element={<GestaoCentral />} />
                   <Route path="/equipments" element={<Equipments />} />
                   <Route path="/equipment" element={<Equipments />} />

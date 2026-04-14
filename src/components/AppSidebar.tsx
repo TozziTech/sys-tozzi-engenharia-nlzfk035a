@@ -13,6 +13,7 @@ import {
   DollarSign,
   HardHat,
   FileText,
+  FileSignature,
   Landmark,
   Briefcase,
   Shield,
@@ -60,6 +61,7 @@ const navigationGroups = [
       { name: 'Cronograma', href: '/schedule', icon: CalendarDays },
       { name: 'Calendário', href: '/calendar', icon: CalendarIcon },
       { name: 'Orçamentos', href: '/quotes', icon: FileText },
+      { name: 'Gerador de Contratos', href: '/operations/contract-generator', icon: FileSignature },
     ],
   },
   {

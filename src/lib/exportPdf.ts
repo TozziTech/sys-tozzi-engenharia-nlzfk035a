@@ -2,6 +2,63 @@ import { User, Project } from '@/types/project'
 
 import { format } from 'date-fns'
 
+export function exportContractPDF(contract: any, currentUser: string, settings: any = null) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const content = (contract.final_content || '').replace(/\n/g, '<br/>')
+  const fileName = `Contrato_${(contract.client_name || 'Cliente').replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}`
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>${fileName}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { 
+            font-family: "Times New Roman", Times, serif; 
+            line-height: 1.6; 
+            color: #000; 
+            max-width: 210mm; 
+            margin: 0 auto; 
+            padding: 20px;
+            font-size: 12pt;
+          }
+          .header { text-align: center; margin-bottom: 30px; }
+          .header img { max-height: 80px; }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-family: system-ui, sans-serif; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente. Escolha "Salvar como PDF" como destino.
+        </div>
+        ${logoUrl ? `<div class="header"><img src="${logoUrl}" /></div>` : ''}
+        <div class="content">
+          ${content}
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
 export function exportBankAccountsPDF(accounts: any[], currentUser: string, settings: any = null) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return

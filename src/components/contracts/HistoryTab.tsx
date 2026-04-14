@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
-import { FileText, Eye, Link as LinkIcon, Edit2 } from 'lucide-react'
+import { FileText, Eye, Link as LinkIcon, Edit2, Download, FileType2 } from 'lucide-react'
 import { GeneratedContract, getGeneratedContracts } from '@/services/generated_contracts'
 import { useRealtime } from '@/hooks/use-realtime'
+import { exportWord } from '@/lib/export'
+import { exportContractPDF } from '@/lib/exportPdf'
+import { useAuth } from '@/hooks/use-auth'
+import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -22,6 +26,7 @@ import { ContractStatusBadge } from './ContractStatusBadge'
 import { ContractPreview } from './ContractPreview'
 
 export function HistoryTab({ onEditDraft }: { onEditDraft: (c: GeneratedContract) => void }) {
+  const { user } = useAuth()
   const [contracts, setContracts] = useState<GeneratedContract[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedContract, setSelectedContract] = useState<GeneratedContract | null>(null)
@@ -41,6 +46,18 @@ export function HistoryTab({ onEditDraft }: { onEditDraft: (c: GeneratedContract
     loadContracts()
   }, [])
   useRealtime('generated_contracts', () => loadContracts())
+
+  const handleExportDOCX = (contract: GeneratedContract) => {
+    if (!contract.final_content) return
+    const date = format(new Date(), 'yyyy-MM-dd')
+    const filename = `Contrato_${contract.client_name.replace(/\s+/g, '_')}_${date}.docx`
+    exportWord(contract.final_content, filename)
+  }
+
+  const handleExportPDF = (contract: GeneratedContract) => {
+    if (!contract.final_content) return
+    exportContractPDF(contract, user?.name || 'Usuário')
+  }
 
   return (
     <div className="flex flex-col h-full space-y-4">
@@ -109,6 +126,26 @@ export function HistoryTab({ onEditDraft }: { onEditDraft: (c: GeneratedContract
                           <LinkIcon className="h-4 w-4 text-blue-600" />
                         </Button>
                       )}
+                      {c.final_content && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleExportPDF(c)}
+                            title="Exportar PDF"
+                          >
+                            <FileType2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleExportDOCX(c)}
+                            title="Exportar DOCX"
+                          >
+                            <Download className="h-4 w-4 text-blue-600" />
+                          </Button>
+                        </>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -138,7 +175,12 @@ export function HistoryTab({ onEditDraft }: { onEditDraft: (c: GeneratedContract
             </div>
           </SheetHeader>
           <div className="flex-1 min-h-0 relative">
-            {selectedContract && <ContractPreview content={selectedContract.final_content} />}
+            {selectedContract && (
+              <ContractPreview
+                content={selectedContract.final_content}
+                clientName={selectedContract.client_name}
+              />
+            )}
           </div>
         </SheetContent>
       </Sheet>

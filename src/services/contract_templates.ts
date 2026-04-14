@@ -4,6 +4,8 @@ export interface ContractTemplate {
   id: string
   name: string
   content: string
+  email_subject?: string
+  email_body?: string
   created: string
   updated: string
 }

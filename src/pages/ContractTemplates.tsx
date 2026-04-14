@@ -45,6 +45,8 @@ import { extractFieldErrors } from '@/lib/pocketbase/errors'
 const templateSchema = z.object({
   name: z.string().min(3, 'O nome deve ter no mínimo 3 caracteres.'),
   content: z.string().min(10, 'O conteúdo do contrato não pode ficar vazio.'),
+  email_subject: z.string().optional(),
+  email_body: z.string().optional(),
 })
 
 export default function ContractTemplates() {
@@ -55,7 +57,7 @@ export default function ContractTemplates() {
 
   const form = useForm<z.infer<typeof templateSchema>>({
     resolver: zodResolver(templateSchema),
-    defaultValues: { name: '', content: '' },
+    defaultValues: { name: '', content: '', email_subject: '', email_body: '' },
   })
 
   const loadTemplates = async () => {
@@ -80,10 +82,15 @@ export default function ContractTemplates() {
   const handleOpen = (template?: ContractTemplate) => {
     if (template) {
       setEditingId(template.id)
-      form.reset({ name: template.name, content: template.content })
+      form.reset({
+        name: template.name,
+        content: template.content,
+        email_subject: template.email_subject || '',
+        email_body: template.email_body || '',
+      })
     } else {
       setEditingId(null)
-      form.reset({ name: '', content: '' })
+      form.reset({ name: '', content: '', email_subject: '', email_body: '' })
     }
     setIsOpen(true)
   }
@@ -139,12 +146,15 @@ export default function ContractTemplates() {
               <DialogDescription>
                 Use as variáveis para campos dinâmicos: <code>{'{{cliente}}'}</code>,{' '}
                 <code>{'{{endereco}}'}</code>, <code>{'{{valor}}'}</code>,{' '}
-                <code>{'{{prazo}}'}</code>.
+                <code>{'{{prazo}}'}</code>. Disponível no contrato e no e-mail.
               </DialogDescription>
             </DialogHeader>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4 mt-4 max-h-[70vh] overflow-y-auto px-1"
+              >
                 <FormField
                   control={form.control}
                   name="name"
@@ -168,7 +178,7 @@ export default function ContractTemplates() {
                       <FormControl>
                         <Textarea
                           placeholder="Digite o conteúdo do contrato aqui..."
-                          className="min-h-[300px] font-mono resize-y"
+                          className="min-h-[200px] font-mono resize-y"
                           {...field}
                         />
                       </FormControl>
@@ -179,6 +189,41 @@ export default function ContractTemplates() {
                     </FormItem>
                   )}
                 />
+
+                <div className="space-y-4 pt-4 border-t">
+                  <h4 className="text-sm font-medium">Configuração de E-mail (Opcional)</h4>
+                  <FormField
+                    control={form.control}
+                    name="email_subject"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Assunto do E-mail</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Envio de Contrato - {{cliente}}" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email_body"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Corpo do E-mail</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Olá {{cliente}}, segue em anexo..."
+                            className="min-h-[100px] resize-y"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>

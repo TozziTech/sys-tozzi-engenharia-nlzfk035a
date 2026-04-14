@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T02:42:35.199Z",
+  "generatedAt": "2026-04-14T02:56:41.857Z",
   "collections": [
     {
       "name": "users",
@@ -1725,6 +1725,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "email_subject",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_body",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_contract_templates_name ON contract_templates (name)"]
@@ -1794,6 +1806,18 @@
         {
           "name": "client_email",
           "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_subject",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_body",
+          "type": "text",
           "required": false,
           "system": false
         }

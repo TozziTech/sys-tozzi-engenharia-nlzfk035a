@@ -12,6 +12,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Switch } from '@/components/ui/switch'
 import { FileSignature, Printer, FileText, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContractTemplate, getContractTemplates } from '@/services/contract_templates'
@@ -34,6 +36,9 @@ const formSchema = z.object({
   address: z.string().optional(),
   value: z.string().optional(),
   deadline: z.string().optional(),
+  emailSubject: z.string().optional(),
+  emailBody: z.string().optional(),
+  isCustomEmail: z.boolean().default(false),
 })
 
 export default function ContractGenerator() {
@@ -49,6 +54,9 @@ export default function ContractGenerator() {
       address: '',
       value: '',
       deadline: '',
+      emailSubject: '',
+      emailBody: '',
+      isCustomEmail: false,
     },
   })
 
@@ -75,25 +83,48 @@ export default function ContractGenerator() {
     return templates.find((t) => t.id === values.templateId)
   }, [templates, values.templateId])
 
-  const computedContent = useMemo(() => {
-    if (!selectedTemplate) return 'Selecione um modelo de contrato para visualizar.'
-
-    let text = selectedTemplate.content
+  const computeText = (text: string) => {
+    if (!text) return ''
     const client = values.clientName || '[NOME_DO_CLIENTE]'
     const address = values.address || '[ENDEREÇO]'
-    const value = values.value ? `R$ ${values.value}` : '[VALOR]'
+    const val = values.value ? `R$ ${values.value}` : '[VALOR]'
     const deadline = values.deadline ? `${values.deadline} dias` : '[PRAZO]'
 
-    text = text.replace(/\{\{cliente\}\}/gi, client)
-    text = text.replace(/\{\{endereco\}\}/gi, address)
-    text = text.replace(/\{\{valor\}\}/gi, value)
-    text = text.replace(/\{\{prazo\}\}/gi, deadline)
-
-    const dateStr = new Date().toLocaleDateString('pt-BR')
-    text = text.replace(/\[DATA_DA_ASSINATURA\]/gi, dateStr)
-
     return text
-  }, [selectedTemplate, values])
+      .replace(/\{\{cliente\}\}/gi, client)
+      .replace(/\{\{client_name\}\}/gi, client)
+      .replace(/\{\{endereco\}\}/gi, address)
+      .replace(/\{\{address\}\}/gi, address)
+      .replace(/\{\{valor\}\}/gi, val)
+      .replace(/\{\{value\}\}/gi, val)
+      .replace(/\{\{prazo\}\}/gi, deadline)
+      .replace(/\{\{deadline\}\}/gi, deadline)
+      .replace(/\[DATA_DA_ASSINATURA\]/gi, new Date().toLocaleDateString('pt-BR'))
+  }
+
+  const computedContent = useMemo(() => {
+    if (!selectedTemplate) return 'Selecione um modelo de contrato para visualizar.'
+    return computeText(selectedTemplate.content)
+  }, [selectedTemplate, values.clientName, values.address, values.value, values.deadline])
+
+  const computedSubject = useMemo(() => {
+    const subj = selectedTemplate?.email_subject || 'Contrato de Prestação de Serviços'
+    return computeText(subj)
+  }, [selectedTemplate, values.clientName, values.address, values.value, values.deadline])
+
+  const computedBody = useMemo(() => {
+    const bdy =
+      selectedTemplate?.email_body ||
+      'Olá {{cliente}},\n\nSegue em anexo o contrato referente aos serviços prestados.\n\nAtenciosamente,'
+    return computeText(bdy)
+  }, [selectedTemplate, values.clientName, values.address, values.value, values.deadline])
+
+  useEffect(() => {
+    if (!values.isCustomEmail) {
+      form.setValue('emailSubject', computedSubject)
+      form.setValue('emailBody', computedBody)
+    }
+  }, [computedSubject, computedBody, values.isCustomEmail, form])
 
   const handlePrint = async () => {
     const isValid = await form.trigger()
@@ -119,6 +150,8 @@ export default function ContractGenerator() {
         value: isNaN(numValue) ? 0 : numValue,
         deadline: values.deadline || '',
         final_content: computedContent,
+        email_subject: values.emailSubject,
+        email_body: values.emailBody,
       })
 
       toast.success('Contrato salvo no histórico.', { id: 'save-contract' })
@@ -155,6 +188,8 @@ export default function ContractGenerator() {
         value: isNaN(numValue) ? 0 : numValue,
         deadline: values.deadline || '',
         final_content: computedContent,
+        email_subject: values.emailSubject,
+        email_body: values.emailBody,
       })
 
       const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')
@@ -197,9 +232,17 @@ export default function ContractGenerator() {
         value: isNaN(numValue) ? 0 : numValue,
         deadline: values.deadline || '',
         final_content: computedContent,
+        email_subject: values.emailSubject,
+        email_body: values.emailBody,
       })
 
-      await sendContractEmail(values.clientEmail, computedContent, values.clientName)
+      await sendContractEmail(
+        values.clientEmail,
+        computedContent,
+        values.clientName,
+        values.emailSubject,
+        values.emailBody,
+      )
 
       toast.success('E-mail enviado com sucesso!', { id: 'send-email' })
     } catch (error) {
@@ -364,6 +407,58 @@ export default function ContractGenerator() {
                       </FormItem>
                     )}
                   />
+                </div>
+
+                <div className="pt-4 border-t space-y-4">
+                  <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Customizar E-mail</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Permite editar o assunto e o corpo do e-mail antes do envio.
+                      </p>
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="isCustomEmail"
+                      render={({ field }) => (
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      )}
+                    />
+                  </div>
+
+                  {values.isCustomEmail && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                      <FormField
+                        control={form.control}
+                        name="emailSubject"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Assunto do E-mail</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="emailBody"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Corpo do E-mail</FormLabel>
+                            <FormControl>
+                              <Textarea className="min-h-[120px] resize-y" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
                 </div>
               </form>
             </Form>

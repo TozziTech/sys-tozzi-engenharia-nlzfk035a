@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
-import { FileText, Eye, Mail } from 'lucide-react'
+import { FileText, Eye, Mail, Link as LinkIcon, PenTool } from 'lucide-react'
 import {
   GeneratedContract,
   getGeneratedContracts,
   sendContractEmail,
+  sendContractForSignature,
 } from '@/services/generated_contracts'
 import { exportWord } from '@/lib/export'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -68,13 +70,41 @@ export default function ContractsHistory() {
     }
   }
 
+  const handleSendSignature = async (contract: GeneratedContract) => {
+    if (!contract.client_email) {
+      toast.error('E-mail do cliente não informado neste contrato.')
+      return
+    }
+    try {
+      toast.loading('Enviando para assinatura...', { id: `sign-${contract.id}` })
+      await sendContractForSignature(contract.id)
+      toast.success('Contrato enviado para assinatura!', { id: `sign-${contract.id}` })
+    } catch (error) {
+      toast.error('Erro ao enviar para assinatura.', { id: `sign-${contract.id}` })
+    }
+  }
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'Enviado para Assinatura':
+        return <Badge className="bg-blue-500 hover:bg-blue-600">Enviado</Badge>
+      case 'Assinado':
+        return <Badge className="bg-green-500 hover:bg-green-600">Assinado</Badge>
+      case 'Cancelado':
+        return <Badge variant="destructive">Cancelado</Badge>
+      case 'Rascunho':
+      default:
+        return <Badge variant="secondary">Rascunho</Badge>
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Histórico de Contratos</h1>
           <p className="text-muted-foreground">
-            Visualize o histórico de todos os contratos gerados pelo sistema.
+            Visualize e gerencie assinaturas de todos os contratos gerados pelo sistema.
           </p>
         </div>
       </div>
@@ -86,20 +116,21 @@ export default function ContractsHistory() {
               <TableHead className="w-[150px]">Data de Geração</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Modelo Utilizado</TableHead>
-              <TableHead className="w-[150px]">Valor</TableHead>
-              <TableHead className="w-[100px] text-right">Ações</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-[120px]">Valor</TableHead>
+              <TableHead className="w-[180px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                   Carregando histórico...
                 </TableCell>
               </TableRow>
             ) : contracts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                   Nenhum contrato gerado ainda.
                 </TableCell>
               </TableRow>
@@ -129,6 +160,7 @@ export default function ContractsHistory() {
                       {contract.expand?.template?.name || 'Modelo Excluído'}
                     </div>
                   </TableCell>
+                  <TableCell>{getStatusBadge(contract.status)}</TableCell>
                   <TableCell>
                     {contract.value
                       ? new Intl.NumberFormat('pt-BR', {
@@ -139,13 +171,33 @@ export default function ContractsHistory() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      {contract.status === 'Rascunho' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleSendSignature(contract)}
+                          title="Enviar para Assinatura"
+                        >
+                          <PenTool className="h-4 w-4 text-purple-600" />
+                        </Button>
+                      )}
+                      {contract.status === 'Enviado para Assinatura' && contract.signature_link && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(contract.signature_link, '_blank')}
+                          title="Ver Link de Assinatura"
+                        >
+                          <LinkIcon className="h-4 w-4 text-blue-600" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleExportWord(contract)}
                         title="Exportar para Word"
                       >
-                        <FileText className="h-4 w-4 text-blue-600" />
+                        <FileText className="h-4 w-4 text-slate-600" />
                       </Button>
                       {contract.client_email && (
                         <Button
@@ -177,11 +229,17 @@ export default function ContractsHistory() {
       <Sheet open={!!selectedContract} onOpenChange={(open) => !open && setSelectedContract(null)}>
         <SheetContent className="sm:max-w-xl w-full flex flex-col p-0">
           <SheetHeader className="p-6 border-b">
-            <SheetTitle>Visualização do Contrato</SheetTitle>
-            <SheetDescription>
-              Gerado para {selectedContract?.client_name} em{' '}
-              {selectedContract && new Date(selectedContract.created).toLocaleDateString('pt-BR')}
-            </SheetDescription>
+            <div className="flex justify-between items-start gap-4">
+              <div>
+                <SheetTitle>Visualização do Contrato</SheetTitle>
+                <SheetDescription>
+                  Gerado para {selectedContract?.client_name} em{' '}
+                  {selectedContract &&
+                    new Date(selectedContract.created).toLocaleDateString('pt-BR')}
+                </SheetDescription>
+              </div>
+              <div>{getStatusBadge(selectedContract?.status)}</div>
+            </div>
           </SheetHeader>
           <ScrollArea className="flex-1 p-6 bg-muted/20">
             <div className="bg-white text-black shadow-sm mx-auto max-w-[210mm] min-h-[297mm] p-10 ring-1 ring-black/5">

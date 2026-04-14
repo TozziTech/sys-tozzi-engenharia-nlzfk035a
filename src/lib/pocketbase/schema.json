@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T02:56:41.857Z",
+  "generatedAt": "2026-04-14T03:05:20.273Z",
   "collections": [
     {
       "name": "users",
@@ -1818,6 +1818,31 @@
         {
           "name": "email_body",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Rascunho", "Enviado para Assinatura", "Assinado", "Cancelado"]
+        },
+        {
+          "name": "external_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "signature_link",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "signed_at",
+          "type": "date",
           "required": false,
           "system": false
         }

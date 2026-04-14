@@ -23,10 +23,22 @@ import {
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
-import { FileSignature, Printer, FileText, Mail } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { FileSignature, Printer, FileText, Mail, PenTool } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContractTemplate, getContractTemplates } from '@/services/contract_templates'
-import { createGeneratedContract, sendContractEmail } from '@/services/generated_contracts'
+import {
+  createGeneratedContract,
+  sendContractEmail,
+  sendContractForSignature,
+} from '@/services/generated_contracts'
 import { exportWord } from '@/lib/export'
 
 const formSchema = z.object({
@@ -44,6 +56,8 @@ const formSchema = z.object({
 export default function ContractGenerator() {
   const [templates, setTemplates] = useState<ContractTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isSignatureDialogOpen, setIsSignatureDialogOpen] = useState(false)
+  const [isSigning, setIsSigning] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -129,15 +143,10 @@ export default function ContractGenerator() {
   const handlePrint = async () => {
     const isValid = await form.trigger()
     if (!isValid) return
-
-    if (!selectedTemplate) {
-      toast.error('Nenhum modelo selecionado.')
-      return
-    }
+    if (!selectedTemplate) return toast.error('Nenhum modelo selecionado.')
 
     try {
       toast.loading('Salvando histórico...', { id: 'save-contract' })
-
       const numValue = values.value
         ? parseFloat(values.value.replace(/\./g, '').replace(',', '.'))
         : 0
@@ -152,10 +161,10 @@ export default function ContractGenerator() {
         final_content: computedContent,
         email_subject: values.emailSubject,
         email_body: values.emailBody,
+        status: 'Rascunho',
       })
 
       toast.success('Contrato salvo no histórico.', { id: 'save-contract' })
-
       setTimeout(() => {
         window.print()
       }, 500)
@@ -167,15 +176,10 @@ export default function ContractGenerator() {
   const handleExportWord = async () => {
     const isValid = await form.trigger()
     if (!isValid) return
-
-    if (!selectedTemplate) {
-      toast.error('Nenhum modelo selecionado.')
-      return
-    }
+    if (!selectedTemplate) return toast.error('Nenhum modelo selecionado.')
 
     try {
       toast.loading('Gerando arquivo Word...', { id: 'export-word' })
-
       const numValue = values.value
         ? parseFloat(values.value.replace(/\./g, '').replace(',', '.'))
         : 0
@@ -190,13 +194,12 @@ export default function ContractGenerator() {
         final_content: computedContent,
         email_subject: values.emailSubject,
         email_body: values.emailBody,
+        status: 'Rascunho',
       })
 
       const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')
       const filename = `Contrato_${values.clientName.replace(/\s+/g, '_')}_${dateStr}.docx`
-
       exportWord(computedContent, filename)
-
       toast.success('Contrato exportado e salvo no histórico.', { id: 'export-word' })
     } catch (error) {
       toast.error('Erro ao exportar contrato.', { id: 'export-word' })
@@ -206,20 +209,15 @@ export default function ContractGenerator() {
   const handleSendEmail = async () => {
     const isValid = await form.trigger()
     if (!isValid) return
-
-    if (!values.clientEmail) {
-      form.setError('clientEmail', { type: 'manual', message: 'E-mail é obrigatório para envio.' })
-      return
-    }
-
-    if (!selectedTemplate) {
-      toast.error('Nenhum modelo selecionado.')
-      return
-    }
+    if (!values.clientEmail)
+      return form.setError('clientEmail', {
+        type: 'manual',
+        message: 'E-mail é obrigatório para envio.',
+      })
+    if (!selectedTemplate) return toast.error('Nenhum modelo selecionado.')
 
     try {
       toast.loading('Enviando e-mail...', { id: 'send-email' })
-
       const numValue = values.value
         ? parseFloat(values.value.replace(/\./g, '').replace(',', '.'))
         : 0
@@ -234,6 +232,7 @@ export default function ContractGenerator() {
         final_content: computedContent,
         email_subject: values.emailSubject,
         email_body: values.emailBody,
+        status: 'Rascunho',
       })
 
       await sendContractEmail(
@@ -250,13 +249,61 @@ export default function ContractGenerator() {
     }
   }
 
+  const handleOpenSignatureDialog = async () => {
+    const isValid = await form.trigger()
+    if (!isValid) return
+    if (!values.clientEmail) {
+      form.setError('clientEmail', {
+        type: 'manual',
+        message: 'E-mail é obrigatório para assinatura digital.',
+      })
+      return
+    }
+    if (!selectedTemplate) return toast.error('Nenhum modelo selecionado.')
+
+    setIsSignatureDialogOpen(true)
+  }
+
+  const confirmSignature = async () => {
+    try {
+      setIsSigning(true)
+      toast.loading('Enviando para assinatura...', { id: 'send-signature' })
+
+      const numValue = values.value
+        ? parseFloat(values.value.replace(/\./g, '').replace(',', '.'))
+        : 0
+
+      const contract = await createGeneratedContract({
+        template: selectedTemplate!.id,
+        client_name: values.clientName,
+        client_email: values.clientEmail || '',
+        address: values.address || '',
+        value: isNaN(numValue) ? 0 : numValue,
+        deadline: values.deadline || '',
+        final_content: computedContent,
+        email_subject: values.emailSubject,
+        email_body: values.emailBody,
+        status: 'Rascunho',
+      })
+
+      await sendContractForSignature(contract.id)
+
+      toast.success('Contrato enviado para assinatura com sucesso!', { id: 'send-signature' })
+      setIsSignatureDialogOpen(false)
+    } catch (error) {
+      toast.error('Erro ao enviar para assinatura. Verifique os dados.', { id: 'send-signature' })
+    } finally {
+      setIsSigning(false)
+    }
+  }
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col p-6 gap-6">
       <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between print:hidden gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Gerador de Contratos</h1>
           <p className="text-muted-foreground">
-            Preencha os dados para gerar e salvar o documento.
+            Preencha os dados para gerar, assinar e salvar o documento.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -266,8 +313,7 @@ export default function ContractGenerator() {
             disabled={isLoading || templates.length === 0}
             className="gap-2"
           >
-            <FileText className="h-4 w-4" />
-            Exportar para Word
+            <FileText className="h-4 w-4" /> Exportar Word
           </Button>
           <Button
             variant="outline"
@@ -275,22 +321,27 @@ export default function ContractGenerator() {
             disabled={isLoading || templates.length === 0}
             className="gap-2"
           >
-            <Mail className="h-4 w-4" />
-            Enviar por E-mail
+            <Mail className="h-4 w-4" /> Enviar por E-mail
           </Button>
           <Button
+            variant="outline"
             onClick={handlePrint}
             className="gap-2"
             disabled={isLoading || templates.length === 0}
           >
-            <Printer className="h-4 w-4" />
-            Salvar e Imprimir PDF
+            <Printer className="h-4 w-4" /> Imprimir PDF
+          </Button>
+          <Button
+            onClick={handleOpenSignatureDialog}
+            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            disabled={isLoading || templates.length === 0}
+          >
+            <PenTool className="h-4 w-4" /> Enviar para Assinatura
           </Button>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 flex-1 min-h-0 print:hidden">
-        {/* Formulário */}
         <Card className="flex flex-col border-none shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -443,7 +494,6 @@ export default function ContractGenerator() {
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
                         name="emailBody"
@@ -465,7 +515,6 @@ export default function ContractGenerator() {
           </CardContent>
         </Card>
 
-        {/* Preview */}
         <Card className="flex flex-col bg-muted/30 border-none shadow-inner overflow-hidden">
           <CardHeader className="bg-background/50 border-b pb-4">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
@@ -482,12 +531,56 @@ export default function ContractGenerator() {
         </Card>
       </div>
 
-      {/* Área de Impressão */}
       <div className="hidden print:block fixed inset-0 z-[99999] bg-white text-black p-12 overflow-visible">
         <pre className="whitespace-pre-wrap font-serif text-base leading-relaxed font-normal max-w-4xl mx-auto">
           {computedContent}
         </pre>
       </div>
+
+      <Dialog open={isSignatureDialogOpen} onOpenChange={setIsSignatureDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar Assinatura Digital</DialogTitle>
+            <DialogDescription>
+              O contrato será salvo e um link de assinatura será gerado para o cliente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Cliente</h4>
+              <p className="text-sm text-muted-foreground">{values.clientName}</p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">E-mail de Destino</h4>
+              <p className="text-sm text-muted-foreground">{values.clientEmail}</p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Assunto do E-mail</h4>
+              <p className="text-sm text-muted-foreground">{values.emailSubject}</p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Mensagem</h4>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap border p-3 rounded-md bg-muted/50">
+                {values.emailBody}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsSignatureDialogOpen(false)}
+              disabled={isSigning}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={confirmSignature} disabled={isSigning}>
+              {isSigning ? 'Processando...' : 'Confirmar e Enviar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

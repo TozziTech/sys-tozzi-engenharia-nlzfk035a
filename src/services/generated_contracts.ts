@@ -12,12 +12,21 @@ export interface GeneratedContract {
   final_content: string
   email_subject?: string
   email_body?: string
+  status?: 'Rascunho' | 'Enviado para Assinatura' | 'Assinado' | 'Cancelado'
+  external_id?: string
+  signature_link?: string
+  signed_at?: string
   created: string
   updated: string
   expand?: {
     template?: ContractTemplate
   }
 }
+
+export const sendContractForSignature = (id: string) =>
+  pb.send(`/backend/v1/contracts/${id}/send-signature`, {
+    method: 'POST',
+  })
 
 export const getGeneratedContracts = () =>
   pb.collection('generated_contracts').getFullList<GeneratedContract>({

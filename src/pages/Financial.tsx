@@ -4,6 +4,7 @@ import { FinancialTransactions } from '@/components/financial/FinancialTransacti
 import { FinancialCategories } from '@/components/financial/FinancialCategories'
 import { TransactionModal } from '@/components/financial/TransactionModal'
 import { FinancialAlerts } from '@/components/financial/FinancialAlerts'
+import { RecurringExpensesCard } from '@/components/financial/RecurringExpensesCard'
 
 export default function Financial() {
   return (
@@ -21,6 +22,10 @@ export default function Financial() {
         <div className="flex gap-2 flex-wrap">
           <TransactionModal />
         </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <RecurringExpensesCard />
       </div>
 
       <FinancialAlerts />

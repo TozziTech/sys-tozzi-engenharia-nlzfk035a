@@ -29,9 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Edit2, Trash2, Plus } from 'lucide-react'
+import { Edit2, Trash2, Plus, Download, DollarSign, CheckCircle2, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '@/hooks/use-toast'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { exportServicosFinanceirosCSV } from '@/lib/export'
 
 export function PlanilhaFinanceira() {
   const { user } = useAuth()
@@ -39,6 +41,7 @@ export function PlanilhaFinanceira() {
   const [servicos, setServicos] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState<any>({})
+  const [statusFilter, setStatusFilter] = useState<string>('Todos')
 
   const loadData = async () => {
     if (!user) return
@@ -96,13 +99,87 @@ export function PlanilhaFinanceira() {
     setIsOpen(true)
   }
 
+  const filteredServicos = servicos.filter(
+    (s) => statusFilter === 'Todos' || s.status === statusFilter,
+  )
+
+  const totalGeral = filteredServicos
+    .filter((s) => s.status !== 'Cancelado')
+    .reduce((acc, s) => acc + (s.valor_total || 0), 0)
+
+  const totalConcluido = filteredServicos
+    .filter((s) => s.status === 'Concluído')
+    .reduce((acc, s) => acc + (s.valor_total || 0), 0)
+
+  const totalAberto = filteredServicos
+    .filter((s) => s.status === 'Pendente' || s.status === 'Em Andamento')
+    .reduce((acc, s) => acc + (s.valor_total || 0), 0)
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h3 className="text-xl font-semibold">Meus Serviços Financeiros</h3>
-        <Button onClick={() => openForm()}>
-          <Plus className="w-4 h-4 mr-2" /> Novo Serviço
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filtrar por Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos os Status</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+              <SelectItem value="Concluído">Concluído</SelectItem>
+              <SelectItem value="Cancelado">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={() => exportServicosFinanceirosCSV(filteredServicos)}
+            disabled={filteredServicos.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" /> Exportar CSV
+          </Button>
+          <Button onClick={() => openForm()}>
+            <Plus className="w-4 h-4 mr-2" /> Novo Serviço
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Geral</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">{formatCurrency(totalGeral)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Concluído</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
+              {formatCurrency(totalConcluido)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total em Aberto</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-500">
+              {formatCurrency(totalAberto)}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="border rounded-md bg-card overflow-x-auto shadow-sm">
@@ -119,14 +196,14 @@ export function PlanilhaFinanceira() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {servicos.length === 0 ? (
+            {filteredServicos.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  Nenhum serviço financeiro registrado. Clique em "Novo Serviço" para adicionar.
+                  Nenhum serviço financeiro encontrado.
                 </TableCell>
               </TableRow>
             ) : (
-              servicos.map((s) => (
+              filteredServicos.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium whitespace-nowrap text-primary">
                     {s.codigo}

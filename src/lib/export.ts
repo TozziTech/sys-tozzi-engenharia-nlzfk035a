@@ -290,6 +290,42 @@ export function exportProductivityCSV(stats: any[]) {
   URL.revokeObjectURL(url)
 }
 
+export function exportServicosFinanceirosCSV(records: any[]) {
+  const headers = [
+    'Código',
+    'Projeto/Serviço',
+    'Cliente',
+    'Data Início',
+    'Status',
+    'Valor Total',
+    'Observações',
+  ]
+
+  const rows = records.map((s) => {
+    const codigo = `"${(s.codigo || '').replace(/"/g, '""')}"`
+    const projeto = `"${(s.projeto_servico || '').replace(/"/g, '""')}"`
+    const cliente = `"${(s.cliente || '').replace(/"/g, '""')}"`
+    const data = s.data_inicio ? `"${format(new Date(s.data_inicio), 'dd/MM/yyyy')}"` : '""'
+    const status = `"${(s.status || '').replace(/"/g, '""')}"`
+    const valor = s.valor_total || 0
+    const obs = `"${(s.observacoes || '').replace(/"/g, '""')}"`
+
+    return [codigo, projeto, cliente, data, status, valor, obs]
+  })
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `servicos_financeiros_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportExcel(logs: Log[], totalProjects: number) {
   const escapeXml = (unsafe: string) =>
     unsafe.replace(/[<>&'"]/g, (c) => {

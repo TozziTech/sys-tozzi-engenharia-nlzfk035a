@@ -290,27 +290,32 @@ export function exportProductivityCSV(stats: any[]) {
   URL.revokeObjectURL(url)
 }
 
-export function exportServicosFinanceirosCSV(records: any[]) {
+export function exportServicosFinanceirosCSV(
+  records: any[],
+  pagamentosPorServico: Record<string, number> = {},
+) {
   const headers = [
     'Código',
-    'Projeto/Serviço',
     'Cliente',
-    'Data Início',
-    'Status',
+    'Projeto/Serviço',
+    'Data de Início',
     'Valor Total',
-    'Observações',
+    'Valor Pago',
+    'Valor Restante',
+    'Status',
   ]
 
   const rows = records.map((s) => {
     const codigo = `"${(s.codigo || '').replace(/"/g, '""')}"`
-    const projeto = `"${(s.projeto_servico || '').replace(/"/g, '""')}"`
     const cliente = `"${(s.cliente || '').replace(/"/g, '""')}"`
+    const projeto = `"${(s.projeto_servico || '').replace(/"/g, '""')}"`
     const data = s.data_inicio ? `"${format(new Date(s.data_inicio), 'dd/MM/yyyy')}"` : '""'
+    const valorTotal = s.valor_total || 0
+    const valorPago = pagamentosPorServico[s.id] || 0
+    const valorRestante = valorTotal - valorPago > 0 ? valorTotal - valorPago : 0
     const status = `"${(s.status || '').replace(/"/g, '""')}"`
-    const valor = s.valor_total || 0
-    const obs = `"${(s.observacoes || '').replace(/"/g, '""')}"`
 
-    return [codigo, projeto, cliente, data, status, valor, obs]
+    return [codigo, cliente, projeto, data, valorTotal, valorPago, valorRestante, status]
   })
 
   const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -41,14 +41,18 @@ import {
   ChevronDown,
   ChevronRight,
   Briefcase,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useToast } from '@/hooks/use-toast'
 import { ExpandedPaymentRow } from './ExpandedPaymentRow'
-import { Fragment } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { exportServicosFinanceirosCSV } from '@/lib/export'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 
 export function PlanilhaFinanceira() {
   const { user } = useAuth()
@@ -96,6 +100,7 @@ export function PlanilhaFinanceira() {
   useEffect(() => {
     loadData()
   }, [user])
+
   useRealtime('servicos_financeiros', loadData)
   useRealtime('pagamentos_servicos', loadData)
 
@@ -149,12 +154,28 @@ export function PlanilhaFinanceira() {
     return statusMatch && paymentMatch
   })
 
+  const filteredServicosIds = new Set(filteredServicos.map((s) => s.id))
+  const filteredPagamentos = pagamentos.filter((p) => filteredServicosIds.has(p.servico_id))
+
   const currentMonthPrefix = format(new Date(), 'yyyy-MM')
-  const totalRecebidoMesAtual = pagamentos
+  const prevMonthPrefix = format(subMonths(new Date(), 1), 'yyyy-MM')
+
+  const totalCurrentMonth = filteredPagamentos
     .filter((p) => p.data_pagamento?.startsWith(currentMonthPrefix))
     .reduce((acc, p) => acc + (p.valor || 0), 0)
 
-  const totalAReceber = servicos
+  const totalPrevMonth = filteredPagamentos
+    .filter((p) => p.data_pagamento?.startsWith(prevMonthPrefix))
+    .reduce((acc, p) => acc + (p.valor || 0), 0)
+
+  const growthPercent =
+    totalPrevMonth === 0
+      ? totalCurrentMonth > 0
+        ? 100
+        : 0
+      : ((totalCurrentMonth - totalPrevMonth) / totalPrevMonth) * 100
+
+  const totalAReceber = filteredServicos
     .filter((s) => s.status !== 'Cancelado')
     .reduce((acc, s) => {
       const totalPago = pagamentosPorServico[s.id] || 0
@@ -162,9 +183,28 @@ export function PlanilhaFinanceira() {
       return acc + (restante > 0 ? restante : 0)
     }, 0)
 
-  const totalGeral = servicos
+  const totalGeral = filteredServicos
     .filter((s) => s.status !== 'Cancelado')
     .reduce((acc, s) => acc + (s.valor_total || 0), 0)
+
+  const now = new Date()
+  const last6Months = Array.from({ length: 6 }).map((_, i) => {
+    const d = subMonths(now, 5 - i)
+    return {
+      month: format(d, 'yyyy-MM'),
+      label: format(d, 'MMM/yy', { locale: ptBR }),
+      total: 0,
+    }
+  })
+
+  filteredPagamentos.forEach((p) => {
+    if (!p.data_pagamento) return
+    const month = p.data_pagamento.substring(0, 7)
+    const monthData = last6Months.find((m) => m.month === month)
+    if (monthData) {
+      monthData.total += p.valor || 0
+    }
+  })
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -196,11 +236,11 @@ export function PlanilhaFinanceira() {
           <div className="flex w-full sm:w-auto gap-2">
             <Button
               variant="outline"
-              onClick={() => exportServicosFinanceirosCSV(filteredServicos)}
+              onClick={() => exportServicosFinanceirosCSV(filteredServicos, pagamentosPorServico)}
               disabled={filteredServicos.length === 0}
               className="flex-1 sm:flex-none"
             >
-              <Download className="w-4 h-4 mr-2" /> Exportar
+              <Download className="w-4 h-4 mr-2" /> Exportar para CSV
             </Button>
             <Button onClick={() => openForm()} className="flex-1 sm:flex-none">
               <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
@@ -219,11 +259,26 @@ export function PlanilhaFinanceira() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-              {formatCurrency(totalRecebidoMesAtual)}
+              {formatCurrency(totalCurrentMonth)}
             </div>
-            <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-1">
-              Entradas em {format(new Date(), 'MMMM/yyyy', { locale: ptBR })}
-            </p>
+            <div className="text-xs mt-1 flex items-center gap-1.5">
+              {growthPercent > 0 ? (
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              ) : growthPercent < 0 ? (
+                <TrendingDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+              ) : (
+                <Minus className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+              )}
+              <span
+                className={`font-medium ${growthPercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : growthPercent < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}
+              >
+                {growthPercent > 0 ? '+' : ''}
+                {growthPercent.toFixed(1)}%
+              </span>
+              <span className="text-emerald-600/80 dark:text-emerald-400/80">
+                em relação ao mês anterior
+              </span>
+            </div>
           </CardContent>
         </Card>
 
@@ -255,6 +310,35 @@ export function PlanilhaFinanceira() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">
+            Evolução de Recebimentos (Últimos 6 meses)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer
+            config={{ total: { label: 'Recebido', color: 'hsl(var(--primary))' } }}
+            className="h-[300px] w-full"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={last6Months} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={10} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(value) => `R$ ${value}`}
+                  width={80}
+                />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dashed" />} />
+                <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </CardContent>
+      </Card>
 
       <div className="border rounded-md bg-card overflow-x-auto shadow-sm">
         <Table>

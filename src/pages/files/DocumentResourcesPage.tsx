@@ -53,6 +53,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import {
   Dialog,
   DialogContent,
@@ -76,6 +78,19 @@ function ManageTagsDialog({ children }: { children: ReactNode }) {
     </Dialog>
   )
 }
+
+const DISCIPLINES = [
+  { id: 'all', label: 'Todas as Disciplinas' },
+  { id: 'Concreto Armado', label: 'Concreto Armado' },
+  { id: 'Metálico', label: 'Metálico' },
+  { id: 'Hidrossanitário', label: 'Hidrossanitário' },
+  { id: 'Elétrico', label: 'Elétrico' },
+  { id: 'Prevenção de Incêndio', label: 'Prevenção de Incêndio' },
+  { id: 'Gases', label: 'Gases' },
+  { id: 'Constr. Civil', label: 'Constr. Civil' },
+  { id: 'Patologia', label: 'Patologia' },
+  { id: 'Outros', label: 'Outros' },
+]
 
 export default function DocumentResourcesPage({
   category,
@@ -245,23 +260,6 @@ export default function DocumentResourcesPage({
               Apenas favoritos
             </Label>
           </div>
-          <Select value={selectedDiscipline} onValueChange={setSelectedDiscipline}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Disciplina" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as Disciplinas</SelectItem>
-              <SelectItem value="Concreto Armado">Concreto Armado</SelectItem>
-              <SelectItem value="Metálico">Metálico</SelectItem>
-              <SelectItem value="Hidrossanitário">Hidrossanitário</SelectItem>
-              <SelectItem value="Elétrico">Elétrico</SelectItem>
-              <SelectItem value="Prevenção de Incêndio">Prevenção de Incêndio</SelectItem>
-              <SelectItem value="Gases">Gases</SelectItem>
-              <SelectItem value="Constr. Civil">Constr. Civil</SelectItem>
-              <SelectItem value="Patologia">Patologia</SelectItem>
-              <SelectItem value="Outros">Outros</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={selectedTag} onValueChange={setSelectedTag}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Filtrar por Tag" />
@@ -298,6 +296,19 @@ export default function DocumentResourcesPage({
         </div>
       </div>
 
+      <Tabs value={selectedDiscipline} onValueChange={setSelectedDiscipline} className="w-full">
+        <ScrollArea className="max-w-full pb-2">
+          <TabsList className="inline-flex w-max min-w-full justify-start h-10 items-center rounded-md bg-muted p-1 text-muted-foreground">
+            {DISCIPLINES.map((d) => (
+              <TabsTrigger key={d.id} value={d.id} className="whitespace-nowrap">
+                {d.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </Tabs>
+
       {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -315,7 +326,9 @@ export default function DocumentResourcesPage({
           <p className="text-sm text-muted-foreground mt-2 max-w-sm">
             {showOnlyFavorites
               ? 'Você não favoritou nenhum documento nesta categoria ainda.'
-              : `Não há documentos na categoria "${category}" no momento.`}
+              : selectedDiscipline !== 'all'
+                ? 'Nenhum documento encontrado para esta disciplina.'
+                : `Não há documentos na categoria "${category}" no momento.`}
           </p>
         </div>
       ) : (

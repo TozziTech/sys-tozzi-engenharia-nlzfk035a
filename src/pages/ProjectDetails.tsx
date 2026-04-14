@@ -110,6 +110,25 @@ export default function ProjectDetails() {
     loadMetrics()
   }, [loadMetrics])
 
+  // Resolve console runtime warnings caused by vite-plugin-react-uid injecting data-uid into React.Fragment
+  useEffect(() => {
+    const originalConsoleError = console.error
+    console.error = (...args: any[]) => {
+      if (
+        typeof args[0] === 'string' &&
+        args[0].includes('Invalid prop') &&
+        args[0].includes('data-uid') &&
+        args[0].includes('React.Fragment')
+      ) {
+        return
+      }
+      originalConsoleError.apply(console, args)
+    }
+    return () => {
+      console.error = originalConsoleError
+    }
+  }, [])
+
   useRealtime('tarefas_hierarquicas', loadMetrics)
   useRealtime('projects', () => {
     // Keep projects in sync

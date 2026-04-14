@@ -20,19 +20,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { PenTool, Save, X } from 'lucide-react'
+import { PenTool, Save, X, Check, ChevronsUpDown } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
 import { ContractTemplate, getContractTemplates } from '@/services/contract_templates'
 import { createGeneratedContract, sendContractForSignature } from '@/services/generated_contracts'
+import { Client, getClients } from '@/services/clients'
+import { useRealtime } from '@/hooks/use-realtime'
 import { ContractPreview } from './ContractPreview'
 
 const formSchema = z.object({
   templateId: z.string().min(1, 'Selecione um modelo'),
   clientName: z.string().min(1, 'Obrigatório'),
   clientEmail: z.string().email('Inválido').optional().or(z.literal('')),
+  cpfCnpj: z.string().optional(),
   address: z.string().optional(),
   value: z.string().optional(),
   deadline: z.string().optional(),
@@ -43,7 +56,10 @@ const formSchema = z.object({
 
 export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) {
   const [templates, setTemplates] = useState<ContractTemplate[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
+  const [clientSearchOpen, setClientSearchOpen] = useState(false)
+  const [clientSearchQuery, setClientSearchQuery] = useState('')
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -66,7 +82,12 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
       setTemplates(data)
       if (data.length > 0 && !editingContract) form.setValue('templateId', data[0].id)
     })
-  }, [])
+    getClients().then(setClients)
+  }, [editingContract, form])
+
+  useRealtime('clients', () => {
+    getClients().then(setClients)
+  })
 
   useEffect(() => {
     if (editingContract) {
@@ -75,6 +96,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
         clientName: editingContract.client_name,
         clientEmail: editingContract.client_email || '',
         address: editingContract.address || '',
+        cpfCnpj: '',
         value: editingContract.value?.toString() || '',
         deadline: editingContract.deadline || '',
         emailSubject: editingContract.email_subject || '',
@@ -83,6 +105,15 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
       })
     }
   }, [editingContract, form])
+
+  useEffect(() => {
+    if (editingContract && clients.length > 0) {
+      const matched = clients.find((c) => c.name === editingContract.client_name)
+      if (matched && !form.getValues('cpfCnpj')) {
+        form.setValue('cpfCnpj', matched.cnpj_cpf || '')
+      }
+    }
+  }, [editingContract, clients, form])
 
   const selectedTemplate = useMemo(
     () => templates.find((t) => t.id === values.templateId),
@@ -96,6 +127,8 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
     return text
       .replace(/\{\{cliente\}\}/gi, values.clientName || '[CLIENTE]')
       .replace(/\{\{endereco\}\}/gi, values.address || '[ENDEREÇO]')
+      .replace(/\{\{documento\}\}/gi, values.cpfCnpj || '[DOCUMENTO]')
+      .replace(/\{\{cpf_cnpj\}\}/gi, values.cpfCnpj || '[DOCUMENTO]')
       .replace(/\{\{valor\}\}/gi, val)
       .replace(/\{\{prazo\}\}/gi, deadline)
       .replace(/\[DATA_DA_ASSINATURA\]/gi, new Date().toLocaleDateString('pt-BR'))
@@ -206,11 +239,112 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                   control={form.control}
                   name="clientName"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col justify-end">
                       <FormLabel>Cliente *</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
+                      <div className="relative flex w-full items-center">
+                        <Popover open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={clientSearchOpen}
+                                className={cn(
+                                  'w-full justify-between font-normal pr-12',
+                                  !field.value && 'text-muted-foreground',
+                                )}
+                              >
+                                <span className="truncate">
+                                  {field.value || 'Selecione ou digite...'}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 absolute right-3" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-[--radix-popover-trigger-width] p-0"
+                            align="start"
+                          >
+                            <Command>
+                              <CommandInput
+                                placeholder="Buscar cliente..."
+                                value={clientSearchQuery}
+                                onValueChange={setClientSearchQuery}
+                              />
+                              <CommandList>
+                                <CommandEmpty>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="w-full justify-start px-2 py-1.5 text-sm font-normal text-left"
+                                    onClick={() => {
+                                      form.setValue('clientName', clientSearchQuery)
+                                      form.setValue('clientEmail', '')
+                                      form.setValue('address', '')
+                                      form.setValue('cpfCnpj', '')
+                                      setClientSearchOpen(false)
+                                    }}
+                                  >
+                                    Usar "{clientSearchQuery}"
+                                  </Button>
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {clients.map((client) => (
+                                    <CommandItem
+                                      key={client.id}
+                                      value={client.name}
+                                      onSelect={(currentValue) => {
+                                        const selected = clients.find(
+                                          (c) =>
+                                            c.name.toLowerCase() === currentValue.toLowerCase(),
+                                        )
+                                        if (selected) {
+                                          form.setValue('clientName', selected.name)
+                                          form.setValue('clientEmail', selected.email || '')
+                                          form.setValue('address', selected.address || '')
+                                          form.setValue('cpfCnpj', selected.cnpj_cpf || '')
+                                        } else {
+                                          form.setValue('clientName', currentValue)
+                                          form.setValue('clientEmail', '')
+                                          form.setValue('address', '')
+                                          form.setValue('cpfCnpj', '')
+                                        }
+                                        setClientSearchOpen(false)
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          'mr-2 h-4 w-4',
+                                          client.name === field.value ? 'opacity-100' : 'opacity-0',
+                                        )}
+                                      />
+                                      {client.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {field.value && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-8 top-1/2 -translate-y-1/2 h-8 w-8 hover:bg-transparent text-muted-foreground hover:text-foreground"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              form.setValue('clientName', '')
+                              form.setValue('clientEmail', '')
+                              form.setValue('address', '')
+                              form.setValue('cpfCnpj', '')
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -219,7 +353,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                   control={form.control}
                   name="clientEmail"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col justify-end">
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
                         <Input {...field} />
@@ -229,19 +363,34 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                   )}
                 />
               </div>
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="cpfCnpj"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CPF / CNPJ</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Endereço</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T13:21:37.865Z",
+  "generatedAt": "2026-04-14T13:31:29.036Z",
   "collections": [
     {
       "name": "users",
@@ -2023,6 +2023,23 @@
           "required": false,
           "system": false,
           "collectionRef": "tags"
+        },
+        {
+          "name": "discipline",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Concreto Armado",
+            "Metálico",
+            "Hidrossanitário",
+            "Elétrico",
+            "Prevenção de Incêndio",
+            "Gases",
+            "Constr. Civil",
+            "Patologia",
+            "Outros"
+          ]
         }
       ],
       "indexes": []

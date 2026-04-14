@@ -6,6 +6,7 @@ export interface DocumentResource {
   description: string
   category: string
   url: string
+  discipline?: string
   tags?: string[]
   expand?: {
     tags?: any[]

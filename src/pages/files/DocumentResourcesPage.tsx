@@ -88,6 +88,7 @@ export default function DocumentResourcesPage({
   const [favorites, setFavorites] = useState<UserDocumentFavorite[]>([])
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false)
   const [selectedTag, setSelectedTag] = useState<string>('all')
+  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all')
   const [availableTags, setAvailableTags] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
@@ -216,7 +217,9 @@ export default function DocumentResourcesPage({
   const displayedResources = resources.filter((r) => {
     const matchFav = showOnlyFavorites ? favorites.some((f) => f.document_id === r.id) : true
     const matchTag = selectedTag === 'all' ? true : r.tags?.includes(selectedTag)
-    return matchFav && matchTag
+    const matchDiscipline =
+      selectedDiscipline === 'all' ? true : r.discipline === selectedDiscipline
+    return matchFav && matchTag && matchDiscipline
   })
 
   return (
@@ -242,6 +245,23 @@ export default function DocumentResourcesPage({
               Apenas favoritos
             </Label>
           </div>
+          <Select value={selectedDiscipline} onValueChange={setSelectedDiscipline}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Disciplina" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Disciplinas</SelectItem>
+              <SelectItem value="Concreto Armado">Concreto Armado</SelectItem>
+              <SelectItem value="Metálico">Metálico</SelectItem>
+              <SelectItem value="Hidrossanitário">Hidrossanitário</SelectItem>
+              <SelectItem value="Elétrico">Elétrico</SelectItem>
+              <SelectItem value="Prevenção de Incêndio">Prevenção de Incêndio</SelectItem>
+              <SelectItem value="Gases">Gases</SelectItem>
+              <SelectItem value="Constr. Civil">Constr. Civil</SelectItem>
+              <SelectItem value="Patologia">Patologia</SelectItem>
+              <SelectItem value="Outros">Outros</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={selectedTag} onValueChange={setSelectedTag}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Filtrar por Tag" />
@@ -327,6 +347,14 @@ export default function DocumentResourcesPage({
                       <Badge variant="secondary" className="font-normal text-xs">
                         {resource.category}
                       </Badge>
+                      {resource.discipline && (
+                        <Badge
+                          variant="outline"
+                          className="font-normal text-xs text-primary border-primary/20 bg-primary/5"
+                        >
+                          {resource.discipline}
+                        </Badge>
+                      )}
                       {resource.expand?.tags?.map((tag: any) => (
                         <Badge
                           key={tag.id}

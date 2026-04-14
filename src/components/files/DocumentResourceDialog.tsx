@@ -47,6 +47,7 @@ const schema = z.object({
   description: z.string().optional(),
   url: z.string().url('URL inválida').min(1, 'URL é obrigatória'),
   category: z.string().min(1, 'Categoria é obrigatória'),
+  discipline: z.string().optional(),
   tags: z.array(z.string()).optional(),
 })
 
@@ -88,6 +89,7 @@ export function DocumentResourceDialog({
       description: '',
       url: '',
       category: category,
+      discipline: '',
       tags: [],
     },
   })
@@ -100,6 +102,7 @@ export function DocumentResourceDialog({
           description: resource.description || '',
           url: resource.url,
           category: resource.category || category,
+          discipline: resource.discipline || '',
           tags: resource.tags || [],
         })
       } else {
@@ -108,6 +111,7 @@ export function DocumentResourceDialog({
           description: '',
           url: '',
           category: category,
+          discipline: '',
           tags: [],
         })
       }
@@ -179,6 +183,34 @@ export function DocumentResourceDialog({
                       <SelectItem value="Projetos Base">Projetos Base</SelectItem>
                       <SelectItem value="Documentos Modelos">Documentos Modelos</SelectItem>
                       <SelectItem value="Cursos">Cursos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="discipline"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Disciplina (Opcional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma disciplina" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Concreto Armado">Concreto Armado</SelectItem>
+                      <SelectItem value="Metálico">Metálico</SelectItem>
+                      <SelectItem value="Hidrossanitário">Hidrossanitário</SelectItem>
+                      <SelectItem value="Elétrico">Elétrico</SelectItem>
+                      <SelectItem value="Prevenção de Incêndio">Prevenção de Incêndio</SelectItem>
+                      <SelectItem value="Gases">Gases</SelectItem>
+                      <SelectItem value="Constr. Civil">Constr. Civil</SelectItem>
+                      <SelectItem value="Patologia">Patologia</SelectItem>
+                      <SelectItem value="Outros">Outros</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

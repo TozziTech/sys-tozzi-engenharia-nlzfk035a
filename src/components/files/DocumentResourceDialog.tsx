@@ -20,6 +20,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
 import {
   createDocumentResource,
@@ -32,6 +39,7 @@ const schema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
   description: z.string().optional(),
   url: z.string().url('URL inválida').min(1, 'URL é obrigatória'),
+  category: z.string().min(1, 'Categoria é obrigatória'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -60,6 +68,7 @@ export function DocumentResourceDialog({
       title: '',
       description: '',
       url: '',
+      category: category,
     },
   })
 
@@ -70,16 +79,18 @@ export function DocumentResourceDialog({
           title: resource.title,
           description: resource.description || '',
           url: resource.url,
+          category: resource.category || category,
         })
       } else {
         form.reset({
           title: '',
           description: '',
           url: '',
+          category: category,
         })
       }
     }
-  }, [open, resource, form])
+  }, [open, resource, form, category])
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -87,7 +98,7 @@ export function DocumentResourceDialog({
         await updateDocumentResource(resource.id, data)
         toast({ title: 'Documento atualizado com sucesso' })
       } else {
-        await createDocumentResource({ ...data, category })
+        await createDocumentResource(data)
         toast({ title: 'Documento adicionado com sucesso' })
       }
       onSuccess()
@@ -106,13 +117,11 @@ export function DocumentResourceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Editar Documento' : 'Novo Documento'}</DialogTitle>
           <DialogDescription>
-            {isEditing
-              ? 'Altere os detalhes do documento abaixo.'
-              : `Adicione um novo documento para a seção ${category}.`}
+            {isEditing ? 'Altere os detalhes do documento abaixo.' : `Adicione um novo documento.`}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -126,6 +135,30 @@ export function DocumentResourceDialog({
                   <FormControl>
                     <Input placeholder="Ex: Manual Técnico..." {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoria</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Biblioteca">Biblioteca</SelectItem>
+                      <SelectItem value="POPs">POPs</SelectItem>
+                      <SelectItem value="Projetos Base">Projetos Base</SelectItem>
+                      <SelectItem value="Documentos Modelos">Documentos Modelos</SelectItem>
+                      <SelectItem value="Cursos">Cursos</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

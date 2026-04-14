@@ -43,6 +43,7 @@ import Equipments from './pages/Equipments'
 import Audit from './pages/Audit'
 import AccessControl from './pages/AccessControl'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
+import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
 import { AuthProvider } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
 import { AdminGuard } from './components/auth/AdminGuard'
@@ -130,6 +131,7 @@ const App = () => (
                     path="/files/courses"
                     element={<DocumentResourcesPage category="Cursos" title="Cursos" />}
                   />
+                  <Route path="/files/favorites" element={<FavoriteDocumentsPage />} />
                 </Route>
               </Route>
               <Route path="*" element={<NotFound />} />

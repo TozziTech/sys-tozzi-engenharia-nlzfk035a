@@ -42,6 +42,7 @@ export function FinancialTransactions() {
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
+  const [selectedRecurrence, setSelectedRecurrence] = useState<string>('all')
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -62,6 +63,9 @@ export function FinancialTransactions() {
         if (selectedType !== 'all' && tx.type !== selectedType) return false
         if (selectedStatus !== 'all' && tx.status !== selectedStatus) return false
 
+        if (selectedRecurrence === 'recurring' && !tx.is_recurring) return false
+        if (selectedRecurrence === 'one-off' && tx.is_recurring) return false
+
         if (dateRange?.from) {
           const txDate = new Date(tx.date)
           txDate.setHours(0, 0, 0, 0)
@@ -79,12 +83,13 @@ export function FinancialTransactions() {
         return true
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [transactions, selectedProject, selectedType, selectedStatus, dateRange])
+  }, [transactions, selectedProject, selectedType, selectedStatus, selectedRecurrence, dateRange])
 
   const clearFilters = () => {
     setSelectedProject('all')
     setSelectedType('all')
     setSelectedStatus('all')
+    setSelectedRecurrence('all')
     setDateRange(undefined)
   }
 
@@ -193,6 +198,17 @@ export function FinancialTransactions() {
             </SelectContent>
           </Select>
 
+          <Select value={selectedRecurrence} onValueChange={setSelectedRecurrence}>
+            <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
+              <SelectValue placeholder="Recorrência" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="recurring">Recorrentes</SelectItem>
+              <SelectItem value="one-off">Eventuais</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Button
             variant="ghost"
             onClick={clearFilters}
@@ -200,6 +216,7 @@ export function FinancialTransactions() {
               selectedProject === 'all' &&
               selectedType === 'all' &&
               selectedStatus === 'all' &&
+              selectedRecurrence === 'all' &&
               !dateRange
             }
             className="text-slate-500"

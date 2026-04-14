@@ -58,6 +58,7 @@ export function TransactionTable({
 }: TableProps) {
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [typeFilter, setTypeFilter] = useState('Todos')
+  const [recurrenceFilter, setRecurrenceFilter] = useState('Todos')
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
@@ -77,7 +78,11 @@ export function TransactionTable({
       matchType = tx.type === typeFilter
     }
 
-    return matchStatus && matchType
+    let matchRecurrence = true
+    if (recurrenceFilter === 'Recorrentes') matchRecurrence = !!tx.is_recurring
+    if (recurrenceFilter === 'Eventuais') matchRecurrence = !tx.is_recurring
+
+    return matchStatus && matchType && matchRecurrence
   })
 
   return (
@@ -105,6 +110,16 @@ export function TransactionTable({
               <SelectItem value="Todos">Todos os Tipos</SelectItem>
               <SelectItem value="Entrada">Entrada</SelectItem>
               <SelectItem value="Saída">Saída</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={recurrenceFilter} onValueChange={setRecurrenceFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Recorrência" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todas as Recorrências</SelectItem>
+              <SelectItem value="Recorrentes">Recorrentes</SelectItem>
+              <SelectItem value="Eventuais">Eventuais</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -267,12 +282,16 @@ export function TransactionTable({
                     </TableCell>
                     <TableCell className="font-medium text-center text-zinc-900 dark:text-zinc-100">
                       <div className="flex items-center justify-center gap-2">
-                        {tx.description}
+                        <span>{tx.description}</span>
                         {tx.is_recurring && (
-                          <Repeat
-                            className="h-4 w-4 text-zinc-400 dark:text-zinc-500"
+                          <Badge
+                            variant="outline"
+                            className="flex items-center gap-1 text-[10px] py-0 h-5 text-indigo-600 border-indigo-200 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800 whitespace-nowrap"
                             title="Recorrente"
-                          />
+                          >
+                            <Repeat className="h-3 w-3" />
+                            Recorrente {tx.frequency ? `- ${tx.frequency}` : ''}
+                          </Badge>
                         )}
                       </div>
                     </TableCell>

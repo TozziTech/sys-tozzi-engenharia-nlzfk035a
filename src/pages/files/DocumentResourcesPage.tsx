@@ -13,7 +13,9 @@ import {
   LinkIcon,
   ShieldAlert,
   Star,
+  Search,
 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
@@ -80,6 +82,7 @@ function ManageTagsDialog({ children }: { children: ReactNode }) {
 }
 
 const DISCIPLINES = [
+  { id: 'favorites', label: '⭐ Favoritos' },
   { id: 'all', label: 'Todas as Disciplinas' },
   { id: 'Concreto Armado', label: 'Concreto Armado' },
   { id: 'Metálico', label: 'Metálico' },
@@ -101,7 +104,7 @@ export default function DocumentResourcesPage({
 }) {
   const [resources, setResources] = useState<DocumentResource[]>([])
   const [favorites, setFavorites] = useState<UserDocumentFavorite[]>([])
-  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedTag, setSelectedTag] = useState<string>('all')
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all')
   const [availableTags, setAvailableTags] = useState<any[]>([])
@@ -230,11 +233,24 @@ export default function DocumentResourcesPage({
   }
 
   const displayedResources = resources.filter((r) => {
-    const matchFav = showOnlyFavorites ? favorites.some((f) => f.document_id === r.id) : true
+    const searchLower = searchQuery.toLowerCase()
+    const matchSearch =
+      searchLower === '' ||
+      r.title.toLowerCase().includes(searchLower) ||
+      (r.description?.toLowerCase().includes(searchLower) ?? false)
+
+    const isFav = favorites.some((f) => f.document_id === r.id)
+    const matchFav = selectedDiscipline === 'favorites' ? isFav : true
+
     const matchTag = selectedTag === 'all' ? true : r.tags?.includes(selectedTag)
+
+    const isSearchActive = searchLower !== ''
     const matchDiscipline =
-      selectedDiscipline === 'all' ? true : r.discipline === selectedDiscipline
-    return matchFav && matchTag && matchDiscipline
+      selectedDiscipline === 'all' || selectedDiscipline === 'favorites' || isSearchActive
+        ? true
+        : r.discipline === selectedDiscipline
+
+    return matchSearch && matchFav && matchTag && matchDiscipline
   })
 
   return (
@@ -250,15 +266,15 @@ export default function DocumentResourcesPage({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center space-x-2 mr-2">
-            <Switch
-              id="favorite-mode"
-              checked={showOnlyFavorites}
-              onCheckedChange={setShowOnlyFavorites}
+          <div className="relative w-full sm:w-64 lg:w-80 mr-2">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Buscar documentos..."
+              className="w-full pl-9 bg-background"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <Label htmlFor="favorite-mode" className="cursor-pointer whitespace-nowrap">
-              Apenas favoritos
-            </Label>
           </div>
           <Select value={selectedTag} onValueChange={setSelectedTag}>
             <SelectTrigger className="w-[160px]">
@@ -324,11 +340,13 @@ export default function DocumentResourcesPage({
           </div>
           <h3 className="text-xl font-semibold">Nenhum documento encontrado</h3>
           <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-            {showOnlyFavorites
-              ? 'Você não favoritou nenhum documento nesta categoria ainda.'
-              : selectedDiscipline !== 'all'
-                ? 'Nenhum documento encontrado para esta disciplina.'
-                : `Não há documentos na categoria "${category}" no momento.`}
+            {selectedDiscipline === 'favorites'
+              ? 'Você ainda não possui documentos favoritos.'
+              : searchQuery
+                ? 'Nenhum documento encontrado para a sua busca.'
+                : selectedDiscipline !== 'all'
+                  ? 'Nenhum documento encontrado para esta disciplina.'
+                  : `Não há documentos na categoria "${category}" no momento.`}
           </p>
         </div>
       ) : (

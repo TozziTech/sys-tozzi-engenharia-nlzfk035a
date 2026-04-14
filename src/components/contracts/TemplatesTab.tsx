@@ -35,21 +35,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import { extractFieldErrors } from '@/lib/pocketbase/errors'
 
 const templateSchema = z.object({
-  name: z.string().min(3, 'O nome deve ter no mínimo 3 caracteres.'),
-  content: z.string().min(10, 'O conteúdo do contrato não pode ficar vazio.'),
+  name: z.string().min(3, 'Mínimo 3 caracteres.'),
+  content: z.string().min(10, 'Conteúdo obrigatório.'),
   email_subject: z.string().optional(),
   email_body: z.string().optional(),
 })
 
-export default function ContractTemplates() {
+export function TemplatesTab() {
   const [templates, setTemplates] = useState<ContractTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
@@ -64,7 +62,7 @@ export default function ContractTemplates() {
     try {
       const data = await getContractTemplates()
       setTemplates(data)
-    } catch (error) {
+    } catch {
       toast.error('Erro ao carregar modelos.')
     } finally {
       setLoading(false)
@@ -74,19 +72,16 @@ export default function ContractTemplates() {
   useEffect(() => {
     loadTemplates()
   }, [])
+  useRealtime('contract_templates', () => loadTemplates())
 
-  useRealtime('contract_templates', () => {
-    loadTemplates()
-  })
-
-  const handleOpen = (template?: ContractTemplate) => {
-    if (template) {
-      setEditingId(template.id)
+  const handleOpen = (t?: ContractTemplate) => {
+    if (t) {
+      setEditingId(t.id)
       form.reset({
-        name: template.name,
-        content: template.content,
-        email_subject: template.email_subject || '',
-        email_body: template.email_body || '',
+        name: t.name,
+        content: t.content,
+        email_subject: t.email_subject || '',
+        email_body: t.email_body || '',
       })
     } else {
       setEditingId(null)
@@ -97,43 +92,29 @@ export default function ContractTemplates() {
 
   const onSubmit = async (values: z.infer<typeof templateSchema>) => {
     try {
-      if (editingId) {
-        await updateContractTemplate(editingId, values)
-        toast.success('Modelo atualizado com sucesso!')
-      } else {
-        await createContractTemplate(values)
-        toast.success('Modelo criado com sucesso!')
-      }
+      if (editingId) await updateContractTemplate(editingId, values)
+      else await createContractTemplate(values)
+      toast.success('Modelo salvo com sucesso!')
       setIsOpen(false)
-    } catch (error) {
-      const fieldErrors = extractFieldErrors(error)
-      if (fieldErrors.name) {
-        form.setError('name', { message: 'Já existe um modelo com este nome.' })
-      } else {
-        toast.error('Erro ao salvar o modelo.')
-      }
+    } catch {
+      toast.error('Erro ao salvar o modelo.')
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este modelo?')) {
+    if (confirm('Deseja excluir este modelo?')) {
       try {
         await deleteContractTemplate(id)
         toast.success('Modelo excluído.')
       } catch {
-        toast.error('Erro ao excluir o modelo.')
+        toast.error('Erro ao excluir.')
       }
     }
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Modelos de Contrato</h1>
-          <p className="text-muted-foreground">Gerencie os templates de documentos e contratos.</p>
-        </div>
-
+    <div className="flex flex-col h-full space-y-4">
+      <div className="flex justify-end">
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => handleOpen()} className="gap-2">
@@ -142,33 +123,29 @@ export default function ContractTemplates() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[700px]">
             <DialogHeader>
-              <DialogTitle>{editingId ? 'Editar Modelo' : 'Criar Novo Modelo'}</DialogTitle>
+              <DialogTitle>{editingId ? 'Editar Modelo' : 'Novo Modelo'}</DialogTitle>
               <DialogDescription>
-                Use as variáveis para campos dinâmicos: <code>{'{{cliente}}'}</code>,{' '}
-                <code>{'{{endereco}}'}</code>, <code>{'{{valor}}'}</code>,{' '}
-                <code>{'{{prazo}}'}</code>. Disponível no contrato e no e-mail.
+                Use variáveis: {'{{cliente}}'}, {'{{endereco}}'}, {'{{valor}}'}, {'{{prazo}}'}.
               </DialogDescription>
             </DialogHeader>
-
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4 mt-4 max-h-[70vh] overflow-y-auto px-1"
+                className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto px-1"
               >
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome do Modelo</FormLabel>
+                      <FormLabel>Nome</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Contrato de Prestação de Serviços" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="content"
@@ -176,22 +153,13 @@ export default function ContractTemplates() {
                     <FormItem>
                       <FormLabel>Corpo do Contrato</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Digite o conteúdo do contrato aqui..."
-                          className="min-h-[200px] font-mono resize-y"
-                          {...field}
-                        />
+                        <Textarea className="min-h-[200px]" {...field} />
                       </FormControl>
-                      <FormDescription>
-                        O conteúdo será substituído com os dados reais ao gerar o contrato.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <div className="space-y-4 pt-4 border-t">
-                  <h4 className="text-sm font-medium">Configuração de E-mail (Opcional)</h4>
                   <FormField
                     control={form.control}
                     name="email_subject"
@@ -199,13 +167,12 @@ export default function ContractTemplates() {
                       <FormItem>
                         <FormLabel>Assunto do E-mail</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: Envio de Contrato - {{cliente}}" {...field} />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="email_body"
@@ -213,23 +180,18 @@ export default function ContractTemplates() {
                       <FormItem>
                         <FormLabel>Corpo do E-mail</FormLabel>
                         <FormControl>
-                          <Textarea
-                            placeholder="Olá {{cliente}}, segue em anexo..."
-                            className="min-h-[100px] resize-y"
-                            {...field}
-                          />
+                          <Textarea className="min-h-[100px]" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-
-                <div className="flex justify-end gap-2 pt-4">
+                <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit">Salvar Modelo</Button>
+                  <Button type="submit">Salvar</Button>
                 </div>
               </form>
             </Form>
@@ -237,47 +199,45 @@ export default function ContractTemplates() {
         </Dialog>
       </div>
 
-      <div className="rounded-md border bg-card">
+      <div className="rounded-md border bg-card overflow-auto flex-1">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome do Modelo</TableHead>
-              <TableHead className="w-[200px]">Última Atualização</TableHead>
+              <TableHead>Nome</TableHead>
+              <TableHead className="w-[200px]">Atualizado em</TableHead>
               <TableHead className="w-[100px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
-                  Carregando modelos...
+                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                  Carregando...
                 </TableCell>
               </TableRow>
             ) : templates.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
+                <TableCell colSpan={3} className="text-center text-muted-foreground">
                   Nenhum modelo cadastrado.
                 </TableCell>
               </TableRow>
             ) : (
-              templates.map((template) => (
-                <TableRow key={template.id}>
-                  <TableCell className="font-medium">{template.name}</TableCell>
-                  <TableCell>{new Date(template.updated).toLocaleDateString('pt-BR')}</TableCell>
+              templates.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell className="font-medium">{t.name}</TableCell>
+                  <TableCell>{new Date(t.updated).toLocaleDateString('pt-BR')}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleOpen(template)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(template.id)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => handleOpen(t)}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(t.id)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))

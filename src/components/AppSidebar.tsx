@@ -61,9 +61,7 @@ const navigationGroups = [
       { name: 'Cronograma', href: '/schedule', icon: CalendarDays },
       { name: 'Calendário', href: '/calendar', icon: CalendarIcon },
       { name: 'Orçamentos', href: '/quotes', icon: FileText },
-      { name: 'Gerador de Contratos', href: '/operations/contract-generator', icon: FileSignature },
-      { name: 'Modelos de Contrato', href: '/operations/contract-templates', icon: FileText },
-      { name: 'Histórico de Contratos', href: '/operations/contracts-history', icon: History },
+      { name: 'Contratos', href: '/operations/contract-generator', icon: FileSignature },
     ],
   },
   {

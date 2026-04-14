@@ -60,7 +60,27 @@ const navigationGroups = [
     ],
   },
   {
-    label: 'Gerenciador de Arquivos/Documentos',
+    label: 'Operações',
+    items: [
+      { name: 'Lançamentos Financeiros', href: '/financial', icon: DollarSign },
+      { name: 'Projetos', href: '/projects', icon: FolderKanban },
+      { name: 'Cronograma', href: '/schedule', icon: CalendarDays },
+      { name: 'Calendário', href: '/calendar', icon: CalendarIcon },
+      { name: 'Orçamentos', href: '/quotes', icon: FileText },
+      { name: 'Contratos', href: '/operations/contract-generator', icon: FileSignature },
+    ],
+  },
+  {
+    label: 'Cadastro',
+    items: [
+      { name: 'Projetistas', href: '/team', icon: Users },
+      { name: 'Clientes', href: '/clients', icon: Briefcase },
+      { name: 'Contatos', href: '/contacts', icon: Contact },
+      { name: 'Equipamentos', href: '/equipment', icon: HardHat },
+    ],
+  },
+  {
+    label: 'GESTÃO ARQ/DOC',
     items: [
       { name: 'Biblioteca', href: '/files/library', icon: BookOpen },
       {
@@ -82,26 +102,6 @@ const navigationGroups = [
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista', 'Estagiário'],
       },
       { name: 'Cursos', href: '/files/courses', icon: GraduationCap },
-    ],
-  },
-  {
-    label: 'Operações',
-    items: [
-      { name: 'Lançamentos Financeiros', href: '/financial', icon: DollarSign },
-      { name: 'Projetos', href: '/projects', icon: FolderKanban },
-      { name: 'Cronograma', href: '/schedule', icon: CalendarDays },
-      { name: 'Calendário', href: '/calendar', icon: CalendarIcon },
-      { name: 'Orçamentos', href: '/quotes', icon: FileText },
-      { name: 'Contratos', href: '/operations/contract-generator', icon: FileSignature },
-    ],
-  },
-  {
-    label: 'Cadastro',
-    items: [
-      { name: 'Projetistas', href: '/team', icon: Users },
-      { name: 'Clientes', href: '/clients', icon: Briefcase },
-      { name: 'Contatos', href: '/contacts', icon: Contact },
-      { name: 'Equipamentos', href: '/equipment', icon: HardHat },
     ],
   },
   {

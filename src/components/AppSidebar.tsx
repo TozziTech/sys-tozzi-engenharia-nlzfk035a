@@ -20,6 +20,11 @@ import {
   Contact,
   LineChart,
   Activity,
+  BookOpen,
+  FileCheck,
+  FileStack,
+  FileSpreadsheet,
+  GraduationCap,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -52,6 +57,16 @@ const navigationGroups = [
       { name: 'Performance', href: '/performance', icon: Activity },
       { name: 'Auditoria de Prazos', href: '/deadline-audit', icon: Clock },
       { name: 'Contas Bancárias', href: '/management/bank-accounts', icon: Landmark },
+    ],
+  },
+  {
+    label: 'Gerenciador de Arquivos/Documentos',
+    items: [
+      { name: 'Biblioteca', href: '/files/library', icon: BookOpen },
+      { name: 'POPs', href: '/files/pops', icon: FileCheck },
+      { name: 'Projetos Base', href: '/files/base-projects', icon: FileStack },
+      { name: 'Documentos Modelos', href: '/files/templates', icon: FileSpreadsheet },
+      { name: 'Cursos', href: '/files/courses', icon: GraduationCap },
     ],
   },
   {

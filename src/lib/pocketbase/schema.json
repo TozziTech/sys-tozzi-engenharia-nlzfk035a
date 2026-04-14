@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T05:32:44.011Z",
+  "generatedAt": "2026-04-14T05:43:19.558Z",
   "collections": [
     {
       "name": "users",
@@ -1963,6 +1963,59 @@
           "type": "bool",
           "required": false,
           "system": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "document_resources",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'Administrador'",
+        "update": "@request.auth.role = 'Administrador'",
+        "delete": "@request.auth.role = 'Administrador'"
+      },
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Biblioteca", "POPs", "Projetos Base", "Documentos Modelos", "Cursos"]
+        },
+        {
+          "name": "url",
+          "type": "url",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []

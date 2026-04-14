@@ -42,6 +42,7 @@ import Layout from './components/Layout'
 import Equipments from './pages/Equipments'
 import Audit from './pages/Audit'
 import AccessControl from './pages/AccessControl'
+import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
 import { AuthProvider } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
 import { AdminGuard } from './components/auth/AdminGuard'
@@ -102,6 +103,33 @@ const App = () => (
                     <Route path="/admin/audit-log" element={<Audit />} />
                   </Route>
                   <Route path="/access-control" element={<AccessControl />} />
+                  <Route
+                    path="/files/library"
+                    element={<DocumentResourcesPage category="Biblioteca" title="Biblioteca" />}
+                  />
+                  <Route
+                    path="/files/pops"
+                    element={<DocumentResourcesPage category="POPs" title="POPs" />}
+                  />
+                  <Route
+                    path="/files/base-projects"
+                    element={
+                      <DocumentResourcesPage category="Projetos Base" title="Projetos Base" />
+                    }
+                  />
+                  <Route
+                    path="/files/templates"
+                    element={
+                      <DocumentResourcesPage
+                        category="Documentos Modelos"
+                        title="Documentos Modelos"
+                      />
+                    }
+                  />
+                  <Route
+                    path="/files/courses"
+                    element={<DocumentResourcesPage category="Cursos" title="Cursos" />}
+                  />
                 </Route>
               </Route>
               <Route path="*" element={<NotFound />} />

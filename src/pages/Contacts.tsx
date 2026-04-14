@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search, Pencil, Trash2, Download, X } from 'lucide-react'
-import { getContacts, deleteContact, type Contact } from '@/services/contacts'
+import { Plus, Search, Pencil, Trash2, Download, X, Star } from 'lucide-react'
+import { getContacts, deleteContact, updateContact, type Contact } from '@/services/contacts'
 import { useRealtime } from '@/hooks/use-realtime'
 import { exportContactsCSV } from '@/lib/export'
 import { Button } from '@/components/ui/button'
@@ -80,6 +80,35 @@ export default function Contacts() {
     }
   }
 
+  const toggleFavorite = async (contact: Contact) => {
+    const newIsFavorite = !contact.is_favorite
+
+    // Atualização otimista da UI
+    setContacts((prev) =>
+      prev.map((c) => (c.id === contact.id ? { ...c, is_favorite: newIsFavorite } : c)),
+    )
+
+    try {
+      await updateContact(contact.id, { is_favorite: newIsFavorite })
+      toast({
+        title: 'Sucesso',
+        description: newIsFavorite
+          ? 'Contato adicionado aos favoritos.'
+          : 'Contato removido dos favoritos.',
+      })
+    } catch (error) {
+      // Reverter atualização otimista em caso de erro
+      setContacts((prev) =>
+        prev.map((c) => (c.id === contact.id ? { ...c, is_favorite: !newIsFavorite } : c)),
+      )
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar o status de favorito.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const handleExport = () => {
     try {
       exportContactsCSV(contacts)
@@ -104,14 +133,21 @@ export default function Contacts() {
     loadContacts()
   })
 
-  const filteredContacts = contacts.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.company?.toLowerCase().includes(search.toLowerCase()) ||
-      c.email?.toLowerCase().includes(search.toLowerCase())
-    const matchesCategory = categoryFilter === 'all' || c.category === categoryFilter
-    return matchesSearch && matchesCategory
-  })
+  const filteredContacts = contacts
+    .filter((c) => {
+      const matchesSearch =
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.company?.toLowerCase().includes(search.toLowerCase()) ||
+        c.email?.toLowerCase().includes(search.toLowerCase())
+      const matchesCategory = categoryFilter === 'all' || c.category === categoryFilter
+      return matchesSearch && matchesCategory
+    })
+    .sort((a, b) => {
+      if (a.is_favorite === b.is_favorite) {
+        return a.name.localeCompare(b.name)
+      }
+      return a.is_favorite ? -1 : 1
+    })
 
   const hasFilters = search !== '' || categoryFilter !== 'all'
   const clearFilters = () => {
@@ -193,6 +229,7 @@ export default function Contacts() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12"></TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Telefone</TableHead>
@@ -204,13 +241,35 @@ export default function Contacts() {
               <TableBody>
                 {filteredContacts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhum contato encontrado.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredContacts.map((contact) => (
                     <TableRow key={contact.id}>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => toggleFavorite(contact)}
+                          title={
+                            contact.is_favorite
+                              ? 'Remover dos favoritos'
+                              : 'Adicionar aos favoritos'
+                          }
+                        >
+                          <Star
+                            className={cn(
+                              'h-4 w-4',
+                              contact.is_favorite
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'text-muted-foreground',
+                            )}
+                          />
+                        </Button>
+                      </TableCell>
                       <TableCell className="font-medium">{contact.name}</TableCell>
                       <TableCell>{contact.company || '-'}</TableCell>
                       <TableCell>{contact.phone || '-'}</TableCell>

@@ -7,6 +7,7 @@ export interface Contact {
   phone: string
   email: string
   category: 'Cliente' | 'Fornecedor' | 'Parceiro'
+  is_favorite?: boolean
   created: string
   updated: string
 }

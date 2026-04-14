@@ -143,7 +143,7 @@ export function PlanilhaFinanceira() {
             <Download className="w-4 h-4 mr-2" /> Exportar CSV
           </Button>
           <Button onClick={() => openForm()}>
-            <Plus className="w-4 h-4 mr-2" /> Novo Serviço
+            <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
           </Button>
         </div>
       </div>
@@ -186,8 +186,9 @@ export function PlanilhaFinanceira() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Código</TableHead>
+              <TableHead>ID</TableHead>
               <TableHead>Projeto/Serviço</TableHead>
+              <TableHead>Observações</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Data Início</TableHead>
               <TableHead>Status</TableHead>
@@ -198,7 +199,7 @@ export function PlanilhaFinanceira() {
           <TableBody>
             {filteredServicos.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Nenhum serviço financeiro encontrado.
                 </TableCell>
               </TableRow>
@@ -208,13 +209,12 @@ export function PlanilhaFinanceira() {
                   <TableCell className="font-medium whitespace-nowrap text-primary">
                     {s.codigo}
                   </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{s.projeto_servico}</div>
-                    {s.observacoes && (
-                      <div className="text-xs text-muted-foreground truncate max-w-[250px]">
-                        {s.observacoes}
-                      </div>
-                    )}
+                  <TableCell className="font-medium">{s.projeto_servico}</TableCell>
+                  <TableCell
+                    className="text-muted-foreground max-w-[200px] truncate"
+                    title={s.observacoes}
+                  >
+                    {s.observacoes || '-'}
                   </TableCell>
                   <TableCell>{s.cliente || '-'}</TableCell>
                   <TableCell className="whitespace-nowrap">
@@ -269,7 +269,7 @@ export function PlanilhaFinanceira() {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>{formData.id ? 'Editar Serviço' : 'Novo Serviço Financeiro'}</DialogTitle>
+            <DialogTitle>{formData.id ? 'Editar Lançamento' : 'Novo Lançamento'}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="space-y-2">

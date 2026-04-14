@@ -55,7 +55,6 @@ import {
 import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
 import { ProjectDisciplinesTab } from '@/components/ProjectDisciplinesTab'
-import { ProjectTreeGrid } from '@/components/ProjectTreeGrid'
 import { ProjectFinanceTab } from '@/components/ProjectFinanceTab'
 import {
   AlertDialog,
@@ -544,10 +543,6 @@ export default function ProjectDetails() {
               )}
             </CardContent>
           </Card>
-
-          <div className="w-full">
-            <ProjectTreeGrid projectId={project.id} />
-          </div>
 
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

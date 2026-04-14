@@ -1,3 +1,4 @@
+import { useEffect, useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -21,25 +22,26 @@ import {
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FileSignature, Printer } from 'lucide-react'
+import { toast } from 'sonner'
+import { ContractTemplate, getContractTemplates } from '@/services/contract_templates'
+import { createGeneratedContract } from '@/services/generated_contracts'
 
 const formSchema = z.object({
-  template: z.string().min(1, 'Selecione um modelo'),
-  clientName: z.string().optional(),
+  templateId: z.string().min(1, 'Selecione um modelo'),
+  clientName: z.string().min(1, 'Nome do cliente é obrigatório'),
   address: z.string().optional(),
   value: z.string().optional(),
   deadline: z.string().optional(),
 })
 
-const templates = [
-  { id: 'prestacao-servico', name: 'Prestação de Serviço de Engenharia' },
-  { id: 'consultoria', name: 'Consultoria Técnica' },
-]
-
 export default function ContractGenerator() {
+  const [templates, setTemplates] = useState<ContractTemplate[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      template: 'prestacao-servico',
+      templateId: '',
       clientName: '',
       address: '',
       value: '',
@@ -49,70 +51,82 @@ export default function ContractGenerator() {
 
   const values = form.watch()
 
-  const getTemplateContent = () => {
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const data = await getContractTemplates()
+        setTemplates(data)
+        if (data.length > 0 && !values.templateId) {
+          form.setValue('templateId', data[0].id)
+        }
+      } catch (err) {
+        toast.error('Erro ao carregar modelos de contrato')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchTemplates()
+  }, [form, values.templateId])
+
+  const selectedTemplate = useMemo(() => {
+    return templates.find((t) => t.id === values.templateId)
+  }, [templates, values.templateId])
+
+  const computedContent = useMemo(() => {
+    if (!selectedTemplate) return 'Selecione um modelo de contrato para visualizar.'
+
+    let text = selectedTemplate.content
     const client = values.clientName || '[NOME_DO_CLIENTE]'
-    const address = values.address || '[ENDERECO]'
+    const address = values.address || '[ENDEREÇO]'
     const value = values.value ? `R$ ${values.value}` : '[VALOR]'
     const deadline = values.deadline ? `${values.deadline} dias` : '[PRAZO]'
-    const date = new Date().toLocaleDateString('pt-BR')
 
-    if (values.template === 'consultoria') {
-      return `CONTRATO DE CONSULTORIA TÉCNICA
+    text = text.replace(/\{\{cliente\}\}/gi, client)
+    text = text.replace(/\{\{endereco\}\}/gi, address)
+    text = text.replace(/\{\{valor\}\}/gi, value)
+    text = text.replace(/\{\{prazo\}\}/gi, deadline)
 
-Pelo presente instrumento particular, de um lado, TOZZI ENGENHARIA, doravante denominada CONTRATADA, inscrita no CNPJ sob o nº 00.000.000/0001-00, e de outro lado ${client}, doravante denominado(a) CONTRATANTE.
+    // Auto-replace common static tags if any
+    const dateStr = new Date().toLocaleDateString('pt-BR')
+    text = text.replace(/\[DATA_DA_ASSINATURA\]/gi, dateStr)
 
-1. OBJETO
-O presente contrato tem como objeto a prestação de serviços de consultoria técnica de engenharia no endereço: ${address}.
+    return text
+  }, [selectedTemplate, values])
 
-2. VALOR E CONDIÇÕES DE PAGAMENTO
-Pelos serviços prestados, a CONTRATANTE pagará à CONTRATADA o valor total de ${value}. O pagamento será realizado conforme condições acordadas previamente entre as partes.
+  const handlePrint = async () => {
+    const isValid = await form.trigger()
+    if (!isValid) return
 
-3. PRAZO
-Os serviços serão executados no prazo de ${deadline}, contados a partir da assinatura deste instrumento. A prorrogação deste prazo poderá ocorrer mediante aditivo contratual.
-
-4. FORO
-As partes elegem o foro da comarca atual para dirimir quaisquer dúvidas ou litígios decorrentes deste contrato, renunciando a qualquer outro, por mais privilegiado que seja.
-
-E, por estarem justos e contratados, firmam o presente instrumento em 02 (duas) vias de igual teor e forma.
-
-Data: ${date}
-
-_____________________________________________________
-TOZZI ENGENHARIA - CONTRATADA
-
-_____________________________________________________
-${client} - CONTRATANTE`
+    if (!selectedTemplate) {
+      toast.error('Nenhum modelo selecionado.')
+      return
     }
 
-    return `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE ENGENHARIA
+    try {
+      toast.loading('Salvando histórico...', { id: 'save-contract' })
 
-Pelo presente instrumento particular, de um lado, TOZZI ENGENHARIA, doravante denominada CONTRATADA, inscrita no CNPJ sob o nº 00.000.000/0001-00, e de outro lado ${client}, doravante denominado(a) CONTRATANTE.
+      const numValue = values.value
+        ? parseFloat(values.value.replace(/\./g, '').replace(',', '.'))
+        : 0
 
-1. OBJETO
-O presente contrato tem como objeto a execução de obras e/ou elaboração de projetos de engenharia no seguinte local: ${address}.
+      await createGeneratedContract({
+        template: selectedTemplate.id,
+        client_name: values.clientName,
+        address: values.address || '',
+        value: isNaN(numValue) ? 0 : numValue,
+        deadline: values.deadline || '',
+        final_content: computedContent,
+      })
 
-2. REMUNERAÇÃO
-Pela execução dos serviços objeto deste contrato, a CONTRATANTE obriga-se a pagar à CONTRATADA o valor de ${value}, conforme cronograma físico-financeiro anexo.
+      toast.success('Contrato salvo no histórico.', { id: 'save-contract' })
 
-3. PRAZO DE EXECUÇÃO
-A CONTRATADA compromete-se a concluir a obra/projeto no prazo de ${deadline}, contados da data de emissão da Ordem de Serviço ou assinatura deste.
-
-4. RESPONSABILIDADES
-A CONTRATADA assume total responsabilidade técnica pela execução dos serviços, comprometendo-se a observar as normas da ABNT e fornecer a respectiva ART (Anotação de Responsabilidade Técnica).
-
-E, por estarem justos e contratados, firmam o presente instrumento em 02 (duas) vias de igual teor e forma.
-
-Data: ${date}
-
-_____________________________________________________
-TOZZI ENGENHARIA - CONTRATADA
-
-_____________________________________________________
-${client} - CONTRATANTE`
-  }
-
-  const handlePrint = () => {
-    window.print()
+      // Delay slightly so the toast is visible before the print dialog freezes the thread
+      setTimeout(() => {
+        window.print()
+      }, 500)
+    } catch (error) {
+      toast.error('Erro ao salvar no histórico.', { id: 'save-contract' })
+    }
   }
 
   return (
@@ -121,12 +135,16 @@ ${client} - CONTRATANTE`
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Gerador de Contratos</h1>
           <p className="text-muted-foreground">
-            Preencha os dados para gerar e exportar o documento.
+            Preencha os dados para gerar e salvar o documento.
           </p>
         </div>
-        <Button onClick={handlePrint} className="gap-2">
+        <Button
+          onClick={handlePrint}
+          className="gap-2"
+          disabled={isLoading || templates.length === 0}
+        >
           <Printer className="h-4 w-4" />
-          Gerar PDF
+          Salvar e Imprimir PDF
         </Button>
       </div>
 
@@ -144,17 +162,23 @@ ${client} - CONTRATANTE`
           </CardHeader>
           <CardContent className="flex-1 overflow-auto">
             <Form {...form}>
-              <form className="space-y-6">
+              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
                 <FormField
                   control={form.control}
-                  name="template"
+                  name="templateId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Modelo de Contrato</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={isLoading || templates.length === 0}
+                      >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione um modelo" />
+                            <SelectValue
+                              placeholder={isLoading ? 'Carregando...' : 'Selecione um modelo'}
+                            />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -175,7 +199,7 @@ ${client} - CONTRATANTE`
                   name="clientName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nome do Cliente / Razão Social</FormLabel>
+                      <FormLabel>Nome do Cliente / Razão Social *</FormLabel>
                       <FormControl>
                         <Input placeholder="Ex: João da Silva ou Empresa XYZ" {...field} />
                       </FormControl>
@@ -206,7 +230,7 @@ ${client} - CONTRATANTE`
                       <FormItem>
                         <FormLabel>Valor do Projeto (R$)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: 15.000,00" {...field} />
+                          <Input placeholder="Ex: 15000,00" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -242,17 +266,17 @@ ${client} - CONTRATANTE`
           <ScrollArea className="flex-1 p-6">
             <div className="bg-white text-black shadow-sm mx-auto max-w-[210mm] min-h-[297mm] p-10 sm:p-16 ring-1 ring-black/5">
               <pre className="whitespace-pre-wrap font-serif text-sm leading-relaxed font-normal">
-                {getTemplateContent()}
+                {computedContent}
               </pre>
             </div>
           </ScrollArea>
         </Card>
       </div>
 
-      {/* Área de Impressão (invisível em tela, visível na impressão) */}
+      {/* Área de Impressão */}
       <div className="hidden print:block fixed inset-0 z-[99999] bg-white text-black p-12 overflow-visible">
         <pre className="whitespace-pre-wrap font-serif text-base leading-relaxed font-normal max-w-4xl mx-auto">
-          {getTemplateContent()}
+          {computedContent}
         </pre>
       </div>
     </div>

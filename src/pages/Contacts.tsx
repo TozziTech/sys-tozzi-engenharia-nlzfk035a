@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search, Pencil, Trash2, Download } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Download, X } from 'lucide-react'
 import { getContacts, deleteContact, type Contact } from '@/services/contacts'
 import { useRealtime } from '@/hooks/use-realtime'
 import { exportContactsCSV } from '@/lib/export'
@@ -18,6 +18,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -32,6 +39,7 @@ export default function Contacts() {
   const { toast } = useToast()
   const [contacts, setContacts] = useState<Contact[]>([])
   const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [deletingContact, setDeletingContact] = useState<Contact | null>(null)
@@ -96,12 +104,20 @@ export default function Contacts() {
     loadContacts()
   })
 
-  const filteredContacts = contacts.filter(
-    (c) =>
+  const filteredContacts = contacts.filter((c) => {
+    const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.company?.toLowerCase().includes(search.toLowerCase()) ||
-      c.email?.toLowerCase().includes(search.toLowerCase()),
-  )
+      c.email?.toLowerCase().includes(search.toLowerCase())
+    const matchesCategory = categoryFilter === 'all' || c.category === categoryFilter
+    return matchesSearch && matchesCategory
+  })
+
+  const hasFilters = search !== '' || categoryFilter !== 'all'
+  const clearFilters = () => {
+    setSearch('')
+    setCategoryFilter('all')
+  }
 
   const getCategoryColor = (cat: string) => {
     switch (cat) {
@@ -118,32 +134,59 @@ export default function Contacts() {
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Contatos</h2>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="mr-2 h-4 w-4" />
-            Exportar CSV
-          </Button>
-          <Button onClick={handleNew}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Contato
-          </Button>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou empresa..."
+                className="pl-8 w-full"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="Cliente">Cliente</SelectItem>
+                <SelectItem value="Fornecedor">Fornecedor</SelectItem>
+                <SelectItem value="Parceiro">Parceiro</SelectItem>
+              </SelectContent>
+            </Select>
+            {hasFilters && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearFilters}
+                title="Limpar Filtros"
+                className="shrink-0"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Limpar Filtros</span>
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
+              <Download className="mr-2 h-4 w-4" />
+              Exportar CSV
+            </Button>
+            <Button onClick={handleNew} className="w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Contato
+            </Button>
+          </div>
         </div>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle className="text-lg font-medium">Lista de Contatos</CardTitle>
-          <div className="relative w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar contatos..."
-              className="pl-8"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">

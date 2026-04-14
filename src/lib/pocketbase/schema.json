@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T00:10:00.740Z",
+  "generatedAt": "2026-04-14T00:50:45.532Z",
   "collections": [
     {
       "name": "users",
@@ -1635,6 +1635,59 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_servicos_financeiros_user ON servicos_financeiros (user_id)"]
+    },
+    {
+      "name": "pagamentos_servicos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "servico_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "servicos_financeiros"
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_pagamento",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_pagamentos_servico_id ON pagamentos_servicos (servico_id)"]
     }
   ]
 }

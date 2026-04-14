@@ -5,6 +5,7 @@ import { FinancialCategories } from '@/components/financial/FinancialCategories'
 import { TransactionModal } from '@/components/financial/TransactionModal'
 import { FinancialAlerts } from '@/components/financial/FinancialAlerts'
 import { RecurringExpensesCard } from '@/components/financial/RecurringExpensesCard'
+import { RecurringExpensesChart } from '@/components/financial/RecurringExpensesChart'
 
 export default function Financial() {
   return (
@@ -24,8 +25,13 @@ export default function Financial() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <RecurringExpensesCard />
+      <div className="grid gap-4 md:grid-cols-3 items-stretch">
+        <div className="md:col-span-1">
+          <RecurringExpensesCard />
+        </div>
+        <div className="md:col-span-2">
+          <RecurringExpensesChart />
+        </div>
       </div>
 
       <FinancialAlerts />

@@ -20,6 +20,7 @@ import { Switch } from '@/components/ui/switch'
 import useProjectStore from '@/stores/useProjectStore'
 import { useFinancialCategories } from '@/hooks/use-financial-categories'
 import pb from '@/lib/pocketbase/client'
+import { toast } from 'sonner'
 
 export function EditTransactionModal({
   transaction,
@@ -104,6 +105,11 @@ export function EditTransactionModal({
       setFormError('Por favor, insira uma data válida.')
       return
     }
+    if (formData.is_recurring && !formData.frequency) {
+      setFormError('A frequência é obrigatória para lançamentos recorrentes.')
+      return
+    }
+
     if (
       formData.is_recurring &&
       formData.end_date &&
@@ -128,6 +134,9 @@ export function EditTransactionModal({
         status: formData.status,
         is_recurring: formData.is_recurring,
         frequency: formData.is_recurring ? formData.frequency : '',
+        recurrence_group_id: formData.is_recurring
+          ? transaction.recurrence_group_id || crypto.randomUUID()
+          : '',
         end_date:
           formData.is_recurring && formData.end_date
             ? new Date(formData.end_date).toISOString()
@@ -148,6 +157,13 @@ export function EditTransactionModal({
       }
 
       await pb.collection('financial_records').update(transaction.id, submitData)
+
+      if (formData.is_recurring) {
+        toast.success('Série recorrente configurada com sucesso!')
+      } else {
+        toast.success('Transação atualizada com sucesso!')
+      }
+
       onOpenChange(false)
     } catch (err) {
       console.error(err)

@@ -90,6 +90,11 @@ export function TransactionModal() {
       setFormError('Por favor, selecione uma categoria.')
       return
     }
+    if (formData.is_recurring && !formData.frequency) {
+      setFormError('A frequência é obrigatória para lançamentos recorrentes.')
+      return
+    }
+
     if (
       formData.is_recurring &&
       formData.end_date &&
@@ -132,7 +137,11 @@ export function TransactionModal() {
     try {
       await pb.collection('financial_records').create(submitData)
 
-      toast.success('Transação criada com sucesso!')
+      if (formData.is_recurring) {
+        toast.success('Série recorrente configurada com sucesso!')
+      } else {
+        toast.success('Transação criada com sucesso!')
+      }
       setIsOpen(false)
       setFormData({ ...initialFormState })
     } catch (err: any) {

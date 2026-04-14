@@ -19,7 +19,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { createContact } from '@/services/contacts'
+import { useEffect } from 'react'
+import { createContact, updateContact, type Contact } from '@/services/contacts'
 import { useToast } from '@/hooks/use-toast'
 
 const formSchema = z.object({
@@ -38,9 +39,10 @@ interface ContactDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
+  contact?: Contact | null
 }
 
-export function ContactDialog({ open, onOpenChange, onSuccess }: ContactDialogProps) {
+export function ContactDialog({ open, onOpenChange, onSuccess, contact }: ContactDialogProps) {
   const { toast } = useToast()
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -53,20 +55,51 @@ export function ContactDialog({ open, onOpenChange, onSuccess }: ContactDialogPr
     },
   })
 
+  useEffect(() => {
+    if (open) {
+      if (contact) {
+        form.reset({
+          name: contact.name,
+          company: contact.company || '',
+          phone: contact.phone || '',
+          email: contact.email || '',
+          category: contact.category,
+        })
+      } else {
+        form.reset({
+          name: '',
+          company: '',
+          phone: '',
+          email: '',
+          category: 'Cliente',
+        })
+      }
+    }
+  }, [open, contact, form])
+
   const onSubmit = async (data: FormValues) => {
     try {
-      await createContact(data)
-      toast({
-        title: 'Sucesso',
-        description: 'Contato criado com sucesso.',
-      })
-      form.reset()
+      if (contact) {
+        await updateContact(contact.id, data)
+        toast({
+          title: 'Sucesso',
+          description: 'Contato atualizado com sucesso.',
+        })
+      } else {
+        await createContact(data)
+        toast({
+          title: 'Sucesso',
+          description: 'Contato criado com sucesso.',
+        })
+      }
       onOpenChange(false)
       onSuccess?.()
     } catch (error) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível criar o contato.',
+        description: contact
+          ? 'Não foi possível atualizar o contato.'
+          : 'Não foi possível criar o contato.',
         variant: 'destructive',
       })
     }
@@ -76,7 +109,7 @@ export function ContactDialog({ open, onOpenChange, onSuccess }: ContactDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Novo Contato</DialogTitle>
+          <DialogTitle>{contact ? 'Editar Contato' : 'Novo Contato'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

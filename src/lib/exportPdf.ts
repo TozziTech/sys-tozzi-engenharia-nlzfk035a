@@ -10,7 +10,11 @@ export function exportContractPDF(contract: any, currentUser: string, settings: 
     ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
     : ''
 
-  const content = (contract.final_content || '').replace(/\n/g, '<br/>')
+  const rawContent = contract.final_content || ''
+  const content =
+    rawContent.includes('<') && rawContent.includes('>')
+      ? rawContent
+      : rawContent.replace(/\n/g, '<br/>')
   const fileName = `Contrato_${(contract.client_name || 'Cliente').replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}`
 
   const html = `

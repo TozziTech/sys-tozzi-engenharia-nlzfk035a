@@ -40,6 +40,8 @@ import { createGeneratedContract, sendContractForSignature } from '@/services/ge
 import { Client, getClients } from '@/services/clients'
 import { useRealtime } from '@/hooks/use-realtime'
 import { ContractPreview } from './ContractPreview'
+import { RichTextEditor } from '@/components/RichTextEditor'
+import { Label } from '@/components/ui/label'
 
 const formSchema = z.object({
   templateId: z.string().min(1, 'Selecione um modelo'),
@@ -52,6 +54,8 @@ const formSchema = z.object({
   emailSubject: z.string().optional(),
   emailBody: z.string().optional(),
   isCustomEmail: z.boolean().default(false),
+  isCustomContent: z.boolean().default(false),
+  customContent: z.string().optional(),
 })
 
 export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) {
@@ -73,6 +77,8 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
       emailSubject: '',
       emailBody: '',
       isCustomEmail: false,
+      isCustomContent: false,
+      customContent: '',
     },
   })
   const values = form.watch()
@@ -84,6 +90,10 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
     })
     getClients().then(setClients)
   }, [editingContract, form])
+
+  useRealtime('contract_templates', () => {
+    getContractTemplates().then(setTemplates)
+  })
 
   useRealtime('clients', () => {
     getClients().then(setClients)
@@ -102,6 +112,8 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
         emailSubject: editingContract.email_subject || '',
         emailBody: editingContract.email_body || '',
         isCustomEmail: true,
+        isCustomContent: true,
+        customContent: editingContract.final_content || '',
       })
     }
   }, [editingContract, form])
@@ -136,15 +148,36 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
 
   const computedContent = useMemo(
     () => computeText(selectedTemplate?.content || 'Selecione um modelo.'),
-    [selectedTemplate, values],
+    [
+      selectedTemplate,
+      values.clientName,
+      values.address,
+      values.cpfCnpj,
+      values.value,
+      values.deadline,
+    ],
   )
   const computedSubject = useMemo(
     () => computeText(selectedTemplate?.email_subject || 'Contrato'),
-    [selectedTemplate, values],
+    [
+      selectedTemplate,
+      values.clientName,
+      values.address,
+      values.cpfCnpj,
+      values.value,
+      values.deadline,
+    ],
   )
   const computedBody = useMemo(
     () => computeText(selectedTemplate?.email_body || 'Olá, segue anexo.'),
-    [selectedTemplate, values],
+    [
+      selectedTemplate,
+      values.clientName,
+      values.address,
+      values.cpfCnpj,
+      values.value,
+      values.deadline,
+    ],
   )
 
   useEffect(() => {
@@ -154,6 +187,8 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
     }
   }, [computedSubject, computedBody, values.isCustomEmail, editingContract, form])
 
+  const finalDocumentContent = values.isCustomContent ? values.customContent || '' : computedContent
+
   const prepareData = (status: string) => ({
     template: selectedTemplate!.id,
     client_name: values.clientName,
@@ -161,7 +196,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
     address: values.address || '',
     value: values.value ? parseFloat(values.value.replace(/\./g, '').replace(',', '.')) : 0,
     deadline: values.deadline || '',
-    final_content: computedContent,
+    final_content: finalDocumentContent,
     email_subject: values.emailSubject,
     email_body: values.emailBody,
     status,
@@ -482,11 +517,38 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
         </CardContent>
       </Card>
       <Card className="flex flex-col bg-muted/30 border-none shadow-inner overflow-hidden relative min-h-[400px]">
-        <div className="absolute top-0 left-0 w-full p-2 bg-background/80 backdrop-blur z-10 border-b text-xs font-semibold text-center text-muted-foreground uppercase">
-          Visualização do Documento
+        <div className="absolute top-0 left-0 w-full p-2 bg-background/80 backdrop-blur z-10 border-b flex justify-between items-center pr-4">
+          <span className="text-xs font-semibold text-muted-foreground uppercase pl-2">
+            Visualização do Documento
+          </span>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="custom-content" className="text-xs cursor-pointer font-medium">
+              Editar Manualmente
+            </Label>
+            <Switch
+              id="custom-content"
+              checked={values.isCustomContent}
+              onCheckedChange={(c) => {
+                form.setValue('isCustomContent', c)
+                if (c) {
+                  form.setValue('customContent', computedContent)
+                }
+              }}
+            />
+          </div>
         </div>
-        <div className="flex-1 mt-8 overflow-hidden">
-          <ContractPreview content={computedContent} />
+        <div className="flex-1 mt-10 overflow-hidden flex flex-col">
+          {values.isCustomContent ? (
+            <div className="flex-1 p-2 h-full flex flex-col">
+              <RichTextEditor
+                className="h-full bg-white text-black ring-1 ring-black/5"
+                value={values.customContent || ''}
+                onChange={(val) => form.setValue('customContent', val)}
+              />
+            </div>
+          ) : (
+            <ContractPreview content={computedContent} clientName={values.clientName} />
+          )}
         </div>
       </Card>
     </div>

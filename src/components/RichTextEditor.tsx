@@ -2,6 +2,11 @@ import React, { useRef, useEffect } from 'react'
 import {
   Bold,
   Italic,
+  Underline as UnderlineIcon,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
   List,
   ListOrdered,
   Heading1,
@@ -10,15 +15,29 @@ import {
   Image as ImageIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface RichTextEditorProps {
   value: string
   onChange: (value: string) => void
   onImageUpload?: (file: File) => Promise<string>
   disabled?: boolean
+  className?: string
 }
 
-export function RichTextEditor({ value, onChange, onImageUpload, disabled }: RichTextEditorProps) {
+export function RichTextEditor({
+  value,
+  onChange,
+  onImageUpload,
+  disabled,
+  className = '',
+}: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -67,9 +86,23 @@ export function RichTextEditor({ value, onChange, onImageUpload, disabled }: Ric
 
   return (
     <div
-      className={`border rounded-md overflow-hidden bg-background flex flex-col ${disabled ? 'opacity-70 pointer-events-none' : ''}`}
+      className={`border rounded-md overflow-hidden bg-background flex flex-col ${disabled ? 'opacity-70 pointer-events-none' : ''} ${className}`}
     >
       <div className="flex flex-wrap items-center gap-1 p-1 border-b bg-muted/30">
+        <Select onValueChange={(val) => execCommand('fontSize', val)}>
+          <SelectTrigger className="w-[120px] h-8 text-xs">
+            <SelectValue placeholder="Tamanho" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">Pequeno</SelectItem>
+            <SelectItem value="3">Normal</SelectItem>
+            <SelectItem value="5">Grande</SelectItem>
+            <SelectItem value="7">Gigante</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="w-px h-4 bg-border mx-1" />
+
         <Button
           type="button"
           variant="ghost"
@@ -90,7 +123,62 @@ export function RichTextEditor({ value, onChange, onImageUpload, disabled }: Ric
         >
           <Italic className="h-4 w-4" />
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => execCommand('underline')}
+          title="Sublinhado"
+        >
+          <UnderlineIcon className="h-4 w-4" />
+        </Button>
+
         <div className="w-px h-4 bg-border mx-1" />
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => execCommand('justifyLeft')}
+          title="Alinhar à Esquerda"
+        >
+          <AlignLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => execCommand('justifyCenter')}
+          title="Centralizar"
+        >
+          <AlignCenter className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => execCommand('justifyRight')}
+          title="Alinhar à Direita"
+        >
+          <AlignRight className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => execCommand('justifyFull')}
+          title="Justificar"
+        >
+          <AlignJustify className="h-4 w-4" />
+        </Button>
+
+        <div className="w-px h-4 bg-border mx-1" />
+
         <Button
           type="button"
           variant="ghost"
@@ -121,7 +209,9 @@ export function RichTextEditor({ value, onChange, onImageUpload, disabled }: Ric
         >
           <Heading3 className="h-4 w-4" />
         </Button>
+
         <div className="w-px h-4 bg-border mx-1" />
+
         <Button
           type="button"
           variant="ghost"
@@ -142,7 +232,9 @@ export function RichTextEditor({ value, onChange, onImageUpload, disabled }: Ric
         >
           <ListOrdered className="h-4 w-4" />
         </Button>
+
         <div className="w-px h-4 bg-border mx-1" />
+
         <Button
           type="button"
           variant="ghost"
@@ -156,12 +248,13 @@ export function RichTextEditor({ value, onChange, onImageUpload, disabled }: Ric
       </div>
       <div
         ref={editorRef}
-        className="p-3 min-h-[200px] max-h-[500px] overflow-y-auto outline-none max-w-none focus:ring-2 ring-ring/50 [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-5 [&_ol]:pl-5 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-bold [&_p]:mb-2 [&_img]:max-w-full [&_img]:rounded-md"
+        className="p-4 flex-1 overflow-y-auto outline-none max-w-none focus:ring-2 ring-ring/50 prose prose-sm sm:prose-base dark:prose-invert w-full"
         contentEditable={!disabled}
         suppressContentEditableWarning={true}
         onInput={(e) => onChange(e.currentTarget.innerHTML)}
         onBlur={(e) => onChange(e.currentTarget.innerHTML)}
         dangerouslySetInnerHTML={{ __html: value }}
+        style={{ minHeight: '200px' }}
       />
     </div>
   )

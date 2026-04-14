@@ -39,6 +39,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
+import { RichTextEditor } from '@/components/RichTextEditor'
 
 const templateSchema = z.object({
   name: z.string().min(3, 'Mínimo 3 caracteres.'),
@@ -121,17 +122,18 @@ export function TemplatesTab() {
               <Plus className="h-4 w-4" /> Novo Modelo
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[700px]">
+          <DialogContent className="sm:max-w-[800px]">
             <DialogHeader>
               <DialogTitle>{editingId ? 'Editar Modelo' : 'Novo Modelo'}</DialogTitle>
               <DialogDescription>
-                Use variáveis: {'{{cliente}}'}, {'{{endereco}}'}, {'{{valor}}'}, {'{{prazo}}'}.
+                Use variáveis: {'{{cliente}}'}, {'{{endereco}}'}, {'{{documento}}'}, {'{{valor}}'},{' '}
+                {'{{prazo}}'}.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto px-1"
+                className="space-y-4 mt-2 max-h-[75vh] overflow-y-auto px-1 flex flex-col"
               >
                 <FormField
                   control={form.control}
@@ -150,10 +152,14 @@ export function TemplatesTab() {
                   control={form.control}
                   name="content"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col flex-1">
                       <FormLabel>Corpo do Contrato</FormLabel>
                       <FormControl>
-                        <Textarea className="min-h-[200px]" {...field} />
+                        <RichTextEditor
+                          value={field.value}
+                          onChange={field.onChange}
+                          className="min-h-[300px] h-[300px]"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

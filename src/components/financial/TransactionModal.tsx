@@ -111,14 +111,18 @@ export function TransactionModal() {
       is_recurring: formData.is_recurring,
       frequency: formData.is_recurring ? formData.frequency : '',
       end_date:
-        formData.is_recurring && formData.end_date ? new Date(formData.end_date).toISOString() : '',
+        formData.is_recurring && formData.end_date
+          ? new Date(formData.end_date).toISOString()
+          : null,
       recurrence_group_id: formData.is_recurring ? crypto.randomUUID() : '',
       status: formData.status,
     }
 
     const submitData = new FormData()
     for (const [key, value] of Object.entries(payload)) {
-      submitData.append(key, value as any)
+      if (value !== null) {
+        submitData.append(key, value as any)
+      }
     }
     if (formData.attachment) {
       submitData.append('attachment', formData.attachment)

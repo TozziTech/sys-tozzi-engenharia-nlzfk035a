@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
-import { FileText, Eye } from 'lucide-react'
-import { GeneratedContract, getGeneratedContracts } from '@/services/generated_contracts'
+import { FileText, Eye, Mail } from 'lucide-react'
+import {
+  GeneratedContract,
+  getGeneratedContracts,
+  sendContractEmail,
+} from '@/services/generated_contracts'
+import { exportWord } from '@/lib/export'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,6 +49,24 @@ export default function ContractsHistory() {
   useRealtime('generated_contracts', () => {
     loadContracts()
   })
+
+  const handleExportWord = (contract: GeneratedContract) => {
+    const dateStr = new Date(contract.created).toLocaleDateString('pt-BR').replace(/\//g, '-')
+    const filename = `Contrato_${contract.client_name.replace(/\s+/g, '_')}_${dateStr}.docx`
+    exportWord(contract.final_content, filename)
+    toast.success('Contrato exportado com sucesso.')
+  }
+
+  const handleResendEmail = async (contract: GeneratedContract) => {
+    if (!contract.client_email) return
+    try {
+      toast.loading('Reenviando e-mail...', { id: `resend-${contract.id}` })
+      await sendContractEmail(contract.client_email, contract.final_content, contract.client_name)
+      toast.success('E-mail reenviado com sucesso!', { id: `resend-${contract.id}` })
+    } catch (error) {
+      toast.error('Erro ao reenviar e-mail.', { id: `resend-${contract.id}` })
+    }
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -90,7 +113,16 @@ export default function ContractsHistory() {
                       minute: '2-digit',
                     })}
                   </TableCell>
-                  <TableCell className="font-medium">{contract.client_name}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{contract.client_name}</span>
+                      {contract.client_email && (
+                        <span className="text-xs text-muted-foreground">
+                          {contract.client_email}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-muted-foreground" />
@@ -106,14 +138,34 @@ export default function ContractsHistory() {
                       : '-'}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setSelectedContract(contract)}
-                      title="Visualizar Contrato"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleExportWord(contract)}
+                        title="Exportar para Word"
+                      >
+                        <FileText className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      {contract.client_email && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleResendEmail(contract)}
+                          title="Reenviar E-mail"
+                        >
+                          <Mail className="h-4 w-4 text-orange-500" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setSelectedContract(contract)}
+                        title="Visualizar Contrato"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

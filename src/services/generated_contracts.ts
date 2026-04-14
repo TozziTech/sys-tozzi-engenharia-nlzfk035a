@@ -5,6 +5,7 @@ export interface GeneratedContract {
   id: string
   template: string
   client_name: string
+  client_email?: string
   address: string
   value: number
   deadline: string
@@ -24,3 +25,10 @@ export const getGeneratedContracts = () =>
 
 export const createGeneratedContract = (data: Partial<GeneratedContract>) =>
   pb.collection('generated_contracts').create<GeneratedContract>(data)
+
+export const sendContractEmail = (to: string, content: string, clientName: string) =>
+  pb.send('/backend/v1/contracts/send-email', {
+    method: 'POST',
+    body: JSON.stringify({ to, content, clientName }),
+    headers: { 'Content-Type': 'application/json' },
+  })

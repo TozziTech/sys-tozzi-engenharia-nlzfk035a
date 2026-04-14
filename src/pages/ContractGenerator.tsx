@@ -21,14 +21,16 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { FileSignature, Printer } from 'lucide-react'
+import { FileSignature, Printer, FileText, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContractTemplate, getContractTemplates } from '@/services/contract_templates'
-import { createGeneratedContract } from '@/services/generated_contracts'
+import { createGeneratedContract, sendContractEmail } from '@/services/generated_contracts'
+import { exportWord } from '@/lib/export'
 
 const formSchema = z.object({
   templateId: z.string().min(1, 'Selecione um modelo'),
   clientName: z.string().min(1, 'Nome do cliente é obrigatório'),
+  clientEmail: z.string().email('E-mail inválido').optional().or(z.literal('')),
   address: z.string().optional(),
   value: z.string().optional(),
   deadline: z.string().optional(),
@@ -43,6 +45,7 @@ export default function ContractGenerator() {
     defaultValues: {
       templateId: '',
       clientName: '',
+      clientEmail: '',
       address: '',
       value: '',
       deadline: '',
@@ -86,7 +89,6 @@ export default function ContractGenerator() {
     text = text.replace(/\{\{valor\}\}/gi, value)
     text = text.replace(/\{\{prazo\}\}/gi, deadline)
 
-    // Auto-replace common static tags if any
     const dateStr = new Date().toLocaleDateString('pt-BR')
     text = text.replace(/\[DATA_DA_ASSINATURA\]/gi, dateStr)
 
@@ -112,6 +114,7 @@ export default function ContractGenerator() {
       await createGeneratedContract({
         template: selectedTemplate.id,
         client_name: values.clientName,
+        client_email: values.clientEmail || '',
         address: values.address || '',
         value: isNaN(numValue) ? 0 : numValue,
         deadline: values.deadline || '',
@@ -120,7 +123,6 @@ export default function ContractGenerator() {
 
       toast.success('Contrato salvo no histórico.', { id: 'save-contract' })
 
-      // Delay slightly so the toast is visible before the print dialog freezes the thread
       setTimeout(() => {
         window.print()
       }, 500)
@@ -129,23 +131,119 @@ export default function ContractGenerator() {
     }
   }
 
+  const handleExportWord = async () => {
+    const isValid = await form.trigger()
+    if (!isValid) return
+
+    if (!selectedTemplate) {
+      toast.error('Nenhum modelo selecionado.')
+      return
+    }
+
+    try {
+      toast.loading('Gerando arquivo Word...', { id: 'export-word' })
+
+      const numValue = values.value
+        ? parseFloat(values.value.replace(/\./g, '').replace(',', '.'))
+        : 0
+
+      await createGeneratedContract({
+        template: selectedTemplate.id,
+        client_name: values.clientName,
+        client_email: values.clientEmail || '',
+        address: values.address || '',
+        value: isNaN(numValue) ? 0 : numValue,
+        deadline: values.deadline || '',
+        final_content: computedContent,
+      })
+
+      const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')
+      const filename = `Contrato_${values.clientName.replace(/\s+/g, '_')}_${dateStr}.docx`
+
+      exportWord(computedContent, filename)
+
+      toast.success('Contrato exportado e salvo no histórico.', { id: 'export-word' })
+    } catch (error) {
+      toast.error('Erro ao exportar contrato.', { id: 'export-word' })
+    }
+  }
+
+  const handleSendEmail = async () => {
+    const isValid = await form.trigger()
+    if (!isValid) return
+
+    if (!values.clientEmail) {
+      form.setError('clientEmail', { type: 'manual', message: 'E-mail é obrigatório para envio.' })
+      return
+    }
+
+    if (!selectedTemplate) {
+      toast.error('Nenhum modelo selecionado.')
+      return
+    }
+
+    try {
+      toast.loading('Enviando e-mail...', { id: 'send-email' })
+
+      const numValue = values.value
+        ? parseFloat(values.value.replace(/\./g, '').replace(',', '.'))
+        : 0
+
+      await createGeneratedContract({
+        template: selectedTemplate.id,
+        client_name: values.clientName,
+        client_email: values.clientEmail,
+        address: values.address || '',
+        value: isNaN(numValue) ? 0 : numValue,
+        deadline: values.deadline || '',
+        final_content: computedContent,
+      })
+
+      await sendContractEmail(values.clientEmail, computedContent, values.clientName)
+
+      toast.success('E-mail enviado com sucesso!', { id: 'send-email' })
+    } catch (error) {
+      toast.error('Erro ao enviar e-mail.', { id: 'send-email' })
+    }
+  }
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col p-6 gap-6">
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between print:hidden gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Gerador de Contratos</h1>
           <p className="text-muted-foreground">
             Preencha os dados para gerar e salvar o documento.
           </p>
         </div>
-        <Button
-          onClick={handlePrint}
-          className="gap-2"
-          disabled={isLoading || templates.length === 0}
-        >
-          <Printer className="h-4 w-4" />
-          Salvar e Imprimir PDF
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportWord}
+            disabled={isLoading || templates.length === 0}
+            className="gap-2"
+          >
+            <FileText className="h-4 w-4" />
+            Exportar para Word
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSendEmail}
+            disabled={isLoading || templates.length === 0}
+            className="gap-2"
+          >
+            <Mail className="h-4 w-4" />
+            Enviar por E-mail
+          </Button>
+          <Button
+            onClick={handlePrint}
+            className="gap-2"
+            disabled={isLoading || templates.length === 0}
+          >
+            <Printer className="h-4 w-4" />
+            Salvar e Imprimir PDF
+          </Button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 flex-1 min-h-0 print:hidden">
@@ -194,19 +292,35 @@ export default function ContractGenerator() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="clientName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Cliente / Razão Social *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: João da Silva ou Empresa XYZ" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="clientName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Cliente / Razão Social *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: João da Silva ou Empresa XYZ" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="clientEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>E-mail do Cliente</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="Ex: cliente@email.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}

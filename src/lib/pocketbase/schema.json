@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T02:32:01.421Z",
+  "generatedAt": "2026-04-14T02:42:35.199Z",
   "collections": [
     {
       "name": "users",
@@ -1790,6 +1790,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "client_email",
+          "type": "email",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX idx_generated_contracts_template ON generated_contracts (template)"]

@@ -331,6 +331,20 @@ export function exportServicosFinanceirosCSV(
   URL.revokeObjectURL(url)
 }
 
+export function exportWord(content: string, filename: string) {
+  const text = content.replace(/\n/g, '<br/>')
+  const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Documento</title></head><body><div style='font-family: serif; font-size: 12pt;'>`
+  const footer = '</div></body></html>'
+  const html = header + text + footer
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportExcel(logs: Log[], totalProjects: number) {
   const escapeXml = (unsafe: string) =>
     unsafe.replace(/[<>&'"]/g, (c) => {

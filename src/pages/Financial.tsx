@@ -25,12 +25,17 @@ export default function Financial() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 items-stretch">
-        <div className="md:col-span-1">
-          <RecurringExpensesCard />
-        </div>
-        <div className="md:col-span-2">
-          <RecurringExpensesChart />
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold tracking-tight text-slate-800 dark:text-slate-200">
+          Resumo Analítico
+        </h2>
+        <div className="grid gap-4 md:grid-cols-3 items-stretch">
+          <div className="md:col-span-1">
+            <RecurringExpensesCard />
+          </div>
+          <div className="md:col-span-2">
+            <RecurringExpensesChart />
+          </div>
         </div>
       </div>
 

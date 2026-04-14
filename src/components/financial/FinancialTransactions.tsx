@@ -226,7 +226,7 @@ export function FinancialTransactions() {
         </div>
         <div className="flex gap-2 w-full xl:w-auto">
           <Button variant="outline" onClick={exportCSV} className="w-full sm:w-auto">
-            <Download className="h-4 w-4 mr-2" /> CSV
+            <Download className="h-4 w-4 mr-2" /> Exportar CSV
           </Button>
           <Button variant="outline" onClick={exportPDF} className="w-full sm:w-auto">
             <FileText className="h-4 w-4 mr-2" /> PDF

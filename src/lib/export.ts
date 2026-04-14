@@ -4,28 +4,29 @@ import { Project } from '@/types/project'
 
 export function exportFinancialCSV(records: any[], periodLabel: string) {
   const headers = [
-    'Identificação',
     'Data',
     'Descrição',
-    'Categoria',
-    'Conta Bancária',
-    'Tipo',
-    'Status',
     'Valor',
-    'Conciliado',
+    'Tipo',
+    'Categoria',
+    'Status',
+    'Recorrente',
+    'Frequência',
+    'Código',
   ]
 
   const rows = records.map((r) => {
-    const code = `"${r.code || ''}"`
-    const date = `"${format(new Date(r.date || r.created), 'dd/MM/yyyy')}"`
+    const date = `"${format(new Date(r.date || r.created), 'yyyy-MM-dd')}"`
     const desc = `"${(r.description || '').replace(/"/g, '""')}"`
-    const cat = `"${(r.category || '').replace(/"/g, '""')}"`
-    const account = `"${r.expand?.bank_account?.code ? `${r.expand.bank_account.code} - ` : ''}${(r.expand?.bank_account?.name || r.bank_account || '').replace(/"/g, '""')}"`
-    const type = `"${(r.type || '').replace(/"/g, '""')}"`
-    const status = `"${(r.status || 'Pendente').replace(/"/g, '""')}"`
     const val = r.amount ?? r.value ?? 0
-    const reconciled = r.reconciled ? '"Sim"' : '"Não"'
-    return [code, date, desc, cat, account, type, status, val, reconciled]
+    const type = `"${(r.type || '').replace(/"/g, '""')}"`
+    const cat = `"${(r.category || '').replace(/"/g, '""')}"`
+    const status = `"${(r.status || 'Pendente').replace(/"/g, '""')}"`
+    const recurring = r.is_recurring ? '"Sim"' : '"Não"'
+    const freq = `"${(r.frequency || '').replace(/"/g, '""')}"`
+    const code = `"${r.code || ''}"`
+
+    return [date, desc, val, type, cat, status, recurring, freq, code]
   })
 
   const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')

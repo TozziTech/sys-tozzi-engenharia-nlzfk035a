@@ -4,6 +4,7 @@ import { GenerateTab } from '@/components/contracts/GenerateTab'
 import { TemplatesTab } from '@/components/contracts/TemplatesTab'
 import { HistoryTab } from '@/components/contracts/HistoryTab'
 import { GeneratedContract } from '@/services/generated_contracts'
+import { ClauseLibrary } from '@/components/contracts/ClauseLibrary'
 
 export default function ContractCenter() {
   const [activeTab, setActiveTab] = useState('generate')
@@ -16,14 +17,21 @@ export default function ContractCenter() {
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col p-6 gap-6">
-      <div className="flex flex-col gap-2 print:hidden">
-        <h1 className="text-2xl font-bold tracking-tight">Central de Contratos</h1>
-        <p className="text-muted-foreground">
-          Gerencie modelos, gere novos documentos e acompanhe assinaturas em um só lugar.
-        </p>
+      <div className="flex justify-between items-start gap-4 print:hidden">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Central de Contratos</h1>
+          <p className="text-muted-foreground">
+            Gerencie modelos, gere novos documentos e acompanhe assinaturas em um só lugar.
+          </p>
+        </div>
+        <ClauseLibrary />
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex-1 flex flex-col min-h-0 mt-2"
+      >
         <TabsList className="grid w-full max-w-md grid-cols-3 print:hidden">
           <TabsTrigger value="generate">Gerar</TabsTrigger>
           <TabsTrigger value="templates">Modelos</TabsTrigger>

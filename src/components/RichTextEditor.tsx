@@ -31,6 +31,9 @@ interface RichTextEditorProps {
   className?: string
 }
 
+let globalSavedRange: Range | null = null
+let globalActiveEditor: HTMLDivElement | null = null
+
 export function RichTextEditor({
   value,
   onChange,
@@ -47,6 +50,40 @@ export function RichTextEditor({
       }
     }
   }, [value])
+
+  useEffect(() => {
+    const handleInsert = (e: Event) => {
+      const customEvent = e as CustomEvent<string>
+      if (globalActiveEditor === editorRef.current && globalSavedRange) {
+        const selection = window.getSelection()
+        if (selection) {
+          selection.removeAllRanges()
+          selection.addRange(globalSavedRange)
+          document.execCommand('insertHTML', false, customEvent.detail)
+          editorRef.current.focus()
+          onChange(editorRef.current.innerHTML || '')
+
+          const newSelection = window.getSelection()
+          if (newSelection && newSelection.rangeCount > 0) {
+            globalSavedRange = newSelection.getRangeAt(0)
+          }
+        }
+      }
+    }
+    document.addEventListener('insert-editor-html', handleInsert)
+    return () => document.removeEventListener('insert-editor-html', handleInsert)
+  }, [onChange])
+
+  const saveSelection = () => {
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0)
+      if (editorRef.current?.contains(range.commonAncestorContainer)) {
+        globalSavedRange = range
+        globalActiveEditor = editorRef.current
+      }
+    }
+  }
 
   const execCommand = (command: string, arg?: string) => {
     document.execCommand(command, false, arg)
@@ -251,8 +288,16 @@ export function RichTextEditor({
         className="p-4 flex-1 overflow-y-auto outline-none max-w-none focus:ring-2 ring-ring/50 prose prose-sm sm:prose-base dark:prose-invert w-full"
         contentEditable={!disabled}
         suppressContentEditableWarning={true}
-        onInput={(e) => onChange(e.currentTarget.innerHTML)}
-        onBlur={(e) => onChange(e.currentTarget.innerHTML)}
+        onInput={(e) => {
+          saveSelection()
+          onChange(e.currentTarget.innerHTML)
+        }}
+        onBlur={(e) => {
+          saveSelection()
+          onChange(e.currentTarget.innerHTML)
+        }}
+        onMouseUp={saveSelection}
+        onKeyUp={saveSelection}
         dangerouslySetInnerHTML={{ __html: value }}
         style={{ minHeight: '200px' }}
       />

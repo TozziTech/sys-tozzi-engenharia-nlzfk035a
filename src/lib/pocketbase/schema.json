@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T04:30:38.461Z",
+  "generatedAt": "2026-04-14T04:37:29.969Z",
   "collections": [
     {
       "name": "users",
@@ -1848,6 +1848,52 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_generated_contracts_template ON generated_contracts (template)"]
+    },
+    {
+      "name": "contract_clauses",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "content",
+          "type": "editor",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_contract_clauses_category ON contract_clauses (category)"]
     }
   ]
 }

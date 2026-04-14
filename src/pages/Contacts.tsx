@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Download } from 'lucide-react'
 import { getContacts, deleteContact, type Contact } from '@/services/contacts'
 import { useRealtime } from '@/hooks/use-realtime'
+import { exportContactsCSV } from '@/lib/export'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -71,6 +72,22 @@ export default function Contacts() {
     }
   }
 
+  const handleExport = () => {
+    try {
+      exportContactsCSV(contacts)
+      toast({
+        title: 'Sucesso',
+        description: 'Exportação concluída com sucesso.',
+      })
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao exportar contatos.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   useEffect(() => {
     loadContacts()
   }, [])
@@ -103,10 +120,16 @@ export default function Contacts() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Contatos</h2>
-        <Button onClick={handleNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Contato
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Exportar CSV
+          </Button>
+          <Button onClick={handleNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Contato
+          </Button>
+        </div>
       </div>
 
       <Card>

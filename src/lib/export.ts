@@ -290,6 +290,30 @@ export function exportProductivityCSV(stats: any[]) {
   URL.revokeObjectURL(url)
 }
 
+export function exportContactsCSV(contacts: any[]) {
+  const headers = ['Nome', 'Empresa', 'Telefone', 'Email', 'Categoria']
+
+  const rows = contacts.map((c) => [
+    `"${(c.name || '').replace(/"/g, '""')}"`,
+    `"${(c.company || '').replace(/"/g, '""')}"`,
+    `"${(c.phone || '').replace(/"/g, '""')}"`,
+    `"${(c.email || '').replace(/"/g, '""')}"`,
+    `"${(c.category || '').replace(/"/g, '""')}"`,
+  ])
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `contatos_export_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportServicosFinanceirosCSV(
   records: any[],
   pagamentosPorServico: Record<string, number> = {},

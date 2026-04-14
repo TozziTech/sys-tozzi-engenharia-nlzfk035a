@@ -34,12 +34,20 @@ import {
   DocumentResource,
 } from '@/services/document_resources'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import pb from '@/lib/pocketbase/client'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+import { getContrastYIQ } from '@/lib/colors'
+import { ManageTagsDialog } from '@/components/ManageTagsDialog'
+import { Plus } from 'lucide-react'
+import { useRealtime } from '@/hooks/use-realtime'
 
 const schema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
   description: z.string().optional(),
   url: z.string().url('URL inválida').min(1, 'URL é obrigatória'),
   category: z.string().min(1, 'Categoria é obrigatória'),
+  tags: z.array(z.string()).optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -61,6 +69,17 @@ export function DocumentResourceDialog({
 }: Props) {
   const { toast } = useToast()
   const isEditing = !!resource
+  const [availableTags, setAvailableTags] = useState<any[]>([])
+
+  const loadTags = () => {
+    pb.collection('tags').getFullList({ sort: 'name' }).then(setAvailableTags).catch(console.error)
+  }
+
+  useEffect(() => {
+    loadTags()
+  }, [])
+
+  useRealtime('tags', loadTags, open)
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -69,6 +88,7 @@ export function DocumentResourceDialog({
       description: '',
       url: '',
       category: category,
+      tags: [],
     },
   })
 
@@ -80,6 +100,7 @@ export function DocumentResourceDialog({
           description: resource.description || '',
           url: resource.url,
           category: resource.category || category,
+          tags: resource.tags || [],
         })
       } else {
         form.reset({
@@ -87,6 +108,7 @@ export function DocumentResourceDialog({
           description: '',
           url: '',
           category: category,
+          tags: [],
         })
       }
     }
@@ -188,6 +210,54 @@ export function DocumentResourceDialog({
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="tags"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Tags</FormLabel>
+                    <ManageTagsDialog>
+                      <Button type="button" variant="ghost" size="sm" className="h-6 text-xs px-2">
+                        <Plus className="h-3 w-3 mr-1" /> Nova Tag
+                      </Button>
+                    </ManageTagsDialog>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {availableTags.map((tag) => {
+                      const isSelected = field.value?.includes(tag.id)
+                      return (
+                        <Badge
+                          key={tag.id}
+                          variant="outline"
+                          className={cn(
+                            'cursor-pointer border-2 transition-all',
+                            isSelected
+                              ? 'ring-2 ring-primary ring-offset-1'
+                              : 'opacity-70 grayscale',
+                          )}
+                          style={{
+                            backgroundColor: isSelected ? tag.color : 'transparent',
+                            color: isSelected ? getContrastYIQ(tag.color) : 'inherit',
+                            borderColor: tag.color,
+                          }}
+                          onClick={() => {
+                            const current = field.value || []
+                            const newVal = isSelected
+                              ? current.filter((id) => id !== tag.id)
+                              : [...current, tag.id]
+                            field.onChange(newVal)
+                          }}
+                        >
+                          {tag.name}
+                        </Badge>
+                      )
+                    })}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

@@ -6,6 +6,10 @@ export interface DocumentResource {
   description: string
   category: string
   url: string
+  tags?: string[]
+  expand?: {
+    tags?: any[]
+  }
   created: string
   updated: string
 }
@@ -14,6 +18,7 @@ export const getDocumentResources = async (category: string) => {
   return pb.collection('document_resources').getFullList<DocumentResource>({
     filter: `category = "${category}"`,
     sort: '-created',
+    expand: 'tags',
   })
 }
 

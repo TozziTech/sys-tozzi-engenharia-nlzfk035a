@@ -57,6 +57,8 @@ export default function DocumentResourcesPage({
   const [resources, setResources] = useState<DocumentResource[]>([])
   const [favorites, setFavorites] = useState<UserDocumentFavorite[]>([])
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false)
+  const [selectedTag, setSelectedTag] = useState<string>('all')
+  const [availableTags, setAvailableTags] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
   const { toast } = useToast()
@@ -102,10 +104,21 @@ export default function DocumentResourcesPage({
   useEffect(() => {
     loadData()
     loadFavorites()
+    pb.collection('tags').getFullList({ sort: 'name' }).then(setAvailableTags).catch(console.error)
   }, [category, hasAccess, user])
 
   useRealtime('document_resources', () => loadData(), hasAccess)
   useRealtime('user_document_favorites', () => loadFavorites(), hasAccess && !!user)
+  useRealtime(
+    'tags',
+    () => {
+      pb.collection('tags')
+        .getFullList({ sort: 'name' })
+        .then(setAvailableTags)
+        .catch(console.error)
+    },
+    hasAccess,
+  )
 
   const handleDelete = async (id: string) => {
     try {
@@ -170,9 +183,11 @@ export default function DocumentResourcesPage({
     )
   }
 
-  const displayedResources = showOnlyFavorites
-    ? resources.filter((r) => favorites.some((f) => f.document_id === r.id))
-    : resources
+  const displayedResources = resources.filter((r) => {
+    const matchFav = showOnlyFavorites ? favorites.some((f) => f.document_id === r.id) : true
+    const matchTag = selectedTag === 'all' ? true : r.tags?.includes(selectedTag)
+    return matchFav && matchTag
+  })
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto w-full">
@@ -193,24 +208,42 @@ export default function DocumentResourcesPage({
               checked={showOnlyFavorites}
               onCheckedChange={setShowOnlyFavorites}
             />
-            <Label htmlFor="favorite-mode" className="cursor-pointer">
-              Mostrar apenas favoritos
+            <Label htmlFor="favorite-mode" className="cursor-pointer whitespace-nowrap">
+              Apenas favoritos
             </Label>
           </div>
+          <Select value={selectedTag} onValueChange={setSelectedTag}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Filtrar por Tag" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Tags</SelectItem>
+              {availableTags.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" asChild>
             <Link to="/files/favorites">
               <Star className="mr-2 h-4 w-4" /> Meus Favoritos
             </Link>
           </Button>
           {isAdmin && (
-            <Button
-              onClick={() => {
-                setEditingResource(null)
-                setIsDialogOpen(true)
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" /> Adicionar Link
-            </Button>
+            <>
+              <ManageTagsDialog>
+                <Button variant="outline">Gerenciar Tags</Button>
+              </ManageTagsDialog>
+              <Button
+                onClick={() => {
+                  setEditingResource(null)
+                  setIsDialogOpen(true)
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Adicionar Link
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -260,9 +293,20 @@ export default function DocumentResourcesPage({
                 </Button>
                 <CardHeader className="flex-1">
                   <div className="flex items-start justify-between gap-2 mb-2 pr-8">
-                    <Badge variant="secondary" className="font-normal text-xs">
-                      {resource.category}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="secondary" className="font-normal text-xs">
+                        {resource.category}
+                      </Badge>
+                      {resource.expand?.tags?.map((tag: any) => (
+                        <Badge
+                          key={tag.id}
+                          className="font-normal text-xs border-none"
+                          style={{ backgroundColor: tag.color, color: getContrastYIQ(tag.color) }}
+                        >
+                          {tag.name}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                   <CardTitle className="line-clamp-2 text-lg leading-tight" title={resource.title}>
                     {resource.title}

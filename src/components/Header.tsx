@@ -30,20 +30,34 @@ import { useState, useEffect } from 'react'
 import useProjectStore from '@/stores/useProjectStore'
 import { ThemeToggle } from './ThemeToggle'
 import pb from '@/lib/pocketbase/client'
+import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export function Header() {
   const navigate = useNavigate()
-  const {
-    projects,
-    globalSearch,
-    setGlobalSearch,
-    setNewProjectModalOpen,
-    notifications: initialNotifications,
-    markNotificationAsRead: storeMarkRead,
-    markAllNotificationsAsRead: storeMarkAllRead,
-  } = useProjectStore()
+  const { projects, globalSearch, setGlobalSearch, setNewProjectModalOpen } = useProjectStore()
 
-  const [localNotifications, setLocalNotifications] = useState<any[]>([])
+  const { user } = useAuth()
+  const [notifications, setNotifications] = useState<any[]>([])
+
+  const loadNotifications = async () => {
+    if (!user) return
+    try {
+      const data = await pb.collection('notifications').getFullList({
+        filter: `user = "${user.id}"`,
+        sort: '-created',
+      })
+      setNotifications(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  useEffect(() => {
+    loadNotifications()
+  }, [user])
+
+  useRealtime('notifications', () => loadNotifications(), !!user)
 
   // Global Search State
   const [searchOpen, setSearchOpen] = useState(false)
@@ -92,27 +106,27 @@ export function Header() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  useEffect(() => {
-    const handleAddNotification = (e: any) => {
-      setLocalNotifications((prev) => [e.detail, ...prev])
-    }
-    window.addEventListener('add-notification', handleAddNotification)
-    return () => window.removeEventListener('add-notification', handleAddNotification)
-  }, [])
+  const unreadCount = notifications.filter((n) => !n.read).length
 
-  const allNotifications = [...localNotifications, ...initialNotifications]
-  const unreadCount = allNotifications.filter((n) => !n.read).length
-
-  const markNotificationAsRead = (id: string) => {
-    setLocalNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-    if (initialNotifications.some((n: any) => n.id === id)) {
-      storeMarkRead(id)
+  const markNotificationAsRead = async (id: string) => {
+    try {
+      await pb.collection('notifications').update(id, { read: true })
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    } catch (e) {
+      console.error(e)
     }
   }
 
-  const markAllNotificationsAsRead = () => {
-    setLocalNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-    storeMarkAllRead()
+  const markAllNotificationsAsRead = async () => {
+    try {
+      const unread = notifications.filter((n) => !n.read)
+      await Promise.all(
+        unread.map((n) => pb.collection('notifications').update(n.id, { read: true })),
+      )
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const today = new Date()
@@ -376,7 +390,7 @@ export function Header() {
                 )}
               </div>
               <ScrollArea className="max-h-[360px]">
-                {allNotifications.length === 0 ? (
+                {notifications.length === 0 ? (
                   <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
                     <div className="p-3 bg-muted rounded-full">
                       <Check className="h-6 w-6 text-muted-foreground" />
@@ -385,47 +399,43 @@ export function Header() {
                   </div>
                 ) : (
                   <div className="flex flex-col">
-                    {[...allNotifications]
-                      .sort(
-                        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-                      )
-                      .map((notif) => (
-                        <div
-                          key={notif.id}
-                          className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group ${!notif.read ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
-                        >
-                          <div className="flex justify-between items-start gap-3">
-                            <Link
-                              to={notif.link || '#'}
-                              onClick={() => markNotificationAsRead(notif.id)}
-                              className={`text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight ${!notif.read ? 'text-foreground' : 'text-muted-foreground'}`}
-                            >
-                              {notif.title}
-                            </Link>
-                            {!notif.read && (
-                              <div className="w-2 h-2 rounded-full bg-primary mt-1 shrink-0" />
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            {notif.description}
-                          </p>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-[10px] text-muted-foreground font-medium">
-                              {new Date(notif.timestamp).toLocaleString(undefined, {
-                                day: '2-digit',
-                                month: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                            {notif.read && (
-                              <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                                Lida
-                              </span>
-                            )}
-                          </div>
+                    {notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group ${!notif.read ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
+                      >
+                        <div className="flex justify-between items-start gap-3">
+                          <Link
+                            to={notif.link || '#'}
+                            onClick={() => markNotificationAsRead(notif.id)}
+                            className={`text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight ${!notif.read ? 'text-foreground' : 'text-muted-foreground'}`}
+                          >
+                            {notif.title}
+                          </Link>
+                          {!notif.read && (
+                            <div className="w-2 h-2 rounded-full bg-primary mt-1 shrink-0" />
+                          )}
                         </div>
-                      ))}
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {notif.message}
+                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            {new Date(notif.created).toLocaleString(undefined, {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                          {notif.read && (
+                            <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                              Lida
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </ScrollArea>

@@ -18,6 +18,7 @@ import {
   X,
   Activity,
   BarChart2,
+  Database,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -40,9 +41,18 @@ export default function Audit() {
   const [users, setUsers] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUser, setSelectedUser] = useState<string>('all')
+  const [selectedResource, setSelectedResource] = useState<string>('all')
   const [date, setDate] = useState<{ from: Date | undefined; to?: Date | undefined }>({
     from: undefined,
   })
+
+  const uniqueResources = useMemo(() => {
+    const res = new Set<string>()
+    logs.forEach((l) => {
+      if (l.resource) res.add(l.resource)
+    })
+    return Array.from(res).sort()
+  }, [logs])
 
   const loadData = async () => {
     try {
@@ -78,6 +88,7 @@ export default function Audit() {
         log.action?.toLowerCase().includes(searchTerm.toLowerCase())
 
       const matchUser = selectedUser === 'all' ? true : log.user_id === selectedUser
+      const matchResource = selectedResource === 'all' ? true : log.resource === selectedResource
 
       let matchDate = true
       if (date?.from) {
@@ -87,9 +98,9 @@ export default function Audit() {
         matchDate = logDate >= start && logDate <= end
       }
 
-      return matchSearch && matchUser && matchDate
+      return matchSearch && matchUser && matchResource && matchDate
     })
-  }, [logs, searchTerm, selectedUser, date])
+  }, [logs, searchTerm, selectedUser, selectedResource, date])
 
   const todayCount = useMemo(() => {
     const today = new Date()
@@ -202,12 +213,12 @@ export default function Audit() {
             />
           </div>
 
-          <div className="md:col-span-4 flex items-center">
+          <div className="md:col-span-3 flex items-center">
             <Select value={selectedUser} onValueChange={setSelectedUser}>
               <SelectTrigger className="w-full">
                 <div className="flex items-center gap-2">
                   <UserIcon className="h-4 w-4 text-muted-foreground" />
-                  <SelectValue placeholder="Filtrar por Usuário" />
+                  <SelectValue placeholder="Usuário" />
                 </div>
               </SelectTrigger>
               <SelectContent>
@@ -221,7 +232,26 @@ export default function Audit() {
             </Select>
           </div>
 
-          <div className="md:col-span-4 flex items-center gap-2">
+          <div className="md:col-span-2 flex items-center">
+            <Select value={selectedResource} onValueChange={setSelectedResource}>
+              <SelectTrigger className="w-full">
+                <div className="flex items-center gap-2">
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Recurso" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Recursos</SelectItem>
+                {uniqueResources.map((res) => (
+                  <SelectItem key={res} value={res}>
+                    {res}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="md:col-span-3 flex items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -258,13 +288,14 @@ export default function Audit() {
               </PopoverContent>
             </Popover>
 
-            {(date?.from || selectedUser !== 'all' || searchTerm) && (
+            {(date?.from || selectedUser !== 'all' || selectedResource !== 'all' || searchTerm) && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => {
                   setSearchTerm('')
                   setSelectedUser('all')
+                  setSelectedResource('all')
                   setDate({ from: undefined })
                 }}
                 title="Limpar Filtros"

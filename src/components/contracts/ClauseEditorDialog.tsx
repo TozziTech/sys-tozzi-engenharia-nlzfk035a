@@ -17,6 +17,8 @@ import {
 } from '@/services/contract_clauses'
 import { toast } from 'sonner'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import pb from '@/lib/pocketbase/client'
+import { Badge } from '@/components/ui/badge'
 
 interface Props {
   clause?: ContractClause
@@ -28,14 +30,21 @@ export function ClauseEditorDialog({ clause, open, onOpenChange }: Props) {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [content, setContent] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [availableTags, setAvailableTags] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    pb.collection('tags').getFullList({ sort: 'name' }).then(setAvailableTags).catch(console.error)
+  }, [])
 
   useEffect(() => {
     if (open) {
       setName(clause?.name || '')
       setCategory(clause?.category || '')
       setContent(clause?.content || '')
+      setSelectedTags(clause?.tags || [])
       setErrors({})
     }
   }, [clause, open])
@@ -47,11 +56,12 @@ export function ClauseEditorDialog({ clause, open, onOpenChange }: Props) {
 
     setLoading(true)
     try {
+      const data = { name, category, content, tags: selectedTags }
       if (clause) {
-        await updateContractClause(clause.id, { name, category, content })
+        await updateContractClause(clause.id, data)
         toast.success('Cláusula atualizada')
       } else {
-        await createContractClause({ name, category, content })
+        await createContractClause(data)
         toast.success('Cláusula criada')
       }
       onOpenChange(false)
@@ -61,6 +71,12 @@ export function ClauseEditorDialog({ clause, open, onOpenChange }: Props) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
+    )
   }
 
   return (
@@ -89,7 +105,36 @@ export function ClauseEditorDialog({ clause, open, onOpenChange }: Props) {
               />
             </div>
           </div>
+
           <div className="flex flex-col gap-2">
+            <Label>Tags</Label>
+            <div className="flex flex-wrap gap-2">
+              {availableTags.length === 0 ? (
+                <span className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</span>
+              ) : (
+                availableTags.map((tag) => {
+                  const isSelected = selectedTags.includes(tag.id)
+                  return (
+                    <Badge
+                      key={tag.id}
+                      variant={isSelected ? 'default' : 'outline'}
+                      className="cursor-pointer transition-colors"
+                      onClick={() => toggleTag(tag.id)}
+                      style={{
+                        backgroundColor: isSelected ? tag.color : undefined,
+                        borderColor: !isSelected ? tag.color : undefined,
+                        color: !isSelected ? tag.color : '#fff',
+                      }}
+                    >
+                      {tag.name}
+                    </Badge>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 mt-2">
             <Label>Conteúdo</Label>
             <RichTextEditor value={content} onChange={setContent} className="min-h-[250px]" />
             {errors.content && <span className="text-xs text-destructive">{errors.content}</span>}

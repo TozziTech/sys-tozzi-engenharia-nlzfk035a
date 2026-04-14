@@ -5,13 +5,22 @@ export interface ContractClause {
   name: string
   content: string
   category?: string
+  tags?: string[]
   created: string
   updated: string
+  expand?: {
+    tags?: Array<{
+      id: string
+      name: string
+      color: string
+    }>
+  }
 }
 
 export const getContractClauses = async () => {
   return await pb.collection('contract_clauses').getFullList<ContractClause>({
     sort: '-created',
+    expand: 'tags',
   })
 }
 

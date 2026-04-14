@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T04:37:29.969Z",
+  "generatedAt": "2026-04-14T05:07:31.882Z",
   "collections": [
     {
       "name": "users",
@@ -1891,6 +1891,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "tags",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "tags"
         }
       ],
       "indexes": ["CREATE INDEX idx_contract_clauses_category ON contract_clauses (category)"]

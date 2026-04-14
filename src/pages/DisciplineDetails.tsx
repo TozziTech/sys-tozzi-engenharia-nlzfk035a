@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -253,6 +253,8 @@ export default function DisciplineDetails() {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false)
   const [createParentId, setCreateParentId] = useState<string>('none')
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+  const [inlineCreateParentId, setInlineCreateParentId] = useState<string | null>(null)
+  const [inlineCreateValue, setInlineCreateValue] = useState('')
 
   // Column Visibility State
   const [visibleColumns, setVisibleColumns] = useState({
@@ -354,6 +356,42 @@ export default function DisciplineDetails() {
     refetchTasks()
     refetchLogs()
   }, [refetchModule, refetchTasks, refetchLogs])
+
+  const handleSaveInlineSubtask = async (parentId: string) => {
+    if (!inlineCreateValue.trim()) {
+      setInlineCreateParentId(null)
+      return
+    }
+
+    try {
+      const siblings = tasks.filter((t) => t.parent_task === parentId)
+      const maxOrder = siblings.reduce((max, t) => Math.max(max, t.ordem || 0), -1)
+
+      const newTask = {
+        title: inlineCreateValue,
+        module: moduleId,
+        project: module?.project || id,
+        parent_task: parentId,
+        status: 'Pendente',
+        ordem: maxOrder + 1,
+      }
+
+      const created = await pb.collection('tasks').create(newTask)
+
+      const prevTasks = client.getQueryData(`tasks_${moduleId}`) || []
+      client.setQueryData(`tasks_${moduleId}`, [...prevTasks, created])
+
+      toast({ title: 'Subtarefa criada' })
+      setInlineCreateParentId(null)
+      setInlineCreateValue('')
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao criar subtarefa',
+        description: e.message,
+        variant: 'destructive',
+      })
+    }
+  }
 
   const handleSaveTitle = async (taskId: string) => {
     if (editingTitleId !== taskId) return
@@ -1349,383 +1387,442 @@ export default function DisciplineDetails() {
                             const urgency = getUrgencyInfo(task)
 
                             return (
-                              <TableRow
-                                key={task.id}
-                                draggable={!isFilterActive}
-                                onDragStart={(e) => !isFilterActive && handleDragStart(e, task.id)}
-                                onDragOver={(e) => !isFilterActive && handleDragOver(e, task.id)}
-                                onDrop={(e) => !isFilterActive && handleDrop(e, task.id)}
-                                onDragEnd={() => {
-                                  setDraggedTaskId(null)
-                                  setDropTarget(null)
-                                }}
-                                className={cn(
-                                  'cursor-pointer hover:bg-muted/50 group transition-colors relative',
-                                  draggedTaskId === task.id && 'opacity-50 bg-muted',
-                                  dropTarget?.id === task.id &&
-                                    dropTarget.position === 'before' &&
-                                    'border-t-2 border-t-primary bg-primary/5',
-                                  dropTarget?.id === task.id &&
-                                    dropTarget.position === 'after' &&
-                                    'border-b-2 border-b-primary bg-primary/5',
-                                  dropTarget?.id === task.id &&
-                                    dropTarget.position === 'inside' &&
-                                    'bg-primary/10 ring-1 ring-inset ring-primary/30',
-                                )}
-                                onClick={() => {
-                                  setSelectedTask(task)
-                                  setIsTaskSheetOpen(true)
-                                }}
-                              >
-                                <TableCell onClick={(e) => e.stopPropagation()}>
-                                  <Checkbox
-                                    checked={selectedTaskIds.includes(task.id)}
-                                    onClick={(e: any) => {
-                                      if (e.shiftKey) isShiftPressed.current = true
-                                    }}
-                                    onCheckedChange={(checked) =>
-                                      handleSelectRow(task.id, !!checked)
-                                    }
-                                    aria-label={`Selecionar tarefa ${task.title}`}
-                                  />
-                                </TableCell>
-                                {visibleColumns.descricao && (
-                                  <TableCell className="font-medium flex items-center py-3 min-w-[300px]">
-                                    <div
-                                      style={{ width: `${(task.depth || 0) * 20}px` }}
-                                      className="shrink-0"
+                              <React.Fragment key={task.id}>
+                                <TableRow
+                                  draggable={!isFilterActive}
+                                  onDragStart={(e) =>
+                                    !isFilterActive && handleDragStart(e, task.id)
+                                  }
+                                  onDragOver={(e) => !isFilterActive && handleDragOver(e, task.id)}
+                                  onDrop={(e) => !isFilterActive && handleDrop(e, task.id)}
+                                  onDragEnd={() => {
+                                    setDraggedTaskId(null)
+                                    setDropTarget(null)
+                                  }}
+                                  className={cn(
+                                    'cursor-pointer hover:bg-muted/50 group transition-colors relative',
+                                    draggedTaskId === task.id && 'opacity-50 bg-muted',
+                                    dropTarget?.id === task.id &&
+                                      dropTarget.position === 'before' &&
+                                      'border-t-2 border-t-primary bg-primary/5',
+                                    dropTarget?.id === task.id &&
+                                      dropTarget.position === 'after' &&
+                                      'border-b-2 border-b-primary bg-primary/5',
+                                    dropTarget?.id === task.id &&
+                                      dropTarget.position === 'inside' &&
+                                      'bg-primary/10 ring-1 ring-inset ring-primary/30',
+                                  )}
+                                  onClick={() => {
+                                    setSelectedTask(task)
+                                    setIsTaskSheetOpen(true)
+                                  }}
+                                >
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox
+                                      checked={selectedTaskIds.includes(task.id)}
+                                      onClick={(e: any) => {
+                                        if (e.shiftKey) isShiftPressed.current = true
+                                      }}
+                                      onCheckedChange={(checked) =>
+                                        handleSelectRow(task.id, !!checked)
+                                      }
+                                      aria-label={`Selecionar tarefa ${task.title}`}
                                     />
+                                  </TableCell>
+                                  {visibleColumns.descricao && (
+                                    <TableCell className="font-medium flex items-center py-3 min-w-[300px]">
+                                      <div
+                                        style={{ width: `${(task.depth || 0) * 20}px` }}
+                                        className="shrink-0"
+                                      />
 
-                                    {!isFilterActive ? (
-                                      <div className="grip-handle cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-1 shrink-0 p-1.5 -ml-1.5 rounded hover:bg-muted">
-                                        <GripVertical className="h-4 w-4" />
-                                      </div>
-                                    ) : (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <div className="text-muted-foreground/20 cursor-not-allowed mr-1 shrink-0 p-1.5 -ml-1.5">
-                                            <GripVertical className="h-4 w-4" />
-                                          </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p className="text-xs">
-                                            A reordenação está desativada durante o uso de filtros.
-                                          </p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    )}
+                                      {!isFilterActive ? (
+                                        <div className="grip-handle cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity mr-1 shrink-0 p-1.5 -ml-1.5 rounded hover:bg-muted">
+                                          <GripVertical className="h-4 w-4" />
+                                        </div>
+                                      ) : (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <div className="text-muted-foreground/20 cursor-not-allowed mr-1 shrink-0 p-1.5 -ml-1.5">
+                                              <GripVertical className="h-4 w-4" />
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p className="text-xs">
+                                              A reordenação está desativada durante o uso de
+                                              filtros.
+                                            </p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )}
 
-                                    {task.children && task.children.length > 0 ? (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setExpandedTaskIds((prev) => {
-                                            const next = new Set(prev)
-                                            if (next.has(task.id)) next.delete(task.id)
-                                            else next.add(task.id)
-                                            return next
-                                          })
-                                        }}
-                                        className="w-5 h-5 flex items-center justify-center hover:bg-muted rounded mr-1 shrink-0"
-                                      >
-                                        {expandedTaskIds.has(task.id) ? (
-                                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                        ) : (
-                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                        )}
-                                      </button>
-                                    ) : (
-                                      <div className="w-6 shrink-0" />
-                                    )}
+                                      {task.children && task.children.length > 0 ? (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setExpandedTaskIds((prev) => {
+                                              const next = new Set(prev)
+                                              if (next.has(task.id)) next.delete(task.id)
+                                              else next.add(task.id)
+                                              return next
+                                            })
+                                          }}
+                                          className="w-5 h-5 flex items-center justify-center hover:bg-muted rounded mr-1 shrink-0"
+                                        >
+                                          {expandedTaskIds.has(task.id) ? (
+                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                          ) : (
+                                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                          )}
+                                        </button>
+                                      ) : (
+                                        <div className="w-6 shrink-0" />
+                                      )}
 
-                                    <div className="flex flex-col gap-0.5 w-full">
-                                      <span className="flex items-center gap-2">
-                                        <Checkbox
-                                          checked={task.status === 'Concluído'}
-                                          onCheckedChange={(c) => handleCompleteTask(task, !!c)}
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="rounded-full w-4 h-4 shrink-0"
-                                          aria-label="Concluir tarefa"
-                                        />
-                                        {editingTitleId === task.id ? (
-                                          <Input
-                                            autoFocus
-                                            value={editTitleValue}
-                                            onChange={(e) => setEditTitleValue(e.target.value)}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') handleSaveTitle(task.id)
-                                              if (e.key === 'Escape') setEditingTitleId(null)
-                                            }}
-                                            onBlur={() => handleSaveTitle(task.id)}
+                                      <div className="flex flex-col gap-0.5 w-full">
+                                        <span className="flex items-center gap-2">
+                                          <Checkbox
+                                            checked={task.status === 'Concluído'}
+                                            onCheckedChange={(c) => handleCompleteTask(task, !!c)}
                                             onClick={(e) => e.stopPropagation()}
-                                            className="h-7 text-sm py-1 px-2 w-full max-w-[300px]"
+                                            className="rounded-full w-4 h-4 shrink-0"
+                                            aria-label="Concluir tarefa"
                                           />
-                                        ) : (
-                                          <span
-                                            className={cn(
-                                              'cursor-pointer transition-colors border-b border-transparent hover:border-primary/50',
-                                              task.status === 'Concluído'
-                                                ? 'line-through text-muted-foreground'
-                                                : 'hover:text-primary',
+                                          {editingTitleId === task.id ? (
+                                            <Input
+                                              autoFocus
+                                              value={editTitleValue}
+                                              onChange={(e) => setEditTitleValue(e.target.value)}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleSaveTitle(task.id)
+                                                if (e.key === 'Escape') setEditingTitleId(null)
+                                              }}
+                                              onBlur={() => handleSaveTitle(task.id)}
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="h-7 text-sm py-1 px-2 w-full max-w-[300px]"
+                                            />
+                                          ) : (
+                                            <span
+                                              className={cn(
+                                                'cursor-pointer transition-colors border-b border-transparent hover:border-primary/50',
+                                                task.status === 'Concluído'
+                                                  ? 'line-through text-muted-foreground'
+                                                  : 'hover:text-primary',
+                                              )}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                setEditingTitleId(task.id)
+                                                setEditTitleValue(task.title)
+                                              }}
+                                            >
+                                              {task.title}
+                                            </span>
+                                          )}
+                                          {urgency.level !== 'none' &&
+                                            editingTitleId !== task.id && (
+                                              <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                  'border-none flex items-center gap-1 px-1.5 py-0 h-5',
+                                                  urgency.bg,
+                                                  urgency.color,
+                                                )}
+                                              >
+                                                <urgency.icon className="h-3 w-3" />
+                                                <span className="text-[10px] uppercase font-bold">
+                                                  {urgency.label}
+                                                </span>
+                                              </Badge>
                                             )}
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              setEditingTitleId(task.id)
-                                              setEditTitleValue(task.title)
-                                            }}
-                                          >
-                                            {task.title}
+                                        </span>
+                                        {task.description && editingTitleId !== task.id && (
+                                          <span className="text-xs text-muted-foreground line-clamp-1 ml-6">
+                                            {task.description.replace(/<[^>]*>?/gm, ' ')}
                                           </span>
                                         )}
-                                        {urgency.level !== 'none' && editingTitleId !== task.id && (
-                                          <Badge
-                                            variant="outline"
+                                      </div>
+                                    </TableCell>
+                                  )}
+                                  {visibleColumns.responsavel && (
+                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                      <Select
+                                        value={task.responsible || 'unassigned'}
+                                        onValueChange={async (val) => {
+                                          try {
+                                            const newValue = val === 'unassigned' ? null : val
+                                            await pb
+                                              .collection('tasks')
+                                              .update(task.id, { responsible: newValue })
+                                            const prevTasks =
+                                              client.getQueryData(`tasks_${moduleId}`) || []
+                                            client.setQueryData(
+                                              `tasks_${moduleId}`,
+                                              prevTasks.map((t: any) =>
+                                                t.id === task.id
+                                                  ? { ...t, responsible: newValue }
+                                                  : t,
+                                              ),
+                                            )
+                                            toast({ title: 'Responsável atualizado' })
+                                          } catch (e: any) {
+                                            toast({
+                                              title: 'Erro',
+                                              description:
+                                                'Não foi possível atualizar o responsável.',
+                                              variant: 'destructive',
+                                            })
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-8 w-[140px] text-xs border-dashed focus:ring-0 focus:ring-offset-0">
+                                          <SelectValue placeholder="Atribuir" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem
+                                            value="unassigned"
+                                            className="text-muted-foreground italic"
+                                          >
+                                            Sem responsável
+                                          </SelectItem>
+                                          {users.map((u) => (
+                                            <SelectItem key={u.id} value={u.id}>
+                                              <div className="flex items-center gap-2">
+                                                <Avatar className="h-5 w-5">
+                                                  <AvatarImage
+                                                    src={
+                                                      u.avatar
+                                                        ? pb.files.getURL(u, u.avatar)
+                                                        : undefined
+                                                    }
+                                                  />
+                                                  <AvatarFallback className="text-[10px]">
+                                                    {u.name?.charAt(0) || 'U'}
+                                                  </AvatarFallback>
+                                                </Avatar>
+                                                <span>{u.name}</span>
+                                              </div>
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                  )}
+                                  {visibleColumns.status && (
+                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                      <Select
+                                        value={task.status || 'Pendente'}
+                                        onValueChange={async (val) => {
+                                          try {
+                                            const isConcluido = val === 'Concluído'
+                                            const updateData: any = { status: val }
+                                            if (isConcluido) {
+                                              updateData.completed_at = new Date().toISOString()
+                                            } else if (task.status === 'Concluído') {
+                                              updateData.completed_at = ''
+                                            }
+                                            await pb.collection('tasks').update(task.id, updateData)
+                                            const prevTasks =
+                                              client.getQueryData(`tasks_${moduleId}`) || []
+                                            client.setQueryData(
+                                              `tasks_${moduleId}`,
+                                              prevTasks.map((t: any) =>
+                                                t.id === task.id ? { ...t, ...updateData } : t,
+                                              ),
+                                            )
+                                            toast({ title: 'Status atualizado' })
+                                          } catch (e: any) {
+                                            toast({
+                                              title: 'Erro',
+                                              description: 'Não foi possível atualizar o status.',
+                                              variant: 'destructive',
+                                            })
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger
+                                          className={cn(
+                                            'h-7 w-[130px] border-none text-xs font-medium focus:ring-0 focus:ring-offset-0',
+                                            task.status === 'Concluído'
+                                              ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                                              : task.status === 'Atrasado'
+                                                ? 'bg-red-500 hover:bg-red-600 text-white'
+                                                : task.status === 'Revisão'
+                                                  ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                                                  : task.status === 'Não Realizado'
+                                                    ? 'bg-gray-500 hover:bg-gray-600 text-white'
+                                                    : task.status === 'Espera'
+                                                      ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                                                      : task.status === 'Em Andamento'
+                                                        ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                                        : 'bg-slate-500 hover:bg-slate-600 text-white',
+                                          )}
+                                        >
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent onClick={(e) => e.stopPropagation()}>
+                                          <SelectItem value="Atrasado">Atrasado</SelectItem>
+                                          <SelectItem value="Revisão">Revisão</SelectItem>
+                                          <SelectItem value="Não Realizado">
+                                            Não Realizado
+                                          </SelectItem>
+                                          <SelectItem value="Espera">Espera</SelectItem>
+                                          <SelectItem value="Pendente">Pendente</SelectItem>
+                                          <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                                          <SelectItem value="Concluído">Concluído</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                  )}
+                                  {visibleColumns.data && (
+                                    <TableCell className="text-right">
+                                      <Popover>
+                                        <PopoverTrigger
+                                          asChild
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Button
+                                            variant="ghost"
                                             className={cn(
-                                              'border-none flex items-center gap-1 px-1.5 py-0 h-5',
-                                              urgency.bg,
-                                              urgency.color,
+                                              'w-[130px] justify-end text-right font-normal px-2 h-8',
+                                              !task.due_date && 'text-muted-foreground',
+                                              urgency.level === 'overdue' &&
+                                                'text-red-500 font-bold hover:text-red-600',
+                                              urgency.level === 'urgent' &&
+                                                'text-orange-500 font-bold hover:text-orange-600',
                                             )}
                                           >
-                                            <urgency.icon className="h-3 w-3" />
-                                            <span className="text-[10px] uppercase font-bold">
-                                              {urgency.label}
-                                            </span>
-                                          </Badge>
-                                        )}
-                                      </span>
-                                      {task.description && editingTitleId !== task.id && (
-                                        <span className="text-xs text-muted-foreground line-clamp-1 ml-6">
-                                          {task.description.replace(/<[^>]*>?/gm, ' ')}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                )}
-                                {visibleColumns.responsavel && (
-                                  <TableCell onClick={(e) => e.stopPropagation()}>
-                                    <Select
-                                      value={task.responsible || 'unassigned'}
-                                      onValueChange={async (val) => {
-                                        try {
-                                          const newValue = val === 'unassigned' ? null : val
-                                          await pb
-                                            .collection('tasks')
-                                            .update(task.id, { responsible: newValue })
-                                          const prevTasks =
-                                            client.getQueryData(`tasks_${moduleId}`) || []
-                                          client.setQueryData(
-                                            `tasks_${moduleId}`,
-                                            prevTasks.map((t: any) =>
-                                              t.id === task.id
-                                                ? { ...t, responsible: newValue }
-                                                : t,
-                                            ),
-                                          )
-                                          toast({ title: 'Responsável atualizado' })
-                                        } catch (e: any) {
-                                          toast({
-                                            title: 'Erro',
-                                            description:
-                                              'Não foi possível atualizar o responsável.',
-                                            variant: 'destructive',
-                                          })
-                                        }
-                                      }}
-                                    >
-                                      <SelectTrigger className="h-8 w-[140px] text-xs border-dashed focus:ring-0 focus:ring-offset-0">
-                                        <SelectValue placeholder="Atribuir" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem
-                                          value="unassigned"
-                                          className="text-muted-foreground italic"
+                                            {task.due_date ? (
+                                              format(new Date(task.due_date), 'dd/MM/yyyy')
+                                            ) : (
+                                              <span>Selecionar</span>
+                                            )}
+                                            <CalendarIcon className="ml-2 h-4 w-4" />
+                                          </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent
+                                          className="w-auto p-0"
+                                          align="end"
+                                          onClick={(e) => e.stopPropagation()}
                                         >
-                                          Sem responsável
-                                        </SelectItem>
-                                        {users.map((u) => (
-                                          <SelectItem key={u.id} value={u.id}>
-                                            <div className="flex items-center gap-2">
-                                              <Avatar className="h-5 w-5">
-                                                <AvatarImage
-                                                  src={
-                                                    u.avatar
-                                                      ? pb.files.getURL(u, u.avatar)
-                                                      : undefined
-                                                  }
-                                                />
-                                                <AvatarFallback className="text-[10px]">
-                                                  {u.name?.charAt(0) || 'U'}
-                                                </AvatarFallback>
-                                              </Avatar>
-                                              <span>{u.name}</span>
-                                            </div>
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </TableCell>
-                                )}
-                                {visibleColumns.status && (
-                                  <TableCell onClick={(e) => e.stopPropagation()}>
-                                    <Select
-                                      value={task.status || 'Pendente'}
-                                      onValueChange={async (val) => {
-                                        try {
-                                          const isConcluido = val === 'Concluído'
-                                          const updateData: any = { status: val }
-                                          if (isConcluido) {
-                                            updateData.completed_at = new Date().toISOString()
-                                          } else if (task.status === 'Concluído') {
-                                            updateData.completed_at = ''
-                                          }
-                                          await pb.collection('tasks').update(task.id, updateData)
-                                          const prevTasks =
-                                            client.getQueryData(`tasks_${moduleId}`) || []
-                                          client.setQueryData(
-                                            `tasks_${moduleId}`,
-                                            prevTasks.map((t: any) =>
-                                              t.id === task.id ? { ...t, ...updateData } : t,
-                                            ),
-                                          )
-                                          toast({ title: 'Status atualizado' })
-                                        } catch (e: any) {
-                                          toast({
-                                            title: 'Erro',
-                                            description: 'Não foi possível atualizar o status.',
-                                            variant: 'destructive',
-                                          })
-                                        }
-                                      }}
-                                    >
-                                      <SelectTrigger
-                                        className={cn(
-                                          'h-7 w-[130px] border-none text-xs font-medium focus:ring-0 focus:ring-offset-0',
-                                          task.status === 'Concluído'
-                                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                                            : task.status === 'Atrasado'
-                                              ? 'bg-red-500 hover:bg-red-600 text-white'
-                                              : task.status === 'Revisão'
-                                                ? 'bg-purple-500 hover:bg-purple-600 text-white'
-                                                : task.status === 'Não Realizado'
-                                                  ? 'bg-gray-500 hover:bg-gray-600 text-white'
-                                                  : task.status === 'Espera'
-                                                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                                                    : task.status === 'Em Andamento'
-                                                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                                      : 'bg-slate-500 hover:bg-slate-600 text-white',
-                                        )}
-                                      >
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent onClick={(e) => e.stopPropagation()}>
-                                        <SelectItem value="Atrasado">Atrasado</SelectItem>
-                                        <SelectItem value="Revisão">Revisão</SelectItem>
-                                        <SelectItem value="Não Realizado">Não Realizado</SelectItem>
-                                        <SelectItem value="Espera">Espera</SelectItem>
-                                        <SelectItem value="Pendente">Pendente</SelectItem>
-                                        <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                                        <SelectItem value="Concluído">Concluído</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </TableCell>
-                                )}
-                                {visibleColumns.data && (
-                                  <TableCell className="text-right">
-                                    <Popover>
-                                      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                          <Calendar
+                                            mode="single"
+                                            selected={
+                                              task.due_date ? new Date(task.due_date) : undefined
+                                            }
+                                            onSelect={async (date: Date | undefined) => {
+                                              try {
+                                                const formattedDate = date
+                                                  ? `${format(date, 'yyyy-MM-dd')} 12:00:00.000Z`
+                                                  : null
+                                                await pb
+                                                  .collection('tasks')
+                                                  .update(task.id, { due_date: formattedDate })
+                                                const prevTasks =
+                                                  client.getQueryData(`tasks_${moduleId}`) || []
+                                                client.setQueryData(
+                                                  `tasks_${moduleId}`,
+                                                  prevTasks.map((t: any) =>
+                                                    t.id === task.id
+                                                      ? { ...t, due_date: formattedDate }
+                                                      : t,
+                                                  ),
+                                                )
+                                                toast({ title: 'Data atualizada' })
+                                              } catch (e: any) {
+                                                toast({
+                                                  title: 'Erro',
+                                                  description: 'Não foi possível atualizar a data.',
+                                                  variant: 'destructive',
+                                                })
+                                              }
+                                            }}
+                                            initialFocus
+                                          />
+                                        </PopoverContent>
+                                      </Popover>
+                                    </TableCell>
+                                  )}
+                                  {visibleColumns.acoes && (
+                                    <TableCell className="text-right">
+                                      <div className="flex items-center justify-end gap-1 transition-opacity">
                                         <Button
                                           variant="ghost"
-                                          className={cn(
-                                            'w-[130px] justify-end text-right font-normal px-2 h-8',
-                                            !task.due_date && 'text-muted-foreground',
-                                            urgency.level === 'overdue' &&
-                                              'text-red-500 font-bold hover:text-red-600',
-                                            urgency.level === 'urgent' &&
-                                              'text-orange-500 font-bold hover:text-orange-600',
-                                          )}
-                                        >
-                                          {task.due_date ? (
-                                            format(new Date(task.due_date), 'dd/MM/yyyy')
-                                          ) : (
-                                            <span>Selecionar</span>
-                                          )}
-                                          <CalendarIcon className="ml-2 h-4 w-4" />
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent
-                                        className="w-auto p-0"
-                                        align="end"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <Calendar
-                                          mode="single"
-                                          selected={
-                                            task.due_date ? new Date(task.due_date) : undefined
-                                          }
-                                          onSelect={async (date: Date | undefined) => {
-                                            try {
-                                              const formattedDate = date
-                                                ? `${format(date, 'yyyy-MM-dd')} 12:00:00.000Z`
-                                                : null
-                                              await pb
-                                                .collection('tasks')
-                                                .update(task.id, { due_date: formattedDate })
-                                              const prevTasks =
-                                                client.getQueryData(`tasks_${moduleId}`) || []
-                                              client.setQueryData(
-                                                `tasks_${moduleId}`,
-                                                prevTasks.map((t: any) =>
-                                                  t.id === task.id
-                                                    ? { ...t, due_date: formattedDate }
-                                                    : t,
-                                                ),
-                                              )
-                                              toast({ title: 'Data atualizada' })
-                                            } catch (e: any) {
-                                              toast({
-                                                title: 'Erro',
-                                                description: 'Não foi possível atualizar a data.',
-                                                variant: 'destructive',
-                                              })
-                                            }
+                                          size="icon"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setInlineCreateParentId(task.id)
+                                            setInlineCreateValue('')
+                                            setExpandedTaskIds((prev) => {
+                                              const next = new Set(prev)
+                                              next.add(task.id)
+                                              return next
+                                            })
                                           }}
-                                          initialFocus
-                                        />
-                                      </PopoverContent>
-                                    </Popover>
-                                  </TableCell>
+                                          title="Adicionar subtarefa"
+                                        >
+                                          <PlusCircle className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setSelectedTask(task)
+                                            setIsTaskSheetOpen(true)
+                                          }}
+                                          title="Editar tarefa"
+                                        >
+                                          <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                                {inlineCreateParentId === task.id && (
+                                  <TableRow className="bg-muted/30">
+                                    <TableCell />
+                                    {visibleColumns.descricao && (
+                                      <TableCell className="py-2">
+                                        <div className="flex items-center">
+                                          <div
+                                            style={{ width: `${(task.depth + 1) * 20}px` }}
+                                            className="shrink-0"
+                                          />
+                                          <div className="ml-[54px] w-full max-w-[300px]">
+                                            <Input
+                                              autoFocus
+                                              value={inlineCreateValue}
+                                              onChange={(e) => setInlineCreateValue(e.target.value)}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                  e.preventDefault()
+                                                  handleSaveInlineSubtask(task.id)
+                                                }
+                                                if (e.key === 'Escape') {
+                                                  e.preventDefault()
+                                                  setInlineCreateParentId(null)
+                                                  setInlineCreateValue('')
+                                                }
+                                              }}
+                                              onBlur={() => {
+                                                if (!inlineCreateValue.trim()) {
+                                                  setInlineCreateParentId(null)
+                                                }
+                                              }}
+                                              placeholder="Título da subtarefa (Enter para salvar)"
+                                              className="h-7 text-sm py-1 px-2 w-full"
+                                            />
+                                          </div>
+                                        </div>
+                                      </TableCell>
+                                    )}
+                                    {visibleColumns.responsavel && <TableCell />}
+                                    {visibleColumns.status && <TableCell />}
+                                    {visibleColumns.data && <TableCell />}
+                                    {visibleColumns.acoes && <TableCell />}
+                                  </TableRow>
                                 )}
-                                {visibleColumns.acoes && (
-                                  <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setCreateParentId(task.id)
-                                          setIsCreateTaskOpen(true)
-                                        }}
-                                        title="Adicionar subtarefa"
-                                      >
-                                        <PlusCircle className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setSelectedTask(task)
-                                          setIsTaskSheetOpen(true)
-                                        }}
-                                        title="Editar tarefa"
-                                      >
-                                        <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                )}
-                              </TableRow>
+                              </React.Fragment>
                             )
                           })}
                         </TableBody>

@@ -59,6 +59,7 @@ interface Props {
   resource: DocumentResource | null
   category: string
   onSuccess: () => void
+  prefillDiscipline?: string
 }
 
 export function DocumentResourceDialog({
@@ -67,6 +68,7 @@ export function DocumentResourceDialog({
   resource,
   category,
   onSuccess,
+  prefillDiscipline,
 }: Props) {
   const { toast } = useToast()
   const isEditing = !!resource
@@ -111,12 +113,12 @@ export function DocumentResourceDialog({
           description: '',
           url: '',
           category: category,
-          discipline: '',
+          discipline: prefillDiscipline || '',
           tags: [],
         })
       }
     }
-  }, [open, resource, form, category])
+  }, [open, resource, form, category, prefillDiscipline])
 
   const onSubmit = async (data: FormData) => {
     try {

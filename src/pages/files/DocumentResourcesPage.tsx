@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Star,
   Search,
+  Copy,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
@@ -107,6 +108,7 @@ export default function DocumentResourcesPage({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTag, setSelectedTag] = useState<string>('all')
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<string>('created_desc')
   const [availableTags, setAvailableTags] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
@@ -187,6 +189,15 @@ export default function DocumentResourcesPage({
     }
   }
 
+  const handleCopyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast({ title: 'Link copiado com sucesso!' })
+    } catch (err) {
+      toast({ title: 'Erro ao copiar link', variant: 'destructive' })
+    }
+  }
+
   const handleAccessLink = async (resource: DocumentResource) => {
     try {
       await pb.collection('audit_logs').create({
@@ -232,26 +243,36 @@ export default function DocumentResourcesPage({
     )
   }
 
-  const displayedResources = resources.filter((r) => {
-    const searchLower = searchQuery.toLowerCase()
-    const matchSearch =
-      searchLower === '' ||
-      r.title.toLowerCase().includes(searchLower) ||
-      (r.description?.toLowerCase().includes(searchLower) ?? false)
+  const displayedResources = resources
+    .filter((r) => {
+      const searchLower = searchQuery.toLowerCase()
+      const matchSearch =
+        searchLower === '' ||
+        r.title.toLowerCase().includes(searchLower) ||
+        (r.description?.toLowerCase().includes(searchLower) ?? false)
 
-    const isFav = favorites.some((f) => f.document_id === r.id)
-    const matchFav = selectedDiscipline === 'favorites' ? isFav : true
+      const isFav = favorites.some((f) => f.document_id === r.id)
+      const matchFav = selectedDiscipline === 'favorites' ? isFav : true
 
-    const matchTag = selectedTag === 'all' ? true : r.tags?.includes(selectedTag)
+      const matchTag = selectedTag === 'all' ? true : r.tags?.includes(selectedTag)
 
-    const isSearchActive = searchLower !== ''
-    const matchDiscipline =
-      selectedDiscipline === 'all' || selectedDiscipline === 'favorites' || isSearchActive
-        ? true
-        : r.discipline === selectedDiscipline
+      const isSearchActive = searchLower !== ''
+      const matchDiscipline =
+        selectedDiscipline === 'all' || selectedDiscipline === 'favorites' || isSearchActive
+          ? true
+          : r.discipline === selectedDiscipline
 
-    return matchSearch && matchFav && matchTag && matchDiscipline
-  })
+      return matchSearch && matchFav && matchTag && matchDiscipline
+    })
+    .sort((a: any, b: any) => {
+      if (sortBy === 'title_asc') {
+        return a.title.localeCompare(b.title)
+      } else if (sortBy === 'updated_desc') {
+        return new Date(b.updated || 0).getTime() - new Date(a.updated || 0).getTime()
+      } else {
+        return new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime()
+      }
+    })
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto w-full">
@@ -287,6 +308,16 @@ export default function DocumentResourcesPage({
                   {t.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Ordenar por" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_desc">Mais Recentes</SelectItem>
+              <SelectItem value="title_asc">Nome (A-Z)</SelectItem>
+              <SelectItem value="updated_desc">Última Modificação</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" asChild>
@@ -418,6 +449,15 @@ export default function DocumentResourcesPage({
                       <ExternalLink className="h-4 w-4" /> Acessar Link
                     </a>
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 bg-background shrink-0"
+                    onClick={() => handleCopyLink(resource.url)}
+                    title="Copiar link"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
                   {isAdmin && (
                     <div className="flex gap-2">
                       <Button
@@ -475,6 +515,9 @@ export default function DocumentResourcesPage({
         resource={editingResource}
         category={category}
         onSuccess={loadData}
+        prefillDiscipline={
+          ['all', 'favorites'].includes(selectedDiscipline) ? '' : selectedDiscipline
+        }
       />
     </div>
   )

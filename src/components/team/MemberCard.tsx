@@ -59,7 +59,9 @@ import {
   Loader2,
   UserCheck,
   UserMinus,
+  History,
 } from 'lucide-react'
+import { format } from 'date-fns'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   AlertDialog,
@@ -533,6 +535,7 @@ export function MemberCard({
             >
               <FileDown className="h-5 w-5" />
             </Button>
+            <StatusHistoryDialog user={user} />
             <MemberEditDialog
               user={user}
               onSave={onUpdate}
@@ -630,6 +633,86 @@ export function MemberCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function StatusHistoryDialog({ user }: { user: User }) {
+  const [logs, setLogs] = useState<any[]>([])
+  const [open, setOpen] = useState(false)
+  const { user: currentUser } = useAuth()
+
+  const loadLogs = async () => {
+    try {
+      const records = await pb.collection('audit_logs').getFullList({
+        filter: `resource = "users" && action = "Alteração de Status"`,
+        sort: '-created',
+        expand: 'user_id',
+      })
+      const userLogs = records.filter((r) => r.details?.collaborator_id === user.id)
+      setLogs(userLogs)
+    } catch (error) {
+      console.error('Failed to load status logs:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (open) loadLogs()
+  }, [open, user.id])
+
+  if (currentUser?.role !== 'Administrador') return null
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+          title="Log de Alterações de Status"
+        >
+          <History className="h-5 w-5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <History className="h-5 w-5 text-primary" /> Log de Alterações de Status
+          </DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[60vh] mt-4">
+          {logs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              Nenhum histórico de alteração de status encontrado.
+            </div>
+          ) : (
+            <div className="space-y-4 pr-4">
+              {logs.map((log) => (
+                <div key={log.id} className="flex flex-col gap-1 p-3 rounded-lg border bg-muted/10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {format(new Date(log.created), "dd/MM/yyyy 'às' HH:mm")}
+                    </span>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {log.expand?.user_id?.name || 'Administrador'}
+                    </Badge>
+                  </div>
+                  <p className="text-sm mt-1">
+                    Status alterado de{' '}
+                    <strong className="text-destructive font-semibold">
+                      {log.details?.old_status}
+                    </strong>{' '}
+                    para{' '}
+                    <strong className="text-emerald-600 font-semibold">
+                      {log.details?.new_status}
+                    </strong>
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   )
 }
 const editFormSchema = z

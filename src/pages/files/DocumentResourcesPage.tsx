@@ -130,6 +130,7 @@ export default function DocumentResourcesPage({
   const isAdmin = user?.role === 'Administrador'
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingResource, setEditingResource] = useState<DocumentResource | null>(null)
+  const [dialogCategory, setDialogCategory] = useState<string>(category)
 
   const allowedRolesForCategory: Record<string, string[]> = {
     POPs: ['Administrador', 'Gerente de Projeto', 'Projetista'],
@@ -361,7 +362,32 @@ export default function DocumentResourcesPage({
               <Star className="mr-2 h-4 w-4" /> Meus Favoritos
             </Link>
           </Button>
-          {isAdmin && (
+          {isAdmin && category === 'Cursos' ? (
+            <>
+              <ManageTagsDialog>
+                <Button variant="outline">Gerenciar Tags</Button>
+              </ManageTagsDialog>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingResource(null)
+                  setDialogCategory('')
+                  setIsDialogOpen(true)
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Adicionar Link
+              </Button>
+              <Button
+                onClick={() => {
+                  setEditingResource(null)
+                  setDialogCategory('Cursos')
+                  setIsDialogOpen(true)
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Adicionar Novo Curso
+              </Button>
+            </>
+          ) : isAdmin ? (
             <>
               <ManageTagsDialog>
                 <Button variant="outline">Gerenciar Tags</Button>
@@ -369,14 +395,14 @@ export default function DocumentResourcesPage({
               <Button
                 onClick={() => {
                   setEditingResource(null)
+                  setDialogCategory(category)
                   setIsDialogOpen(true)
                 }}
               >
-                <Plus className="mr-2 h-4 w-4" />{' '}
-                {category === 'Cursos' ? 'Adicionar Novo Curso' : 'Adicionar Link'}
+                <Plus className="mr-2 h-4 w-4" /> Adicionar Link
               </Button>
             </>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -542,6 +568,7 @@ export default function DocumentResourcesPage({
                                     className="h-9 w-9 bg-background"
                                     onClick={() => {
                                       setEditingResource(resource)
+                                      setDialogCategory(resource.category || category)
                                       setIsDialogOpen(true)
                                     }}
                                   >
@@ -678,6 +705,7 @@ export default function DocumentResourcesPage({
                               className="h-9 w-9 bg-background"
                               onClick={() => {
                                 setEditingResource(resource)
+                                setDialogCategory(resource.category || category)
                                 setIsDialogOpen(true)
                               }}
                             >
@@ -816,6 +844,7 @@ export default function DocumentResourcesPage({
                                     className="h-9 w-9 bg-background"
                                     onClick={() => {
                                       setEditingResource(resource)
+                                      setDialogCategory(resource.category || category)
                                       setIsDialogOpen(true)
                                     }}
                                   >
@@ -869,7 +898,7 @@ export default function DocumentResourcesPage({
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         resource={editingResource}
-        category={category}
+        category={dialogCategory}
         onSuccess={loadData}
         prefillDiscipline={
           ['all', 'favorites'].includes(selectedDiscipline) ? '' : selectedDiscipline

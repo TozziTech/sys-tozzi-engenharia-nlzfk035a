@@ -22,6 +22,38 @@ onRecordAfterUpdateSuccess((e) => {
         notif.set('link', '/gestao/painel-cliente')
 
         $app.save(notif)
+
+        // Automate Email on Phase Completion
+        try {
+          const clientUser = $app.findRecordById('users', clientId)
+          const clientEmail = clientUser.getString('email')
+
+          if (clientEmail) {
+            const projectName = project.getString('nome_projeto')
+            const phaseName = phase.getString('nome_fase')
+
+            const message = new MailerMessage({
+              from: {
+                address:
+                  $app.settings().meta.senderAddress ||
+                  'noreply@dashboard-de-projetos-a89c5.goskip.app',
+                name: $app.settings().meta.senderName || 'SyS-TOZZI ENGENHARIA',
+              },
+              to: [{ address: clientEmail }],
+              subject: 'Novidade no seu Projeto: ' + projectName + ' - Etapa Concluída',
+              html:
+                '<p>Olá,</p><p>A fase <strong>' +
+                phaseName +
+                '</strong> do projeto <strong>' +
+                projectName +
+                '</strong> foi finalizada.</p><p><a href="https://dashboard-de-projetos-a89c5.goskip.app/gestao/painel-cliente">Acesse o Painel do Cliente</a> para conferir mais detalhes.</p>',
+            })
+
+            $app.newMailClient().send(message)
+          }
+        } catch (emailErr) {
+          console.log('Error sending phase completion email: ' + emailErr)
+        }
       }
     }
   } catch (err) {

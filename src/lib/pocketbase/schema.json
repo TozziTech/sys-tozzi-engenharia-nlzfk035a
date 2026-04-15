@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T13:13:12.229Z",
+  "generatedAt": "2026-04-15T13:44:48.719Z",
   "collections": [
     {
       "name": "users",
@@ -121,7 +121,8 @@
             "Gerente de Projeto",
             "Projetista",
             "Estagiário",
-            "Visitante"
+            "Visitante",
+            "Cliente"
           ]
         },
         {
@@ -273,11 +274,11 @@
       "name": "projects",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "delete": "@request.auth.id != '' && @request.auth.role != 'Cliente'"
       },
       "fields": [
         {
@@ -373,11 +374,11 @@
       "name": "tasks",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "delete": "@request.auth.id != '' && @request.auth.role != 'Cliente'"
       },
       "fields": [
         {
@@ -584,11 +585,11 @@
       "name": "financial_records",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "view": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "create": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "update": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "delete": "@request.auth.id != '' && @request.auth.role != 'Cliente'"
       },
       "fields": [
         {

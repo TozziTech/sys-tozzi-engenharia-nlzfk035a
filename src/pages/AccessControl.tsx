@@ -86,6 +86,7 @@ export default function AccessControl() {
                       <SelectItem value="Projetista">Projetista</SelectItem>
                       <SelectItem value="Estagiário">Estagiário</SelectItem>
                       <SelectItem value="Visitante">Visitante</SelectItem>
+                      <SelectItem value="Cliente">Cliente</SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>

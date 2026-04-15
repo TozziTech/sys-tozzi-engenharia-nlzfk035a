@@ -45,6 +45,7 @@ const ROLE_PREFIXES: Record<string, string> = {
   Projetista: 'PROJ',
   Estagiário: 'ESTG',
   Visitante: 'VIST',
+  Cliente: 'CLI',
 }
 
 const formSchema = z

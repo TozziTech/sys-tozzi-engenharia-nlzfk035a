@@ -34,7 +34,14 @@ export function RoleManagementModal({ users, onUpdate }: { users: any[]; onUpdat
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const roles = ['Administrador', 'Gerente de Projeto', 'Projetista', 'Estagiário', 'Visitante']
+  const roles = [
+    'Administrador',
+    'Gerente de Projeto',
+    'Projetista',
+    'Estagiário',
+    'Visitante',
+    'Cliente',
+  ]
 
   const roleDescriptions: Record<string, string> = {
     Administrador: 'Acesso total ao sistema, configurações, faturamento e exclusão de dados.',
@@ -44,6 +51,8 @@ export function RoleManagementModal({ users, onUpdate }: { users: any[]; onUpdat
       'Pode visualizar projetos atribuídos, atualizar status de tarefas e registrar horas.',
     Estagiário: 'Acesso limitado para visualização de tarefas e registro de horas sob supervisão.',
     Visitante: 'Acesso somente leitura a projetos compartilhados, sem permissão de edição.',
+    Cliente:
+      'Acesso restrito ao painel do cliente para visualização do progresso dos seus projetos.',
   }
 
   const handleRoleChange = async (userId: string, newRole: string) => {

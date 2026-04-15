@@ -1,9 +1,10 @@
 import { useAuth } from '@/hooks/use-auth'
-import { Outlet } from 'react-router-dom'
+import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { ShieldAlert } from 'lucide-react'
 
 export function RoleGuard() {
   const { user } = useAuth()
+  const location = useLocation()
 
   // Block access if user has no assigned role
   if (user && !user.role) {
@@ -21,6 +22,10 @@ export function RoleGuard() {
         </div>
       </div>
     )
+  }
+
+  if (user?.role === 'Cliente' && !location.pathname.startsWith('/gestao/painel-cliente')) {
+    return <Navigate to="/gestao/painel-cliente" replace />
   }
 
   return <Outlet />

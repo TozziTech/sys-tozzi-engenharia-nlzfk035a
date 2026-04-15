@@ -4,6 +4,10 @@ export const getClientProjects = async () => {
   return pb.collection('projetos_cliente').getFullList({ sort: '-created' })
 }
 
+export const getClientProject = async (id: string) => {
+  return pb.collection('projetos_cliente').getOne(id)
+}
+
 export const getProjectPhases = async (projectId: string) => {
   return pb.collection('fases_projeto').getFullList({
     filter: `projeto_id = '${projectId}'`,

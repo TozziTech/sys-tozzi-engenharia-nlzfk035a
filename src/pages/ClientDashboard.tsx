@@ -1,98 +1,50 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Clock,
-  Target,
-  Activity,
-  Info,
-  Calendar,
-  Users,
-  File,
-  Download,
-  DollarSign,
-  Building2,
-  Loader2,
-  FileText,
-} from 'lucide-react'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Building2,
+  Activity,
+  FileText,
+  Layers,
+  ArrowRight,
+  Phone,
+  Calendar,
+  Loader2,
+} from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { getClientProjects } from '@/services/client_dashboard'
 import pb from '@/lib/pocketbase/client'
 import { format } from 'date-fns'
-import { TimelineView, EvolutionChart } from '@/components/client-dashboard/ClientWidgets'
-import { exportProjectProgressPDF } from '@/lib/exportPdf'
-import { ClientComments } from '@/components/client-dashboard/ClientComments'
-import { ClientDocumentUpload } from '@/components/client-dashboard/ClientDocumentUpload'
-import {
-  getClientProjects,
-  getProjectPhases,
-  getProjectPayments,
-  getProjectDocuments,
-  getProjectComments,
-} from '@/services/client_dashboard'
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return ''
-  return format(new Date(dateStr), 'dd/MM/yyyy')
-}
-
-const getPaymentStatusBadge = (status: string) => {
-  switch (status) {
-    case 'Pago':
-      return <Badge className="bg-emerald-500 hover:bg-emerald-600">Pago</Badge>
-    case 'Pendente':
-      return <Badge className="bg-amber-500 hover:bg-amber-600 text-white">Pendente</Badge>
-    case 'Atrasado':
-      return <Badge variant="destructive">Atrasado</Badge>
-    default:
-      return <Badge variant="secondary">{status}</Badge>
-  }
-}
 
 export default function ClientDashboard() {
   const { user } = useAuth()
-  const [project, setProject] = useState<any>(null)
-  const [phases, setPhases] = useState<any[]>([])
-  const [payments, setPayments] = useState<any[]>([])
-  const [documents, setDocuments] = useState<any[]>([])
-  const [comments, setComments] = useState<any[]>([])
+  const navigate = useNavigate()
+  const [projects, setProjects] = useState<any[]>([])
+  const [stats, setStats] = useState({
+    activePhases: 0,
+    pendingDocs: 0,
+  })
   const [loading, setLoading] = useState(true)
-  const [paymentFilter, setPaymentFilter] = useState('Todos')
 
   const loadData = async () => {
     try {
-      const projects = await getClientProjects()
-      if (projects.length > 0) {
-        const activeProject = projects[0]
-        setProject(activeProject)
-        const [phs, pymts, docs, comms] = await Promise.all([
-          getProjectPhases(activeProject.id),
-          getProjectPayments(activeProject.id),
-          getProjectDocuments(activeProject.id),
-          getProjectComments(activeProject.id),
-        ])
-        setPhases(phs)
-        setPayments(pymts)
-        setDocuments(docs)
-        setComments(comms)
-      } else {
-        setProject(null)
-      }
+      const projs = await getClientProjects()
+      setProjects(projs)
+
+      const phases = await pb.collection('fases_projeto').getFullList({
+        filter: "status = 'Em Andamento'",
+      })
+
+      const docs = await pb.collection('documentos_projeto').getFullList()
+
+      setStats({
+        activePhases: phases.length,
+        pendingDocs: docs.length,
+      })
     } catch (error) {
       console.error(error)
     } finally {
@@ -106,318 +58,153 @@ export default function ClientDashboard() {
 
   useRealtime('projetos_cliente', loadData)
   useRealtime('fases_projeto', loadData)
-  useRealtime('pagamentos_projeto', loadData)
   useRealtime('documentos_projeto', loadData)
-  useRealtime('comentarios_projeto', loadData)
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Concluído':
+        return 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent'
+      case 'Em Execução':
+        return 'bg-blue-500 hover:bg-blue-600 text-white border-transparent'
+      case 'Planejamento':
+        return 'bg-amber-500 hover:bg-amber-600 text-white border-transparent'
+      default:
+        return 'bg-secondary text-secondary-foreground border-transparent'
+    }
+  }
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="h-[50vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }
-
-  if (!project) {
-    return (
-      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full flex flex-col items-center justify-center min-h-[50vh]">
-        <Building2 className="w-16 h-16 text-muted-foreground opacity-50 mb-4" />
-        <h2 className="text-2xl font-bold">Nenhum projeto encontrado</h2>
-        <p className="text-muted-foreground">
-          Você ainda não possui projetos ativos vinculados à sua conta.
-        </p>
-      </div>
-    )
-  }
-
-  const nextMilestone =
-    phases.find((p) => p.status === 'Em Andamento' || p.status === 'Pendente') ||
-    phases[phases.length - 1]
-  const totalPaid = payments.filter((p) => p.status === 'Pago').reduce((acc, p) => acc + p.valor, 0)
-  const totalPending = payments
-    .filter((p) => p.status !== 'Pago')
-    .reduce((acc, p) => acc + p.valor, 0)
-  const health = payments.some((p) => p.status === 'Atrasado') ? 'Atenção' : 'Saudável'
-
-  const filteredPayments = payments.filter(
-    (p) => paymentFilter === 'Todos' || p.status === paymentFilter,
-  )
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full animate-fade-in pb-20">
-      <header className="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Painel do Cliente</h1>
-          <p className="text-muted-foreground mt-2">
-            Visão geral do projeto:{' '}
-            <span className="font-semibold text-foreground">{project.nome_projeto}</span>
+    <div className="p-4 md:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full animate-fade-in pb-20">
+      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary/90 via-primary to-blue-600 text-primary-foreground shadow-elevation">
+        <div className="absolute inset-0 bg-[url('https://img.usecurling.com/p/800/400?q=architecture&color=blue')] opacity-20 bg-cover bg-center mix-blend-overlay" />
+        <div className="relative p-8 md:p-12 backdrop-blur-sm">
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 animate-fade-in-up">
+            Bem-vindo(a), {user?.name || 'Cliente'}!
+          </h1>
+          <p
+            className="text-primary-foreground/90 text-lg md:text-xl max-w-2xl animate-fade-in-up"
+            style={{ animationDelay: '100ms' }}
+          >
+            Aqui você acompanha a evolução dos seus projetos com total transparência e praticidade.
           </p>
         </div>
-        <Button
-          onClick={() =>
-            exportProjectProgressPDF(project, phases, payments, user?.name || 'Cliente')
-          }
-          variant="outline"
-          className="shrink-0 gap-2"
-        >
-          <FileText className="w-4 h-4" />
-          Exportar Relatório
-        </Button>
-      </header>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Status Geral</CardTitle>
-            <Activity className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{project.progresso_total || 0}%</div>
-            <div className="mt-4 h-2 w-full bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-1000 ease-out"
-                style={{ width: `${project.progresso_total || 0}%` }}
-              />
+      <div
+        className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up"
+        style={{ animationDelay: '200ms' }}
+      >
+        <Card className="bg-card/50 backdrop-blur-sm border-muted hover:border-primary/50 transition-colors">
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-4 bg-primary/10 rounded-2xl">
+              <Building2 className="w-8 h-8 text-primary" />
             </div>
-            <p className="text-xs text-muted-foreground mt-3">{project.status_geral}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Próximo Marco</CardTitle>
-            <Target className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold truncate">{nextMilestone?.nome_fase || 'N/A'}</div>
-            <div className="flex items-center text-sm text-muted-foreground mt-3 gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              <span className="font-medium">
-                Estimativa:{' '}
-                {nextMilestone?.data_conclusao_estimada
-                  ? formatDate(nextMilestone.data_conclusao_estimada)
-                  : 'N/A'}
-              </span>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total de Projetos</p>
+              <p className="text-3xl font-bold">{projects.length}</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Situação Financeira</CardTitle>
-            <DollarSign className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
-              {health}
+        <Card className="bg-card/50 backdrop-blur-sm border-muted hover:border-primary/50 transition-colors">
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-4 bg-blue-500/10 rounded-2xl">
+              <Activity className="w-8 h-8 text-blue-500" />
             </div>
-            <div className="flex flex-col gap-1 mt-3 text-sm text-muted-foreground">
-              <span>
-                Pago:{' '}
-                <strong className="text-foreground font-medium">{formatCurrency(totalPaid)}</strong>
-              </span>
-              <span>
-                Pendente:{' '}
-                <strong className="text-foreground font-medium">
-                  {formatCurrency(totalPending)}
-                </strong>
-              </span>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Fases em Andamento</p>
+              <p className="text-3xl font-bold">{stats.activePhases}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50 backdrop-blur-sm border-muted hover:border-primary/50 transition-colors">
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="p-4 bg-amber-500/10 rounded-2xl">
+              <FileText className="w-8 h-8 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Documentos</p>
+              <p className="text-3xl font-bold">{stats.pendingDocs}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Info className="w-5 h-5 text-primary" /> Detalhes do Projeto
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="text-sm font-semibold mb-2">Escopo do Projeto</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {project.descricao_escopo}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" /> Cronograma
-                  </h3>
-                  <div className="flex gap-6">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-muted-foreground">Início</span>
-                      <span className="text-sm font-medium">{formatDate(project.data_inicio)}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs text-muted-foreground">Previsão Término</span>
-                      <span className="text-sm font-medium">
-                        {formatDate(project.data_previsao_entrega)}
+      <div className="animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+        <h2 className="text-2xl font-bold tracking-tight mb-6 flex items-center gap-2">
+          <Layers className="w-6 h-6 text-primary" /> Meus Projetos
+        </h2>
+
+        {projects.length === 0 ? (
+          <Card className="border-dashed border-2 bg-transparent">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <Building2 className="w-16 h-16 text-muted-foreground opacity-50 mb-4" />
+              <h3 className="text-xl font-bold mb-2">Nenhum projeto encontrado</h3>
+              <p className="text-muted-foreground max-w-sm mb-6">
+                Você ainda não possui projetos ativos vinculados à sua conta. Entre em contato para
+                iniciarmos o seu próximo grande projeto.
+              </p>
+              <Button onClick={() => (window.location.href = 'mailto:contato@exemplo.com')}>
+                <Phone className="w-4 h-4 mr-2" /> Falar com Atendimento
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {projects.map((project, idx) => (
+              <Card
+                key={project.id}
+                className="group overflow-hidden flex flex-col cursor-pointer hover:shadow-elevation hover:border-primary/50 transition-all duration-300"
+                onClick={() => navigate(`/gestao/painel-cliente/${project.id}`)}
+                style={{ animationDelay: `${400 + idx * 100}ms` }}
+              >
+                <CardHeader className="pb-4">
+                  <div className="flex justify-between items-start mb-2 gap-4">
+                    <CardTitle className="text-xl line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+                      {project.nome_projeto}
+                    </CardTitle>
+                    <Badge className={getStatusColor(project.status_geral)} variant="outline">
+                      {project.status_geral}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center text-sm text-muted-foreground gap-2">
+                    <Calendar className="w-4 h-4" />
+                    <span>
+                      Início:{' '}
+                      {project.data_inicio
+                        ? format(new Date(project.data_inicio), 'dd/MM/yyyy')
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Progresso</span>
+                      <span className="font-bold text-primary">
+                        {project.progresso_total || 0}%
                       </span>
                     </div>
+                    <Progress value={project.progresso_total || 0} className="h-2.5 bg-secondary" />
                   </div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Users className="w-4 h-4" /> Equipe Responsável
-                  </h3>
-                  <div className="flex flex-col gap-3">
-                    {(project.equipe_responsaveis || []).map((member: any) => (
-                      <div key={member.id} className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={member.avatar} />
-                          <AvatarFallback>{member.name?.substring(0, 2)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">{member.name}</span>
-                          <span className="text-xs text-muted-foreground">{member.role}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Linha do Tempo do Projeto</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <TimelineView phases={phases} progress={project.progresso_total || 0} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" /> Transações Financeiras
-              </CardTitle>
-              <Tabs
-                value={paymentFilter}
-                onValueChange={setPaymentFilter}
-                className="w-full sm:w-auto"
-              >
-                <TabsList className="grid grid-cols-4 sm:flex w-full">
-                  <TabsTrigger value="Todos">Todos</TabsTrigger>
-                  <TabsTrigger value="Pago">Pago</TabsTrigger>
-                  <TabsTrigger value="Pendente">Pendente</TabsTrigger>
-                  <TabsTrigger value="Atrasado">Atrasado</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPayments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
-                        Nenhum pagamento{' '}
-                        {paymentFilter !== 'Todos' ? paymentFilter.toLowerCase() : ''} encontrado.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredPayments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="font-medium">{payment.descricao}</TableCell>
-                        <TableCell>{formatDate(payment.data_vencimento)}</TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(payment.valor)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {getPaymentStatusBadge(payment.status)}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" /> Central de Documentos
-              </CardTitle>
-              {user?.role === 'Administrador' && <ClientDocumentUpload projectId={project.id} />}
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {documents.length === 0 ? (
-                  <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
-                    Nenhum documento anexado ao projeto.
-                  </div>
-                ) : (
-                  documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary/50 transition-colors bg-muted/20"
-                    >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="bg-primary/10 p-2 rounded-md shrink-0">
-                          <File className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="overflow-hidden">
-                          <p className="text-sm font-medium truncate" title={doc.nome_arquivo}>
-                            {doc.nome_arquivo}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{doc.tipo}</p>
-                        </div>
-                      </div>
-                      {doc.arquivo && (
-                        <a
-                          href={pb.files.getUrl(doc, doc.arquivo)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                        >
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0"
-                            title="Baixar documento"
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        </a>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Comunicações do Projeto</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ClientComments projectId={project.id} comments={comments} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Evolução do Progresso</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <EvolutionChart phases={phases} />
-            </CardContent>
-          </Card>
-        </div>
+                </CardContent>
+                <CardFooter className="pt-4 bg-muted/30 group-hover:bg-muted/50 transition-colors border-t">
+                  <span className="text-sm font-medium flex items-center text-primary">
+                    Ver detalhes do projeto{' '}
+                    <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

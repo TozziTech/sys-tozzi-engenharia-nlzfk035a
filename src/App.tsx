@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ProjectProvider } from '@/stores/useProjectStore'
 import Dashboard from './pages/Dashboard'
 import ClientDashboard from './pages/ClientDashboard'
+import ClientProjectDetails from './pages/ClientProjectDetails'
 import BankAccounts from './pages/BankAccounts'
 import ExecutiveDashboard from './pages/ExecutiveDashboard'
 import DeadlineAudit from './pages/DeadlineAudit'
@@ -68,6 +69,7 @@ const App = () => (
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
                   <Route path="/gestao/painel-cliente" element={<ClientDashboard />} />
+                  <Route path="/gestao/painel-cliente/:id" element={<ClientProjectDetails />} />
                   <Route path="/meu-painel" element={<MeuPainel />} />
                   <Route path="/designer-panel" element={<DesignerPanel />} />
                   <Route path="/projects" element={<Projects />} />

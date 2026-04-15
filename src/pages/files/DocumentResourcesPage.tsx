@@ -232,11 +232,12 @@ export default function DocumentResourcesPage({
     }
   }
 
-  const handleToggleFav = async (docId: string, favId?: string) => {
+  const handleToggleFav = async (e: React.MouseEvent, docId: string, favId?: string) => {
+    e.stopPropagation()
     try {
       await toggleFavorite(user.id, docId, favId)
       toast({ title: favId ? 'Favorito removido' : 'Favorito adicionado' })
-    } catch (e) {
+    } catch (err) {
       toast({ title: 'Erro ao atualizar favorito', variant: 'destructive' })
     }
   }
@@ -250,7 +251,8 @@ export default function DocumentResourcesPage({
     return trimmed
   }
 
-  const handleCopyLink = async (url: string) => {
+  const handleCopyLink = async (e: React.MouseEvent, url: string) => {
+    e.stopPropagation()
     try {
       await navigator.clipboard.writeText(url)
       toast({ title: 'Link copiado com sucesso!' })
@@ -259,14 +261,17 @@ export default function DocumentResourcesPage({
     }
   }
 
-  const handleAccessLog = async (resource: DocumentResource) => {
+  const handleAccessLog = (e: React.MouseEvent, resource: DocumentResource) => {
+    e.stopPropagation()
     try {
-      await pb.collection('audit_logs').create({
-        user_id: user.id,
-        action: 'Acessou Documento',
-        resource: 'document_resources',
-        details: { id: resource.id, title: resource.title },
-      })
+      pb.collection('audit_logs')
+        .create({
+          user_id: user.id,
+          action: 'Acessou Documento',
+          resource: 'document_resources',
+          details: { id: resource.id, title: resource.title },
+        })
+        .catch(console.error)
     } catch (error) {
       console.error('Audit log failed', error)
     }
@@ -609,7 +614,7 @@ export default function DocumentResourcesPage({
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 rounded-full shrink-0 -mt-1"
-                                onClick={() => handleToggleFav(resource.id, isFav?.id)}
+                                onClick={(e) => handleToggleFav(e, resource.id, isFav?.id)}
                               >
                                 <Star
                                   className={cn(
@@ -625,8 +630,8 @@ export default function DocumentResourcesPage({
                                   href={normalizeUrl(resource.url)}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  onClick={() => handleAccessLog(resource)}
-                                  className="font-medium text-base truncate hover:underline hover:text-primary transition-colors"
+                                  onClick={(e) => handleAccessLog(e, resource)}
+                                  className="font-medium text-base truncate hover:underline hover:text-primary transition-colors cursor-pointer"
                                   title={resource.title}
                                 >
                                   {resource.title}
@@ -690,7 +695,8 @@ export default function DocumentResourcesPage({
                                   href={normalizeUrl(resource.url)}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  onClick={() => handleAccessLog(resource)}
+                                  onClick={(e) => handleAccessLog(e, resource)}
+                                  className="cursor-pointer"
                                 >
                                   <ExternalLink className="h-4 w-4" />
                                 </a>
@@ -699,7 +705,7 @@ export default function DocumentResourcesPage({
                                 variant="outline"
                                 size="icon"
                                 className="h-9 w-9 bg-background shrink-0"
-                                onClick={() => handleCopyLink(normalizeUrl(resource.url))}
+                                onClick={(e) => handleCopyLink(e, normalizeUrl(resource.url))}
                                 title="Copiar link"
                               >
                                 <Copy className="h-4 w-4" />
@@ -710,7 +716,8 @@ export default function DocumentResourcesPage({
                                     variant="outline"
                                     size="icon"
                                     className="h-9 w-9 bg-background"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       setEditingResource(resource)
                                       setDialogCategory(resource.category || category)
                                       setIsDialogOpen(true)
@@ -724,6 +731,7 @@ export default function DocumentResourcesPage({
                                         variant="outline"
                                         size="icon"
                                         className="h-9 w-9 bg-background text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                        onClick={(e) => e.stopPropagation()}
                                       >
                                         <Trash className="h-4 w-4" />
                                       </Button>
@@ -790,7 +798,7 @@ export default function DocumentResourcesPage({
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background z-10 rounded-full"
-                        onClick={() => handleToggleFav(resource.id, isFav?.id)}
+                        onClick={(e) => handleToggleFav(e, resource.id, isFav?.id)}
                       >
                         <Star
                           className={cn(
@@ -840,8 +848,8 @@ export default function DocumentResourcesPage({
                             href={normalizeUrl(resource.url)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={() => handleAccessLog(resource)}
-                            className="hover:underline hover:text-primary transition-colors"
+                            onClick={(e) => handleAccessLog(e, resource)}
+                            className="hover:underline hover:text-primary transition-colors cursor-pointer"
                           >
                             {resource.title}
                           </a>
@@ -859,7 +867,8 @@ export default function DocumentResourcesPage({
                             href={normalizeUrl(resource.url)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={() => handleAccessLog(resource)}
+                            onClick={(e) => handleAccessLog(e, resource)}
+                            className="cursor-pointer"
                           >
                             <ExternalLink className="h-4 w-4" /> Acessar Link
                           </a>
@@ -868,7 +877,7 @@ export default function DocumentResourcesPage({
                           variant="outline"
                           size="icon"
                           className="h-9 w-9 bg-background shrink-0"
-                          onClick={() => handleCopyLink(normalizeUrl(resource.url))}
+                          onClick={(e) => handleCopyLink(e, normalizeUrl(resource.url))}
                           title="Copiar link"
                         >
                           <Copy className="h-4 w-4" />
@@ -879,7 +888,8 @@ export default function DocumentResourcesPage({
                               variant="outline"
                               size="icon"
                               className="h-9 w-9 bg-background"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 setEditingResource(resource)
                                 setDialogCategory(resource.category || category)
                                 setIsDialogOpen(true)
@@ -893,6 +903,7 @@ export default function DocumentResourcesPage({
                                   variant="outline"
                                   size="icon"
                                   className="h-9 w-9 bg-background text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <Trash className="h-4 w-4" />
                                 </Button>
@@ -974,7 +985,7 @@ export default function DocumentResourcesPage({
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 rounded-full shrink-0"
-                                onClick={() => handleToggleFav(resource.id, isFav?.id)}
+                                onClick={(e) => handleToggleFav(e, resource.id, isFav?.id)}
                               >
                                 <Star
                                   className={cn(
@@ -989,8 +1000,8 @@ export default function DocumentResourcesPage({
                                 href={normalizeUrl(resource.url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                onClick={() => handleAccessLog(resource)}
-                                className="font-medium text-base truncate hover:underline hover:text-primary transition-colors"
+                                onClick={(e) => handleAccessLog(e, resource)}
+                                className="font-medium text-base truncate hover:underline hover:text-primary transition-colors cursor-pointer"
                                 title={resource.title}
                               >
                                 {resource.title}
@@ -1024,7 +1035,8 @@ export default function DocumentResourcesPage({
                                   href={normalizeUrl(resource.url)}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  onClick={() => handleAccessLog(resource)}
+                                  onClick={(e) => handleAccessLog(e, resource)}
+                                  className="cursor-pointer"
                                 >
                                   <ExternalLink className="h-4 w-4 mr-2" /> Assistir
                                 </a>
@@ -1033,7 +1045,7 @@ export default function DocumentResourcesPage({
                                 variant="outline"
                                 size="icon"
                                 className="h-9 w-9 bg-background shrink-0"
-                                onClick={() => handleCopyLink(normalizeUrl(resource.url))}
+                                onClick={(e) => handleCopyLink(e, normalizeUrl(resource.url))}
                                 title="Copiar link"
                               >
                                 <Copy className="h-4 w-4" />
@@ -1044,7 +1056,8 @@ export default function DocumentResourcesPage({
                                     variant="outline"
                                     size="icon"
                                     className="h-9 w-9 bg-background"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       setEditingResource(resource)
                                       setDialogCategory(resource.category || category)
                                       setIsDialogOpen(true)
@@ -1058,6 +1071,7 @@ export default function DocumentResourcesPage({
                                         variant="outline"
                                         size="icon"
                                         className="h-9 w-9 bg-background text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                        onClick={(e) => e.stopPropagation()}
                                       >
                                         <Trash className="h-4 w-4" />
                                       </Button>

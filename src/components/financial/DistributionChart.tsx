@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -10,117 +10,23 @@ import {
 } from '@/components/ui/chart'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Palette, Check } from 'lucide-react'
-import pb from '@/lib/pocketbase/client'
-import { useRealtime } from '@/hooks/use-realtime'
-
-const PRESETS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#f43f5e', '#64748b']
-
-function ColorPicker({ color, onChange }: { color: string; onChange: (c: string) => void }) {
-  const safeColor = color.startsWith('#') && color.length === 7 ? color : '#000000'
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-2">
-        {PRESETS.map((p) => (
-          <button
-            key={p}
-            className="w-6 h-6 rounded-full flex items-center justify-center border"
-            style={{ backgroundColor: p }}
-            onClick={() => onChange(p)}
-          >
-            {color.toLowerCase() === p.toLowerCase() && (
-              <Check className="h-3 w-3 text-white mix-blend-difference" />
-            )}
-          </button>
-        ))}
-      </div>
-      <div className="flex items-center gap-2">
-        <Input
-          type="color"
-          value={safeColor}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-10 h-8 p-1 cursor-pointer"
-        />
-        <Input
-          type="text"
-          value={color}
-          onChange={(e) => onChange(e.target.value)}
-          className="flex-1 h-8 text-xs font-mono"
-        />
-      </div>
-    </div>
-  )
-}
-
-function ColorMenu({ colors, onChange }: { colors: any; onChange: any }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Palette className="h-4 w-4" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-56" align="end">
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Cor Samuel</Label>
-            <ColorPicker color={colors.samuel} onChange={(c) => onChange('samuel', c)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Cor Tozzi</Label>
-            <ColorPicker color={colors.tozzi} onChange={(c) => onChange('tozzi', c)} />
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  )
-}
+import { ChartColorPicker } from '@/components/ui/chart-color-picker'
+import { useChartColors } from '@/hooks/use-chart-colors'
 
 interface Props {
   data: any[]
 }
 
 export function DistributionChart({ data }: Props) {
-  const [settingsId, setSettingsId] = useState('')
-  const [chartColors, setChartColors] = useState<any>({})
-
-  useEffect(() => {
-    pb.collection('company_settings')
-      .getFullList()
-      .then((res) => {
-        if (res.length > 0) {
-          setSettingsId(res[0].id)
-          setChartColors(res[0].chart_colors || {})
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  useRealtime('company_settings', (e) => {
-    if (e.action === 'update' || e.action === 'create') {
-      setChartColors(e.record.chart_colors || {})
-      setSettingsId(e.record.id)
-    }
+  const { colors: ac, updateColor: updateAnnual } = useChartColors('distribution_annual', {
+    samuel: '#3b82f6',
+    tozzi: '#10b981',
   })
 
-  const handleColor = async (chart: string, series: string, color: string) => {
-    const newColors = {
-      ...chartColors,
-      [chart]: { ...(chartColors[chart] || {}), [series]: color },
-    }
-    setChartColors(newColors)
-    if (settingsId) {
-      try {
-        await pb.collection('company_settings').update(settingsId, { chart_colors: newColors })
-      } catch (e) {
-        console.error(e)
-      }
-    }
-  }
+  const { colors: mc, updateColor: updateMonthly } = useChartColors('distribution_monthly', {
+    samuel: '#3b82f6',
+    tozzi: '#10b981',
+  })
 
   const annualData = useMemo(() => {
     const grouped = data.reduce((acc: any, curr) => {
@@ -157,15 +63,6 @@ export function DistributionChart({ data }: Props) {
       .slice(-12)
   }, [data])
 
-  const ac = {
-    samuel: chartColors.annual?.samuel || 'hsl(var(--chart-1))',
-    tozzi: chartColors.annual?.tozzi || 'hsl(var(--chart-2))',
-  }
-  const mc = {
-    samuel: chartColors.monthly?.samuel || 'hsl(var(--chart-1))',
-    tozzi: chartColors.monthly?.tozzi || 'hsl(var(--chart-2))',
-  }
-
   return (
     <div className="space-y-6 h-full flex flex-col">
       <Card
@@ -177,7 +74,13 @@ export function DistributionChart({ data }: Props) {
             <CardTitle className="text-lg">Distribuição Anual</CardTitle>
             <CardDescription>Visão geral de distribuição por ano</CardDescription>
           </div>
-          <ColorMenu colors={ac} onChange={(s: string, c: string) => handleColor('annual', s, c)} />
+          <ChartColorPicker
+            config={[
+              { id: 'samuel', label: 'Cor Samuel', color: ac.samuel },
+              { id: 'tozzi', label: 'Cor Tozzi', color: ac.tozzi },
+            ]}
+            onChange={updateAnnual}
+          />
         </CardHeader>
         <CardContent className="flex-1 min-h-[300px]">
           <ChartContainer
@@ -198,8 +101,13 @@ export function DistributionChart({ data }: Props) {
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="samuel" name="Samuel" fill={ac.samuel} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="tozzi" name="Tozzi" fill={ac.tozzi} radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="samuel"
+                name="Samuel"
+                fill="var(--color-samuel)"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar dataKey="tozzi" name="Tozzi" fill="var(--color-tozzi)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ChartContainer>
         </CardContent>
@@ -213,9 +121,12 @@ export function DistributionChart({ data }: Props) {
             <CardTitle className="text-lg">Distribuição Mensal</CardTitle>
             <CardDescription>Evolução mês a mês (últimos 12 meses)</CardDescription>
           </div>
-          <ColorMenu
-            colors={mc}
-            onChange={(s: string, c: string) => handleColor('monthly', s, c)}
+          <ChartColorPicker
+            config={[
+              { id: 'samuel', label: 'Cor Samuel', color: mc.samuel },
+              { id: 'tozzi', label: 'Cor Tozzi', color: mc.tozzi },
+            ]}
+            onChange={updateMonthly}
           />
         </CardHeader>
         <CardContent className="flex-1 min-h-[300px]">
@@ -237,8 +148,13 @@ export function DistributionChart({ data }: Props) {
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="samuel" name="Samuel" fill={mc.samuel} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="tozzi" name="Tozzi" fill={mc.tozzi} radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="samuel"
+                name="Samuel"
+                fill="var(--color-samuel)"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar dataKey="tozzi" name="Tozzi" fill="var(--color-tozzi)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ChartContainer>
         </CardContent>

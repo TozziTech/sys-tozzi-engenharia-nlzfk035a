@@ -14,27 +14,53 @@ import {
   CartesianGrid,
 } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { ChartColorPicker } from '@/components/ui/chart-color-picker'
+import { useChartColors } from '@/hooks/use-chart-colors'
 
 interface ProductivityChartsProps {
   projects: Project[]
 }
 
-const pieConfig = {
-  Concluído: { label: 'Concluído', color: '#10b981' },
-  EmAndamento: { label: 'Em Andamento', color: '#3b82f6' },
-  Atrasado: { label: 'Atrasado', color: '#ef4444' },
-  Planejamento: { label: 'Planejamento', color: '#94a3b8' },
-}
-
-const barConfig = {
-  projetos: { label: 'Projetos', color: '#4f46e5' },
-}
-
-const lineConfig = {
-  produtividade: { label: 'Tarefas Concluídas', color: '#8b5cf6' },
-}
-
 export function ProductivityCharts({ projects }: ProductivityChartsProps) {
+  const { colors: pieColors, updateColor: updatePieColor } = useChartColors('productivity_pie', {
+    Concluído: '#10b981',
+    EmAndamento: '#3b82f6',
+    Atrasado: '#ef4444',
+    Planejamento: '#94a3b8',
+  })
+
+  const { colors: barColors, updateColor: updateBarColor } = useChartColors('productivity_bar', {
+    projetos: '#4f46e5',
+  })
+
+  const { colors: lineColors, updateColor: updateLineColor } = useChartColors('productivity_line', {
+    produtividade: '#8b5cf6',
+  })
+
+  const pieConfig = useMemo(
+    () => ({
+      Concluído: { label: 'Concluído', color: pieColors.Concluído },
+      EmAndamento: { label: 'Em Andamento', color: pieColors.EmAndamento },
+      Atrasado: { label: 'Atrasado', color: pieColors.Atrasado },
+      Planejamento: { label: 'Planejamento', color: pieColors.Planejamento },
+    }),
+    [pieColors],
+  )
+
+  const barConfig = useMemo(
+    () => ({
+      projetos: { label: 'Projetos', color: barColors.projetos },
+    }),
+    [barColors],
+  )
+
+  const lineConfig = useMemo(
+    () => ({
+      produtividade: { label: 'Tarefas Concluídas', color: lineColors.produtividade },
+    }),
+    [lineColors],
+  )
+
   const statusData = useMemo(() => {
     const counts = { Concluído: 0, 'Em Andamento': 0, Atrasado: 0, Planejamento: 0 }
     projects.forEach((p) => {
@@ -43,12 +69,12 @@ export function ProductivityCharts({ projects }: ProductivityChartsProps) {
       }
     })
     return [
-      { status: 'Concluído', valor: counts['Concluído'], fill: pieConfig.Concluído.color },
-      { status: 'Em Andamento', valor: counts['Em Andamento'], fill: pieConfig.EmAndamento.color },
-      { status: 'Atrasado', valor: counts['Atrasado'], fill: pieConfig.Atrasado.color },
-      { status: 'Planejamento', valor: counts['Planejamento'], fill: pieConfig.Planejamento.color },
+      { status: 'Concluído', valor: counts['Concluído'], fill: pieColors.Concluído },
+      { status: 'Em Andamento', valor: counts['Em Andamento'], fill: pieColors.EmAndamento },
+      { status: 'Atrasado', valor: counts['Atrasado'], fill: pieColors.Atrasado },
+      { status: 'Planejamento', valor: counts['Planejamento'], fill: pieColors.Planejamento },
     ].filter((d) => d.valor > 0)
-  }, [projects])
+  }, [projects, pieColors])
 
   const engineerData = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -77,9 +103,20 @@ export function ProductivityCharts({ projects }: ProductivityChartsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <Card className="flex flex-col">
-        <CardHeader>
-          <CardTitle>Status dos Projetos</CardTitle>
-          <CardDescription>Projetos concluídos vs. em andamento</CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+          <div className="space-y-1">
+            <CardTitle>Status dos Projetos</CardTitle>
+            <CardDescription>Projetos concluídos vs. em andamento</CardDescription>
+          </div>
+          <ChartColorPicker
+            config={[
+              { id: 'Concluído', label: 'Concluído', color: pieColors.Concluído },
+              { id: 'EmAndamento', label: 'Em Andamento', color: pieColors.EmAndamento },
+              { id: 'Atrasado', label: 'Atrasado', color: pieColors.Atrasado },
+              { id: 'Planejamento', label: 'Planejamento', color: pieColors.Planejamento },
+            ]}
+            onChange={updatePieColor}
+          />
         </CardHeader>
         <CardContent className="flex-1 pb-0">
           <ChartContainer config={pieConfig} className="mx-auto aspect-square max-h-[250px] pb-4">
@@ -103,9 +140,15 @@ export function ProductivityCharts({ projects }: ProductivityChartsProps) {
       </Card>
 
       <Card className="flex flex-col">
-        <CardHeader>
-          <CardTitle>Distribuição por Membro</CardTitle>
-          <CardDescription>Total de projetos por engenheiro</CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+          <div className="space-y-1">
+            <CardTitle>Distribuição por Membro</CardTitle>
+            <CardDescription>Total de projetos por engenheiro</CardDescription>
+          </div>
+          <ChartColorPicker
+            config={[{ id: 'projetos', label: 'Projetos', color: barColors.projetos }]}
+            onChange={updateBarColor}
+          />
         </CardHeader>
         <CardContent className="flex-1">
           <ChartContainer config={barConfig} className="aspect-square max-h-[250px] w-full">
@@ -127,9 +170,17 @@ export function ProductivityCharts({ projects }: ProductivityChartsProps) {
       </Card>
 
       <Card className="flex flex-col md:col-span-2 lg:col-span-1">
-        <CardHeader>
-          <CardTitle>Produtividade no Tempo</CardTitle>
-          <CardDescription>Tarefas concluídas (últimos 6 meses)</CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+          <div className="space-y-1">
+            <CardTitle>Produtividade no Tempo</CardTitle>
+            <CardDescription>Tarefas concluídas (últimos 6 meses)</CardDescription>
+          </div>
+          <ChartColorPicker
+            config={[
+              { id: 'produtividade', label: 'Produtividade', color: lineColors.produtividade },
+            ]}
+            onChange={updateLineColor}
+          />
         </CardHeader>
         <CardContent className="flex-1">
           <ChartContainer config={lineConfig} className="aspect-square max-h-[250px] w-full">

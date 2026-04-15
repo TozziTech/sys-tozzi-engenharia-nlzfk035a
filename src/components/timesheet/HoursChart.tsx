@@ -8,24 +8,46 @@ import {
 } from '@/components/ui/chart'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { mockProjectMetrics } from '@/data/mockTimesheetData'
-
-const chartConfig = {
-  plannedHours: {
-    label: 'Horas Planejadas',
-    color: 'hsl(var(--primary))',
-  },
-  realHours: {
-    label: 'Horas Reais',
-    color: 'hsl(var(--chart-2))',
-  },
-}
+import { ChartColorPicker } from '@/components/ui/chart-color-picker'
+import { useChartColors } from '@/hooks/use-chart-colors'
+import { useMemo } from 'react'
 
 export function HoursChart() {
+  const { colors, updateColor } = useChartColors('timesheet_hours', {
+    plannedHours: '#3b82f6',
+    realHours: '#10b981',
+  })
+
+  const chartConfig = useMemo(
+    () => ({
+      plannedHours: {
+        label: 'Horas Planejadas',
+        color: colors.plannedHours,
+      },
+      realHours: {
+        label: 'Horas Reais',
+        color: colors.realHours,
+      },
+    }),
+    [colors],
+  )
+
   return (
     <Card className="flex flex-col h-full">
-      <CardHeader>
-        <CardTitle>Horas Planejadas vs. Reais</CardTitle>
-        <CardDescription>Comparativo de horas estimadas e executadas por projeto.</CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+        <div className="space-y-1">
+          <CardTitle>Horas Planejadas vs. Reais</CardTitle>
+          <CardDescription>
+            Comparativo de horas estimadas e executadas por projeto.
+          </CardDescription>
+        </div>
+        <ChartColorPicker
+          config={[
+            { id: 'plannedHours', label: 'Horas Planejadas', color: colors.plannedHours },
+            { id: 'realHours', label: 'Horas Reais', color: colors.realHours },
+          ]}
+          onChange={updateColor}
+        />
       </CardHeader>
       <CardContent className="flex-1 min-h-[300px]">
         <ChartContainer config={chartConfig} className="h-full w-full">

@@ -7,10 +7,16 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Skeleton } from '@/components/ui/skeleton'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { ChartColorPicker } from '@/components/ui/chart-color-picker'
+import { useChartColors } from '@/hooks/use-chart-colors'
 
 export function RecurringExpensesChart() {
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  const { colors, updateColor } = useChartColors('recurring_expenses', {
+    total: '#ef4444',
+  })
 
   const loadData = async () => {
     try {
@@ -64,21 +70,30 @@ export function RecurringExpensesChart() {
 
   const hasData = chartData.some((d) => d.total > 0)
 
-  const chartConfig = {
-    total: {
-      label: 'Despesas Recorrentes',
-      color: 'hsl(var(--destructive))',
-    },
-  }
+  const chartConfig = useMemo(
+    () => ({
+      total: {
+        label: 'Despesas Recorrentes',
+        color: colors.total,
+      },
+    }),
+    [colors],
+  )
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   return (
     <Card className="h-full flex flex-col">
-      <CardHeader>
-        <CardTitle>Despesas Recorrentes ({new Date().getFullYear()})</CardTitle>
-        <CardDescription>Comparativo mensal de custos fixos.</CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+        <div className="space-y-1">
+          <CardTitle>Despesas Recorrentes ({new Date().getFullYear()})</CardTitle>
+          <CardDescription>Comparativo mensal de custos fixos.</CardDescription>
+        </div>
+        <ChartColorPicker
+          config={[{ id: 'total', label: 'Despesas', color: colors.total }]}
+          onChange={updateColor}
+        />
       </CardHeader>
       <CardContent className="flex-1 pb-4">
         {loading ? (

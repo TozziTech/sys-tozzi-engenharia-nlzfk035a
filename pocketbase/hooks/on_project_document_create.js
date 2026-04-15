@@ -36,8 +36,9 @@ onRecordAfterCreateSuccess(
           const clientEmail = clientUser.getString('email')
 
           if (clientEmail) {
+            const clientName = clientUser.getString('name') || 'Cliente'
             const projectName = project.getString('nome_projeto')
-            const docName = record.getString('nome_arquivo')
+            const docName = record.getString('nome_arquivo') || record.getString('name')
 
             let settings = null
             try {
@@ -94,20 +95,21 @@ onRecordAfterCreateSuccess(
     </div>
     <div class="content">
       <h1 class="heading">Novo documento disponível: ${docName}</h1>
-      <p class="message">Olá,</p>
-      <p class="message">Um novo documento técnico foi adicionado ao projeto <strong>${projectName}</strong>.</p>
+      <p class="message">Olá, ${clientName},</p>
+      <p class="message">Um novo documento (<strong>${docName}</strong>) foi adicionado ao projeto <strong>${projectName}</strong>.</p>
       <div class="button-container">
-        <a href="${dashboardUrl}" class="button">Acessar Documento</a>
+        <a href="${dashboardUrl}" class="button">Ver Novo Documento</a>
       </div>
     </div>
     <div class="footer">
-      &copy; ${currentYear} ${companyName}. Todos os direitos reservados.
+      &copy; ${currentYear} ${companyName}. Todos os direitos reservados.<br>
+      Esta é uma notificação automática, por favor não responda a este e-mail.
     </div>
   </div>
 </body>
 </html>`
 
-            const textContent = `Olá,\n\nUm novo documento técnico (${docName}) foi adicionado ao projeto "${projectName}".\n\nAcessar Documento:\n${dashboardUrl}\n\n${companyName}`
+            const textContent = `Olá, ${clientName},\n\nUm novo documento (${docName}) foi adicionado ao projeto "${projectName}".\n\nVer Novo Documento:\n${dashboardUrl}\n\nEsta é uma notificação automática, por favor não responda a este e-mail.\n\n${companyName}`
 
             const message = new MailerMessage({
               from: {

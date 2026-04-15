@@ -29,6 +29,7 @@ onRecordAfterUpdateSuccess((e) => {
           const clientEmail = clientUser.getString('email')
 
           if (clientEmail) {
+            const clientName = clientUser.getString('name') || 'Cliente'
             const projectName = project.getString('nome_projeto')
             const phaseName = phase.getString('nome_fase')
 
@@ -87,20 +88,21 @@ onRecordAfterUpdateSuccess((e) => {
     </div>
     <div class="content">
       <h1 class="heading">Novidades no seu projeto: ${projectName}</h1>
-      <p class="message">Olá,</p>
-      <p class="message">A fase <strong>${phaseName}</strong> foi concluída com sucesso.</p>
+      <p class="message">Olá, ${clientName},</p>
+      <p class="message">A fase <strong>${phaseName}</strong> do projeto <strong>${projectName}</strong> foi concluída com sucesso.</p>
       <div class="button-container">
-        <a href="${dashboardUrl}" class="button">Ver Progresso no Painel</a>
+        <a href="${dashboardUrl}" class="button">Acessar meu Projeto</a>
       </div>
     </div>
     <div class="footer">
-      &copy; ${currentYear} ${companyName}. Todos os direitos reservados.
+      &copy; ${currentYear} ${companyName}. Todos os direitos reservados.<br>
+      Esta é uma notificação automática, por favor não responda a este e-mail.
     </div>
   </div>
 </body>
 </html>`
 
-            const textContent = `Olá,\n\nA fase "${phaseName}" do projeto "${projectName}" foi concluída com sucesso.\n\nVer Progresso no Painel:\n${dashboardUrl}\n\n${companyName}`
+            const textContent = `Olá, ${clientName},\n\nA fase "${phaseName}" do projeto "${projectName}" foi concluída com sucesso.\n\nAcessar meu Projeto:\n${dashboardUrl}\n\nEsta é uma notificação automática, por favor não responda a este e-mail.\n\n${companyName}`
 
             const message = new MailerMessage({
               from: {

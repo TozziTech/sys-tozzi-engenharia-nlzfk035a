@@ -341,19 +341,21 @@ export default function DocumentResourcesPage({
               <SelectItem value="updated_desc">Última Modificação</SelectItem>
             </SelectContent>
           </Select>
-          <ToggleGroup
-            type="single"
-            value={viewMode}
-            onValueChange={(v) => v && setViewMode(v as 'grid' | 'list')}
-            className="bg-background border rounded-md h-10 p-1"
-          >
-            <ToggleGroupItem value="grid" aria-label="Grid View" className="h-8 px-2">
-              <LayoutGrid className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="list" aria-label="List View" className="h-8 px-2">
-              <List className="h-4 w-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
+          {category !== 'Cursos' && (
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(v) => v && setViewMode(v as 'grid' | 'list')}
+              className="bg-background border rounded-md h-10 p-1"
+            >
+              <ToggleGroupItem value="grid" aria-label="Grid View" className="h-8 px-2">
+                <LayoutGrid className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="list" aria-label="List View" className="h-8 px-2">
+                <List className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
           <Button variant="outline" asChild>
             <Link to="/files/favorites">
               <Star className="mr-2 h-4 w-4" /> Meus Favoritos
@@ -370,7 +372,8 @@ export default function DocumentResourcesPage({
                   setIsDialogOpen(true)
                 }}
               >
-                <Plus className="mr-2 h-4 w-4" /> Adicionar Link
+                <Plus className="mr-2 h-4 w-4" />{' '}
+                {category === 'Cursos' ? 'Adicionar Novo Curso' : 'Adicionar Link'}
               </Button>
             </>
           )}
@@ -417,7 +420,7 @@ export default function DocumentResourcesPage({
       ) : (
         <>
           {mainResources.length > 0 &&
-            (viewMode === 'list' ? (
+            (viewMode === 'list' && category !== 'Cursos' ? (
               <div className="rounded-md border bg-card">
                 <Table>
                   <TableHeader>
@@ -728,7 +731,8 @@ export default function DocumentResourcesPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[40%]">Título</TableHead>
+                      <TableHead className="w-[30%]">Título</TableHead>
+                      <TableHead className="w-[40%]">Descrição</TableHead>
                       <TableHead className="hidden lg:table-cell">Disciplina</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -739,11 +743,11 @@ export default function DocumentResourcesPage({
                       return (
                         <TableRow key={resource.id}>
                           <TableCell>
-                            <div className="flex items-start gap-3">
+                            <div className="flex items-center gap-3">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 rounded-full shrink-0 -mt-1"
+                                className="h-8 w-8 rounded-full shrink-0"
                                 onClick={() => handleToggleFav(resource.id, isFav?.id)}
                               >
                                 <Star
@@ -755,21 +759,21 @@ export default function DocumentResourcesPage({
                                   )}
                                 />
                               </Button>
-                              <div className="flex flex-col gap-1 min-w-0">
-                                <span
-                                  className="font-medium text-base truncate"
-                                  title={resource.title}
-                                >
-                                  {resource.title}
-                                </span>
-                                <span
-                                  className="text-sm text-muted-foreground line-clamp-1"
-                                  title={resource.description || ''}
-                                >
-                                  {resource.description || 'Sem descrição'}
-                                </span>
-                              </div>
+                              <span
+                                className="font-medium text-base truncate"
+                                title={resource.title}
+                              >
+                                {resource.title}
+                              </span>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className="text-sm text-muted-foreground line-clamp-2"
+                              title={resource.description || ''}
+                            >
+                              {resource.description || 'Sem descrição'}
+                            </span>
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
                             {resource.discipline ? (

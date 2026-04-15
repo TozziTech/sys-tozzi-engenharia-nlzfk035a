@@ -32,21 +32,87 @@ onRecordAfterUpdateSuccess((e) => {
             const projectName = project.getString('nome_projeto')
             const phaseName = phase.getString('nome_fase')
 
+            let settings = null
+            try {
+              settings = $app.findFirstRecordByFilter('company_settings', "id != ''")
+            } catch (err) {}
+
+            let logoUrl = ''
+            let primaryColor = '#2563eb'
+            let companyName = 'SyS-TOZZI ENGENHARIA'
+
+            if (settings) {
+              const logo = settings.getString('logo')
+              if (logo) {
+                logoUrl =
+                  'https://dashboard-de-projetos-a89c5.goskip.app/api/files/company_settings/' +
+                  settings.id +
+                  '/' +
+                  logo
+              }
+              const color = settings.getString('primary_color')
+              if (color) primaryColor = color
+              const name = settings.getString('company_name')
+              if (name) companyName = name
+            }
+
+            const dashboardUrl =
+              'https://dashboard-de-projetos-a89c5.goskip.app/gestao/painel-cliente'
+            const currentYear = new Date().getFullYear()
+
+            const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Novidades no seu projeto: ${projectName}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 32px 24px; border-radius: 8px; margin-top: 40px; margin-bottom: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+  .header { text-align: center; padding-bottom: 24px; border-bottom: 1px solid #e5e7eb; }
+  .logo { max-width: 180px; max-height: 80px; }
+  .content { padding: 32px 0; color: #374151; line-height: 1.625; text-align: center; }
+  .heading { font-size: 20px; font-weight: 600; color: #111827; margin-bottom: 16px; margin-top: 0; }
+  .message { font-size: 16px; margin-bottom: 32px; }
+  .button-container { text-align: center; margin-top: 32px; margin-bottom: 16px; }
+  .button { display: inline-block; padding: 12px 28px; background-color: ${primaryColor}; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: opacity 0.2s; }
+  .button:hover { opacity: 0.9; }
+  .footer { text-align: center; padding-top: 24px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" class="logo" />` : `<h2 style="margin:0;color:#111827;">${companyName}</h2>`}
+    </div>
+    <div class="content">
+      <h1 class="heading">Novidades no seu projeto: ${projectName}</h1>
+      <p class="message">Olá,</p>
+      <p class="message">A fase <strong>${phaseName}</strong> foi concluída com sucesso.</p>
+      <div class="button-container">
+        <a href="${dashboardUrl}" class="button">Ver Progresso no Painel</a>
+      </div>
+    </div>
+    <div class="footer">
+      &copy; ${currentYear} ${companyName}. Todos os direitos reservados.
+    </div>
+  </div>
+</body>
+</html>`
+
+            const textContent = `Olá,\n\nA fase "${phaseName}" do projeto "${projectName}" foi concluída com sucesso.\n\nVer Progresso no Painel:\n${dashboardUrl}\n\n${companyName}`
+
             const message = new MailerMessage({
               from: {
                 address:
                   $app.settings().meta.senderAddress ||
                   'noreply@dashboard-de-projetos-a89c5.goskip.app',
-                name: $app.settings().meta.senderName || 'SyS-TOZZI ENGENHARIA',
+                name: $app.settings().meta.senderName || companyName,
               },
               to: [{ address: clientEmail }],
               subject: 'Novidade no seu Projeto: ' + projectName + ' - Etapa Concluída',
-              html:
-                '<p>Olá,</p><p>A fase <strong>' +
-                phaseName +
-                '</strong> do projeto <strong>' +
-                projectName +
-                '</strong> foi finalizada.</p><p><a href="https://dashboard-de-projetos-a89c5.goskip.app/gestao/painel-cliente">Acesse o Painel do Cliente</a> para conferir mais detalhes.</p>',
+              html: htmlContent,
+              text: textContent,
             })
 
             $app.newMailClient().send(message)

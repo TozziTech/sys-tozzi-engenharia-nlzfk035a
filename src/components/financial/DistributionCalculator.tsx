@@ -77,25 +77,33 @@ export function DistributionCalculator() {
   const onSubmit = async (values: FormValues) => {
     try {
       setIsCalculating(true)
-      const nfAmount = values.total_amount * (values.nf_pct / 100)
-      const deductions = values.expenses + values.art_amount + nfAmount
-      const subtotal = Math.max(0, values.total_amount - deductions)
-      const workingCapitalValue = subtotal * (values.working_capital_pct / 100)
+      const tAmount = Number(values.total_amount) || 0
+      const nPct = Number(values.nf_pct) || 0
+      const exp = Number(values.expenses) || 0
+      const art = Number(values.art_amount) || 0
+      const wcPct = Number(values.working_capital_pct) || 0
+      const sPct = Number(values.samuel_pct) || 0
+      const tPct = Number(values.tozzi_pct) || 0
+
+      const nfAmount = tAmount * (nPct / 100)
+      const deductions = exp + art + nfAmount
+      const subtotal = Math.max(0, tAmount - deductions)
+      const workingCapitalValue = subtotal * (wcPct / 100)
       const netValue = Math.max(0, subtotal - workingCapitalValue)
-      const samuelAmount = netValue * (values.samuel_pct / 100)
-      const tozziAmount = netValue * (values.tozzi_pct / 100)
+      const samuelAmount = netValue * (sPct / 100)
+      const tozziAmount = netValue * (tPct / 100)
       const dateStr = values.date + 'T12:00:00.000Z'
 
       await pb.collection('distribution_calculations').create({
         description: values.description,
-        total_amount: values.total_amount,
-        nf_pct: values.nf_pct,
+        total_amount: tAmount,
+        nf_pct: nPct,
         nf_amount: nfAmount,
-        expenses: values.expenses,
-        art_amount: values.art_amount,
-        working_capital_pct: values.working_capital_pct,
-        samuel_pct: values.samuel_pct,
-        tozzi_pct: values.tozzi_pct,
+        expenses: exp,
+        art_amount: art,
+        working_capital_pct: wcPct,
+        samuel_pct: sPct,
+        tozzi_pct: tPct,
         net_value: netValue,
         samuel_amount: samuelAmount,
         tozzi_amount: tozziAmount,
@@ -130,13 +138,18 @@ export function DistributionCalculator() {
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
-  const watchTotal = form.watch('total_amount') || 0
-  const watchNFPct = form.watch('nf_pct') || 0
-  const watchExpenses = form.watch('expenses') || 0
-  const watchART = form.watch('art_amount') || 0
-  const watchWCPct = form.watch('working_capital_pct') || 0
-  const watchSamPct = form.watch('samuel_pct') || 0
-  const watchTozPct = form.watch('tozzi_pct') || 0
+  const safeNum = (val: any) => {
+    const num = Number(val)
+    return isNaN(num) ? 0 : num
+  }
+
+  const watchTotal = safeNum(form.watch('total_amount'))
+  const watchNFPct = safeNum(form.watch('nf_pct'))
+  const watchExpenses = safeNum(form.watch('expenses'))
+  const watchART = safeNum(form.watch('art_amount'))
+  const watchWCPct = safeNum(form.watch('working_capital_pct'))
+  const watchSamPct = safeNum(form.watch('samuel_pct'))
+  const watchTozPct = safeNum(form.watch('tozzi_pct'))
 
   const previewNFAmount = watchTotal * (watchNFPct / 100)
   const previewDeductions = watchExpenses + watchART + previewNFAmount

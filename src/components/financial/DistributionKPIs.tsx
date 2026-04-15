@@ -27,7 +27,7 @@ export function DistributionKPIs({ history }: Props) {
 
     history.forEach((h) => {
       const d = new Date(h.date)
-      const amount = h.total_amount || 0
+      const amount = h.net_value || 0
       const samuel = h.samuel_amount || 0
       const tozzi = h.tozzi_amount || 0
 

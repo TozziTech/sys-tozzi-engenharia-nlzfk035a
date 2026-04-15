@@ -88,7 +88,9 @@ export function DistributionHistoryTable({ history, onDelete, onEdit }: Props) {
                 <TableHead className="text-right text-blue-600 dark:text-blue-500 whitespace-nowrap">
                   Tozzi
                 </TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead className="w-[100px] text-center whitespace-nowrap sticky right-0 bg-muted/50 backdrop-blur-md z-10 shadow-[-1px_0_0_hsl(var(--border)/0.5)]">
+                  Ações
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -137,13 +139,13 @@ export function DistributionHistoryTable({ history, onDelete, onEdit }: Props) {
                       <TableCell className="text-right whitespace-nowrap text-blue-600 dark:text-blue-500 font-semibold">
                         {formatCurrency(item.tozzi_amount)}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
+                      <TableCell className="sticky right-0 bg-background/95 backdrop-blur-md group-hover:bg-muted/50 transition-colors z-10 shadow-[-1px_0_0_hsl(var(--border)/0.5)]">
+                        <div className="flex justify-center gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => onEdit(item)}
-                            className="h-8 w-8 text-muted-foreground hover:text-primary transition-all"
+                            className="h-8 w-8 text-primary hover:bg-primary/10 transition-all"
                             title="Editar"
                           >
                             <Edit className="h-4 w-4" />
@@ -152,7 +154,7 @@ export function DistributionHistoryTable({ history, onDelete, onEdit }: Props) {
                             variant="ghost"
                             size="icon"
                             onClick={() => onDelete(item.id)}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10 transition-all"
                             title="Excluir"
                           >
                             <Trash2 className="h-4 w-4" />

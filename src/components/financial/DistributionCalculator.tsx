@@ -446,10 +446,9 @@ export function DistributionCalculator() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Lançamento</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Registro</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir este registro de distribuição? Esta ação não pode ser
-              desfeita e afetará os gráficos de evolução.
+              Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

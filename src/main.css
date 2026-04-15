@@ -194,7 +194,7 @@
   }
 
   body {
-    @apply font-sans antialiased text-foreground transition-colors duration-300;
+    @apply bg-background font-sans antialiased text-foreground transition-colors duration-300;
   }
 
   section[aria-label='Notifications alt+T'] {

@@ -50,7 +50,7 @@ import { AdminGuard } from './components/auth/AdminGuard'
 import { ThemeColorInjector } from './components/ThemeColorInjector'
 
 const App = () => (
-  <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+  <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
     <ThemeColorInjector />
     <AuthProvider>
       <ProjectProvider>

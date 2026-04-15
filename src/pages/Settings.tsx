@@ -301,7 +301,7 @@ export default function Settings() {
                 <Label htmlFor="logo">Logotipo (PNG, JPG, SVG)</Label>
                 <div className="flex items-center gap-4 mt-1">
                   {logoPreview ? (
-                    <div className="relative h-16 w-32 border rounded-md overflow-hidden bg-white/50 flex items-center justify-center">
+                    <div className="relative h-16 w-32 border rounded-md overflow-hidden bg-white/50 dark:bg-white/10 flex items-center justify-center">
                       <img
                         src={logoPreview}
                         alt="Logo"

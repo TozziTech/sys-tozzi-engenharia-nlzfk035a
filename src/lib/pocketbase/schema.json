@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T21:10:45.265Z",
+  "generatedAt": "2026-04-15T22:44:14.933Z",
   "collections": [
     {
       "name": "users",
@@ -2673,6 +2673,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

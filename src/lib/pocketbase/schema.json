@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T03:36:11.343Z",
+  "generatedAt": "2026-04-15T03:43:46.028Z",
   "collections": [
     {
       "name": "users",
@@ -778,6 +778,12 @@
         {
           "name": "background_preset",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "chart_colors",
+          "type": "json",
           "required": false,
           "system": false
         }

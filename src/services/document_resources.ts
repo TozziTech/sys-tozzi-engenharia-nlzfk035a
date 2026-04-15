@@ -7,6 +7,7 @@ export interface DocumentResource {
   category: string
   url: string
   discipline?: string
+  is_suggested_video?: boolean
   tags?: string[]
   expand?: {
     tags?: any[]

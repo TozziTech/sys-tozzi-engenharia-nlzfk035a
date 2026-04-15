@@ -12,11 +12,13 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -48,6 +50,7 @@ const schema = z.object({
   url: z.string().url('URL inválida').min(1, 'URL é obrigatória'),
   category: z.string().min(1, 'Categoria é obrigatória'),
   discipline: z.string().optional(),
+  is_suggested_video: z.boolean().default(false),
   tags: z.array(z.string()).optional(),
 })
 
@@ -92,6 +95,7 @@ export function DocumentResourceDialog({
       url: '',
       category: category,
       discipline: '',
+      is_suggested_video: false,
       tags: [],
     },
   })
@@ -105,6 +109,7 @@ export function DocumentResourceDialog({
           url: resource.url,
           category: resource.category || category,
           discipline: resource.discipline || '',
+          is_suggested_video: resource.is_suggested_video || false,
           tags: resource.tags || [],
         })
       } else {
@@ -114,6 +119,7 @@ export function DocumentResourceDialog({
           url: '',
           category: category,
           discipline: prefillDiscipline || '',
+          is_suggested_video: false,
           tags: [],
         })
       }
@@ -219,6 +225,25 @@ export function DocumentResourceDialog({
                 </FormItem>
               )}
             />
+            {form.watch('category') === 'Cursos' && (
+              <FormField
+                control={form.control}
+                name="is_suggested_video"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm bg-card/50">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Vídeo Sugerido</FormLabel>
+                      <FormDescription>
+                        Marque se este link for um vídeo complementar.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="url"

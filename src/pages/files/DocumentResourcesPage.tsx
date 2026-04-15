@@ -261,7 +261,7 @@ export default function DocumentResourcesPage({
     )
   }
 
-  const displayedResources = resources
+  const filteredResources = resources
     .filter((r) => {
       const searchLower = searchQuery.toLowerCase()
       const matchSearch =
@@ -291,6 +291,9 @@ export default function DocumentResourcesPage({
         return new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime()
       }
     })
+
+  const mainResources = filteredResources.filter((r) => !r.is_suggested_video)
+  const suggestedVideos = filteredResources.filter((r) => r.is_suggested_video)
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto w-full">
@@ -395,7 +398,7 @@ export default function DocumentResourcesPage({
             </Card>
           ))}
         </div>
-      ) : displayedResources.length === 0 ? (
+      ) : filteredResources.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed p-16 text-center bg-card/50">
           <div className="rounded-full bg-primary/10 p-4 mb-4">
             {getIcon('h-8 w-8 text-primary')}
@@ -411,96 +414,248 @@ export default function DocumentResourcesPage({
                   : `Não há documentos na categoria "${category}" no momento.`}
           </p>
         </div>
-      ) : viewMode === 'list' ? (
-        <div className="rounded-md border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[40%]">Título</TableHead>
-                <TableHead className="hidden md:table-cell">Categoria</TableHead>
-                <TableHead className="hidden lg:table-cell">Disciplina / Tags</TableHead>
-                <TableHead className="hidden sm:table-cell">Atualizado em</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayedResources.map((resource) => {
-                const isFav = favorites.find((f) => f.document_id === resource.id)
-                return (
-                  <TableRow key={resource.id}>
-                    <TableCell>
-                      <div className="flex items-start gap-3">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-full shrink-0 -mt-1"
-                          onClick={() => handleToggleFav(resource.id, isFav?.id)}
-                        >
-                          <Star
-                            className={cn(
-                              'h-4 w-4',
-                              isFav ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground',
+      ) : (
+        <>
+          {mainResources.length > 0 &&
+            (viewMode === 'list' ? (
+              <div className="rounded-md border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40%]">Título</TableHead>
+                      <TableHead className="hidden md:table-cell">Categoria</TableHead>
+                      <TableHead className="hidden lg:table-cell">Disciplina / Tags</TableHead>
+                      <TableHead className="hidden sm:table-cell">Atualizado em</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {mainResources.map((resource) => {
+                      const isFav = favorites.find((f) => f.document_id === resource.id)
+                      return (
+                        <TableRow key={resource.id}>
+                          <TableCell>
+                            <div className="flex items-start gap-3">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-full shrink-0 -mt-1"
+                                onClick={() => handleToggleFav(resource.id, isFav?.id)}
+                              >
+                                <Star
+                                  className={cn(
+                                    'h-4 w-4',
+                                    isFav
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-muted-foreground',
+                                  )}
+                                />
+                              </Button>
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <span
+                                  className="font-medium text-base truncate"
+                                  title={resource.title}
+                                >
+                                  {resource.title}
+                                </span>
+                                <span
+                                  className="text-sm text-muted-foreground line-clamp-1"
+                                  title={resource.description || ''}
+                                >
+                                  {resource.description || 'Sem descrição'}
+                                </span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            <Badge
+                              variant="secondary"
+                              className="font-normal text-xs whitespace-nowrap"
+                            >
+                              {resource.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <div className="flex flex-wrap gap-1">
+                              {resource.discipline && (
+                                <Badge
+                                  variant="outline"
+                                  className="font-normal text-xs text-primary border-primary/20 bg-primary/5 whitespace-nowrap"
+                                >
+                                  {resource.discipline}
+                                </Badge>
+                              )}
+                              {resource.expand?.tags?.map((tag: any) => (
+                                <Badge
+                                  key={tag.id}
+                                  className="font-normal text-xs border-none whitespace-nowrap"
+                                  style={{
+                                    backgroundColor: tag.color,
+                                    color: getContrastYIQ(tag.color),
+                                  }}
+                                >
+                                  {tag.name}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-muted-foreground text-sm whitespace-nowrap">
+                            {new Date(resource.updated || resource.created).toLocaleDateString(
+                              'pt-BR',
                             )}
-                          />
-                        </Button>
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <span className="font-medium text-base truncate" title={resource.title}>
-                            {resource.title}
-                          </span>
-                          <span
-                            className="text-sm text-muted-foreground line-clamp-1"
-                            title={resource.description || ''}
-                          >
-                            {resource.description || 'Sem descrição'}
-                          </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="default"
+                                size="icon"
+                                className="h-9 w-9"
+                                asChild
+                                title="Acessar Link"
+                              >
+                                <a
+                                  href={resource.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => handleAccessLink(resource)}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9 bg-background shrink-0"
+                                onClick={() => handleCopyLink(resource.url)}
+                                title="Copiar link"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              {isAdmin && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-9 w-9 bg-background"
+                                    onClick={() => {
+                                      setEditingResource(resource)
+                                      setIsDialogOpen(true)
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-9 w-9 bg-background text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                      >
+                                        <Trash className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Remover Link?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Tem certeza que deseja remover o documento "
+                                          {resource.title}"? Esta ação não pode ser desfeita.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDelete(resource.id)}
+                                          className="bg-destructive text-destructive-foreground"
+                                        >
+                                          Remover
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {mainResources.map((resource) => {
+                  const isFav = favorites.find((f) => f.document_id === resource.id)
+
+                  return (
+                    <Card
+                      key={resource.id}
+                      className="flex flex-col hover:shadow-lg transition-all border-border/50 group relative"
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background z-10 rounded-full"
+                        onClick={() => handleToggleFav(resource.id, isFav?.id)}
+                      >
+                        <Star
+                          className={cn(
+                            'h-4 w-4',
+                            isFav ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground',
+                          )}
+                        />
+                      </Button>
+                      <CardHeader className="flex-1">
+                        <div className="flex items-start justify-between gap-2 mb-2 pr-8">
+                          <div className="flex flex-wrap gap-1">
+                            <Badge variant="secondary" className="font-normal text-xs">
+                              {resource.category}
+                            </Badge>
+                            {resource.discipline && (
+                              <Badge
+                                variant="outline"
+                                className="font-normal text-xs text-primary border-primary/20 bg-primary/5"
+                              >
+                                {resource.discipline}
+                              </Badge>
+                            )}
+                            {resource.expand?.tags?.map((tag: any) => (
+                              <Badge
+                                key={tag.id}
+                                className="font-normal text-xs border-none"
+                                style={{
+                                  backgroundColor: tag.color,
+                                  color: getContrastYIQ(tag.color),
+                                }}
+                              >
+                                {tag.name}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Badge variant="secondary" className="font-normal text-xs whitespace-nowrap">
-                        {resource.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <div className="flex flex-wrap gap-1">
-                        {resource.discipline && (
-                          <Badge
-                            variant="outline"
-                            className="font-normal text-xs text-primary border-primary/20 bg-primary/5 whitespace-nowrap"
-                          >
-                            {resource.discipline}
-                          </Badge>
-                        )}
-                        {resource.expand?.tags?.map((tag: any) => (
-                          <Badge
-                            key={tag.id}
-                            className="font-normal text-xs border-none whitespace-nowrap"
-                            style={{ backgroundColor: tag.color, color: getContrastYIQ(tag.color) }}
-                          >
-                            {tag.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground text-sm whitespace-nowrap">
-                      {new Date(resource.updated || resource.created).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="default"
-                          size="icon"
-                          className="h-9 w-9"
-                          asChild
-                          title="Acessar Link"
+                        <CardTitle
+                          className="line-clamp-2 text-lg leading-tight"
+                          title={resource.title}
                         >
+                          {resource.title}
+                        </CardTitle>
+                        <CardDescription
+                          className="line-clamp-3 mt-2 text-sm leading-relaxed"
+                          title={resource.description || ''}
+                        >
+                          {resource.description || 'Sem descrição detalhada disponível.'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardFooter className="pt-4 border-t bg-muted/20 flex gap-2">
+                        <Button variant="default" size="sm" className="flex-1 gap-2" asChild>
                           <a
                             href={resource.url}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={() => handleAccessLink(resource)}
                           >
-                            <ExternalLink className="h-4 w-4" />
+                            <ExternalLink className="h-4 w-4" /> Acessar Link
                           </a>
                         </Button>
                         <Button
@@ -513,7 +668,7 @@ export default function DocumentResourcesPage({
                           <Copy className="h-4 w-4" />
                         </Button>
                         {isAdmin && (
-                          <>
+                          <div className="flex gap-2">
                             <Button
                               variant="outline"
                               size="icon"
@@ -554,143 +709,156 @@ export default function DocumentResourcesPage({
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
-                          </>
+                          </div>
                         )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {displayedResources.map((resource) => {
-            const isFav = favorites.find((f) => f.document_id === resource.id)
+                      </CardFooter>
+                    </Card>
+                  )
+                })}
+              </div>
+            ))}
 
-            return (
-              <Card
-                key={resource.id}
-                className="flex flex-col hover:shadow-lg transition-all border-border/50 group relative"
-              >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background z-10 rounded-full"
-                  onClick={() => handleToggleFav(resource.id, isFav?.id)}
-                >
-                  <Star
-                    className={cn(
-                      'h-4 w-4',
-                      isFav ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground',
-                    )}
-                  />
-                </Button>
-                <CardHeader className="flex-1">
-                  <div className="flex items-start justify-between gap-2 mb-2 pr-8">
-                    <div className="flex flex-wrap gap-1">
-                      <Badge variant="secondary" className="font-normal text-xs">
-                        {resource.category}
-                      </Badge>
-                      {resource.discipline && (
-                        <Badge
-                          variant="outline"
-                          className="font-normal text-xs text-primary border-primary/20 bg-primary/5"
-                        >
-                          {resource.discipline}
-                        </Badge>
-                      )}
-                      {resource.expand?.tags?.map((tag: any) => (
-                        <Badge
-                          key={tag.id}
-                          className="font-normal text-xs border-none"
-                          style={{ backgroundColor: tag.color, color: getContrastYIQ(tag.color) }}
-                        >
-                          {tag.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <CardTitle className="line-clamp-2 text-lg leading-tight" title={resource.title}>
-                    {resource.title}
-                  </CardTitle>
-                  <CardDescription
-                    className="line-clamp-3 mt-2 text-sm leading-relaxed"
-                    title={resource.description || ''}
-                  >
-                    {resource.description || 'Sem descrição detalhada disponível.'}
-                  </CardDescription>
-                </CardHeader>
-                <CardFooter className="pt-4 border-t bg-muted/20 flex gap-2">
-                  <Button variant="default" size="sm" className="flex-1 gap-2" asChild>
-                    <a
-                      href={resource.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => handleAccessLink(resource)}
-                    >
-                      <ExternalLink className="h-4 w-4" /> Acessar Link
-                    </a>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 bg-background shrink-0"
-                    onClick={() => handleCopyLink(resource.url)}
-                    title="Copiar link"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  {isAdmin && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-9 w-9 bg-background"
-                        onClick={() => {
-                          setEditingResource(resource)
-                          setIsDialogOpen(true)
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9 bg-background text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remover Link?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja remover o documento "{resource.title}"? Esta
-                              ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(resource.id)}
-                              className="bg-destructive text-destructive-foreground"
-                            >
-                              Remover
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  )}
-                </CardFooter>
-              </Card>
-            )
-          })}
-        </div>
+          {category === 'Cursos' && suggestedVideos.length > 0 && (
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold tracking-tight">Vídeos Sugeridos</h2>
+                <Badge variant="secondary">{suggestedVideos.length}</Badge>
+              </div>
+              <div className="rounded-md border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40%]">Título</TableHead>
+                      <TableHead className="hidden lg:table-cell">Disciplina</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {suggestedVideos.map((resource) => {
+                      const isFav = favorites.find((f) => f.document_id === resource.id)
+                      return (
+                        <TableRow key={resource.id}>
+                          <TableCell>
+                            <div className="flex items-start gap-3">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-full shrink-0 -mt-1"
+                                onClick={() => handleToggleFav(resource.id, isFav?.id)}
+                              >
+                                <Star
+                                  className={cn(
+                                    'h-4 w-4',
+                                    isFav
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-muted-foreground',
+                                  )}
+                                />
+                              </Button>
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <span
+                                  className="font-medium text-base truncate"
+                                  title={resource.title}
+                                >
+                                  {resource.title}
+                                </span>
+                                <span
+                                  className="text-sm text-muted-foreground line-clamp-1"
+                                  title={resource.description || ''}
+                                >
+                                  {resource.description || 'Sem descrição'}
+                                </span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            {resource.discipline ? (
+                              <Badge
+                                variant="outline"
+                                className="font-normal text-xs text-primary border-primary/20 bg-primary/5 whitespace-nowrap"
+                              >
+                                {resource.discipline}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button variant="default" size="sm" asChild title="Assistir Vídeo">
+                                <a
+                                  href={resource.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => handleAccessLink(resource)}
+                                >
+                                  <ExternalLink className="h-4 w-4 mr-2" /> Assistir
+                                </a>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9 bg-background shrink-0"
+                                onClick={() => handleCopyLink(resource.url)}
+                                title="Copiar link"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              {isAdmin && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-9 w-9 bg-background"
+                                    onClick={() => {
+                                      setEditingResource(resource)
+                                      setIsDialogOpen(true)
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="h-9 w-9 bg-background text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                      >
+                                        <Trash className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Remover Link?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Tem certeza que deseja remover o vídeo "{resource.title}"?
+                                          Esta ação não pode ser desfeita.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDelete(resource.id)}
+                                          className="bg-destructive text-destructive-foreground"
+                                        >
+                                          Remover
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <DocumentResourceDialog

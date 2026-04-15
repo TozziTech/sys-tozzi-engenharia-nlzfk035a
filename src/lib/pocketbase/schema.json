@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T05:05:18.471Z",
+  "generatedAt": "2026-04-15T05:21:01.597Z",
   "collections": [
     {
       "name": "users",
@@ -2058,6 +2058,12 @@
             "Patologia",
             "Outros"
           ]
+        },
+        {
+          "name": "is_suggested_video",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

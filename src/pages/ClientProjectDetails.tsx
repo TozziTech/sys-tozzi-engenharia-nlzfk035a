@@ -240,12 +240,13 @@ export default function ClientProjectDetails() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full animate-fade-in pb-20 relative">
-      {simulatedRole && simulatedRole !== user?.role && (
+      {isOriginalAdmin && simulatedRole && simulatedRole !== user?.role && (
         <div className="sticky top-4 z-50 w-full bg-amber-500 text-amber-950 px-4 py-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg mb-6 border border-amber-600/20">
           <div className="flex items-center gap-3">
             <Eye className="w-5 h-5" />
             <span className="font-medium text-sm sm:text-base">
-              Você está visualizando como: <strong className="font-bold">{simulatedRole}</strong>
+              Você está visualizando este projeto como{' '}
+              <strong className="font-bold">{simulatedRole}</strong>
             </span>
           </div>
           <Button
@@ -274,7 +275,7 @@ export default function ClientProjectDetails() {
             {isOriginalAdmin && (
               <Select
                 value={simulatedRole || user?.role}
-                onValueChange={(val) => setSimulatedRole(val === user?.role ? null : val)}
+                onValueChange={(val) => setSimulatedRole(val === 'Administrador' ? null : val)}
               >
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Simular visão..." />

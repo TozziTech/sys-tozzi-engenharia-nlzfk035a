@@ -34,11 +34,27 @@ onRecordAfterCreateSuccess(
         if (clientId) {
           const clientUser = $app.findRecordById('users', clientId)
           const clientEmail = clientUser.getString('email')
+          const projectName = project.getString('nome_projeto') || 'Projeto'
+          const docName =
+            record.getString('nome_arquivo') || record.getString('name') || 'Documento'
+
+          try {
+            const notif = new Record($app.findCollectionByNameOrId('notifications'))
+            notif.set('user', clientId)
+            notif.set('title', 'Novo Documento')
+            notif.set(
+              'message',
+              'Um novo documento (' + docName + ') foi adicionado ao projeto ' + projectName + '.',
+            )
+            notif.set('read', false)
+            notif.set('link', '/gestao/painel-cliente')
+            $app.save(notif)
+          } catch (notifErr) {
+            console.log('Error creating notification: ' + notifErr)
+          }
 
           if (clientEmail) {
             const clientName = clientUser.getString('name') || 'Cliente'
-            const projectName = project.getString('nome_projeto')
-            const docName = record.getString('nome_arquivo') || record.getString('name')
 
             let settings = null
             try {

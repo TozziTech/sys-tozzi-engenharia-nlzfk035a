@@ -15,7 +15,17 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+} from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -365,8 +375,8 @@ export function Header() {
               </ScrollArea>
             </PopoverContent>
           </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
+          <Sheet>
+            <SheetTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
@@ -379,14 +389,11 @@ export function Header() {
                   </span>
                 )}
               </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-[calc(100vw-2rem)] sm:w-80 p-0 mr-4 mt-2 shadow-lg rounded-xl overflow-hidden"
-              align="end"
-            >
-              <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50 backdrop-blur-sm">
+            </SheetTrigger>
+            <SheetContent className="w-full sm:max-w-md p-0 flex flex-col gap-0 border-l">
+              <SheetHeader className="px-4 py-4 border-b text-left flex flex-row items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">Notificações</span>
+                  <SheetTitle className="text-lg">Notificações</SheetTitle>
                   {unreadCount > 0 && (
                     <span className="flex h-5 items-center justify-center rounded-full bg-primary/10 px-2 text-[10px] font-bold text-primary">
                       {unreadCount} nova{unreadCount > 1 ? 's' : ''}
@@ -397,55 +404,58 @@ export function Header() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto text-xs px-2 text-primary hover:text-primary/80"
+                    className="h-8 text-xs px-3 text-primary hover:text-primary/80 mr-8"
                     onClick={markAllNotificationsAsRead}
                   >
                     Marcar todas lidas
                   </Button>
                 )}
-              </div>
-              <ScrollArea className="max-h-[360px]">
+              </SheetHeader>
+              <ScrollArea className="flex-1 overflow-y-auto">
                 {notifications.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
-                    <div className="p-3 bg-muted rounded-full">
-                      <Check className="h-6 w-6 text-muted-foreground" />
+                  <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center justify-center h-full gap-3 mt-20">
+                    <div className="p-4 bg-muted rounded-full">
+                      <Bell className="h-8 w-8 text-muted-foreground/50" />
                     </div>
-                    <span>Tudo em dia! Nenhuma notificação.</span>
+                    <span className="font-medium text-foreground">Tudo em dia!</span>
+                    <span className="text-xs">Você não tem novas notificações no momento.</span>
                   </div>
                 ) : (
                   <div className="flex flex-col">
                     {notifications.map((notif) => (
                       <div
                         key={notif.id}
-                        className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group ${!notif.read ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
+                        className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group relative ${!notif.read ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
                       >
                         <div className="flex justify-between items-start gap-3">
-                          <Link
-                            to={notif.link || '#'}
-                            onClick={() => markNotificationAsRead(notif.id)}
-                            className={`text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight ${!notif.read ? 'text-foreground' : 'text-muted-foreground'}`}
-                          >
-                            {notif.title}
-                          </Link>
+                          <SheetClose asChild>
+                            <Link
+                              to={notif.link || '#'}
+                              onClick={() => markNotificationAsRead(notif.id)}
+                              className={`text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight ${!notif.read ? 'text-foreground' : 'text-muted-foreground'}`}
+                            >
+                              {notif.title}
+                            </Link>
+                          </SheetClose>
                           {!notif.read && (
-                            <div className="w-2 h-2 rounded-full bg-primary mt-1 shrink-0" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-primary mt-1 shrink-0 shadow-sm" />
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
+                        <p
+                          className={`text-sm leading-relaxed ${!notif.read ? 'text-foreground/80' : 'text-muted-foreground'}`}
+                        >
                           {notif.message}
                         </p>
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="text-[10px] text-muted-foreground font-medium">
-                            {new Date(notif.created).toLocaleString(undefined, {
-                              day: '2-digit',
-                              month: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-[11px] text-muted-foreground font-medium">
+                            {formatDistanceToNow(new Date(notif.created), {
+                              addSuffix: true,
+                              locale: ptBR,
                             })}
                           </span>
                           {notif.read && (
-                            <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                              Lida
+                            <span className="text-[11px] text-muted-foreground/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                              <Check className="h-3 w-3" /> Lida
                             </span>
                           )}
                         </div>
@@ -454,8 +464,8 @@ export function Header() {
                   </div>
                 )}
               </ScrollArea>
-            </PopoverContent>
-          </Popover>
+            </SheetContent>
+          </Sheet>
 
           <Button
             onClick={() => setNewProjectModalOpen(true)}

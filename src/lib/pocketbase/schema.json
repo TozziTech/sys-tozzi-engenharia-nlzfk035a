@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T01:29:33.261Z",
+  "generatedAt": "2026-04-15T01:40:23.884Z",
   "collections": [
     {
       "name": "users",
@@ -765,6 +765,18 @@
         },
         {
           "name": "primary_color",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "background_color",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "background_preset",
           "type": "text",
           "required": false,
           "system": false

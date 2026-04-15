@@ -37,6 +37,8 @@ export default function Settings() {
     phone: '',
     logo: '',
     primary_color: '#D4AF37',
+    background_color: '',
+    background_preset: '',
   })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState('')
@@ -69,6 +71,13 @@ export default function Settings() {
     { name: 'Deep Red', color: '#991b1b' },
   ]
 
+  const BG_PRESETS = [
+    { name: 'Slate', color: '#0f172a' },
+    { name: 'Zinc', color: '#18181b' },
+    { name: 'Neutral', color: '#171717' },
+    { name: 'Deep Navy', color: '#0a192f' },
+  ]
+
   const handleQuickPalette = async (color: string) => {
     setCompanyForm((prev) => ({ ...prev, primary_color: color }))
     try {
@@ -87,6 +96,28 @@ export default function Settings() {
     }
   }
 
+  const handleApplyBg = async (color: string, presetName: string) => {
+    setCompanyForm((prev) => ({ ...prev, background_color: color, background_preset: presetName }))
+    try {
+      if (companyForm.id) {
+        await pb.collection('company_settings').update(companyForm.id, {
+          background_color: color,
+          background_preset: presetName,
+        })
+      } else {
+        const formData = new FormData()
+        formData.append('background_color', color)
+        formData.append('background_preset', presetName)
+        if (companyForm.company_name) formData.append('company_name', companyForm.company_name)
+        const res = await pb.collection('company_settings').create(formData)
+        setCompanyForm((prev) => ({ ...prev, id: res.id }))
+      }
+      toast({ title: 'Cor de fundo atualizada com sucesso!' })
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar cor de fundo', variant: 'destructive' })
+    }
+  }
+
   useEffect(() => {
     pb.collection('company_settings')
       .getFirstListItem('')
@@ -99,6 +130,8 @@ export default function Settings() {
           phone: record.phone || '',
           logo: record.logo || '',
           primary_color: record.primary_color || '#D4AF37',
+          background_color: record.background_color || '',
+          background_preset: record.background_preset || '',
         })
         if (record.logo) {
           setLogoPreview(
@@ -148,6 +181,8 @@ export default function Settings() {
       formData.append('address', companyForm.address)
       formData.append('phone', companyForm.phone)
       formData.append('primary_color', companyForm.primary_color)
+      formData.append('background_color', companyForm.background_color)
+      formData.append('background_preset', companyForm.background_preset)
       if (logoFile) formData.append('logo', logoFile)
 
       if (companyForm.id) {
@@ -247,56 +282,6 @@ export default function Settings() {
                   placeholder="(00) 00000-0000"
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="primary_color">Cor Primária (Identidade Visual)</Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    id="primary_color"
-                    type="color"
-                    value={companyForm.primary_color || '#D4AF37'}
-                    onChange={(e) =>
-                      setCompanyForm({ ...companyForm, primary_color: e.target.value })
-                    }
-                    className="w-16 h-10 p-1 cursor-pointer rounded-md"
-                  />
-                  <Input
-                    type="text"
-                    value={companyForm.primary_color || '#D4AF37'}
-                    onChange={(e) =>
-                      setCompanyForm({ ...companyForm, primary_color: e.target.value })
-                    }
-                    placeholder="#000000"
-                    className="w-32 uppercase"
-                    maxLength={7}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Esta cor será aplicada aos botões, barras de progresso e relatórios.
-                </p>
-              </div>
-              <div className="space-y-3 md:col-span-2 pt-2 border-t mt-2">
-                <Label>Paletas de Cores Pré-definidas</Label>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Clique para aplicar imediatamente uma cor principal para o sistema e relatórios.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {PREDEFINED_PALETTES.map((palette) => (
-                    <button
-                      key={palette.color}
-                      type="button"
-                      onClick={() => handleQuickPalette(palette.color)}
-                      className={cn(
-                        'flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all',
-                        companyForm.primary_color === palette.color
-                          ? 'border-slate-900 dark:border-slate-100 scale-110 shadow-sm'
-                          : 'border-transparent hover:scale-105',
-                      )}
-                      style={{ backgroundColor: palette.color }}
-                      title={palette.name}
-                    />
-                  ))}
-                </div>
-              </div>
               <div className="space-y-2 md:col-span-2 pt-2 border-t mt-2">
                 <Label htmlFor="logo">Logotipo (PNG, JPG, SVG)</Label>
                 <div className="flex items-center gap-4 mt-1">
@@ -386,7 +371,7 @@ export default function Settings() {
               </div>
 
               <div className="space-y-3 pt-4 border-t">
-                <Label className="text-base">Cor Primária</Label>
+                <Label className="text-base">Cor Primária (Tema)</Label>
                 <div className="flex flex-wrap gap-3">
                   {colors.map((c) => (
                     <button
@@ -408,6 +393,133 @@ export default function Settings() {
                       />
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t">
+                <Label className="text-base">Cor Primária (Identidade Visual / Relatórios)</Label>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="color"
+                      value={companyForm.primary_color || '#D4AF37'}
+                      onChange={(e) =>
+                        setCompanyForm({ ...companyForm, primary_color: e.target.value })
+                      }
+                      className="w-16 h-10 p-1 cursor-pointer rounded-md"
+                    />
+                    <Input
+                      type="text"
+                      value={companyForm.primary_color || '#D4AF37'}
+                      onChange={(e) =>
+                        setCompanyForm({ ...companyForm, primary_color: e.target.value })
+                      }
+                      placeholder="#000000"
+                      className="w-32 uppercase"
+                      maxLength={7}
+                    />
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleQuickPalette(companyForm.primary_color)}
+                    >
+                      Aplicar Cor
+                    </Button>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">
+                      Paletas Rápidas (Aplica e salva imediatamente)
+                    </Label>
+                    <div className="flex flex-wrap gap-3">
+                      {PREDEFINED_PALETTES.map((palette) => (
+                        <button
+                          key={palette.color}
+                          type="button"
+                          onClick={() => handleQuickPalette(palette.color)}
+                          className={cn(
+                            'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all',
+                            companyForm.primary_color === palette.color
+                              ? 'border-slate-900 dark:border-slate-100 scale-110 shadow-sm'
+                              : 'border-transparent hover:scale-105',
+                          )}
+                          style={{ backgroundColor: palette.color }}
+                          title={palette.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t">
+                <Label className="text-base">Cor de Fundo (Background)</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Personalize a cor de fundo do sistema. O texto e os cartões serão ajustados
+                  automaticamente para garantir o contraste.
+                </p>
+                <div className="flex flex-wrap gap-3 mb-4">
+                  {BG_PRESETS.map((p) => (
+                    <Button
+                      key={p.name}
+                      type="button"
+                      variant={companyForm.background_preset === p.name ? 'default' : 'outline'}
+                      onClick={() => handleApplyBg(p.color, p.name)}
+                      className="flex items-center gap-2 transition-transform active:scale-95"
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full border shadow-sm"
+                        style={{ backgroundColor: p.color }}
+                      />
+                      {p.name}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant={!companyForm.background_color ? 'default' : 'outline'}
+                    onClick={() => handleApplyBg('', '')}
+                  >
+                    Padrão do Tema
+                  </Button>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm text-muted-foreground">
+                    Ou escolha uma cor personalizada:
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="color"
+                      value={companyForm.background_color || '#ffffff'}
+                      onChange={(e) =>
+                        setCompanyForm({
+                          ...companyForm,
+                          background_color: e.target.value,
+                          background_preset: 'Custom',
+                        })
+                      }
+                      className="w-16 h-10 p-1 cursor-pointer rounded-md"
+                    />
+                    <Input
+                      type="text"
+                      value={companyForm.background_color || ''}
+                      onChange={(e) =>
+                        setCompanyForm({
+                          ...companyForm,
+                          background_color: e.target.value,
+                          background_preset: 'Custom',
+                        })
+                      }
+                      placeholder="#000000"
+                      className="w-32 uppercase"
+                      maxLength={7}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => handleApplyBg(companyForm.background_color, 'Custom')}
+                    >
+                      Aplicar Cor
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

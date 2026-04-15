@@ -242,10 +242,11 @@ export default function DocumentResourcesPage({
 
   const normalizeUrl = (url: string) => {
     if (!url) return ''
-    if (!/^https?:\/\//i.test(url)) {
-      return `https://${url}`
+    const trimmed = url.trim()
+    if (!/^https?:\/\//i.test(trimmed)) {
+      return `https://${trimmed}`
     }
-    return url
+    return trimmed
   }
 
   const handleCopyLink = async (url: string) => {
@@ -257,14 +258,7 @@ export default function DocumentResourcesPage({
     }
   }
 
-  const handleAccessLink = async (resource: DocumentResource, e?: React.MouseEvent) => {
-    if (e) e.preventDefault()
-
-    const normalizedUrl = normalizeUrl(resource.url)
-    if (normalizedUrl) {
-      window.open(normalizedUrl, '_blank', 'noopener,noreferrer')
-    }
-
+  const handleAccessLog = async (resource: DocumentResource) => {
     try {
       await pb.collection('audit_logs').create({
         user_id: user.id,
@@ -679,9 +673,16 @@ export default function DocumentResourcesPage({
                                 size="icon"
                                 className="h-9 w-9"
                                 title="Acessar Link"
-                                onClick={(e) => handleAccessLink(resource, e)}
+                                asChild
                               >
-                                <ExternalLink className="h-4 w-4" />
+                                <a
+                                  href={normalizeUrl(resource.url)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => handleAccessLog(resource)}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
                               </Button>
                               <Button
                                 variant="outline"
@@ -829,13 +830,15 @@ export default function DocumentResourcesPage({
                         </CardDescription>
                       </CardHeader>
                       <CardFooter className="pt-4 border-t bg-muted/20 flex gap-2">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="flex-1 gap-2"
-                          onClick={(e) => handleAccessLink(resource, e)}
-                        >
-                          <ExternalLink className="h-4 w-4" /> Acessar Link
+                        <Button variant="default" size="sm" className="flex-1 gap-2" asChild>
+                          <a
+                            href={normalizeUrl(resource.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => handleAccessLog(resource)}
+                          >
+                            <ExternalLink className="h-4 w-4" /> Acessar Link
+                          </a>
                         </Button>
                         <Button
                           variant="outline"
@@ -983,13 +986,15 @@ export default function DocumentResourcesPage({
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button
-                                variant="default"
-                                size="sm"
-                                title="Assistir Vídeo"
-                                onClick={(e) => handleAccessLink(resource, e)}
-                              >
-                                <ExternalLink className="h-4 w-4 mr-2" /> Assistir
+                              <Button variant="default" size="sm" title="Assistir Vídeo" asChild>
+                                <a
+                                  href={normalizeUrl(resource.url)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => handleAccessLog(resource)}
+                                >
+                                  <ExternalLink className="h-4 w-4 mr-2" /> Assistir
+                                </a>
                               </Button>
                               <Button
                                 variant="outline"

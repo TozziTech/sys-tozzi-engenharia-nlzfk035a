@@ -49,6 +49,7 @@ const schema = z.object({
   description: z.string().optional(),
   url: z
     .string()
+    .trim()
     .min(1, 'URL é obrigatória')
     .refine((val) => {
       try {

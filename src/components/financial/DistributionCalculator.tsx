@@ -78,10 +78,10 @@ export function DistributionCalculator() {
     try {
       setIsCalculating(true)
       const nfAmount = values.total_amount * (values.nf_pct / 100)
-      const workingCapitalValue = values.total_amount * (values.working_capital_pct / 100)
-      const calculatedNet =
-        values.total_amount - values.expenses - values.art_amount - nfAmount - workingCapitalValue
-      const netValue = Math.max(0, calculatedNet)
+      const deductions = values.expenses + values.art_amount + nfAmount
+      const subtotal = Math.max(0, values.total_amount - deductions)
+      const workingCapitalValue = subtotal * (values.working_capital_pct / 100)
+      const netValue = Math.max(0, subtotal - workingCapitalValue)
       const samuelAmount = netValue * (values.samuel_pct / 100)
       const tozziAmount = netValue * (values.tozzi_pct / 100)
       const dateStr = values.date + 'T12:00:00.000Z'
@@ -139,11 +139,10 @@ export function DistributionCalculator() {
   const watchTozPct = form.watch('tozzi_pct') || 0
 
   const previewNFAmount = watchTotal * (watchNFPct / 100)
-  const previewWC = watchTotal * (watchWCPct / 100)
-  const previewNet = Math.max(
-    0,
-    watchTotal - watchExpenses - watchART - previewNFAmount - previewWC,
-  )
+  const previewDeductions = watchExpenses + watchART + previewNFAmount
+  const previewSubtotal = Math.max(0, watchTotal - previewDeductions)
+  const previewWC = previewSubtotal * (watchWCPct / 100)
+  const previewNet = Math.max(0, previewSubtotal - previewWC)
 
   return (
     <div className="flex flex-col">
@@ -309,6 +308,22 @@ export function DistributionCalculator() {
                   </div>
                   <div className="bg-secondary/50 p-4 rounded-lg space-y-3 mt-6 border border-border/50">
                     <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground text-sm">Valor Bruto:</span>
+                      <span className="font-medium">{formatCurrency(watchTotal)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-destructive/90">
+                      <span className="text-sm">Deduções (Despesas + ART + NF):</span>
+                      <span className="font-medium">-{formatCurrency(previewDeductions)}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-border/50 pt-2">
+                      <span className="text-muted-foreground text-sm">Subtotal:</span>
+                      <span className="font-medium">{formatCurrency(previewSubtotal)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-amber-500/90">
+                      <span className="text-sm">Capital de Giro ({watchWCPct}% do Subtotal):</span>
+                      <span className="font-medium">-{formatCurrency(previewWC)}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-border/50 pt-2">
                       <span className="text-muted-foreground text-sm">Líquido a Distribuir:</span>
                       <span className="font-semibold text-primary text-base">
                         {formatCurrency(previewNet)}

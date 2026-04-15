@@ -60,9 +60,10 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
   const safeTozziPct = Number(tozziPct) || 0
 
   const nfAmount = safeTotal * (safeNfPct / 100)
-  const workingCapitalValue = safeTotal * (safeCapitalPct / 100)
-  const calculatedNet = safeTotal - safeExpenses - safeArtAmount - nfAmount - workingCapitalValue
-  const netValue = Math.max(0, calculatedNet)
+  const deductions = safeExpenses + safeArtAmount + nfAmount
+  const subtotal = Math.max(0, safeTotal - deductions)
+  const workingCapitalValue = subtotal * (safeCapitalPct / 100)
+  const netValue = Math.max(0, subtotal - workingCapitalValue)
   const samuelAmount = netValue * (safeSamuelPct / 100)
   const tozziAmount = netValue * (safeTozziPct / 100)
 
@@ -155,6 +156,14 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
               />
             </div>
             <div className="space-y-2">
+              <Label>Subtotal (R$)</Label>
+              <Input
+                disabled
+                value={formatCurrency(subtotal)}
+                className="bg-muted text-muted-foreground"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Capital de Giro (%)</Label>
               <Input
                 type="number"
@@ -164,7 +173,11 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
             </div>
             <div className="space-y-2">
               <Label>Líquido</Label>
-              <Input disabled value={formatCurrency(netValue)} className="font-semibold bg-muted" />
+              <Input
+                disabled
+                value={formatCurrency(netValue)}
+                className="font-semibold bg-muted text-primary"
+              />
             </div>
             <div className="space-y-2">
               <Label>Samuel (%)</Label>

@@ -19,19 +19,30 @@ import {
   type DistributionCalculation,
 } from '@/services/distribution_calculations'
 import { useRealtime } from '@/hooks/use-realtime'
-import { Trash2, Calculator, Edit2, FileText, Download } from 'lucide-react'
+import { Trash2, Calculator, Edit2, FileText, Download, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import { DistributionChart } from './DistributionChart'
 import { EditDistributionDialog } from './EditDistributionDialog'
 import { exportDistributionCSV } from '@/lib/export'
 import { exportDistributionPDF } from '@/lib/exportPdf'
 import { useAuth } from '@/hooks/use-auth'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useMemo } from 'react'
 
 export function DistributionCalculator() {
   const { toast } = useToast()
   const { user } = useAuth()
-  const [history, setHistory] = useState<DistributionCalculation[]>([])
+  const [allHistory, setAllHistory] = useState<DistributionCalculation[]>([])
   const [editingRecord, setEditingRecord] = useState<DistributionCalculation | null>(null)
+
+  const [filterYear, setFilterYear] = useState<string>('all')
+  const [filterMonth, setFilterMonth] = useState<string>('all')
 
   const [description, setDescription] = useState('')
   const [totalAmount, setTotalAmount] = useState<number | ''>('')
@@ -44,11 +55,24 @@ export function DistributionCalculator() {
   const loadHistory = async () => {
     try {
       const data = await getDistributionCalculations()
-      setHistory(data)
+      setAllHistory(data)
     } catch (error) {
       console.error('Failed to load calculations history:', error)
     }
   }
+
+  const history = useMemo(() => {
+    return allHistory.filter((record) => {
+      if (filterYear === 'all') return true
+      const date = new Date(record.date || record.created)
+      const recordYear = date.getFullYear().toString()
+      const recordMonth = (date.getMonth() + 1).toString()
+
+      if (filterYear !== recordYear) return false
+      if (filterMonth !== 'all' && filterMonth !== recordMonth) return false
+      return true
+    })
+  }, [allHistory, filterYear, filterMonth])
 
   useEffect(() => {
     loadHistory()
@@ -237,6 +261,73 @@ export function DistributionCalculator() {
         </Card>
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-muted/30 p-4 rounded-lg border">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium text-sm text-muted-foreground">Filtrar Período:</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={filterYear}
+            onValueChange={(val) => {
+              setFilterYear(val)
+              if (val === 'all') setFilterMonth('all')
+            }}
+          >
+            <SelectTrigger className="w-[130px] bg-background">
+              <SelectValue placeholder="Ano" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Anos</SelectItem>
+              {Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString()).map(
+                (y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ),
+              )}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filterMonth}
+            onValueChange={setFilterMonth}
+            disabled={filterYear === 'all'}
+          >
+            <SelectTrigger className="w-[150px] bg-background">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Meses</SelectItem>
+              {Array.from({ length: 12 }, (_, i) => {
+                const date = new Date(2000, i, 1)
+                return {
+                  value: (i + 1).toString(),
+                  label: date.toLocaleString('pt-BR', { month: 'long' }),
+                }
+              }).map((m) => (
+                <SelectItem key={m.value} value={m.value} className="capitalize">
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {(filterYear !== 'all' || filterMonth !== 'all') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setFilterYear('all')
+                setFilterMonth('all')
+              }}
+            >
+              Limpar Filtros
+            </Button>
+          )}
+        </div>
+      </div>
+
       <DistributionChart data={history} />
 
       <Card className="shadow-sm">
@@ -278,7 +369,7 @@ export function DistributionCalculator() {
                 {history.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                      Nenhum cálculo de distribuição registrado.
+                      Nenhum dado encontrado para este período.
                     </TableCell>
                   </TableRow>
                 ) : (

@@ -39,8 +39,6 @@ export function DistributionChart({ data }: { data: any[] }) {
     return Object.values(monthly).sort((a: any, b: any) => a.sort - b.sort)
   }, [data])
 
-  if (data.length === 0) return null
-
   return (
     <Card className="shadow-sm">
       <CardHeader>
@@ -48,32 +46,38 @@ export function DistributionChart({ data }: { data: any[] }) {
         <CardDescription>Comparativo mensal de valores distribuídos aos sócios</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-            <XAxis
-              dataKey="name"
-              tickLine={false}
-              axisLine={false}
-              className="text-xs text-muted-foreground"
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(v) =>
-                new Intl.NumberFormat('pt-BR', {
-                  notation: 'compact',
-                  compactDisplay: 'short',
-                }).format(v)
-              }
-              className="text-xs text-muted-foreground"
-            />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dashed" />} />
-            <ChartLegend content={<ChartLegendContent />} />
-            <Bar dataKey="samuel" fill="var(--color-samuel)" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="tozzi" fill="var(--color-tozzi)" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartContainer>
+        {data.length === 0 ? (
+          <div className="flex items-center justify-center h-[300px] text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
+            <p>Nenhum dado encontrado para este período.</p>
+          </div>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+              <XAxis
+                dataKey="name"
+                tickLine={false}
+                axisLine={false}
+                className="text-xs text-muted-foreground"
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) =>
+                  new Intl.NumberFormat('pt-BR', {
+                    notation: 'compact',
+                    compactDisplay: 'short',
+                  }).format(v)
+                }
+                className="text-xs text-muted-foreground"
+              />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dashed" />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar dataKey="samuel" fill="var(--color-samuel)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="tozzi" fill="var(--color-tozzi)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   )

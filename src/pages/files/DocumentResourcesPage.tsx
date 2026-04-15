@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react'
+import { useState, useEffect, ReactNode, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Plus,
@@ -17,6 +17,7 @@ import {
   Copy,
   LayoutGrid,
   List,
+  GripVertical,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
@@ -24,6 +25,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import {
   getDocumentResources,
   deleteDocumentResource,
+  updateDocumentResourceOrder,
   DocumentResource,
 } from '@/services/document_resources'
 import {
@@ -48,8 +50,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import { cn, getContrastYIQ } from '@/lib/utils'
 import {
   Select,
@@ -119,10 +119,11 @@ export default function DocumentResourcesPage({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTag, setSelectedTag] = useState<string>('all')
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<string>('created_desc')
+  const [sortBy, setSortBy] = useState<string>(category === 'Cursos' ? 'ordem_asc' : 'created_desc')
   const [availableTags, setAvailableTags] = useState<any[]>([])
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
-    return (localStorage.getItem('document-view-mode') as 'grid' | 'list') || 'grid'
+    const saved = localStorage.getItem('document-view-mode') as 'grid' | 'list'
+    return saved || (category === 'Cursos' ? 'list' : 'grid')
   })
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
@@ -132,6 +133,18 @@ export default function DocumentResourcesPage({
   const [editingResource, setEditingResource] = useState<DocumentResource | null>(null)
   const [dialogCategory, setDialogCategory] = useState<string>(category)
 
+  const [draggedItem, setDraggedItem] = useState<{ id: string; type: 'main' | 'video' } | null>(
+    null,
+  )
+  const [dragOverItem, setDragOverItem] = useState<{ id: string; type: 'main' | 'video' } | null>(
+    null,
+  )
+  const draggedItemRef = useRef(draggedItem)
+
+  useEffect(() => {
+    draggedItemRef.current = draggedItem
+  }, [draggedItem])
+
   const allowedRolesForCategory: Record<string, string[]> = {
     POPs: ['Administrador', 'Gerente de Projeto', 'Projetista'],
     'Projetos Base': ['Administrador', 'Gerente de Projeto', 'Projetista'],
@@ -140,6 +153,18 @@ export default function DocumentResourcesPage({
 
   const allowedRoles = allowedRolesForCategory[category]
   const hasAccess = !allowedRoles || (user?.role && allowedRoles.includes(user.role))
+
+  const canReorder =
+    isAdmin &&
+    sortBy === 'ordem_asc' &&
+    searchQuery === '' &&
+    selectedTag === 'all' &&
+    selectedDiscipline === 'all' &&
+    category === 'Cursos'
+
+  useEffect(() => {
+    setSortBy(category === 'Cursos' ? 'ordem_asc' : 'created_desc')
+  }, [category])
 
   const loadData = async () => {
     if (!hasAccess) {
@@ -177,7 +202,14 @@ export default function DocumentResourcesPage({
     localStorage.setItem('document-view-mode', viewMode)
   }, [viewMode])
 
-  useRealtime('document_resources', () => loadData(), hasAccess)
+  useRealtime(
+    'document_resources',
+    () => {
+      if (!draggedItemRef.current) loadData()
+    },
+    hasAccess,
+  )
+
   useRealtime('user_document_favorites', () => loadFavorites(), hasAccess && !!user)
   useRealtime(
     'tags',
@@ -228,6 +260,79 @@ export default function DocumentResourcesPage({
     } catch (error) {
       console.error('Audit log failed', error)
     }
+  }
+
+  const handleDragStart = (e: React.DragEvent, id: string, type: 'main' | 'video') => {
+    if (!canReorder) return
+    setDraggedItem({ id, type })
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', id)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent, id: string, type: 'main' | 'video') => {
+    if (!canReorder) return
+    e.preventDefault()
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move'
+    }
+    if (draggedItem?.type === type && dragOverItem?.id !== id) {
+      setDragOverItem({ id, type })
+    }
+  }
+
+  const handleDragEnd = () => {
+    setDraggedItem(null)
+    setDragOverItem(null)
+  }
+
+  const handleDrop = async (e: React.DragEvent, targetId: string, type: 'main' | 'video') => {
+    if (!canReorder) return
+    e.preventDefault()
+    if (!draggedItem || draggedItem.id === targetId || draggedItem.type !== type) {
+      setDraggedItem(null)
+      setDragOverItem(null)
+      return
+    }
+
+    const allOfType = resources.filter((r) => !!r.is_suggested_video === (type === 'video'))
+    allOfType.sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+
+    const aIdx = allOfType.findIndex((r) => r.id === draggedItem.id)
+    const bIdx = allOfType.findIndex((r) => r.id === targetId)
+
+    if (aIdx === -1 || bIdx === -1) {
+      setDraggedItem(null)
+      setDragOverItem(null)
+      return
+    }
+
+    const updatedAll = [...allOfType]
+    const [removedItem] = updatedAll.splice(aIdx, 1)
+    updatedAll.splice(bIdx, 0, removedItem)
+
+    const updates = updatedAll
+      .map((item, index) => ({ id: item.id, ordem: index + 1 }))
+      .filter((u) => {
+        const oldItem = allOfType.find((r) => r.id === u.id)
+        return oldItem?.ordem !== u.ordem
+      })
+
+    if (updates.length > 0) {
+      const map = new Map(updates.map((u) => [u.id, u.ordem]))
+      setResources((prev) => prev.map((r) => (map.has(r.id) ? { ...r, ordem: map.get(r.id)! } : r)))
+
+      try {
+        await updateDocumentResourceOrder(updates)
+      } catch (err) {
+        toast({ title: 'Erro ao reordenar', variant: 'destructive' })
+        loadData()
+      }
+    }
+
+    setDraggedItem(null)
+    setDragOverItem(null)
   }
 
   const getIcon = (className = 'h-6 w-6 text-primary') => {
@@ -284,7 +389,9 @@ export default function DocumentResourcesPage({
       return matchSearch && matchFav && matchTag && matchDiscipline
     })
     .sort((a: any, b: any) => {
-      if (sortBy === 'title_asc') {
+      if (sortBy === 'ordem_asc') {
+        return (a.ordem || 0) - (b.ordem || 0)
+      } else if (sortBy === 'title_asc') {
         return a.title.localeCompare(b.title)
       } else if (sortBy === 'updated_desc') {
         return new Date(b.updated || 0).getTime() - new Date(a.updated || 0).getTime()
@@ -337,26 +444,27 @@ export default function DocumentResourcesPage({
               <SelectValue placeholder="Ordenar por" />
             </SelectTrigger>
             <SelectContent>
+              {category === 'Cursos' && (
+                <SelectItem value="ordem_asc">Ordem Personalizada</SelectItem>
+              )}
               <SelectItem value="created_desc">Mais Recentes</SelectItem>
               <SelectItem value="title_asc">Nome (A-Z)</SelectItem>
               <SelectItem value="updated_desc">Última Modificação</SelectItem>
             </SelectContent>
           </Select>
-          {category !== 'Cursos' && (
-            <ToggleGroup
-              type="single"
-              value={viewMode}
-              onValueChange={(v) => v && setViewMode(v as 'grid' | 'list')}
-              className="bg-background border rounded-md h-10 p-1"
-            >
-              <ToggleGroupItem value="grid" aria-label="Grid View" className="h-8 px-2">
-                <LayoutGrid className="h-4 w-4" />
-              </ToggleGroupItem>
-              <ToggleGroupItem value="list" aria-label="List View" className="h-8 px-2">
-                <List className="h-4 w-4" />
-              </ToggleGroupItem>
-            </ToggleGroup>
-          )}
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(v) => v && setViewMode(v as 'grid' | 'list')}
+            className="bg-background border rounded-md h-10 p-1"
+          >
+            <ToggleGroupItem value="grid" aria-label="Grid View" className="h-8 px-2">
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List View" className="h-8 px-2">
+              <List className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
           <Button variant="outline" asChild>
             <Link to="/files/favorites">
               <Star className="mr-2 h-4 w-4" /> Meus Favoritos
@@ -445,11 +553,12 @@ export default function DocumentResourcesPage({
       ) : (
         <>
           {mainResources.length > 0 &&
-            (viewMode === 'list' && category !== 'Cursos' ? (
+            (viewMode === 'list' ? (
               <div className="rounded-md border bg-card">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {canReorder && <TableHead className="w-[40px] px-2"></TableHead>}
                       <TableHead className="w-[40%]">Título</TableHead>
                       <TableHead className="hidden md:table-cell">Categoria</TableHead>
                       <TableHead className="hidden lg:table-cell">Disciplina / Tags</TableHead>
@@ -461,7 +570,23 @@ export default function DocumentResourcesPage({
                     {mainResources.map((resource) => {
                       const isFav = favorites.find((f) => f.document_id === resource.id)
                       return (
-                        <TableRow key={resource.id}>
+                        <TableRow
+                          key={resource.id}
+                          draggable={canReorder}
+                          onDragStart={(e) => handleDragStart(e, resource.id, 'main')}
+                          onDragOver={(e) => handleDragOver(e, resource.id, 'main')}
+                          onDrop={(e) => handleDrop(e, resource.id, 'main')}
+                          onDragEnd={handleDragEnd}
+                          className={cn(
+                            draggedItem?.id === resource.id ? 'opacity-50 bg-muted/50' : '',
+                            dragOverItem?.id === resource.id ? 'border-t-2 border-t-primary' : '',
+                          )}
+                        >
+                          {canReorder && (
+                            <TableCell className="w-[40px] px-2 text-center cursor-grab active:cursor-grabbing">
+                              <GripVertical className="h-4 w-4 text-muted-foreground mx-auto" />
+                            </TableCell>
+                          )}
                           <TableCell>
                             <div className="flex items-start gap-3">
                               <Button
@@ -620,8 +745,22 @@ export default function DocumentResourcesPage({
                   return (
                     <Card
                       key={resource.id}
-                      className="flex flex-col hover:shadow-lg transition-all border-border/50 group relative"
+                      draggable={canReorder}
+                      onDragStart={(e) => handleDragStart(e, resource.id, 'main')}
+                      onDragOver={(e) => handleDragOver(e, resource.id, 'main')}
+                      onDrop={(e) => handleDrop(e, resource.id, 'main')}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        'flex flex-col hover:shadow-lg transition-all border-border/50 group relative',
+                        draggedItem?.id === resource.id ? 'opacity-50 bg-muted/50' : '',
+                        dragOverItem?.id === resource.id ? 'ring-2 ring-primary scale-[1.02]' : '',
+                      )}
                     >
+                      {canReorder && (
+                        <div className="absolute top-2 left-2 h-8 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing z-20 bg-background/80 backdrop-blur-sm rounded-full">
+                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -636,7 +775,12 @@ export default function DocumentResourcesPage({
                         />
                       </Button>
                       <CardHeader className="flex-1">
-                        <div className="flex items-start justify-between gap-2 mb-2 pr-8">
+                        <div
+                          className={cn(
+                            'flex items-start justify-between gap-2 mb-2 pr-8',
+                            canReorder ? 'pl-8' : '',
+                          )}
+                        >
                           <div className="flex flex-wrap gap-1">
                             <Badge variant="secondary" className="font-normal text-xs">
                               {resource.category}
@@ -758,6 +902,7 @@ export default function DocumentResourcesPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {canReorder && <TableHead className="w-[40px] px-2"></TableHead>}
                       <TableHead className="w-[30%]">Título</TableHead>
                       <TableHead className="w-[40%]">Descrição</TableHead>
                       <TableHead className="hidden lg:table-cell">Disciplina</TableHead>
@@ -768,7 +913,23 @@ export default function DocumentResourcesPage({
                     {suggestedVideos.map((resource) => {
                       const isFav = favorites.find((f) => f.document_id === resource.id)
                       return (
-                        <TableRow key={resource.id}>
+                        <TableRow
+                          key={resource.id}
+                          draggable={canReorder}
+                          onDragStart={(e) => handleDragStart(e, resource.id, 'video')}
+                          onDragOver={(e) => handleDragOver(e, resource.id, 'video')}
+                          onDrop={(e) => handleDrop(e, resource.id, 'video')}
+                          onDragEnd={handleDragEnd}
+                          className={cn(
+                            draggedItem?.id === resource.id ? 'opacity-50 bg-muted/50' : '',
+                            dragOverItem?.id === resource.id ? 'border-t-2 border-t-primary' : '',
+                          )}
+                        >
+                          {canReorder && (
+                            <TableCell className="w-[40px] px-2 text-center cursor-grab active:cursor-grabbing">
+                              <GripVertical className="h-4 w-4 text-muted-foreground mx-auto" />
+                            </TableCell>
+                          )}
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Button

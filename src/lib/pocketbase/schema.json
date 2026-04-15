@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T05:49:00.803Z",
+  "generatedAt": "2026-04-15T05:54:48.657Z",
   "collections": [
     {
       "name": "users",
@@ -2062,6 +2062,12 @@
         {
           "name": "is_suggested_video",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
           "required": false,
           "system": false
         }

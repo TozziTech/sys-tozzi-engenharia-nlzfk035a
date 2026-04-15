@@ -9,6 +9,7 @@ export interface DocumentResource {
   discipline?: string
   is_suggested_video?: boolean
   tags?: string[]
+  ordem?: number
   expand?: {
     tags?: any[]
   }
@@ -34,4 +35,11 @@ export const updateDocumentResource = async (id: string, data: Partial<DocumentR
 
 export const deleteDocumentResource = async (id: string) => {
   return pb.collection('document_resources').delete(id)
+}
+
+export const updateDocumentResourceOrder = async (updates: { id: string; ordem: number }[]) => {
+  const promises = updates.map((update) =>
+    pb.collection('document_resources').update(update.id, { ordem: update.ordem }),
+  )
+  return Promise.all(promises)
 }

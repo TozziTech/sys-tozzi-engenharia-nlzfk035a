@@ -331,6 +331,110 @@ export function exportFinancialPDF(
   }, 250)
 }
 
+export function exportDistributionPDF(records: any[], currentUser: string, settings: any = null) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const totalNet = records.reduce((sum, r) => sum + (r.net_value || 0), 0)
+  const totalSamuel = records.reduce((sum, r) => sum + (r.samuel_amount || 0), 0)
+  const totalTozzi = records.reduce((sum, r) => sum + (r.tozzi_amount || 0), 0)
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Distribuição de Lucros</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+          th { background-color: #f9fafb; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 20px; }
+          .summary { display: flex; justify-content: space-between; background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+          .summary-item { text-align: center; flex: 1; }
+          .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
+          .summary-value { font-size: 18px; font-weight: 700; margin-top: 5px; }
+          .text-right { text-align: right; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <div class="header">
+          <div>
+            ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; margin-bottom: 10px;" />` : ''}
+            <h2 style="margin: 0;">Relatório de Distribuição de Lucros</h2>
+          </div>
+          <div style="text-align: right; color: #6b7280; font-size: 14px;">
+            Gerado por: ${currentUser}<br/>
+            Data: ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+          </div>
+        </div>
+        
+        <div class="summary">
+          <div class="summary-item">
+            <div class="summary-label">Total Líquido Acumulado</div>
+            <div class="summary-value">${formatCurrency(totalNet)}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Total Samuel</div>
+            <div class="summary-value" style="color: #2563eb;">${formatCurrency(totalSamuel)}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Total Tozzi</div>
+            <div class="summary-value" style="color: #059669;">${formatCurrency(totalTozzi)}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Descrição</th>
+              <th class="text-right">Valor Bruto</th>
+              <th class="text-right">Despesas</th>
+              <th class="text-right">Valor Líquido</th>
+              <th class="text-right">Samuel</th>
+              <th class="text-right">Tozzi</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${records
+              .map(
+                (r) => `
+              <tr>
+                <td>${format(new Date(r.date || r.created), 'dd/MM/yyyy')}</td>
+                <td>${r.description}</td>
+                <td class="text-right">${formatCurrency(r.total_amount)}</td>
+                <td class="text-right">${formatCurrency(r.expenses)}</td>
+                <td class="text-right" style="font-weight: bold;">${formatCurrency(r.net_value)}</td>
+                <td class="text-right" style="color: #2563eb; font-weight: 600;">${formatCurrency(r.samuel_amount)}</td>
+                <td class="text-right" style="color: #059669; font-weight: 600;">${formatCurrency(r.tozzi_amount)}</td>
+              </tr>
+            `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportCalendarPDF(
   tasks: any[],
   periodLabel: string,

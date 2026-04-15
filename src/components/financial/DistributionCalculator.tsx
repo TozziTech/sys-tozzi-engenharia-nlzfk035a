@@ -19,12 +19,19 @@ import {
   type DistributionCalculation,
 } from '@/services/distribution_calculations'
 import { useRealtime } from '@/hooks/use-realtime'
-import { Trash2, Calculator } from 'lucide-react'
+import { Trash2, Calculator, Edit2, FileText, Download } from 'lucide-react'
 import { format } from 'date-fns'
+import { DistributionChart } from './DistributionChart'
+import { EditDistributionDialog } from './EditDistributionDialog'
+import { exportDistributionCSV } from '@/lib/export'
+import { exportDistributionPDF } from '@/lib/exportPdf'
+import { useAuth } from '@/hooks/use-auth'
 
 export function DistributionCalculator() {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [history, setHistory] = useState<DistributionCalculation[]>([])
+  const [editingRecord, setEditingRecord] = useState<DistributionCalculation | null>(null)
 
   const [description, setDescription] = useState('')
   const [totalAmount, setTotalAmount] = useState<number | ''>('')
@@ -90,7 +97,6 @@ export function DistributionCalculator() {
         title: 'Cálculo Registrado',
         description: 'A distribuição foi salva no histórico com sucesso.',
       })
-
       setDescription('')
       setTotalAmount('')
       setExpenses(0)
@@ -109,10 +115,7 @@ export function DistributionCalculator() {
     if (confirm('Tem certeza que deseja excluir este registro de cálculo?')) {
       try {
         await deleteDistributionCalculation(id)
-        toast({
-          title: 'Registro Excluído',
-          description: 'O registro foi removido do histórico.',
-        })
+        toast({ title: 'Registro Excluído', description: 'O registro foi removido do histórico.' })
       } catch (error) {
         toast({
           title: 'Erro',
@@ -123,9 +126,8 @@ export function DistributionCalculator() {
     }
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-  }
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -210,7 +212,6 @@ export function DistributionCalculator() {
                 {formatCurrency(netValue)}
               </p>
             </div>
-
             <div className="space-y-3">
               <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/50">
                 <span className="font-medium text-blue-900 dark:text-blue-100">
@@ -229,7 +230,6 @@ export function DistributionCalculator() {
                 </span>
               </div>
             </div>
-
             <Button className="w-full mt-4" size="lg" onClick={handleSave} disabled={isSubmitting}>
               Registrar Lançamento
             </Button>
@@ -237,12 +237,28 @@ export function DistributionCalculator() {
         </Card>
       </div>
 
+      <DistributionChart data={history} />
+
       <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>Histórico de Cálculos</CardTitle>
-          <CardDescription>
-            Registro de todas as distribuições e partilhas realizadas
-          </CardDescription>
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <CardTitle>Histórico de Cálculos</CardTitle>
+            <CardDescription>
+              Registro de todas as distribuições e partilhas realizadas
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportDistributionCSV(history)}>
+              <FileText className="mr-2 h-4 w-4" /> CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportDistributionPDF(history, user?.name || 'Usuário')}
+            >
+              <Download className="mr-2 h-4 w-4" /> PDF
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-x-auto">
@@ -255,7 +271,7 @@ export function DistributionCalculator() {
                   <TableHead className="text-right whitespace-nowrap">Valor Líquido</TableHead>
                   <TableHead className="text-right whitespace-nowrap">Samuel (R$)</TableHead>
                   <TableHead className="text-right whitespace-nowrap">Tozzi (R$)</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="text-right whitespace-nowrap w-[100px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -269,7 +285,7 @@ export function DistributionCalculator() {
                   history.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell className="text-muted-foreground whitespace-nowrap">
-                        {format(new Date(record.date || record.created), 'dd/MM/yyyy HH:mm')}
+                        {format(new Date(record.date || record.created), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell className="font-medium">{record.description}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">
@@ -284,15 +300,25 @@ export function DistributionCalculator() {
                       <TableCell className="text-right text-emerald-600 dark:text-emerald-400 font-semibold whitespace-nowrap">
                         {formatCurrency(record.tozzi_amount)}
                       </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(record.id)}
-                          title="Excluir Registro"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive opacity-70 hover:opacity-100 transition-opacity" />
-                        </Button>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingRecord(record)}
+                            title="Editar"
+                          >
+                            <Edit2 className="h-4 w-4 opacity-70 hover:opacity-100" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(record.id)}
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive opacity-70 hover:opacity-100" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -302,6 +328,13 @@ export function DistributionCalculator() {
           </div>
         </CardContent>
       </Card>
+
+      <EditDistributionDialog
+        record={editingRecord}
+        isOpen={!!editingRecord}
+        onClose={() => setEditingRecord(null)}
+        onSaved={loadHistory}
+      />
     </div>
   )
 }

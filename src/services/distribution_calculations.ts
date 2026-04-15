@@ -26,6 +26,13 @@ export const createDistributionCalculation = async (data: Partial<DistributionCa
   return pb.collection('distribution_calculations').create<DistributionCalculation>(data)
 }
 
+export const updateDistributionCalculation = async (
+  id: string,
+  data: Partial<DistributionCalculation>,
+) => {
+  return pb.collection('distribution_calculations').update<DistributionCalculation>(id, data)
+}
+
 export const deleteDistributionCalculation = async (id: string) => {
   return pb.collection('distribution_calculations').delete(id)
 }

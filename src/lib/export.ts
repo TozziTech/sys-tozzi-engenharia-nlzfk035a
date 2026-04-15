@@ -259,6 +259,36 @@ export function exportAuditLogsCSV(logs: Log[]) {
   URL.revokeObjectURL(url)
 }
 
+export function exportDistributionCSV(records: any[]) {
+  const headers = [
+    'Data',
+    'Descrição',
+    'Valor Bruto',
+    'Despesas',
+    'Valor Líquido',
+    'Samuel (R$)',
+    'Tozzi (R$)',
+  ]
+
+  const rows = records.map((r) => {
+    const date = `"${format(new Date(r.date || r.created), 'dd/MM/yyyy')}"`
+    const desc = `"${(r.description || '').replace(/"/g, '""')}"`
+    return [date, desc, r.total_amount, r.expenses, r.net_value, r.samuel_amount, r.tozzi_amount]
+  })
+
+  const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
+
+  const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Distribuicao_Historico_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function exportProductivityCSV(stats: any[]) {
   const headers = [
     'Membro',

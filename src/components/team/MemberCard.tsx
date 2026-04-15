@@ -540,8 +540,9 @@ export function MemberCard({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Excluir Membro</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Tem certeza que deseja remover {user.name} da equipe? Esta ação não pode ser
-                        desfeita.
+                        Tem certeza que deseja remover {user.name} da equipe? Todo o histórico de
+                        registros (tarefas, financeiro, logs) deste membro será preservado e
+                        reatribuído ao Administrador principal. Esta ação não pode ser desfeita.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

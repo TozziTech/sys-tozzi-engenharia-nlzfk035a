@@ -277,11 +277,13 @@ export function TransactionModal() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sem responsável</SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name || u.email}
-                  </SelectItem>
-                ))}
+                {users
+                  .filter((u) => u.status !== 'Inativo')
+                  .map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name || u.email}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

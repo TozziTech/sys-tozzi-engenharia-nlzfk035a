@@ -151,11 +151,13 @@ export function CreateTaskDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sem responsável</SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name}
-                  </SelectItem>
-                ))}
+                {users
+                  .filter((u) => u.status !== 'Inativo')
+                  .map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

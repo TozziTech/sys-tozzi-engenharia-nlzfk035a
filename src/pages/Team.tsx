@@ -31,6 +31,7 @@ import {
 
 export default function Team() {
   const [dbUsers, setDbUsers] = useState<any[]>([])
+  const [statusFilter, setStatusFilter] = useState<string>('active')
   const [formacaoFilter, setFormacaoFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const { toast } = useToast()
@@ -85,6 +86,10 @@ export default function Team() {
 
   const filteredMembers = useMemo(() => {
     const filtered = dbUsers.filter((m) => {
+      const isInactive = m.status === 'Inativo'
+      if (statusFilter === 'active' && isInactive) return false
+      if (statusFilter === 'inactive' && !isInactive) return false
+
       const mFormacao = m.formacao || m.specialty
       const matchesFormacao = formacaoFilter === 'all' || mFormacao === formacaoFilter
       const searchString = `${m.codigo || ''} ${m.name}`.toLowerCase()
@@ -200,6 +205,27 @@ export default function Team() {
           </div>
         </div>
       </Card>
+
+      <div className="flex justify-start mb-4">
+        <div className="bg-muted p-1 rounded-lg inline-flex">
+          <Button
+            variant={statusFilter === 'active' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setStatusFilter('active')}
+            className="rounded-md"
+          >
+            Membros Ativos
+          </Button>
+          <Button
+            variant={statusFilter === 'inactive' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setStatusFilter('inactive')}
+            className="rounded-md"
+          >
+            Desativados
+          </Button>
+        </div>
+      </div>
 
       <div className="bg-card p-2 rounded-2xl border border-border/40 shadow-sm flex flex-col sm:flex-row gap-2 items-center">
         <div className="relative w-full flex-1">

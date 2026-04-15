@@ -56,6 +56,8 @@ import {
   User as UserIcon,
   Trash2,
   Loader2,
+  UserCheck,
+  UserMinus,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -178,7 +180,12 @@ export function MemberCard({
   const formacaoDisplay = u.formacao || user.specialty || 'Sem Formação'
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-border/40 bg-card rounded-2xl group relative">
+    <Card
+      className={cn(
+        'flex flex-col overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-border/40 bg-card rounded-2xl group relative',
+        u.status === 'Inativo' && 'opacity-70 grayscale',
+      )}
+    >
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
 
       <CardContent className="p-6 sm:p-8 flex-1 flex flex-col">
@@ -525,33 +532,83 @@ export function MemberCard({
               open={isEditOpen}
               onOpenChange={setIsEditOpen}
             />
-            {onDelete && (
+            {u.status === 'Inativo' ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 shrink-0"
+                  onClick={() => handleQuickEdit('status', 'Ativo')}
+                  title="Reativar Membro"
+                >
+                  <UserCheck className="h-5 w-5" />
+                </Button>
+                {onDelete && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      title="Excluir Permanentemente"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </Button>
+                    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir Membro Permanentemente</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja remover {user.name} da equipe em definitivo?
+                            Todos os vínculos em tarefas, registros financeiros e logs podem ser
+                            perdidos ou desassociados. Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => onDelete(user.id)}
+                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                          >
+                            Excluir Definitivamente
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                )}
+              </>
+            ) : (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                   onClick={() => setIsDeleteDialogOpen(true)}
+                  title="Desativar Membro"
                 >
-                  <Trash2 className="h-5 w-5" />
+                  <UserMinus className="h-5 w-5" />
                 </Button>
                 <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir Membro</AlertDialogTitle>
+                      <AlertDialogTitle>Desativar Membro</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Tem certeza que deseja remover {user.name} da equipe? Todo o histórico de
-                        registros (tarefas, financeiro, logs) deste membro será preservado e
-                        reatribuído ao Administrador principal. Esta ação não pode ser desfeita.
+                        Tem certeza que deseja desativar {user.name}? O membro será ocultado das
+                        listagens ativas e não poderá acessar o sistema, mas todo o histórico de
+                        tarefas e registros financeiros será preservado.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => onDelete(user.id)}
+                        onClick={() => {
+                          handleQuickEdit('status', 'Inativo')
+                          setIsDeleteDialogOpen(false)
+                        }}
                         className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                       >
-                        Excluir
+                        Desativar
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -564,7 +621,6 @@ export function MemberCard({
     </Card>
   )
 }
-
 const editFormSchema = z
   .object({
     name: z.string().min(1, 'O nome do membro é obrigatório.'),

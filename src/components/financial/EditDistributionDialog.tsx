@@ -24,6 +24,7 @@ interface Props {
 
 export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Props) {
   const { toast } = useToast()
+  const [date, setDate] = useState('')
   const [description, setDescription] = useState('')
   const [totalAmount, setTotalAmount] = useState<number | ''>('')
   const [nfPct, setNfPct] = useState<number | ''>(0)
@@ -36,6 +37,9 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
 
   useEffect(() => {
     if (record) {
+      setDate(
+        record.date ? record.date.substring(0, 10) : new Date().toISOString().substring(0, 10),
+      )
       setDescription(record.description)
       setTotalAmount(record.total_amount)
       setNfPct(record.nf_pct || 0)
@@ -63,10 +67,10 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
   const tozziAmount = netValue * (safeTozziPct / 100)
 
   const handleSave = async () => {
-    if (!record || !description || safeTotal <= 0) {
+    if (!record || !date || !description || safeTotal <= 0) {
       toast({
         title: 'Erro',
-        description: 'Preencha a descrição e valor bruto.',
+        description: 'Preencha a data, descrição e valor bruto.',
         variant: 'destructive',
       })
       return
@@ -75,6 +79,7 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
     try {
       setIsSubmitting(true)
       await updateDistributionCalculation(record.id, {
+        date: date + ' 12:00:00.000Z',
         description,
         total_amount: safeTotal,
         nf_pct: safeNfPct,
@@ -108,6 +113,10 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
           <DialogTitle>Editar Registro de Distribuição</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label>Data</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
           <div className="grid gap-2">
             <Label>Descrição</Label>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} />

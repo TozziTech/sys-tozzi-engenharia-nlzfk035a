@@ -2,6 +2,200 @@ import { User, Project } from '@/types/project'
 
 import { format } from 'date-fns'
 
+export function exportProjectProgressPDF(
+  project: any,
+  phases: any[],
+  payments: any[],
+  currentUser: string,
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-'
+    return new Date(dateStr).toLocaleDateString('pt-BR')
+  }
+
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const totalPaid = payments.filter((p) => p.status === 'Pago').reduce((acc, p) => acc + p.valor, 0)
+  const totalPending = payments
+    .filter((p) => p.status !== 'Pago')
+    .reduce((acc, p) => acc + p.valor, 0)
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Progresso - ${project.nome_projeto}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            line-height: 1.5; 
+            color: #1a1a1a; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header img { max-height: 60px; margin-bottom: 10px; }
+          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
+          
+          .summary {
+            display: flex;
+            justify-content: space-around;
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+          }
+          .summary-item { text-align: center; }
+          .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
+          .summary-value { font-size: 20px; font-weight: 700; color: #111827; margin-top: 5px; }
+          
+          .section-title { font-size: 18px; color: #374151; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; }
+          
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+            vertical-align: top;
+          }
+          th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          
+          .footer { 
+            margin-top: 50px; 
+            padding-top: 20px; 
+            border-top: 1px dashed #e5e7eb; 
+            font-size: 12px; 
+            color: #9ca3af; 
+            text-align: center; 
+          }
+          
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+      
+        <div class="header">
+          ${logoUrl ? `<img src="${logoUrl}" />` : ''}
+          <h1>Relatório de Progresso do Projeto</h1>
+          <p><strong>Projeto:</strong> ${project.nome_projeto}</p>
+          <p>Gerado por: ${currentUser} em ${new Date().toLocaleDateString('pt-BR')}</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <div class="section-title">Resumo Executivo</div>
+          <p><strong>Escopo:</strong> ${project.descricao_escopo || 'N/A'}</p>
+          <p><strong>Status Geral:</strong> ${project.status_geral || 'N/A'}</p>
+          <p><strong>Início:</strong> ${formatDate(project.data_inicio)} &bull; <strong>Previsão de Entrega:</strong> ${formatDate(project.data_previsao_entrega)}</p>
+        </div>
+
+        <div class="summary">
+          <div class="summary-item">
+            <div class="summary-label">Progresso Total</div>
+            <div class="summary-value">${project.progresso_total || 0}%</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Total Pago</div>
+            <div class="summary-value" style="color: #059669;">${formatCurrency(totalPaid)}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Total Pendente</div>
+            <div class="summary-value" style="color: #d97706;">${formatCurrency(totalPending)}</div>
+          </div>
+        </div>
+
+        <div class="section-title">Cronograma e Fases</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fase</th>
+              <th>Status</th>
+              <th>Progresso</th>
+              <th>Conclusão Estimada</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${phases
+              .map(
+                (p) => `
+                <tr>
+                  <td style="font-weight: 500;">${p.nome_fase}</td>
+                  <td>${p.status}</td>
+                  <td>${p.progresso || 0}%</td>
+                  <td>${formatDate(p.data_conclusao_estimada)}</td>
+                </tr>
+              `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+        
+        <div class="section-title">Resumo Financeiro</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Descrição</th>
+              <th>Vencimento</th>
+              <th>Status</th>
+              <th style="text-align: right;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${payments
+              .map(
+                (p) => `
+                <tr>
+                  <td>${p.descricao}</td>
+                  <td>${formatDate(p.data_vencimento)}</td>
+                  <td>${p.status}</td>
+                  <td style="text-align: right;">${formatCurrency(p.valor)}</td>
+                </tr>
+              `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          Documento gerado pelo Sistema de Gerenciamento de Projetos.
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
 export function exportContractPDF(contract: any, currentUser: string, settings: any = null) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return

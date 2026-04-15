@@ -27,9 +27,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import pb from '@/lib/pocketbase/client'
 import { format } from 'date-fns'
 import { TimelineView, EvolutionChart } from '@/components/client-dashboard/ClientWidgets'
+import { exportProjectProgressPDF } from '@/lib/exportPdf'
 import { ClientComments } from '@/components/client-dashboard/ClientComments'
 import { ClientDocumentUpload } from '@/components/client-dashboard/ClientDocumentUpload'
 import {
@@ -70,6 +72,7 @@ export default function ClientDashboard() {
   const [documents, setDocuments] = useState<any[]>([])
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [paymentFilter, setPaymentFilter] = useState('Todos')
 
   const loadData = async () => {
     try {
@@ -136,14 +139,30 @@ export default function ClientDashboard() {
     .reduce((acc, p) => acc + p.valor, 0)
   const health = payments.some((p) => p.status === 'Atrasado') ? 'Atenção' : 'Saudável'
 
+  const filteredPayments = payments.filter(
+    (p) => paymentFilter === 'Todos' || p.status === paymentFilter,
+  )
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full animate-fade-in pb-20">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Painel do Cliente</h1>
-        <p className="text-muted-foreground mt-2">
-          Visão geral do projeto:{' '}
-          <span className="font-semibold text-foreground">{project.nome_projeto}</span>
-        </p>
+      <header className="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Painel do Cliente</h1>
+          <p className="text-muted-foreground mt-2">
+            Visão geral do projeto:{' '}
+            <span className="font-semibold text-foreground">{project.nome_projeto}</span>
+          </p>
+        </div>
+        <Button
+          onClick={() =>
+            exportProjectProgressPDF(project, phases, payments, user?.name || 'Cliente')
+          }
+          variant="outline"
+          className="shrink-0 gap-2"
+        >
+          <FileText className="w-4 h-4" />
+          Exportar Relatório
+        </Button>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -272,10 +291,22 @@ export default function ClientDashboard() {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-primary" /> Transações Financeiras
               </CardTitle>
+              <Tabs
+                value={paymentFilter}
+                onValueChange={setPaymentFilter}
+                className="w-full sm:w-auto"
+              >
+                <TabsList className="grid grid-cols-4 sm:flex w-full">
+                  <TabsTrigger value="Todos">Todos</TabsTrigger>
+                  <TabsTrigger value="Pago">Pago</TabsTrigger>
+                  <TabsTrigger value="Pendente">Pendente</TabsTrigger>
+                  <TabsTrigger value="Atrasado">Atrasado</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </CardHeader>
             <CardContent>
               <Table>
@@ -288,16 +319,27 @@ export default function ClientDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-medium">{payment.descricao}</TableCell>
-                      <TableCell>{formatDate(payment.data_vencimento)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(payment.valor)}</TableCell>
-                      <TableCell className="text-center">
-                        {getPaymentStatusBadge(payment.status)}
+                  {filteredPayments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                        Nenhum pagamento{' '}
+                        {paymentFilter !== 'Todos' ? paymentFilter.toLowerCase() : ''} encontrado.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-medium">{payment.descricao}</TableCell>
+                        <TableCell>{formatDate(payment.data_vencimento)}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(payment.valor)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {getPaymentStatusBadge(payment.status)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

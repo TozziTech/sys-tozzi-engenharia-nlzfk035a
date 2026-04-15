@@ -32,6 +32,7 @@ import { ThemeToggle } from './ThemeToggle'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useToast } from '@/hooks/use-toast'
 
 export function Header() {
   const navigate = useNavigate()
@@ -57,7 +58,21 @@ export function Header() {
     loadNotifications()
   }, [user])
 
-  useRealtime('notifications', () => loadNotifications(), !!user)
+  const { toast } = useToast()
+
+  useRealtime(
+    'notifications',
+    (e) => {
+      loadNotifications()
+      if (e.action === 'create' && e.record.user === user?.id) {
+        toast({
+          title: e.record.title,
+          description: e.record.message,
+        })
+      }
+    },
+    !!user,
+  )
 
   // Global Search State
   const [searchOpen, setSearchOpen] = useState(false)

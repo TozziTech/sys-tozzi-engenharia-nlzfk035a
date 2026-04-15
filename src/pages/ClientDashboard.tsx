@@ -29,11 +29,9 @@ import {
 import { Button } from '@/components/ui/button'
 import pb from '@/lib/pocketbase/client'
 import { format } from 'date-fns'
-import {
-  TimelineView,
-  CommentsFeed,
-  EvolutionChart,
-} from '@/components/client-dashboard/ClientWidgets'
+import { TimelineView, EvolutionChart } from '@/components/client-dashboard/ClientWidgets'
+import { ClientComments } from '@/components/client-dashboard/ClientComments'
+import { ClientDocumentUpload } from '@/components/client-dashboard/ClientDocumentUpload'
 import {
   getClientProjects,
   getProjectPhases,
@@ -306,48 +304,55 @@ export default function ClientDashboard() {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" /> Central de Documentos
               </CardTitle>
+              {user?.role === 'Administrador' && <ClientDocumentUpload projectId={project.id} />}
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {documents.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:border-primary/50 transition-colors bg-muted/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 p-2 rounded-md">
-                        <File className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium line-clamp-1" title={doc.nome_arquivo}>
-                          {doc.nome_arquivo}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{doc.tipo}</p>
-                      </div>
-                    </div>
-                    {doc.arquivo && (
-                      <a
-                        href={pb.files.getUrl(doc, doc.arquivo)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        download
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0"
-                          title="Baixar documento"
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
+                {documents.length === 0 ? (
+                  <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
+                    Nenhum documento anexado ao projeto.
                   </div>
-                ))}
+                ) : (
+                  documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary/50 transition-colors bg-muted/20"
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="bg-primary/10 p-2 rounded-md shrink-0">
+                          <File className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-medium truncate" title={doc.nome_arquivo}>
+                            {doc.nome_arquivo}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{doc.tipo}</p>
+                        </div>
+                      </div>
+                      {doc.arquivo && (
+                        <a
+                          href={pb.files.getUrl(doc, doc.arquivo)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                            title="Baixar documento"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -359,7 +364,7 @@ export default function ClientDashboard() {
               <CardTitle>Comunicações do Projeto</CardTitle>
             </CardHeader>
             <CardContent>
-              <CommentsFeed projectId={project.id} comments={comments} user={user} />
+              <ClientComments projectId={project.id} comments={comments} />
             </CardContent>
           </Card>
           <Card>

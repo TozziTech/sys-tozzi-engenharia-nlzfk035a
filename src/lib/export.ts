@@ -261,16 +261,16 @@ export function exportAuditLogsCSV(logs: Log[]) {
 
 export function exportDistributionCSV(records: any[]) {
   const headers = [
-    'Data',
     'Descrição',
-    'Valor Bruto',
-    'NF (R$)',
-    'ART (R$)',
-    'Despesas',
+    'Data',
+    'Valor Total',
     'Capital de Giro',
+    'Despesas',
+    'ART',
+    'NF',
+    'Samuel',
+    'Tozzi',
     'Valor Líquido',
-    'Samuel (R$)',
-    'Tozzi (R$)',
   ]
 
   const rows = records.map((r) => {
@@ -278,16 +278,16 @@ export function exportDistributionCSV(records: any[]) {
     const desc = `"${(r.description || '').replace(/"/g, '""')}"`
     const cg = (r.total_amount || 0) * ((r.working_capital_pct || 0) / 100)
     return [
-      date,
       desc,
+      date,
       r.total_amount || 0,
-      r.nf_amount || 0,
-      r.art_amount || 0,
-      r.expenses || 0,
       cg,
-      r.net_value || 0,
+      r.expenses || 0,
+      r.art_amount || 0,
+      r.nf_amount || 0,
       r.samuel_amount || 0,
       r.tozzi_amount || 0,
+      r.net_value || 0,
     ]
   })
 
@@ -299,7 +299,7 @@ export function exportDistributionCSV(records: any[]) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `Distribuicao_Historico_${format(new Date(), 'yyyy-MM-dd')}.csv`
+  a.download = `historico_distribuicao_${format(new Date(), 'yyyy_MM_dd')}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }

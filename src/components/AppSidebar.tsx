@@ -108,6 +108,12 @@ const navigationGroups = [
   {
     label: 'Governança e Admin',
     items: [
+      {
+        name: 'Visão Geral da Carteira',
+        href: '/admin/analytics',
+        icon: LineChart,
+        adminOnly: true,
+      },
       { name: 'Configurações', href: '/settings', icon: Settings },
       { name: 'Acessos', href: '/access-control', icon: Shield },
       { name: 'Auditoria Executiva', href: '/admin/audit-log', icon: History, adminOnly: true },

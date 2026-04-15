@@ -2,6 +2,8 @@ import { User, Project } from '@/types/project'
 
 import { format } from 'date-fns'
 
+const getPrimaryColor = (settings: any) => settings?.primary_color || '#1f2937'
+
 export function exportProjectProgressPDF(
   project: any,
   phases: any[],
@@ -12,6 +14,7 @@ export function exportProjectProgressPDF(
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
 
@@ -47,7 +50,7 @@ export function exportProjectProgressPDF(
           }
           .header {
             text-align: center;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 3px solid ${primaryColor};
             padding-bottom: 20px;
             margin-bottom: 30px;
           }
@@ -61,13 +64,14 @@ export function exportProjectProgressPDF(
             background: #f9fafb;
             padding: 15px;
             border-radius: 8px;
+            border-left: 4px solid ${primaryColor};
             margin-bottom: 30px;
           }
           .summary-item { text-align: center; }
           .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
           .summary-value { font-size: 20px; font-weight: 700; color: #111827; margin-top: 5px; }
           
-          .section-title { font-size: 18px; color: #374151; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; }
+          .section-title { font-size: 18px; color: ${primaryColor}; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; font-weight: bold; }
           
           table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
           th, td {
@@ -77,7 +81,7 @@ export function exportProjectProgressPDF(
             font-size: 14px;
             vertical-align: top;
           }
-          th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          th { font-weight: 600; color: #ffffff; background-color: ${primaryColor}; font-size: 12px; text-transform: uppercase; }
           
           .footer { 
             margin-top: 50px; 
@@ -200,6 +204,7 @@ export function exportContractPDF(contract: any, currentUser: string, settings: 
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const logoUrl = settings?.logo
     ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
     : ''
@@ -228,7 +233,7 @@ export function exportContractPDF(contract: any, currentUser: string, settings: 
             padding: 20px;
             font-size: 12pt;
           }
-          .header { text-align: center; margin-bottom: 30px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; }
           .header img { max-height: 80px; }
           @media print {
             body { padding: 0; }
@@ -261,6 +266,7 @@ export function exportBankAccountsPDF(accounts: any[], currentUser: string, sett
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
 
@@ -279,17 +285,17 @@ export function exportBankAccountsPDF(accounts: any[], currentUser: string, sett
         <style>
           @page { margin: 20mm; }
           body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; color: #374151; max-width: 1000px; margin: 0 auto; padding: 20px; }
-          .header { text-align: center; border-bottom: 3px solid #d4af37; padding-bottom: 20px; margin-bottom: 30px; }
+          .header { text-align: center; border-bottom: 3px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 30px; }
           .header img { max-height: 60px; margin-bottom: 10px; }
           .header h1 { margin: 0; color: #1f2937; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
           .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
-          .summary { display: flex; justify-content: center; background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid #d4af37; margin-bottom: 30px; }
+          .summary { display: flex; justify-content: center; background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid ${primaryColor}; margin-bottom: 30px; }
           .summary-item { text-align: center; padding: 0 40px; }
           .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
           .summary-value { font-size: 24px; font-weight: 700; color: #1f2937; margin-top: 5px; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           th, td { text-align: left; padding: 12px; font-size: 14px; vertical-align: middle; }
-          th { font-weight: 600; color: #f9fafb; background-color: #1f2937; font-size: 12px; text-transform: uppercase; border: none; }
+          th { font-weight: 600; color: #ffffff; background-color: ${primaryColor}; font-size: 12px; text-transform: uppercase; border: none; }
           td { border-bottom: 1px solid #e5e7eb; }
           tr:nth-child(even) td { background-color: #f9fafb; }
           .text-right { text-align: right; }
@@ -358,6 +364,7 @@ export function exportFinancialPDF(
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
 
@@ -383,7 +390,7 @@ export function exportFinancialPDF(
           }
           .header {
             text-align: center;
-            border-bottom: 3px solid #d4af37;
+            border-bottom: 3px solid ${primaryColor};
             padding-bottom: 20px;
             margin-bottom: 30px;
           }
@@ -397,7 +404,7 @@ export function exportFinancialPDF(
             background: #f9fafb;
             padding: 15px;
             border-radius: 8px;
-            border-left: 4px solid #d4af37;
+            border-left: 4px solid ${primaryColor};
             margin-bottom: 30px;
           }
           .summary-item { text-align: center; }
@@ -413,7 +420,7 @@ export function exportFinancialPDF(
             font-size: 14px;
             vertical-align: middle;
           }
-          th { font-weight: 600; color: #f9fafb; background-color: #1f2937; font-size: 12px; text-transform: uppercase; border: none; }
+          th { font-weight: 600; color: #ffffff; background-color: ${primaryColor}; font-size: 12px; text-transform: uppercase; border: none; }
           td { border-bottom: 1px solid #e5e7eb; }
           tr:nth-child(even) td { background-color: #f9fafb; }
           .text-right { text-align: right; }
@@ -529,6 +536,7 @@ export function exportDistributionPDF(records: any[], currentUser: string, setti
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
 
@@ -551,9 +559,9 @@ export function exportDistributionPDF(records: any[], currentUser: string, setti
           body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
           th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
-          th { background-color: #f9fafb; font-weight: 600; font-size: 12px; text-transform: uppercase; }
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 20px; }
-          .summary { display: flex; justify-content: space-between; background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+          th { background-color: ${primaryColor}; color: #ffffff; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 20px; }
+          .summary { display: flex; justify-content: space-between; background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid ${primaryColor}; margin-bottom: 20px; }
           .summary-item { text-align: center; flex: 1; }
           .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
           .summary-value { font-size: 18px; font-weight: 700; margin-top: 5px; }
@@ -567,7 +575,7 @@ export function exportDistributionPDF(records: any[], currentUser: string, setti
         <div class="header">
           <div>
             ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; margin-bottom: 10px;" />` : ''}
-            <h2 style="margin: 0;">Relatório de Distribuição de Lucros</h2>
+            <h2 style="margin: 0; color: ${primaryColor};">Relatório de Distribuição de Lucros</h2>
           </div>
           <div style="text-align: right; color: #6b7280; font-size: 14px;">
             Gerado por: ${currentUser}<br/>
@@ -644,6 +652,7 @@ export function exportCalendarPDF(
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const logoUrl = settings?.logo
     ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
     : ''
@@ -659,8 +668,8 @@ export function exportCalendarPDF(
           body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
           th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
-          th { background-color: #f9fafb; font-weight: 600; font-size: 12px; text-transform: uppercase; }
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 20px; }
+          th { background-color: ${primaryColor}; color: #ffffff; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 20px; }
         </style>
       </head>
       <body>
@@ -670,7 +679,7 @@ export function exportCalendarPDF(
         <div class="header">
           <div>
             ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; margin-bottom: 10px;" />` : ''}
-            <h2 style="margin: 0;">Relatório de Tarefas Agendadas</h2>
+            <h2 style="margin: 0; color: ${primaryColor};">Relatório de Tarefas Agendadas</h2>
             <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;">${periodLabel}</p>
           </div>
           <div style="text-align: right; color: #6b7280; font-size: 14px;">
@@ -713,10 +722,16 @@ export function exportCalendarPDF(
   setTimeout(() => printWindow.print(), 250)
 }
 
-export function exportDisciplineTasksPDF(tasks: any[], moduleName: string, currentUser: string) {
+export function exportDisciplineTasksPDF(
+  tasks: any[],
+  moduleName: string,
+  currentUser: string,
+  settings: any = null,
+) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const html = `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -728,7 +743,8 @@ export function exportDisciplineTasksPDF(tasks: any[], moduleName: string, curre
           body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
           th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
-          th { background-color: #f9fafb; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          th { background-color: ${primaryColor}; color: #ffffff; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          h2 { color: ${primaryColor}; border-bottom: 2px solid ${primaryColor}; padding-bottom: 10px; }
         </style>
       </head>
       <body>
@@ -768,10 +784,16 @@ export function exportDisciplineTasksPDF(tasks: any[], moduleName: string, curre
   setTimeout(() => printWindow.print(), 250)
 }
 
-export function exportTasksPDF(tasks: any[], projectName: string, currentUser: string) {
+export function exportTasksPDF(
+  tasks: any[],
+  projectName: string,
+  currentUser: string,
+  settings: any = null,
+) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const html = `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -783,7 +805,8 @@ export function exportTasksPDF(tasks: any[], projectName: string, currentUser: s
           body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
           th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
-          th { background-color: #f9fafb; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          th { background-color: ${primaryColor}; color: #ffffff; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          h2 { color: ${primaryColor}; border-bottom: 2px solid ${primaryColor}; padding-bottom: 10px; }
         </style>
       </head>
       <body>
@@ -825,10 +848,11 @@ export function exportTasksPDF(tasks: any[], projectName: string, currentUser: s
   setTimeout(() => printWindow.print(), 250)
 }
 
-export function exportAuditLogsPDF(logs: any[], currentUser: string) {
+export function exportAuditLogsPDF(logs: any[], currentUser: string, settings: any = null) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const html = `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -847,11 +871,11 @@ export function exportAuditLogsPDF(logs: any[], currentUser: string) {
           }
           .header {
             text-align: center;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 2px solid ${primaryColor};
             padding-bottom: 20px;
             margin-bottom: 30px;
           }
-          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header h1 { margin: 0; color: ${primaryColor}; font-size: 24px; }
           .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
           
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -862,7 +886,7 @@ export function exportAuditLogsPDF(logs: any[], currentUser: string) {
             font-size: 14px;
             vertical-align: top;
           }
-          th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          th { font-weight: 600; color: #ffffff; background-color: ${primaryColor}; font-size: 12px; text-transform: uppercase; }
           
           .footer { 
             margin-top: 50px; 
@@ -886,7 +910,7 @@ export function exportAuditLogsPDF(logs: any[], currentUser: string) {
       
         <div class="header">
           <h1>Relatório de Auditoria</h1>
-          <p><strong>Skip Projetos S/A</strong> &bull; Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+          <p>Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
         </div>
         
         <table>
@@ -945,6 +969,7 @@ export function exportQuotePDF(quote: any, currentUser: string = 'Usuário', set
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
 
@@ -953,10 +978,10 @@ export function exportQuotePDF(quote: any, currentUser: string = 'Usuário', set
     : ''
   const headerHtml = settings
     ? `
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 30px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 30px;">
       <div>
         ${logoUrl ? `<img src="${logoUrl}" style="max-height: 60px; margin-bottom: 10px;" />` : ''}
-        <h1 style="margin: 0; color: #111827; font-size: 24px;">${settings.company_name || 'Proposta Comercial'}</h1>
+        <h1 style="margin: 0; color: ${primaryColor}; font-size: 24px;">${settings.company_name || 'Proposta Comercial'}</h1>
         ${settings.cnpj ? `<p style="margin: 2px 0 0; color: #6b7280; font-size: 12px;">CNPJ: ${settings.cnpj}</p>` : ''}
         ${settings.address ? `<p style="margin: 2px 0 0; color: #6b7280; font-size: 12px;">${settings.address}</p>` : ''}
         ${settings.phone ? `<p style="margin: 2px 0 0; color: #6b7280; font-size: 12px;">${settings.phone}</p>` : ''}
@@ -992,11 +1017,11 @@ export function exportQuotePDF(quote: any, currentUser: string = 'Usuário', set
           }
           .header {
             text-align: center;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 2px solid ${primaryColor};
             padding-bottom: 20px;
             margin-bottom: 30px;
           }
-          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header h1 { margin: 0; color: ${primaryColor}; font-size: 24px; }
           .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
           
           .info-grid {
@@ -1007,6 +1032,7 @@ export function exportQuotePDF(quote: any, currentUser: string = 'Usuário', set
             background: #f9fafb;
             padding: 20px;
             border-radius: 8px;
+            border-left: 4px solid ${primaryColor};
           }
           .info-item { margin-bottom: 10px; }
           .info-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: 600; }
@@ -1019,7 +1045,7 @@ export function exportQuotePDF(quote: any, currentUser: string = 'Usuário', set
             border-bottom: 1px solid #e5e7eb;
             font-size: 14px;
           }
-          th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          th { font-weight: 600; color: #ffffff; background-color: ${primaryColor}; font-size: 12px; text-transform: uppercase; }
           .text-right { text-align: right; }
           .total-row { font-weight: 700; font-size: 18px; background-color: #f3f4f6; }
           
@@ -1056,7 +1082,7 @@ export function exportQuotePDF(quote: any, currentUser: string = 'Usuário', set
           </div>
         </div>
 
-        <h3 style="font-size: 16px; margin-bottom: 15px; color: #374151;">Itens da Proposta</h3>
+        <h3 style="font-size: 16px; margin-bottom: 15px; color: ${primaryColor};">Itens da Proposta</h3>
         <table>
           <thead>
             <tr>
@@ -1103,10 +1129,16 @@ export function exportQuotePDF(quote: any, currentUser: string = 'Usuário', set
   }, 250)
 }
 
-export function exportProjectHoursPDF(logs: any[], project: Project, currentUser: string) {
+export function exportProjectHoursPDF(
+  logs: any[],
+  project: Project,
+  currentUser: string,
+  settings: any = null,
+) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const totalHours = logs.reduce((acc: number, log: any) => acc + log.hours, 0)
   const estimatedHours = project.estimatedHours || 100
 
@@ -1128,11 +1160,11 @@ export function exportProjectHoursPDF(logs: any[], project: Project, currentUser
           }
           .header {
             text-align: center;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 2px solid ${primaryColor};
             padding-bottom: 20px;
             margin-bottom: 30px;
           }
-          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header h1 { margin: 0; color: ${primaryColor}; font-size: 24px; }
           .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
           
           .summary {
@@ -1141,6 +1173,7 @@ export function exportProjectHoursPDF(logs: any[], project: Project, currentUser
             background: #f9fafb;
             padding: 15px;
             border-radius: 8px;
+            border-left: 4px solid ${primaryColor};
             margin-bottom: 30px;
           }
           .summary-item {
@@ -1167,7 +1200,7 @@ export function exportProjectHoursPDF(logs: any[], project: Project, currentUser
             font-size: 14px;
             vertical-align: top;
           }
-          th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          th { font-weight: 600; color: #ffffff; background-color: ${primaryColor}; font-size: 12px; text-transform: uppercase; }
           
           .footer { 
             margin-top: 50px; 
@@ -1262,6 +1295,7 @@ export function exportUserPDF(
   const printWindow = providedWindow || window.open('', '_blank')
   if (!printWindow) return
 
+  const primaryColor = getPrimaryColor(settings)
   const logoUrl = settings?.logo
     ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
     : ''
@@ -1293,18 +1327,18 @@ export function exportUserPDF(
           }
           .header {
             text-align: center;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 2px solid ${primaryColor};
             padding-bottom: 20px;
             margin-bottom: 30px;
           }
           .header img { max-height: 60px; margin-bottom: 10px; }
-          .header h1 { margin: 0; color: #111827; font-size: 24px; }
+          .header h1 { margin: 0; color: ${primaryColor}; font-size: 24px; }
           .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
           
-          .section { margin-bottom: 30px; page-break-inside: avoid; }
+          .section { margin-bottom: 30px; page-break-inside: avoid; border-left: 3px solid ${primaryColor}; padding-left: 15px; }
           .section h2 { 
             font-size: 16px; 
-            color: #374151; 
+            color: ${primaryColor}; 
             border-bottom: 1px solid #e5e7eb; 
             padding-bottom: 8px;
             margin-bottom: 15px;
@@ -1325,7 +1359,7 @@ export function exportUserPDF(
             border-bottom: 1px solid #e5e7eb;
             font-size: 14px;
           }
-          .project-table th { font-weight: 600; color: #4b5563; background-color: #f9fafb; font-size: 12px; text-transform: uppercase; }
+          .project-table th { font-weight: 600; color: #ffffff; background-color: ${primaryColor}; font-size: 12px; text-transform: uppercase; }
           
           .footer { 
             margin-top: 50px; 

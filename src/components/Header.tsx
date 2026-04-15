@@ -164,12 +164,10 @@ export function Header() {
         } else {
           const feedback = prompt('Por favor, informe o motivo da revisão:')
           if (!feedback) return
-          await pb
-            .collection('fases_projeto')
-            .update(notif.action_payload, {
-              status: 'Revisão Solicitada',
-              feedback_revisao: feedback,
-            })
+          await pb.collection('fases_projeto').update(notif.action_payload, {
+            status: 'Revisão Solicitada',
+            feedback_revisao: feedback,
+          })
           toast({ title: 'Revisão Solicitada' })
         }
         await markNotificationAsRead(notif.id)

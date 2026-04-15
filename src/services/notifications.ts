@@ -9,6 +9,9 @@ export interface AppNotification {
   link: string
   created: string
   updated: string
+  is_important?: boolean
+  action_type?: string
+  action_payload?: string
 }
 
 export const getMyNotifications = () => {

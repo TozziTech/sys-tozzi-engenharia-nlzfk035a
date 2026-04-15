@@ -47,9 +47,20 @@ import {
 import { EditProjectModal } from '@/components/client-dashboard/admin/EditProjectModal'
 import { ManagePhasesModal } from '@/components/client-dashboard/admin/ManagePhasesModal'
 import { PaymentFormModal } from '@/components/client-dashboard/admin/PaymentFormModal'
-import { Trash2, Edit2 } from 'lucide-react'
+import { Trash2, Edit2, AlertTriangle, Check, X } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useParams, useNavigate } from 'react-router-dom'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { updateProjectPhase } from '@/services/client_dashboard'
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
@@ -174,6 +185,34 @@ export default function ClientProjectDetails() {
     }
   }
 
+  const handleApprovePhase = async (phaseId: string) => {
+    try {
+      await updateProjectPhase(phaseId, { status: 'Aprovado' })
+      toast({ title: 'Sucesso', description: 'Fase aprovada com sucesso.' })
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleRejectPhase = async (phaseId: string) => {
+    const feedback = (document.getElementById(`feedback-${phaseId}`) as HTMLTextAreaElement)?.value
+    if (!feedback) {
+      toast({ title: 'Atenção', description: 'O feedback é obrigatório.', variant: 'destructive' })
+      return
+    }
+    try {
+      await updateProjectPhase(phaseId, {
+        status: 'Revisão Solicitada',
+        feedback_revisao: feedback,
+      })
+      toast({ title: 'Sucesso', description: 'Revisão solicitada com sucesso.' })
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const phasesAwaitingApproval = phases.filter((p) => p.status === 'Aguardando Aprovação')
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full animate-fade-in pb-20 relative">
       {isClientView && (
@@ -232,9 +271,68 @@ export default function ClientProjectDetails() {
           className="shrink-0 gap-2 mt-auto"
         >
           <FileText className="w-4 h-4" />
-          Exportar Relatório
+          Exportar Resumo
         </Button>
       </header>
+
+      {phasesAwaitingApproval.length > 0 && (
+        <Card className="border-amber-500/50 bg-amber-500/5 dark:bg-amber-500/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
+              <AlertTriangle className="w-5 h-5" /> Fases Aguardando Sua Aprovação
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {phasesAwaitingApproval.map((phase) => (
+              <div
+                key={phase.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-background rounded-lg border shadow-sm"
+              >
+                <div>
+                  <h4 className="font-semibold">{phase.nome_fase}</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Esta fase foi concluída pela equipe e aguarda sua validação.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="default"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => handleApprovePhase(phase.id)}
+                  >
+                    <Check className="w-4 h-4 mr-2" /> Aprovar
+                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="destructive">
+                        <X className="w-4 h-4 mr-2" /> Solicitar Revisão
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Solicitar Revisão: {phase.nome_fase}</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <Label htmlFor={`feedback-${phase.id}`}>Feedback / Motivo da Revisão</Label>
+                        <Textarea
+                          id={`feedback-${phase.id}`}
+                          className="mt-2"
+                          placeholder="Descreva o que precisa ser ajustado..."
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button variant="destructive" onClick={() => handleRejectPhase(phase.id)}>
+                          Enviar Solicitação
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>

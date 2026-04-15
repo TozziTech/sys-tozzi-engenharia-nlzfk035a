@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T14:48:20.582Z",
+  "generatedAt": "2026-04-15T14:58:25.682Z",
   "collections": [
     {
       "name": "users",
@@ -2172,6 +2172,24 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "is_important",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "action_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "action_payload",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX idx_notifications_user ON notifications (user)"]
@@ -2395,7 +2413,14 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Pendente", "Em Andamento", "Concluído"]
+          "selectValues": [
+            "Pendente",
+            "Em Andamento",
+            "Aguardando Aprovação",
+            "Aprovado",
+            "Revisão Solicitada",
+            "Concluído"
+          ]
         },
         {
           "name": "progresso",
@@ -2428,6 +2453,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "feedback_revisao",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

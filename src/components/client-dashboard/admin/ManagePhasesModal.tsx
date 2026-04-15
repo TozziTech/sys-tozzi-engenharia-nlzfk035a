@@ -35,6 +35,7 @@ export function ManagePhasesModal({ projectId, phases }: { projectId: string; ph
   const [status, setStatus] = useState('Pendente')
   const [progresso, setProgresso] = useState('0')
   const [dataEstimada, setDataEstimada] = useState('')
+  const [feedback, setFeedback] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export function ManagePhasesModal({ projectId, phases }: { projectId: string; ph
     setDataEstimada(
       phase.data_conclusao_estimada ? phase.data_conclusao_estimada.substring(0, 10) : '',
     )
+    setFeedback(phase.feedback_revisao || '')
     setView('form')
   }
 
@@ -62,6 +64,7 @@ export function ManagePhasesModal({ projectId, phases }: { projectId: string; ph
     setStatus('Pendente')
     setProgresso('0')
     setDataEstimada('')
+    setFeedback('')
     setView('form')
   }
 
@@ -193,6 +196,9 @@ export function ManagePhasesModal({ projectId, phases }: { projectId: string; ph
                   <SelectContent>
                     <SelectItem value="Pendente">Pendente</SelectItem>
                     <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                    <SelectItem value="Aguardando Aprovação">Aguardando Aprovação</SelectItem>
+                    <SelectItem value="Aprovado">Aprovado</SelectItem>
+                    <SelectItem value="Revisão Solicitada">Revisão Solicitada</SelectItem>
                     <SelectItem value="Concluído">Concluído</SelectItem>
                   </SelectContent>
                 </Select>
@@ -216,6 +222,12 @@ export function ManagePhasesModal({ projectId, phases }: { projectId: string; ph
                 onChange={(e) => setDataEstimada(e.target.value)}
               />
             </div>
+            {status === 'Revisão Solicitada' && (
+              <div className="grid gap-2">
+                <Label>Feedback da Revisão</Label>
+                <Input value={feedback} disabled className="bg-muted" />
+              </div>
+            )}
             <div className="flex justify-end gap-2 mt-4">
               <Button variant="outline" onClick={() => setView('list')} disabled={loading}>
                 Cancelar

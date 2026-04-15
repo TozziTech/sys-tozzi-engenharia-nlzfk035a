@@ -9,6 +9,7 @@ import {
   FolderGit2,
   CheckSquare,
   FileText,
+  X,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -151,6 +152,32 @@ export function Header() {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const handleApproveFromNotification = async (notif: any, approved: boolean) => {
+    try {
+      if (notif.action_type === 'approve_phase' && notif.action_payload) {
+        if (approved) {
+          await pb.collection('fases_projeto').update(notif.action_payload, { status: 'Aprovado' })
+          toast({ title: 'Fase Aprovada' })
+        } else {
+          const feedback = prompt('Por favor, informe o motivo da revisão:')
+          if (!feedback) return
+          await pb
+            .collection('fases_projeto')
+            .update(notif.action_payload, {
+              status: 'Revisão Solicitada',
+              feedback_revisao: feedback,
+            })
+          toast({ title: 'Revisão Solicitada' })
+        }
+        await markNotificationAsRead(notif.id)
+        await pb.collection('notifications').update(notif.id, { action_type: '' })
+        loadNotifications()
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     }
   }
 
@@ -446,6 +473,34 @@ export function Header() {
                         >
                           {notif.message}
                         </p>
+
+                        {notif.action_type === 'approve_phase' && !notif.read && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-xs h-7 px-3"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                handleApproveFromNotification(notif, true)
+                              }}
+                            >
+                              <Check className="w-3 h-3 mr-1" /> Aprovar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="text-xs h-7 px-3"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                handleApproveFromNotification(notif, false)
+                              }}
+                            >
+                              <X className="w-3 h-3 mr-1" /> Solicitar Revisão
+                            </Button>
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-[11px] text-muted-foreground font-medium">
                             {formatDistanceToNow(new Date(notif.created), {

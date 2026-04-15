@@ -18,7 +18,7 @@ import {
   format,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { TrendingUp, TrendingDown, Wallet, Download, FileText } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Download, FileText, Banknote } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { exportFinancialCSV } from '@/lib/export'
@@ -53,6 +53,7 @@ export default function FinancialDashboard() {
   const { user } = useAuth()
   const [financials, setFinancials] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
+  const [distributions, setDistributions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<string>('monthly')
 
@@ -76,12 +77,14 @@ export default function FinancialDashboard() {
 
   const loadData = async () => {
     try {
-      const [fins, projs] = await Promise.all([
+      const [fins, projs, dists] = await Promise.all([
         pb.collection('financial_records').getFullList({ sort: 'date' }),
         pb.collection('projects').getFullList(),
+        pb.collection('distribution_calculations').getFullList(),
       ])
       setFinancials(fins)
       setProjects(projs)
+      setDistributions(dists)
     } catch (e) {
       console.error(e)
     } finally {
@@ -95,6 +98,20 @@ export default function FinancialDashboard() {
 
   useRealtime('financial_records', () => loadData())
   useRealtime('projects', () => loadData())
+  useRealtime('distribution_calculations', () => loadData())
+
+  const currentMonthDistributed = useMemo(() => {
+    const now = new Date()
+    const start = startOfMonth(now)
+    const end = endOfMonth(now)
+
+    return distributions
+      .filter((d) => {
+        const date = new Date(d.date || d.created)
+        return isWithinInterval(date, { start, end })
+      })
+      .reduce((sum, d) => sum + (d.total_amount || 0), 0)
+  }, [distributions])
 
   const { totalRevenue, totalExpenses, balance } = useMemo(() => {
     let rev = 0
@@ -272,7 +289,7 @@ export default function FinancialDashboard() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
@@ -311,6 +328,19 @@ export default function FinancialDashboard() {
                   className={`text-2xl font-bold ${balance >= 0 ? 'text-primary' : 'text-destructive'}`}
                 >
                   {loading ? '-' : formatCurrency(balance)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Distribuído (Mês)</CardTitle>
+                <div className="p-2 bg-blue-500/10 rounded-full">
+                  <Banknote className="h-4 w-4 text-blue-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {loading ? '-' : formatCurrency(currentMonthDistributed)}
                 </div>
               </CardContent>
             </Card>

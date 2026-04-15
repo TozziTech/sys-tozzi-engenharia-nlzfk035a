@@ -47,7 +47,17 @@ import { useRealtime } from '@/hooks/use-realtime'
 const schema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
   description: z.string().optional(),
-  url: z.string().url('URL inválida').min(1, 'URL é obrigatória'),
+  url: z
+    .string()
+    .min(1, 'URL é obrigatória')
+    .refine((val) => {
+      try {
+        new URL(/^https?:\/\//i.test(val) ? val : `https://${val}`)
+        return true
+      } catch {
+        return false
+      }
+    }, 'URL inválida'),
   category: z.string().min(1, 'Categoria é obrigatória'),
   discipline: z.string().optional(),
   is_suggested_video: z.boolean().default(false),
@@ -128,11 +138,16 @@ export function DocumentResourceDialog({
 
   const onSubmit = async (data: FormData) => {
     try {
+      const normalizedData = {
+        ...data,
+        url: /^https?:\/\//i.test(data.url) ? data.url : `https://${data.url}`,
+      }
+
       if (isEditing && resource) {
-        await updateDocumentResource(resource.id, data)
+        await updateDocumentResource(resource.id, normalizedData)
         toast({ title: 'Documento atualizado com sucesso' })
       } else {
-        await createDocumentResource(data)
+        await createDocumentResource(normalizedData)
         toast({ title: 'Documento adicionado com sucesso' })
       }
       onSuccess()
@@ -251,7 +266,7 @@ export function DocumentResourceDialog({
                 <FormItem>
                   <FormLabel>Link Externo (URL)</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://..." type="url" {...field} />
+                    <Input placeholder="www.youtube.com/..." type="text" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

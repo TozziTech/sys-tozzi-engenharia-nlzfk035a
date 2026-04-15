@@ -240,6 +240,14 @@ export default function DocumentResourcesPage({
     }
   }
 
+  const normalizeUrl = (url: string) => {
+    if (!url) return ''
+    if (!/^https?:\/\//i.test(url)) {
+      return `https://${url}`
+    }
+    return url
+  }
+
   const handleCopyLink = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url)
@@ -667,7 +675,7 @@ export default function DocumentResourcesPage({
                                 title="Acessar Link"
                               >
                                 <a
-                                  href={resource.url}
+                                  href={normalizeUrl(resource.url)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={() => handleAccessLink(resource)}
@@ -679,7 +687,7 @@ export default function DocumentResourcesPage({
                                 variant="outline"
                                 size="icon"
                                 className="h-9 w-9 bg-background shrink-0"
-                                onClick={() => handleCopyLink(resource.url)}
+                                onClick={() => handleCopyLink(normalizeUrl(resource.url))}
                                 title="Copiar link"
                               >
                                 <Copy className="h-4 w-4" />
@@ -823,7 +831,7 @@ export default function DocumentResourcesPage({
                       <CardFooter className="pt-4 border-t bg-muted/20 flex gap-2">
                         <Button variant="default" size="sm" className="flex-1 gap-2" asChild>
                           <a
-                            href={resource.url}
+                            href={normalizeUrl(resource.url)}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={() => handleAccessLink(resource)}
@@ -835,7 +843,7 @@ export default function DocumentResourcesPage({
                           variant="outline"
                           size="icon"
                           className="h-9 w-9 bg-background shrink-0"
-                          onClick={() => handleCopyLink(resource.url)}
+                          onClick={() => handleCopyLink(normalizeUrl(resource.url))}
                           title="Copiar link"
                         >
                           <Copy className="h-4 w-4" />
@@ -979,7 +987,7 @@ export default function DocumentResourcesPage({
                             <div className="flex justify-end gap-2">
                               <Button variant="default" size="sm" asChild title="Assistir Vídeo">
                                 <a
-                                  href={resource.url}
+                                  href={normalizeUrl(resource.url)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={() => handleAccessLink(resource)}
@@ -991,7 +999,7 @@ export default function DocumentResourcesPage({
                                 variant="outline"
                                 size="icon"
                                 className="h-9 w-9 bg-background shrink-0"
-                                onClick={() => handleCopyLink(resource.url)}
+                                onClick={() => handleCopyLink(normalizeUrl(resource.url))}
                                 title="Copiar link"
                               >
                                 <Copy className="h-4 w-4" />

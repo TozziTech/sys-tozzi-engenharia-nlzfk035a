@@ -1,12 +1,12 @@
-import { DollarSign } from 'lucide-react'
+import { DollarSign, BarChart3 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions'
 import { FinancialCategories } from '@/components/financial/FinancialCategories'
 import { TransactionModal } from '@/components/financial/TransactionModal'
 import { FinancialAlerts } from '@/components/financial/FinancialAlerts'
-import { RecurringExpensesCard } from '@/components/financial/RecurringExpensesCard'
-import { RecurringExpensesChart } from '@/components/financial/RecurringExpensesChart'
 import { DistributionCalculator } from '@/components/financial/DistributionCalculator'
+import { Button } from '@/components/ui/button'
+import { Link } from 'react-router-dom'
 
 export default function Financial() {
   return (
@@ -22,21 +22,13 @@ export default function Financial() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" asChild className="gap-2">
+            <Link to="/financial-dashboard">
+              <BarChart3 className="h-4 w-4" />
+              Dashboard
+            </Link>
+          </Button>
           <TransactionModal />
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight text-slate-800 dark:text-slate-200">
-          Resumo Analítico
-        </h2>
-        <div className="grid gap-4 md:grid-cols-3 items-stretch">
-          <div className="md:col-span-1">
-            <RecurringExpensesCard />
-          </div>
-          <div className="md:col-span-2">
-            <RecurringExpensesChart />
-          </div>
         </div>
       </div>
 

@@ -44,6 +44,8 @@ import { useToast } from '@/hooks/use-toast'
 import useProjectStore from '@/stores/useProjectStore'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FinancialReports } from '@/components/financial/FinancialReports'
+import { RecurringExpensesChart } from '@/components/financial/RecurringExpensesChart'
+import { RecurringExpensesCard } from '@/components/financial/RecurringExpensesCard'
 
 export default function FinancialDashboard() {
   const { updateProject } = useProjectStore()
@@ -312,6 +314,15 @@ export default function FinancialDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3 items-stretch">
+            <div className="md:col-span-1">
+              <RecurringExpensesCard />
+            </div>
+            <div className="md:col-span-2">
+              <RecurringExpensesChart />
+            </div>
           </div>
 
           <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">

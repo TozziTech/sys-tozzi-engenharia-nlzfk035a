@@ -36,6 +36,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import useProjectStore from '@/stores/useProjectStore'
+import { useAuth } from '@/hooks/use-auth'
 import { ProjetistaDashboard } from './ProjetistaDashboard'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
@@ -124,6 +125,7 @@ export function MemberCard({
   onDelete?: (id: string) => void
 }) {
   const { projects } = useProjectStore()
+  const { user: currentUser } = useAuth()
   const userProjects = projects.filter((p) => user.assignedProjects?.includes(p.id))
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -141,7 +143,10 @@ export function MemberCard({
       onUpdate({ ...user, ...updated })
       toast({
         title: 'Sucesso',
-        description: `${field === 'status' ? 'Status' : 'Cargo'} atualizado.`,
+        description:
+          field === 'status' && value === 'Ativo'
+            ? 'Colaborador reativado com sucesso! O acesso foi restabelecido.'
+            : `${field === 'status' ? 'Status' : 'Cargo'} atualizado.`,
       })
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
@@ -443,6 +448,7 @@ export function MemberCard({
             <Select
               value={u.status || 'Ativo'}
               onValueChange={(val) => handleQuickEdit('status', val)}
+              disabled={currentUser?.role !== 'Administrador'}
             >
               <SelectTrigger
                 className={cn(
@@ -463,6 +469,7 @@ export function MemberCard({
               <Select
                 value={u.role || 'Projetista'}
                 onValueChange={(val) => handleQuickEdit('role', val)}
+                disabled={currentUser?.role !== 'Administrador'}
               >
                 <SelectTrigger
                   className={cn(
@@ -534,16 +541,18 @@ export function MemberCard({
             />
             {u.status === 'Inativo' ? (
               <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 rounded-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 shrink-0"
-                  onClick={() => handleQuickEdit('status', 'Ativo')}
-                  title="Reativar Membro"
-                >
-                  <UserCheck className="h-5 w-5" />
-                </Button>
-                {onDelete && (
+                {currentUser?.role === 'Administrador' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 shrink-0"
+                    onClick={() => handleQuickEdit('status', 'Ativo')}
+                    title="Reativar Membro"
+                  >
+                    <UserCheck className="h-5 w-5" />
+                  </Button>
+                )}
+                {onDelete && currentUser?.role === 'Administrador' && (
                   <>
                     <Button
                       variant="ghost"
@@ -580,15 +589,17 @@ export function MemberCard({
               </>
             ) : (
               <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  title="Desativar Membro"
-                >
-                  <UserMinus className="h-5 w-5" />
-                </Button>
+                {currentUser?.role === 'Administrador' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                    title="Desativar Membro"
+                  >
+                    <UserMinus className="h-5 w-5" />
+                  </Button>
+                )}
                 <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                   <AlertDialogContent>
                     <AlertDialogHeader>

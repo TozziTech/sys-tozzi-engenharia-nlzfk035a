@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MemberCard } from '@/components/team/MemberCard'
 import { MemberForm } from '@/components/team/MemberForm'
 import { Input } from '@/components/ui/input'
@@ -207,24 +208,16 @@ export default function Team() {
       </Card>
 
       <div className="flex justify-start mb-4">
-        <div className="bg-muted p-1 rounded-lg inline-flex">
-          <Button
-            variant={statusFilter === 'active' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setStatusFilter('active')}
-            className="rounded-md"
-          >
-            Membros Ativos
-          </Button>
-          <Button
-            variant={statusFilter === 'inactive' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setStatusFilter('inactive')}
-            className="rounded-md"
-          >
-            Desativados
-          </Button>
-        </div>
+        <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full sm:w-auto">
+          <TabsList className="bg-muted p-1 h-auto rounded-lg">
+            <TabsTrigger value="active" className="rounded-md px-4 py-1.5 text-sm font-medium">
+              Ativos
+            </TabsTrigger>
+            <TabsTrigger value="inactive" className="rounded-md px-4 py-1.5 text-sm font-medium">
+              Inativos
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <div className="bg-card p-2 rounded-2xl border border-border/40 shadow-sm flex flex-col sm:flex-row gap-2 items-center">

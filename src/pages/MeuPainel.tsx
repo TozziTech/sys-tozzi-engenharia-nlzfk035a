@@ -39,6 +39,7 @@ import {
   PauseCircle,
   FolderKanban,
   Info,
+  FileText,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -141,13 +142,20 @@ export default function MeuPainel() {
     description: '',
   })
 
+  const [noteContent, setNoteContent] = useState('')
+  const [initialContent, setInitialContent] = useState('')
+  const [noteId, setNoteId] = useState<string | null>(null)
+  const [isSavingNote, setIsSavingNote] = useState(false)
+  const [lastSavedNote, setLastSavedNote] = useState<Date | null>(null)
+  const [isNoteLoaded, setIsNoteLoaded] = useState(false)
+
   const loadData = async () => {
     if (!user) return
     try {
       const firstDay = format(startOfMonth(new Date()), 'yyyy-MM-dd')
       const lastDay = format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
-      const [engineerProjects, mods, logs, th] = await Promise.all([
+      const [engineerProjects, mods, logs, th, userNotes] = await Promise.all([
         pb.collection('projects').getFullList({
           filter: `engineer ~ "${user.name}"`,
         }),
@@ -161,7 +169,24 @@ export default function MeuPainel() {
         pb.collection('tarefas_hierarquicas').getFullList({
           filter: `concluida = false`,
         }),
+        pb
+          .collection('user_notes')
+          .getList(1, 1, {
+            filter: `user = "${user.id}"`,
+          })
+          .catch(() => ({ items: [] })),
       ])
+
+      if (userNotes.items && userNotes.items.length > 0) {
+        setNoteContent(userNotes.items[0].content)
+        setInitialContent(userNotes.items[0].content)
+        setNoteId(userNotes.items[0].id)
+      } else {
+        setNoteContent('')
+        setInitialContent('')
+        setNoteId(null)
+      }
+      setIsNoteLoaded(true)
 
       const projectMap = new Map<string, DashboardProject>()
 
@@ -226,6 +251,33 @@ export default function MeuPainel() {
   useRealtime('project_modules', loadData)
   useRealtime('time_logs', loadData)
   useRealtime('tarefas_hierarquicas', loadData)
+
+  useEffect(() => {
+    if (!isNoteLoaded || noteContent === initialContent) return
+
+    const timeoutId = setTimeout(async () => {
+      setIsSavingNote(true)
+      try {
+        if (noteId) {
+          await pb.collection('user_notes').update(noteId, { content: noteContent })
+        } else {
+          const record = await pb.collection('user_notes').create({
+            user: user?.id,
+            content: noteContent,
+          })
+          setNoteId(record.id)
+        }
+        setInitialContent(noteContent)
+        setLastSavedNote(new Date())
+      } catch (e) {
+        toast({ title: 'Erro ao salvar anotações', variant: 'destructive' })
+      } finally {
+        setIsSavingNote(false)
+      }
+    }, 1000)
+
+    return () => clearTimeout(timeoutId)
+  }, [noteContent, initialContent, noteId, user, isNoteLoaded, toast])
 
   const activeProjectsCount = projects.filter((p) => p.status !== 'Concluído').length
   const pendingTasksCount = tasks.length
@@ -333,6 +385,45 @@ export default function MeuPainel() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Mês atual ({format(new Date(), 'MMMM', { locale: ptBR })})
                 </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-center w-full">
+            <Card className="w-full max-w-4xl shadow-sm border-primary/10">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
+                      Bloco de Notas
+                    </CardTitle>
+                    <CardDescription>
+                      Anotações gerais e rascunhos salvos automaticamente.
+                    </CardDescription>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {isSavingNote ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                        Salvando...
+                      </span>
+                    ) : lastSavedNote ? (
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                        Salvo
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  placeholder="Escreva suas anotações, lembretes ou rascunhos aqui..."
+                  className="min-h-[150px] resize-y border-slate-200 focus-visible:ring-primary/20 bg-slate-50/50 dark:bg-slate-900/50 dark:border-slate-800"
+                />
               </CardContent>
             </Card>
           </div>

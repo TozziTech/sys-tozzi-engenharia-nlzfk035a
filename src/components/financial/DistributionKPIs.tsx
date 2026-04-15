@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DollarSign, TrendingUp, Calendar } from 'lucide-react'
+import { DollarSign, TrendingUp, Calendar, Activity } from 'lucide-react'
 import { useMemo } from 'react'
 
 interface Props {
@@ -20,6 +20,10 @@ export function DistributionKPIs({ history }: Props) {
     const mensal = initKpi()
     const anual = initKpi()
     const acumulado = initKpi()
+    const media12m = initKpi()
+
+    const twelveMonthsAgo = new Date(now)
+    twelveMonthsAgo.setMonth(now.getMonth() - 12)
 
     history.forEach((h) => {
       const d = new Date(h.date)
@@ -42,9 +46,19 @@ export function DistributionKPIs({ history }: Props) {
           mensal.tozzi += tozzi
         }
       }
+
+      if (d >= twelveMonthsAgo && d <= now) {
+        media12m.total += amount
+        media12m.samuel += samuel
+        media12m.tozzi += tozzi
+      }
     })
 
-    return { mensal, anual, acumulado }
+    media12m.total /= 12
+    media12m.samuel /= 12
+    media12m.tozzi /= 12
+
+    return { mensal, anual, acumulado, media12m }
   }, [history])
 
   const renderKpiContent = (data: { total: number; samuel: number; tozzi: number }) => (
@@ -67,7 +81,7 @@ export function DistributionKPIs({ history }: Props) {
   )
 
   return (
-    <div className="grid gap-4 md:grid-cols-3 mb-6 animate-fade-in-up">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6 animate-fade-in-up">
       <Card className="border-border/50 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">Total Mensal</CardTitle>
@@ -90,6 +104,15 @@ export function DistributionKPIs({ history }: Props) {
           <DollarSign className="h-4 w-4 text-blue-500" />
         </CardHeader>
         <CardContent>{renderKpiContent(kpis.acumulado)}</CardContent>
+      </Card>
+      <Card className="border-border/50 shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Média Mensal (12m)
+          </CardTitle>
+          <Activity className="h-4 w-4 text-purple-500" />
+        </CardHeader>
+        <CardContent>{renderKpiContent(kpis.media12m)}</CardContent>
       </Card>
     </div>
   )

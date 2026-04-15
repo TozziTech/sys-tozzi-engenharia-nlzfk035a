@@ -104,7 +104,7 @@ const getPaymentStatusBadge = (status: string) => {
 }
 
 export default function ClientProjectDetails() {
-  const { user, simulatedRole, setSimulatedRole, effectiveRole } = useAuth()
+  const { user } = useAuth()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [project, setProject] = useState<any>(null)
@@ -114,10 +114,12 @@ export default function ClientProjectDetails() {
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [paymentFilter, setPaymentFilter] = useState('Todos')
+  const [localSimulatedRole, setLocalSimulatedRole] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const activeRole = effectiveRole || 'Visitante'
   const isOriginalAdmin = user?.role === 'Administrador'
+  const activeRole =
+    isOriginalAdmin && localSimulatedRole ? localSimulatedRole : user?.role || 'Visitante'
 
   const canEditPhases = activeRole === 'Administrador' || activeRole === 'Gerente de Projeto'
   const canEditFinances = activeRole === 'Administrador' || activeRole === 'Gerente de Projeto'
@@ -240,19 +242,19 @@ export default function ClientProjectDetails() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full animate-fade-in pb-20 relative">
-      {isOriginalAdmin && simulatedRole && simulatedRole !== user?.role && (
+      {isOriginalAdmin && localSimulatedRole && localSimulatedRole !== user?.role && (
         <div className="sticky top-4 z-50 w-full bg-amber-500 text-amber-950 px-4 py-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg mb-6 border border-amber-600/20">
           <div className="flex items-center gap-3">
             <Eye className="w-5 h-5" />
             <span className="font-medium text-sm sm:text-base">
               Você está visualizando este projeto como{' '}
-              <strong className="font-bold">{simulatedRole}</strong>
+              <strong className="font-bold">{localSimulatedRole}</strong>.
             </span>
           </div>
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => setSimulatedRole(null)}
+            onClick={() => setLocalSimulatedRole(null)}
             className="shrink-0 font-medium bg-white hover:bg-amber-50 text-amber-900 border-none"
           >
             Sair da Visualização
@@ -271,11 +273,10 @@ export default function ClientProjectDetails() {
           </Button>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight">Detalhes do Projeto</h1>
-            {canEditPhases && <EditProjectModal project={project} />}
             {isOriginalAdmin && (
               <Select
-                value={simulatedRole || user?.role}
-                onValueChange={(val) => setSimulatedRole(val === 'Administrador' ? null : val)}
+                value={localSimulatedRole || user?.role}
+                onValueChange={(val) => setLocalSimulatedRole(val === 'Administrador' ? null : val)}
               >
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Simular visão..." />
@@ -290,6 +291,7 @@ export default function ClientProjectDetails() {
                 </SelectContent>
               </Select>
             )}
+            {canEditPhases && <EditProjectModal project={project} />}
           </div>
           <p className="text-muted-foreground mt-2">
             Visão geral do projeto:{' '}

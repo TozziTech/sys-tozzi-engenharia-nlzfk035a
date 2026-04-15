@@ -368,7 +368,6 @@ export default function DocumentResourcesPage({
                 <Button variant="outline">Gerenciar Tags</Button>
               </ManageTagsDialog>
               <Button
-                variant="outline"
                 onClick={() => {
                   setEditingResource(null)
                   setDialogCategory('')

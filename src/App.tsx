@@ -55,6 +55,7 @@ import { ThemeColorInjector } from './components/ThemeColorInjector'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<SignUp />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<RoleGuard />}>
                 <Route element={<Layout />}>
                   <Route path="/" element={<Dashboard />} />

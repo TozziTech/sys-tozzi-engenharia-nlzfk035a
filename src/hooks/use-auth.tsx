@@ -8,6 +8,11 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => void
   requestPasswordReset: (email: string) => Promise<{ error: any }>
+  confirmPasswordReset: (
+    token: string,
+    password: string,
+    passwordConfirm: string,
+  ) => Promise<{ error: any }>
   loading: boolean
 }
 
@@ -101,6 +106,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const confirmPasswordReset = async (token: string, password: string, passwordConfirm: string) => {
+    try {
+      await pb.collection('users').confirmPasswordReset(token, password, passwordConfirm)
+      return { error: null }
+    } catch (error) {
+      return { error }
+    }
+  }
+
   const signOut = () => {
     pb.authStore.clear()
     setUser(null)
@@ -120,6 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signIn,
         signOut,
         requestPasswordReset,
+        confirmPasswordReset,
         loading,
       }}
     >

@@ -33,6 +33,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useMemo } from 'react'
 
 export function DistributionCalculator() {
@@ -40,6 +50,7 @@ export function DistributionCalculator() {
   const { user } = useAuth()
   const [allHistory, setAllHistory] = useState<DistributionCalculation[]>([])
   const [editingRecord, setEditingRecord] = useState<DistributionCalculation | null>(null)
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null)
 
   const [filterYear, setFilterYear] = useState<string>('all')
   const [filterMonth, setFilterMonth] = useState<string>('all')
@@ -135,18 +146,20 @@ export function DistributionCalculator() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este registro de cálculo?')) {
-      try {
-        await deleteDistributionCalculation(id)
-        toast({ title: 'Registro Excluído', description: 'O registro foi removido do histórico.' })
-      } catch (error) {
-        toast({
-          title: 'Erro',
-          description: 'Não foi possível excluir o registro.',
-          variant: 'destructive',
-        })
-      }
+  const confirmDelete = async () => {
+    if (!recordToDelete) return
+    try {
+      await deleteDistributionCalculation(recordToDelete)
+      toast({ title: 'Registro excluído com sucesso.' })
+      // Update local state to remove the item immediately
+      setAllHistory((prev) => prev.filter((r) => r.id !== recordToDelete))
+    } catch (error) {
+      toast({
+        title: 'Erro ao excluir registro. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setRecordToDelete(null)
     }
   }
 
@@ -404,7 +417,7 @@ export function DistributionCalculator() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDelete(record.id)}
+                            onClick={() => setRecordToDelete(record.id)}
                             title="Excluir"
                           >
                             <Trash2 className="h-4 w-4 text-destructive opacity-70 hover:opacity-100" />
@@ -426,6 +439,30 @@ export function DistributionCalculator() {
         onClose={() => setEditingRecord(null)}
         onSaved={loadHistory}
       />
+
+      <AlertDialog
+        open={!!recordToDelete}
+        onOpenChange={(open) => !open && setRecordToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Lançamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este registro de distribuição? Esta ação não pode ser
+              desfeita e afetará os gráficos de evolução.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

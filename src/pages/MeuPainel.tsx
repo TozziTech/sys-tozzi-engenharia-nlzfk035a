@@ -46,14 +46,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
-import { RichTextEditor } from '@/components/RichTextEditor'
-import {
-  Select as UISelect,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { NoteCard } from '@/components/NoteCard'
 import { cn } from '@/lib/utils'
 
 const getStatusColor = (status: string) => {
@@ -153,23 +146,13 @@ export default function MeuPainel() {
     description: '',
   })
 
-  const [noteContent, setNoteContent] = useState('')
-  const [initialContent, setInitialContent] = useState('')
-  const [noteCategory, setNoteCategory] = useState('Geral')
-  const [initialCategory, setInitialCategory] = useState('Geral')
-  const [noteId, setNoteId] = useState<string | null>(null)
-  const [isSavingNote, setIsSavingNote] = useState(false)
-  const [lastSavedNote, setLastSavedNote] = useState<Date | null>(null)
-  const [isNoteLoaded, setIsNoteLoaded] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-
   const loadData = async () => {
     if (!user) return
     try {
       const firstDay = format(startOfMonth(new Date()), 'yyyy-MM-dd')
       const lastDay = format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
-      const [engineerProjects, mods, logs, th, userNotes] = await Promise.all([
+      const [engineerProjects, mods, logs, th] = await Promise.all([
         pb.collection('projects').getFullList({
           filter: `engineer ~ "${user.name}"`,
         }),
@@ -183,28 +166,7 @@ export default function MeuPainel() {
         pb.collection('tarefas_hierarquicas').getFullList({
           filter: `concluida = false`,
         }),
-        pb
-          .collection('user_notes')
-          .getList(1, 1, {
-            filter: `user = "${user.id}"`,
-          })
-          .catch(() => ({ items: [] })),
       ])
-
-      if (userNotes.items && userNotes.items.length > 0) {
-        setNoteContent(userNotes.items[0].content)
-        setInitialContent(userNotes.items[0].content)
-        setNoteCategory(userNotes.items[0].category || 'Geral')
-        setInitialCategory(userNotes.items[0].category || 'Geral')
-        setNoteId(userNotes.items[0].id)
-      } else {
-        setNoteContent('')
-        setInitialContent('')
-        setNoteCategory('Geral')
-        setInitialCategory('Geral')
-        setNoteId(null)
-      }
-      setIsNoteLoaded(true)
 
       const projectMap = new Map<string, DashboardProject>()
 
@@ -269,48 +231,6 @@ export default function MeuPainel() {
   useRealtime('project_modules', loadData)
   useRealtime('time_logs', loadData)
   useRealtime('tarefas_hierarquicas', loadData)
-
-  useEffect(() => {
-    if (!isNoteLoaded || (noteContent === initialContent && noteCategory === initialCategory))
-      return
-
-    const timeoutId = setTimeout(async () => {
-      setIsSavingNote(true)
-      try {
-        if (noteId) {
-          await pb.collection('user_notes').update(noteId, {
-            content: noteContent,
-            category: noteCategory,
-          })
-        } else {
-          const record = await pb.collection('user_notes').create({
-            user: user?.id,
-            content: noteContent,
-            category: noteCategory,
-          })
-          setNoteId(record.id)
-        }
-        setInitialContent(noteContent)
-        setInitialCategory(noteCategory)
-        setLastSavedNote(new Date())
-      } catch (e) {
-        toast({ title: 'Erro ao salvar anotações', variant: 'destructive' })
-      } finally {
-        setIsSavingNote(false)
-      }
-    }, 1000)
-
-    return () => clearTimeout(timeoutId)
-  }, [
-    noteContent,
-    initialContent,
-    noteCategory,
-    initialCategory,
-    noteId,
-    user,
-    isNoteLoaded,
-    toast,
-  ])
 
   const activeProjectsCount = projects.filter((p) => p.status !== 'Concluído').length
   const pendingTasksCount = tasks.length
@@ -422,82 +342,6 @@ export default function MeuPainel() {
             </Card>
           </div>
 
-          <div className="flex justify-center w-full relative">
-            <Card
-              className={cn(
-                'w-full shadow-sm border-primary/10 flex flex-col transition-all duration-300 ease-in-out',
-                isFullscreen
-                  ? 'fixed inset-4 z-50 max-w-none h-[calc(100vh-2rem)] shadow-2xl bg-background'
-                  : 'max-w-4xl',
-              )}
-            >
-              <CardHeader className="pb-3 shrink-0">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="space-y-1 flex-1">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-primary" />
-                      Bloco de Notas
-                    </CardTitle>
-                    <CardDescription>
-                      Anotações gerais e rascunhos salvos automaticamente.
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <UISelect value={noteCategory} onValueChange={setNoteCategory}>
-                      <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs">
-                        <SelectValue placeholder="Categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Geral">Geral</SelectItem>
-                        <SelectItem value="Pessoal">Pessoal</SelectItem>
-                        <SelectItem value="Projetos">Projetos</SelectItem>
-                        <SelectItem value="Importante">Importante</SelectItem>
-                        <SelectItem value="Reunião">Reunião</SelectItem>
-                      </SelectContent>
-                    </UISelect>
-
-                    <div className="flex items-center gap-3">
-                      <div className="text-xs text-muted-foreground whitespace-nowrap min-w-[80px] text-right">
-                        {isSavingNote ? (
-                          <span className="flex items-center gap-1.5 justify-end">
-                            <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-                            Salvando...
-                          </span>
-                        ) : lastSavedNote ? (
-                          <span className="flex items-center gap-1.5 justify-end">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                            Salvo
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
-                        onClick={() => setIsFullscreen(!isFullscreen)}
-                        title={isFullscreen ? 'Minimizar' : 'Tela Cheia'}
-                      >
-                        {isFullscreen ? (
-                          <Minimize2 className="h-4 w-4" />
-                        ) : (
-                          <Maximize2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col min-h-[300px] overflow-hidden">
-                <RichTextEditor
-                  value={noteContent}
-                  onChange={setNoteContent}
-                  className="flex-1 overflow-hidden h-full"
-                />
-              </CardContent>
-            </Card>
-          </div>
-
           <div>
             <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <FolderKanban className="h-5 w-5" />
@@ -574,6 +418,10 @@ export default function MeuPainel() {
                 </Card>
               ))}
             </div>
+          </div>
+
+          <div className="flex justify-center w-full relative mt-8">
+            <NoteCard />
           </div>
 
           <Dialog open={isHoursDialogOpen} onOpenChange={setIsHoursDialogOpen}>

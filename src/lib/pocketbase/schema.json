@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T22:44:14.933Z",
+  "generatedAt": "2026-04-15T23:05:20.716Z",
   "collections": [
     {
       "name": "users",
@@ -2679,6 +2679,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "project",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "projects"
         }
       ],
       "indexes": []

@@ -56,6 +56,7 @@ import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
 import { ProjectModules } from '@/components/ProjectModules'
 import { ProjectFinanceTab } from '@/components/ProjectFinanceTab'
+import { NoteCard } from '@/components/NoteCard'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -578,6 +579,10 @@ export default function ProjectDetails() {
               )}
             </CardContent>
           </Card>
+
+          <div className="w-full">
+            <NoteCard projectId={project.id} />
+          </div>
 
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

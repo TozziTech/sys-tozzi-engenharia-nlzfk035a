@@ -47,6 +47,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
 import { NoteCard } from '@/components/NoteCard'
+import { MyTasksList } from '@/components/meu-painel/MyTasksList'
 import { cn } from '@/lib/utils'
 
 const getStatusColor = (status: string) => {
@@ -419,6 +420,8 @@ export default function MeuPainel() {
               ))}
             </div>
           </div>
+
+          <MyTasksList />
 
           <div className="flex justify-center w-full relative mt-8">
             <NoteCard />

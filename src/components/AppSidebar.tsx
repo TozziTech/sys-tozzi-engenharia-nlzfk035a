@@ -1,6 +1,7 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
+  LogOut,
   FolderKanban,
   Users,
   Settings,
@@ -123,7 +124,13 @@ const navigationGroups = [
 
 export function AppSidebar() {
   const location = useLocation()
-  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
+
+  const handleLogout = () => {
+    signOut()
+    navigate('/login')
+  }
 
   return (
     <Sidebar className="border-r border-border">
@@ -206,10 +213,25 @@ export function AppSidebar() {
             <AvatarFallback>AD</AvatarFallback>
           </Avatar>
           <div className="flex flex-col overflow-hidden">
-            <span className="truncate text-sm font-medium text-sidebar-foreground">Admin</span>
-            <span className="truncate text-xs text-sidebar-foreground/70">Gestor</span>
+            <span className="truncate text-sm font-medium text-sidebar-foreground">
+              {user?.name || 'Usuário'}
+            </span>
+            <span className="truncate text-xs text-sidebar-foreground/70">
+              {user?.role || 'Cargo'}
+            </span>
           </div>
         </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={handleLogout}
+              className="text-red-500 hover:bg-red-500/10 hover:text-red-600 mt-2"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sair</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   )

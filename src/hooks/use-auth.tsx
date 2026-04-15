@@ -28,24 +28,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     })
 
     const initAuth = async () => {
-      if (!pb.authStore.isValid) {
+      if (pb.authStore.isValid) {
         try {
-          await pb.collection('users').authWithPassword('tozziengenharia@hotmail.com', 'Skip@Pass')
+          const authData = await pb.collection('users').authRefresh()
+          setUser(authData.record)
         } catch (error) {
-          if (error instanceof ClientResponseError) {
-            console.error(
-              'Auto login failed with ClientResponseError:',
-              error.status,
-              error.message,
-            )
-          } else {
-            console.error('Auto login failed', error)
-          }
+          console.error('Failed to refresh auth', error)
           pb.authStore.clear()
           setUser(null)
         }
       } else {
-        setUser(pb.authStore.record)
+        setUser(null)
       }
       setLoading(false)
     }
@@ -77,6 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = () => {
     pb.authStore.clear()
+    setUser(null)
   }
 
   if (loading) {

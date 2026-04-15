@@ -52,6 +52,7 @@ import { AuthProvider } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
 import { AdminGuard } from './components/auth/AdminGuard'
 import { ThemeColorInjector } from './components/ThemeColorInjector'
+import Login from './pages/Login'
 
 const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
@@ -64,6 +65,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <Routes>
+              <Route path="/login" element={<Login />} />
               <Route element={<RoleGuard />}>
                 <Route element={<Layout />}>
                   <Route path="/" element={<Dashboard />} />

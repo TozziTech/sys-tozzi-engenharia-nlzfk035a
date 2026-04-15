@@ -61,13 +61,7 @@ export function DistributionHistoryTable({ history, onDelete }: Props) {
                 </TableRow>
               ) : (
                 history.map((item) => {
-                  const grossProfit =
-                    item.total_amount -
-                    (item.expenses || 0) -
-                    (item.art_amount || 0) -
-                    (item.nf_amount || 0)
-                  const cgAmount =
-                    grossProfit > 0 ? grossProfit * ((item.working_capital_pct || 0) / 100) : 0
+                  const cgAmount = item.total_amount * ((item.working_capital_pct || 0) / 100)
 
                   return (
                     <TableRow key={item.id} className="group transition-colors">

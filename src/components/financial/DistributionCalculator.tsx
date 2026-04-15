@@ -44,12 +44,12 @@ export function DistributionCalculator() {
     defaultValues: {
       description: '',
       total_amount: 0,
-      nf_pct: 0,
+      nf_pct: 10,
       expenses: 0,
-      art_amount: 0,
+      art_amount: 108,
       working_capital_pct: 10,
-      samuel_pct: 50,
-      tozzi_pct: 50,
+      samuel_pct: 35,
+      tozzi_pct: 65,
       date: new Date().toISOString().split('T')[0],
     },
   })
@@ -76,10 +76,10 @@ export function DistributionCalculator() {
     try {
       setIsCalculating(true)
       const nfAmount = values.total_amount * (values.nf_pct / 100)
-      const grossProfit = values.total_amount - values.expenses - values.art_amount - nfAmount
-      const workingCapitalValue =
-        grossProfit > 0 ? grossProfit * (values.working_capital_pct / 100) : 0
-      const netValue = grossProfit > 0 ? grossProfit - workingCapitalValue : 0
+      const workingCapitalValue = values.total_amount * (values.working_capital_pct / 100)
+      const calculatedNet =
+        values.total_amount - values.expenses - values.art_amount - nfAmount - workingCapitalValue
+      const netValue = Math.max(0, calculatedNet)
       const samuelAmount = netValue * (values.samuel_pct / 100)
       const tozziAmount = netValue * (values.tozzi_pct / 100)
       const dateStr = values.date + 'T12:00:00.000Z'
@@ -106,7 +106,7 @@ export function DistributionCalculator() {
         description: '',
         total_amount: 0,
         expenses: 0,
-        art_amount: 0,
+        art_amount: 108,
       })
     } catch (error) {
       toast({ title: 'Erro', description: 'Falha ao salvar.', variant: 'destructive' })
@@ -137,9 +137,11 @@ export function DistributionCalculator() {
   const watchTozPct = form.watch('tozzi_pct') || 0
 
   const previewNFAmount = watchTotal * (watchNFPct / 100)
-  const previewGrossProfit = watchTotal - watchExpenses - watchART - previewNFAmount
-  const previewWC = previewGrossProfit > 0 ? previewGrossProfit * (watchWCPct / 100) : 0
-  const previewNet = previewGrossProfit > 0 ? previewGrossProfit - previewWC : 0
+  const previewWC = watchTotal * (watchWCPct / 100)
+  const previewNet = Math.max(
+    0,
+    watchTotal - watchExpenses - watchART - previewNFAmount - previewWC,
+  )
 
   return (
     <div className="flex flex-col">
@@ -224,34 +226,32 @@ export function DistributionCalculator() {
                       </FormControl>
                     </FormItem>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="expenses"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Despesas (R$)</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="art_amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>ART (R$)</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="expenses"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Despesas (R$)</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="art_amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ART (R$)</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}

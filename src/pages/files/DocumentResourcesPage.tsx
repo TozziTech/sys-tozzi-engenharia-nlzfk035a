@@ -139,6 +139,7 @@ export default function DocumentResourcesPage({
   const [dragOverItem, setDragOverItem] = useState<{ id: string; type: 'main' | 'video' } | null>(
     null,
   )
+  const [dragEnabledId, setDragEnabledId] = useState<string | null>(null)
   const draggedItemRef = useRef(draggedItem)
 
   useEffect(() => {
@@ -294,6 +295,7 @@ export default function DocumentResourcesPage({
   const handleDragEnd = () => {
     setDraggedItem(null)
     setDragOverItem(null)
+    setDragEnabledId(null)
   }
 
   const handleDrop = async (e: React.DragEvent, targetId: string, type: 'main' | 'video') => {
@@ -581,7 +583,7 @@ export default function DocumentResourcesPage({
                       return (
                         <TableRow
                           key={resource.id}
-                          draggable={canReorder}
+                          draggable={canReorder && dragEnabledId === resource.id}
                           onDragStart={(e) => handleDragStart(e, resource.id, 'main')}
                           onDragOver={(e) => handleDragOver(e, resource.id, 'main')}
                           onDrop={(e) => handleDrop(e, resource.id, 'main')}
@@ -592,7 +594,12 @@ export default function DocumentResourcesPage({
                           )}
                         >
                           {canReorder && (
-                            <TableCell className="w-[40px] px-2 text-center cursor-grab active:cursor-grabbing">
+                            <TableCell
+                              className="w-[40px] px-2 text-center cursor-grab active:cursor-grabbing"
+                              onPointerDown={() => setDragEnabledId(resource.id)}
+                              onPointerUp={() => setDragEnabledId(null)}
+                              onPointerLeave={() => setDragEnabledId(null)}
+                            >
                               <GripVertical className="h-4 w-4 text-muted-foreground mx-auto" />
                             </TableCell>
                           )}
@@ -614,12 +621,16 @@ export default function DocumentResourcesPage({
                                 />
                               </Button>
                               <div className="flex flex-col gap-1 min-w-0">
-                                <span
-                                  className="font-medium text-base truncate"
+                                <a
+                                  href={normalizeUrl(resource.url)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => handleAccessLog(resource)}
+                                  className="font-medium text-base truncate hover:underline hover:text-primary transition-colors"
                                   title={resource.title}
                                 >
                                   {resource.title}
-                                </span>
+                                </a>
                                 <span
                                   className="text-sm text-muted-foreground line-clamp-1"
                                   title={resource.description || ''}
@@ -754,7 +765,7 @@ export default function DocumentResourcesPage({
                   return (
                     <Card
                       key={resource.id}
-                      draggable={canReorder}
+                      draggable={canReorder && dragEnabledId === resource.id}
                       onDragStart={(e) => handleDragStart(e, resource.id, 'main')}
                       onDragOver={(e) => handleDragOver(e, resource.id, 'main')}
                       onDrop={(e) => handleDrop(e, resource.id, 'main')}
@@ -766,7 +777,12 @@ export default function DocumentResourcesPage({
                       )}
                     >
                       {canReorder && (
-                        <div className="absolute top-2 left-2 h-8 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing z-20 bg-background/80 backdrop-blur-sm rounded-full">
+                        <div
+                          className="absolute top-2 left-2 h-8 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing z-20 bg-background/80 backdrop-blur-sm rounded-full"
+                          onPointerDown={() => setDragEnabledId(resource.id)}
+                          onPointerUp={() => setDragEnabledId(null)}
+                          onPointerLeave={() => setDragEnabledId(null)}
+                        >
                           <GripVertical className="h-4 w-4 text-muted-foreground" />
                         </div>
                       )}
@@ -820,7 +836,15 @@ export default function DocumentResourcesPage({
                           className="line-clamp-2 text-lg leading-tight"
                           title={resource.title}
                         >
-                          {resource.title}
+                          <a
+                            href={normalizeUrl(resource.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => handleAccessLog(resource)}
+                            className="hover:underline hover:text-primary transition-colors"
+                          >
+                            {resource.title}
+                          </a>
                         </CardTitle>
                         <CardDescription
                           className="line-clamp-3 mt-2 text-sm leading-relaxed"
@@ -924,7 +948,7 @@ export default function DocumentResourcesPage({
                       return (
                         <TableRow
                           key={resource.id}
-                          draggable={canReorder}
+                          draggable={canReorder && dragEnabledId === resource.id}
                           onDragStart={(e) => handleDragStart(e, resource.id, 'video')}
                           onDragOver={(e) => handleDragOver(e, resource.id, 'video')}
                           onDrop={(e) => handleDrop(e, resource.id, 'video')}
@@ -935,7 +959,12 @@ export default function DocumentResourcesPage({
                           )}
                         >
                           {canReorder && (
-                            <TableCell className="w-[40px] px-2 text-center cursor-grab active:cursor-grabbing">
+                            <TableCell
+                              className="w-[40px] px-2 text-center cursor-grab active:cursor-grabbing"
+                              onPointerDown={() => setDragEnabledId(resource.id)}
+                              onPointerUp={() => setDragEnabledId(null)}
+                              onPointerLeave={() => setDragEnabledId(null)}
+                            >
                               <GripVertical className="h-4 w-4 text-muted-foreground mx-auto" />
                             </TableCell>
                           )}
@@ -956,12 +985,16 @@ export default function DocumentResourcesPage({
                                   )}
                                 />
                               </Button>
-                              <span
-                                className="font-medium text-base truncate"
+                              <a
+                                href={normalizeUrl(resource.url)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => handleAccessLog(resource)}
+                                className="font-medium text-base truncate hover:underline hover:text-primary transition-colors"
                                 title={resource.title}
                               >
                                 {resource.title}
-                              </span>
+                              </a>
                             </div>
                           </TableCell>
                           <TableCell>

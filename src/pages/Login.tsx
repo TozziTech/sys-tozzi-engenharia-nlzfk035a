@@ -13,8 +13,9 @@ import {
 } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { HardHat, Eye, EyeOff } from 'lucide-react'
+import { HardHat, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -22,6 +23,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('rememberedEmail')
@@ -41,15 +43,12 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setAuthError(null)
 
     const { error } = await signIn(email, password)
 
     if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao fazer login',
-        description: error.message || 'Verifique suas credenciais e tente novamente.',
-      })
+      setAuthError(error.message || 'Verifique suas credenciais e tente novamente.')
       setLoading(false)
       return
     }
@@ -77,8 +76,14 @@ export default function Login() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {authError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{authError}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email</Label>{' '}
               <Input
                 id="email"
                 type="email"

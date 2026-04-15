@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T20:49:04.172Z",
+  "generatedAt": "2026-04-15T21:02:16.392Z",
   "collections": [
     {
       "name": "users",
@@ -176,6 +176,18 @@
         {
           "name": "notes",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "failed_attempts",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lockout_until",
+          "type": "date",
           "required": false,
           "system": false
         }

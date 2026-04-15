@@ -77,7 +77,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password)
+      const authData = await pb.send('/backend/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      })
+
+      pb.authStore.save(authData.token, authData.record)
+
       if (authData.record.status === 'Pendente') {
         pb.authStore.clear()
         return {
@@ -92,8 +98,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: { message: 'Sua conta está inativa. Contate o administrador.' } }
       }
       return { error: null }
-    } catch (error) {
-      return { error }
+    } catch (error: any) {
+      const msg = error?.response?.message || error?.message || 'Credenciais inválidas.'
+      return { error: { message: msg } }
     }
   }
 

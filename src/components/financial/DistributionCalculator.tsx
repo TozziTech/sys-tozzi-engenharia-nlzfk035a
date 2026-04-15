@@ -1,0 +1,307 @@
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { useToast } from '@/hooks/use-toast'
+import {
+  getDistributionCalculations,
+  createDistributionCalculation,
+  deleteDistributionCalculation,
+  type DistributionCalculation,
+} from '@/services/distribution_calculations'
+import { useRealtime } from '@/hooks/use-realtime'
+import { Trash2, Calculator } from 'lucide-react'
+import { format } from 'date-fns'
+
+export function DistributionCalculator() {
+  const { toast } = useToast()
+  const [history, setHistory] = useState<DistributionCalculation[]>([])
+
+  const [description, setDescription] = useState('')
+  const [totalAmount, setTotalAmount] = useState<number | ''>('')
+  const [workingCapitalPct, setWorkingCapitalPct] = useState<number | ''>(10)
+  const [expenses, setExpenses] = useState<number | ''>(0)
+  const [samuelPct, setSamuelPct] = useState<number | ''>(50)
+  const [tozziPct, setTozziPct] = useState<number | ''>(50)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const loadHistory = async () => {
+    try {
+      const data = await getDistributionCalculations()
+      setHistory(data)
+    } catch (error) {
+      console.error('Failed to load calculations history:', error)
+    }
+  }
+
+  useEffect(() => {
+    loadHistory()
+  }, [])
+
+  useRealtime('distribution_calculations', () => {
+    loadHistory()
+  })
+
+  const safeTotal = Number(totalAmount) || 0
+  const safeCapitalPct = Number(workingCapitalPct) || 0
+  const safeExpenses = Number(expenses) || 0
+  const safeSamuelPct = Number(samuelPct) || 0
+  const safeTozziPct = Number(tozziPct) || 0
+
+  const netValue = safeTotal - safeTotal * (safeCapitalPct / 100) - safeExpenses
+  const samuelAmount = netValue * (safeSamuelPct / 100)
+  const tozziAmount = netValue * (safeTozziPct / 100)
+
+  const handleSave = async () => {
+    if (!description || safeTotal <= 0) {
+      toast({
+        title: 'Erro de Validação',
+        description: 'Preencha a descrição e um valor total maior que zero.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      await createDistributionCalculation({
+        description,
+        total_amount: safeTotal,
+        working_capital_pct: safeCapitalPct,
+        expenses: safeExpenses,
+        samuel_pct: safeSamuelPct,
+        tozzi_pct: safeTozziPct,
+        net_value: netValue,
+        samuel_amount: samuelAmount,
+        tozzi_amount: tozziAmount,
+        date: new Date().toISOString(),
+      })
+
+      toast({
+        title: 'Cálculo Registrado',
+        description: 'A distribuição foi salva no histórico com sucesso.',
+      })
+
+      setDescription('')
+      setTotalAmount('')
+      setExpenses(0)
+    } catch (error) {
+      toast({
+        title: 'Erro ao Salvar',
+        description: 'Não foi possível salvar o cálculo de distribuição.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este registro de cálculo?')) {
+      try {
+        await deleteDistributionCalculation(id)
+        toast({
+          title: 'Registro Excluído',
+          description: 'O registro foi removido do histórico.',
+        })
+      } catch (error) {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível excluir o registro.',
+          variant: 'destructive',
+        })
+      }
+    }
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="md:col-span-2 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-primary" />
+              Calculadora
+            </CardTitle>
+            <CardDescription>
+              Insira os valores para calcular a distribuição líquida de lucros.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Descrição</Label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Ex: Lucro Projeto ABC"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor Total Bruto (R$)</Label>
+                <Input
+                  type="number"
+                  value={totalAmount}
+                  onChange={(e) => setTotalAmount(e.target.value ? Number(e.target.value) : '')}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Capital de Giro (%)</Label>
+                <Input
+                  type="number"
+                  value={workingCapitalPct}
+                  onChange={(e) =>
+                    setWorkingCapitalPct(e.target.value ? Number(e.target.value) : '')
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Despesas Dedutíveis (R$)</Label>
+                <Input
+                  type="number"
+                  value={expenses}
+                  onChange={(e) => setExpenses(e.target.value ? Number(e.target.value) : '')}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Participação Samuel (%)</Label>
+                <Input
+                  type="number"
+                  value={samuelPct}
+                  onChange={(e) => setSamuelPct(e.target.value ? Number(e.target.value) : '')}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Participação Tozzi (%)</Label>
+                <Input
+                  type="number"
+                  value={tozziPct}
+                  onChange={(e) => setTozziPct(e.target.value ? Number(e.target.value) : '')}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-primary/20">
+          <CardHeader className="bg-primary/5 pb-4">
+            <CardTitle>Resumo da Distribuição</CardTitle>
+            <CardDescription>Resultado calculado em tempo real</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-6">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground font-medium">Valor Líquido Partilhável</p>
+              <p className="text-3xl font-bold text-slate-800 dark:text-slate-200">
+                {formatCurrency(netValue)}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                <span className="font-medium text-blue-900 dark:text-blue-100">
+                  Samuel ({safeSamuelPct}%)
+                </span>
+                <span className="font-bold text-blue-700 dark:text-blue-300">
+                  {formatCurrency(samuelAmount)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-900/50">
+                <span className="font-medium text-emerald-900 dark:text-emerald-100">
+                  Tozzi ({safeTozziPct}%)
+                </span>
+                <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                  {formatCurrency(tozziAmount)}
+                </span>
+              </div>
+            </div>
+
+            <Button className="w-full mt-4" size="lg" onClick={handleSave} disabled={isSubmitting}>
+              Registrar Lançamento
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Histórico de Cálculos</CardTitle>
+          <CardDescription>
+            Registro de todas as distribuições e partilhas realizadas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="whitespace-nowrap">Data</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Valor Bruto</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Valor Líquido</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Samuel (R$)</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Tozzi (R$)</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      Nenhum cálculo de distribuição registrado.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  history.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        {format(new Date(record.date || record.created), 'dd/MM/yyyy HH:mm')}
+                      </TableCell>
+                      <TableCell className="font-medium">{record.description}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        {formatCurrency(record.total_amount)}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        {formatCurrency(record.net_value)}
+                      </TableCell>
+                      <TableCell className="text-right text-blue-600 dark:text-blue-400 font-semibold whitespace-nowrap">
+                        {formatCurrency(record.samuel_amount)}
+                      </TableCell>
+                      <TableCell className="text-right text-emerald-600 dark:text-emerald-400 font-semibold whitespace-nowrap">
+                        {formatCurrency(record.tozzi_amount)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(record.id)}
+                          title="Excluir Registro"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive opacity-70 hover:opacity-100 transition-opacity" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

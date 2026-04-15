@@ -6,6 +6,7 @@ import { TransactionModal } from '@/components/financial/TransactionModal'
 import { FinancialAlerts } from '@/components/financial/FinancialAlerts'
 import { RecurringExpensesCard } from '@/components/financial/RecurringExpensesCard'
 import { RecurringExpensesChart } from '@/components/financial/RecurringExpensesChart'
+import { DistributionCalculator } from '@/components/financial/DistributionCalculator'
 
 export default function Financial() {
   return (
@@ -49,6 +50,9 @@ export default function Financial() {
           <TabsTrigger value="categorias" className="py-2">
             Gestão de Categorias
           </TabsTrigger>
+          <TabsTrigger value="distribuicao" className="py-2">
+            Calculadora de Distribuição
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="lancamentos" className="outline-none focus:outline-none m-0">
@@ -57,6 +61,10 @@ export default function Financial() {
 
         <TabsContent value="categorias" className="outline-none focus:outline-none m-0">
           <FinancialCategories />
+        </TabsContent>
+
+        <TabsContent value="distribuicao" className="outline-none focus:outline-none m-0">
+          <DistributionCalculator />
         </TabsContent>
       </Tabs>
     </div>

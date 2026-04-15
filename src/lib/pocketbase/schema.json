@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T23:55:19.325Z",
+  "generatedAt": "2026-04-15T00:21:19.656Z",
   "collections": [
     {
       "name": "users",
@@ -2144,6 +2144,94 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_notifications_user ON notifications (user)"]
+    },
+    {
+      "name": "distribution_calculations",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "total_amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "working_capital_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "expenses",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "samuel_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tozzi_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "net_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "samuel_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tozzi_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_dist_calc_date ON distribution_calculations (date DESC)"]
     }
   ]
 }

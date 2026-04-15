@@ -40,7 +40,14 @@ import {
   getProjectPayments,
   getProjectDocuments,
   getProjectComments,
+  deleteProjectPayment,
+  deleteProjectDocument,
 } from '@/services/client_dashboard'
+import { EditProjectModal } from '@/components/client-dashboard/admin/EditProjectModal'
+import { ManagePhasesModal } from '@/components/client-dashboard/admin/ManagePhasesModal'
+import { PaymentFormModal } from '@/components/client-dashboard/admin/PaymentFormModal'
+import { Trash2, Edit2 } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 import { useParams, useNavigate } from 'react-router-dom'
 
 const formatCurrency = (value: number) => {
@@ -84,6 +91,8 @@ export default function ClientProjectDetails() {
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [paymentFilter, setPaymentFilter] = useState('Todos')
+  const { toast } = useToast()
+  const isAdmin = user?.role === 'Administrador'
 
   const loadData = async () => {
     if (!id) return
@@ -141,6 +150,26 @@ export default function ClientProjectDetails() {
     (p) => paymentFilter === 'Todos' || p.status === paymentFilter,
   )
 
+  const handleDeletePayment = async (id: string) => {
+    if (!confirm('Deseja excluir este pagamento?')) return
+    try {
+      await deleteProjectPayment(id)
+      toast({ title: 'Sucesso', description: 'Pagamento excluído.' })
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleDeleteDoc = async (id: string) => {
+    if (!confirm('Deseja excluir este documento?')) return
+    try {
+      await deleteProjectDocument(id)
+      toast({ title: 'Sucesso', description: 'Documento excluído.' })
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full animate-fade-in pb-20">
       <header className="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -152,7 +181,10 @@ export default function ClientProjectDetails() {
           >
             <ArrowLeft className="w-4 h-4 mr-2" /> Voltar ao Painel
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">Detalhes do Projeto</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">Detalhes do Projeto</h1>
+            {isAdmin && <EditProjectModal project={project} />}
+          </div>
           <p className="text-muted-foreground mt-2">
             Visão geral do projeto:{' '}
             <span className="font-semibold text-foreground">{project.nome_projeto}</span>
@@ -287,8 +319,9 @@ export default function ClientProjectDetails() {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Linha do Tempo do Projeto</CardTitle>
+              {isAdmin && <ManagePhasesModal projectId={project.id} phases={phases} />}
             </CardHeader>
             <CardContent className="pt-6">
               <TimelineView phases={phases} progress={project.progresso_total || 0} />
@@ -300,18 +333,21 @@ export default function ClientProjectDetails() {
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-primary" /> Transações Financeiras
               </CardTitle>
-              <Tabs
-                value={paymentFilter}
-                onValueChange={setPaymentFilter}
-                className="w-full sm:w-auto"
-              >
-                <TabsList className="grid grid-cols-4 sm:flex w-full">
-                  <TabsTrigger value="Todos">Todos</TabsTrigger>
-                  <TabsTrigger value="Pago">Pago</TabsTrigger>
-                  <TabsTrigger value="Pendente">Pendente</TabsTrigger>
-                  <TabsTrigger value="Atrasado">Atrasado</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <Tabs
+                  value={paymentFilter}
+                  onValueChange={setPaymentFilter}
+                  className="w-full sm:w-auto"
+                >
+                  <TabsList className="grid grid-cols-4 sm:flex w-full">
+                    <TabsTrigger value="Todos">Todos</TabsTrigger>
+                    <TabsTrigger value="Pago">Pago</TabsTrigger>
+                    <TabsTrigger value="Pendente">Pendente</TabsTrigger>
+                    <TabsTrigger value="Atrasado">Atrasado</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                {isAdmin && <PaymentFormModal projectId={project.id} />}
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -321,12 +357,16 @@ export default function ClientProjectDetails() {
                     <TableHead>Data</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead className="text-center">Status</TableHead>
+                    {isAdmin && <TableHead className="text-right w-[100px]">Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredPayments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                      <TableCell
+                        colSpan={isAdmin ? 5 : 4}
+                        className="text-center py-6 text-muted-foreground"
+                      >
                         Nenhum pagamento{' '}
                         {paymentFilter !== 'Todos' ? paymentFilter.toLowerCase() : ''} encontrado.
                       </TableCell>
@@ -342,6 +382,26 @@ export default function ClientProjectDetails() {
                         <TableCell className="text-center">
                           {getPaymentStatusBadge(payment.status)}
                         </TableCell>
+                        {isAdmin && (
+                          <TableCell className="text-right">
+                            <PaymentFormModal
+                              projectId={project.id}
+                              payment={payment}
+                              trigger={
+                                <Button variant="ghost" size="icon">
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeletePayment(payment.id)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
@@ -380,23 +440,30 @@ export default function ClientProjectDetails() {
                           <p className="text-xs text-muted-foreground">{doc.tipo}</p>
                         </div>
                       </div>
-                      {doc.arquivo && (
-                        <a
-                          href={pb.files.getUrl(doc, doc.arquivo)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                        >
+                      <div className="flex items-center gap-1 shrink-0">
+                        {doc.arquivo && (
+                          <a
+                            href={pb.files.getUrl(doc, doc.arquivo)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                          >
+                            <Button variant="ghost" size="icon" title="Baixar documento">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </a>
+                        )}
+                        {isAdmin && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="shrink-0"
-                            title="Baixar documento"
+                            title="Excluir documento"
+                            onClick={() => handleDeleteDoc(doc.id)}
                           >
-                            <Download className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
-                        </a>
-                      )}
+                        )}
+                      </div>
                     </div>
                   ))
                 )}

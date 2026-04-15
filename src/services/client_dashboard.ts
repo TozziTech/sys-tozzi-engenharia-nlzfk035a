@@ -44,3 +44,35 @@ export const createComment = async (projectId: string, mensagem: string, autorId
     mensagem,
   })
 }
+
+export const updateClientProject = async (id: string, data: any) => {
+  return pb.collection('projetos_cliente').update(id, data)
+}
+
+export const createProjectPhase = async (data: any) => {
+  return pb.collection('fases_projeto').create(data)
+}
+
+export const updateProjectPhase = async (id: string, data: any) => {
+  return pb.collection('fases_projeto').update(id, data)
+}
+
+export const deleteProjectPhase = async (id: string) => {
+  return pb.collection('fases_projeto').delete(id)
+}
+
+export const createProjectPayment = async (data: any) => {
+  return pb.collection('pagamentos_projeto').create(data)
+}
+
+export const updateProjectPayment = async (id: string, data: any) => {
+  return pb.collection('pagamentos_projeto').update(id, data)
+}
+
+export const deleteProjectPayment = async (id: string) => {
+  return pb.collection('pagamentos_projeto').delete(id)
+}
+
+export const deleteProjectDocument = async (id: string) => {
+  return pb.collection('documentos_projeto').delete(id)
+}

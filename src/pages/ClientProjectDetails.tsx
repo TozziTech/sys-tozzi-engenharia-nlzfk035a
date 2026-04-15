@@ -15,6 +15,7 @@ import {
   Loader2,
   FileText,
   ArrowLeft,
+  Eye,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -91,8 +92,11 @@ export default function ClientProjectDetails() {
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [paymentFilter, setPaymentFilter] = useState('Todos')
+  const [isClientView, setIsClientView] = useState(false)
   const { toast } = useToast()
-  const isAdmin = user?.role === 'Administrador'
+
+  const canSimulate = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
+  const isAdmin = user?.role === 'Administrador' && !isClientView
 
   const loadData = async () => {
     if (!id) return
@@ -171,7 +175,26 @@ export default function ClientProjectDetails() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full animate-fade-in pb-20">
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full animate-fade-in pb-20 relative">
+      {isClientView && (
+        <div className="sticky top-4 z-50 w-full bg-primary text-primary-foreground px-4 py-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg mb-6 border border-primary-foreground/20">
+          <div className="flex items-center gap-3">
+            <Eye className="w-5 h-5" />
+            <span className="font-medium text-sm sm:text-base">
+              Você está visualizando este projeto como Cliente
+            </span>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsClientView(false)}
+            className="shrink-0 font-medium"
+          >
+            Sair da Visualização
+          </Button>
+        </div>
+      )}
+
       <header className="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <Button
@@ -181,9 +204,20 @@ export default function ClientProjectDetails() {
           >
             <ArrowLeft className="w-4 h-4 mr-2" /> Voltar ao Painel
           </Button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight">Detalhes do Projeto</h1>
             {isAdmin && <EditProjectModal project={project} />}
+            {canSimulate && !isClientView && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsClientView(true)}
+                className="gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                Ver como Cliente
+              </Button>
+            )}
           </div>
           <p className="text-muted-foreground mt-2">
             Visão geral do projeto:{' '}
@@ -415,8 +449,8 @@ export default function ClientProjectDetails() {
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" /> Central de Documentos
               </CardTitle>
-              {user?.role === 'Administrador' && <ClientDocumentUpload projectId={project.id} />}
-            </CardHeader>
+              {isAdmin && <ClientDocumentUpload projectId={project.id} />}
+            </CardHeader>{' '}
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {documents.length === 0 ? (

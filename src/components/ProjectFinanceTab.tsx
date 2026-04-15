@@ -42,6 +42,10 @@ export function ProjectFinanceTab({ project }: { project: any }) {
   const { categories } = useFinancialCategories()
   const { effectiveRole } = useAuth()
 
+  const [periodFilter, setPeriodFilter] = useState<string>('all')
+  const [draggedTx, setDraggedTx] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
   const canViewFinance =
     effectiveRole === 'Administrador' ||
     effectiveRole === 'Gerente de Projeto' ||
@@ -57,9 +61,6 @@ export function ProjectFinanceTab({ project }: { project: any }) {
       </div>
     )
   }
-  const [periodFilter, setPeriodFilter] = useState<string>('all')
-  const [draggedTx, setDraggedTx] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
 
   const now = new Date()
   let limitDate: Date | null = null

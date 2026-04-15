@@ -6,6 +6,9 @@ export interface DistributionCalculation {
   total_amount: number
   working_capital_pct: number
   expenses: number
+  art_amount?: number
+  nf_pct?: number
+  nf_amount?: number
   samuel_pct: number
   tozzi_pct: number
   net_value: number

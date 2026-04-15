@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T02:56:54.705Z",
+  "generatedAt": "2026-04-15T03:24:39.153Z",
   "collections": [
     {
       "name": "users",
@@ -2241,6 +2241,24 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "art_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nf_pct",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nf_amount",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX idx_dist_calc_date ON distribution_calculations (date DESC)"]

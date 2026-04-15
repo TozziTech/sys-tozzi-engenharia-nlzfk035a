@@ -26,8 +26,10 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
   const { toast } = useToast()
   const [description, setDescription] = useState('')
   const [totalAmount, setTotalAmount] = useState<number | ''>('')
-  const [workingCapitalPct, setWorkingCapitalPct] = useState<number | ''>(10)
+  const [nfPct, setNfPct] = useState<number | ''>(0)
   const [expenses, setExpenses] = useState<number | ''>(0)
+  const [artAmount, setArtAmount] = useState<number | ''>(0)
+  const [workingCapitalPct, setWorkingCapitalPct] = useState<number | ''>(10)
   const [samuelPct, setSamuelPct] = useState<number | ''>(50)
   const [tozziPct, setTozziPct] = useState<number | ''>(50)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -36,20 +38,27 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
     if (record) {
       setDescription(record.description)
       setTotalAmount(record.total_amount)
-      setWorkingCapitalPct(record.working_capital_pct || 0)
+      setNfPct(record.nf_pct || 0)
       setExpenses(record.expenses || 0)
+      setArtAmount(record.art_amount || 0)
+      setWorkingCapitalPct(record.working_capital_pct || 0)
       setSamuelPct(record.samuel_pct || 50)
       setTozziPct(record.tozzi_pct || 50)
     }
   }, [record])
 
   const safeTotal = Number(totalAmount) || 0
-  const safeCapitalPct = Number(workingCapitalPct) || 0
+  const safeNfPct = Number(nfPct) || 0
   const safeExpenses = Number(expenses) || 0
+  const safeArtAmount = Number(artAmount) || 0
+  const safeCapitalPct = Number(workingCapitalPct) || 0
   const safeSamuelPct = Number(samuelPct) || 0
   const safeTozziPct = Number(tozziPct) || 0
 
-  const netValue = safeTotal - safeTotal * (safeCapitalPct / 100) - safeExpenses
+  const nfAmount = safeTotal * (safeNfPct / 100)
+  const grossProfit = safeTotal - safeExpenses - safeArtAmount - nfAmount
+  const workingCapitalValue = grossProfit > 0 ? grossProfit * (safeCapitalPct / 100) : 0
+  const netValue = grossProfit > 0 ? grossProfit - workingCapitalValue : 0
   const samuelAmount = netValue * (safeSamuelPct / 100)
   const tozziAmount = netValue * (safeTozziPct / 100)
 
@@ -68,8 +77,11 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
       await updateDistributionCalculation(record.id, {
         description,
         total_amount: safeTotal,
-        working_capital_pct: safeCapitalPct,
+        nf_pct: safeNfPct,
+        nf_amount: nfAmount,
         expenses: safeExpenses,
+        art_amount: safeArtAmount,
+        working_capital_pct: safeCapitalPct,
         samuel_pct: safeSamuelPct,
         tozzi_pct: safeTozziPct,
         net_value: netValue,
@@ -91,7 +103,7 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Editar Registro de Distribuição</DialogTitle>
         </DialogHeader>
@@ -110,11 +122,11 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
               />
             </div>
             <div className="space-y-2">
-              <Label>Capital de Giro (%)</Label>
+              <Label>NF (%)</Label>
               <Input
                 type="number"
-                value={workingCapitalPct}
-                onChange={(e) => setWorkingCapitalPct(e.target.value ? Number(e.target.value) : '')}
+                value={nfPct}
+                onChange={(e) => setNfPct(e.target.value ? Number(e.target.value) : '')}
               />
             </div>
             <div className="space-y-2">
@@ -126,8 +138,24 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
               />
             </div>
             <div className="space-y-2">
+              <Label>ART (R$)</Label>
+              <Input
+                type="number"
+                value={artAmount}
+                onChange={(e) => setArtAmount(e.target.value ? Number(e.target.value) : '')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Capital de Giro (%)</Label>
+              <Input
+                type="number"
+                value={workingCapitalPct}
+                onChange={(e) => setWorkingCapitalPct(e.target.value ? Number(e.target.value) : '')}
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Líquido</Label>
-              <Input disabled value={formatCurrency(netValue)} className="font-semibold" />
+              <Input disabled value={formatCurrency(netValue)} className="font-semibold bg-muted" />
             </div>
             <div className="space-y-2">
               <Label>Samuel (%)</Label>

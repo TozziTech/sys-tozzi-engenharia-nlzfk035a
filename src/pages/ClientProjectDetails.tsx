@@ -16,6 +16,11 @@ import {
   FileText,
   ArrowLeft,
   Eye,
+  Trash2,
+  Edit2,
+  AlertTriangle,
+  Check,
+  X,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -43,11 +48,11 @@ import {
   getProjectComments,
   deleteProjectPayment,
   deleteProjectDocument,
+  updateProjectPhase,
 } from '@/services/client_dashboard'
 import { EditProjectModal } from '@/components/client-dashboard/admin/EditProjectModal'
 import { ManagePhasesModal } from '@/components/client-dashboard/admin/ManagePhasesModal'
 import { PaymentFormModal } from '@/components/client-dashboard/admin/PaymentFormModal'
-import { Trash2, Edit2, AlertTriangle, Check, X } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
@@ -60,7 +65,13 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { updateProjectPhase } from '@/services/client_dashboard'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
@@ -93,7 +104,7 @@ const getPaymentStatusBadge = (status: string) => {
 }
 
 export default function ClientProjectDetails() {
-  const { user } = useAuth()
+  const { user, simulatedRole, setSimulatedRole, effectiveRole } = useAuth()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [project, setProject] = useState<any>(null)
@@ -103,11 +114,25 @@ export default function ClientProjectDetails() {
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [paymentFilter, setPaymentFilter] = useState('Todos')
-  const [isClientView, setIsClientView] = useState(false)
   const { toast } = useToast()
 
-  const canSimulate = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
-  const isAdmin = user?.role === 'Administrador' && !isClientView
+  const activeRole = effectiveRole || 'Visitante'
+  const isOriginalAdmin = user?.role === 'Administrador'
+
+  const canEditPhases = activeRole === 'Administrador' || activeRole === 'Gerente de Projeto'
+  const canEditFinances = activeRole === 'Administrador' || activeRole === 'Gerente de Projeto'
+  const canViewFinances =
+    activeRole === 'Administrador' ||
+    activeRole === 'Gerente de Projeto' ||
+    activeRole === 'Cliente'
+  const canUploadDocs =
+    activeRole === 'Administrador' ||
+    activeRole === 'Gerente de Projeto' ||
+    activeRole === 'Projetista'
+  const canDeleteDocs = activeRole === 'Administrador' || activeRole === 'Gerente de Projeto'
+  const canApprove = activeRole === 'Cliente'
+  const canViewComments = activeRole !== 'Visitante'
+  const canExport = activeRole !== 'Visitante' && activeRole !== 'Estagiário'
 
   const loadData = async () => {
     if (!id) return
@@ -215,19 +240,19 @@ export default function ClientProjectDetails() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full animate-fade-in pb-20 relative">
-      {isClientView && (
-        <div className="sticky top-4 z-50 w-full bg-primary text-primary-foreground px-4 py-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg mb-6 border border-primary-foreground/20">
+      {simulatedRole && simulatedRole !== user?.role && (
+        <div className="sticky top-4 z-50 w-full bg-amber-500 text-amber-950 px-4 py-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg mb-6 border border-amber-600/20">
           <div className="flex items-center gap-3">
             <Eye className="w-5 h-5" />
             <span className="font-medium text-sm sm:text-base">
-              Você está visualizando este projeto como Cliente
+              Você está visualizando como: <strong className="font-bold">{simulatedRole}</strong>
             </span>
           </div>
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => setIsClientView(false)}
-            className="shrink-0 font-medium"
+            onClick={() => setSimulatedRole(null)}
+            className="shrink-0 font-medium bg-white hover:bg-amber-50 text-amber-900 border-none"
           >
             Sair da Visualização
           </Button>
@@ -245,17 +270,24 @@ export default function ClientProjectDetails() {
           </Button>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight">Detalhes do Projeto</h1>
-            {isAdmin && <EditProjectModal project={project} />}
-            {canSimulate && !isClientView && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsClientView(true)}
-                className="gap-2"
+            {canEditPhases && <EditProjectModal project={project} />}
+            {isOriginalAdmin && (
+              <Select
+                value={simulatedRole || user?.role}
+                onValueChange={(val) => setSimulatedRole(val === user?.role ? null : val)}
               >
-                <Eye className="w-4 h-4" />
-                Ver como Cliente
-              </Button>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Simular visão..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Administrador">Administrador</SelectItem>
+                  <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                  <SelectItem value="Projetista">Projetista</SelectItem>
+                  <SelectItem value="Estagiário">Estagiário</SelectItem>
+                  <SelectItem value="Visitante">Visitante</SelectItem>
+                  <SelectItem value="Cliente">Cliente</SelectItem>
+                </SelectContent>
+              </Select>
             )}
           </div>
           <p className="text-muted-foreground mt-2">
@@ -263,19 +295,21 @@ export default function ClientProjectDetails() {
             <span className="font-semibold text-foreground">{project.nome_projeto}</span>
           </p>
         </div>
-        <Button
-          onClick={() =>
-            exportProjectProgressPDF(project, phases, payments, user?.name || 'Cliente')
-          }
-          variant="outline"
-          className="shrink-0 gap-2 mt-auto"
-        >
-          <FileText className="w-4 h-4" />
-          Exportar Resumo
-        </Button>
+        {canExport && (
+          <Button
+            onClick={() =>
+              exportProjectProgressPDF(project, phases, payments, user?.name || 'Cliente')
+            }
+            variant="outline"
+            className="shrink-0 gap-2 mt-auto"
+          >
+            <FileText className="w-4 h-4" />
+            Exportar Resumo
+          </Button>
+        )}
       </header>
 
-      {phasesAwaitingApproval.length > 0 && (
+      {canApprove && phasesAwaitingApproval.length > 0 && (
         <Card className="border-amber-500/50 bg-amber-500/5 dark:bg-amber-500/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
@@ -334,7 +368,7 @@ export default function ClientProjectDetails() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 md:grid-cols-${canViewFinances ? '3' : '2'} gap-6`}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Status Geral</CardTitle>
@@ -369,29 +403,33 @@ export default function ClientProjectDetails() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Situação Financeira</CardTitle>
-            <DollarSign className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
-              {health}
-            </div>
-            <div className="flex flex-col gap-1 mt-3 text-sm text-muted-foreground">
-              <span>
-                Pago:{' '}
-                <strong className="text-foreground font-medium">{formatCurrency(totalPaid)}</strong>
-              </span>
-              <span>
-                Pendente:{' '}
-                <strong className="text-foreground font-medium">
-                  {formatCurrency(totalPending)}
-                </strong>
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        {canViewFinances && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium">Situação Financeira</CardTitle>
+              <DollarSign className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">
+                {health}
+              </div>
+              <div className="flex flex-col gap-1 mt-3 text-sm text-muted-foreground">
+                <span>
+                  Pago:{' '}
+                  <strong className="text-foreground font-medium">
+                    {formatCurrency(totalPaid)}
+                  </strong>
+                </span>
+                <span>
+                  Pendente:{' '}
+                  <strong className="text-foreground font-medium">
+                    {formatCurrency(totalPending)}
+                  </strong>
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -453,102 +491,106 @@ export default function ClientProjectDetails() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Linha do Tempo do Projeto</CardTitle>
-              {isAdmin && <ManagePhasesModal projectId={project.id} phases={phases} />}
+              {canEditPhases && <ManagePhasesModal projectId={project.id} phases={phases} />}
             </CardHeader>
             <CardContent className="pt-6">
               <TimelineView phases={phases} progress={project.progresso_total || 0} />
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" /> Transações Financeiras
-              </CardTitle>
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                <Tabs
-                  value={paymentFilter}
-                  onValueChange={setPaymentFilter}
-                  className="w-full sm:w-auto"
-                >
-                  <TabsList className="grid grid-cols-4 sm:flex w-full">
-                    <TabsTrigger value="Todos">Todos</TabsTrigger>
-                    <TabsTrigger value="Pago">Pago</TabsTrigger>
-                    <TabsTrigger value="Pendente">Pendente</TabsTrigger>
-                    <TabsTrigger value="Atrasado">Atrasado</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                {isAdmin && <PaymentFormModal projectId={project.id} />}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    {isAdmin && <TableHead className="text-right w-[100px]">Ações</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPayments.length === 0 ? (
+          {canViewFinances && (
+            <Card>
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-primary" /> Transações Financeiras
+                </CardTitle>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                  <Tabs
+                    value={paymentFilter}
+                    onValueChange={setPaymentFilter}
+                    className="w-full sm:w-auto"
+                  >
+                    <TabsList className="grid grid-cols-4 sm:flex w-full">
+                      <TabsTrigger value="Todos">Todos</TabsTrigger>
+                      <TabsTrigger value="Pago">Pago</TabsTrigger>
+                      <TabsTrigger value="Pendente">Pendente</TabsTrigger>
+                      <TabsTrigger value="Atrasado">Atrasado</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  {canEditFinances && <PaymentFormModal projectId={project.id} />}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={isAdmin ? 5 : 4}
-                        className="text-center py-6 text-muted-foreground"
-                      >
-                        Nenhum pagamento{' '}
-                        {paymentFilter !== 'Todos' ? paymentFilter.toLowerCase() : ''} encontrado.
-                      </TableCell>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      {canEditFinances && (
+                        <TableHead className="text-right w-[100px]">Ações</TableHead>
+                      )}
                     </TableRow>
-                  ) : (
-                    filteredPayments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="font-medium">{payment.descricao}</TableCell>
-                        <TableCell>{formatDate(payment.data_vencimento)}</TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(payment.valor)}
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPayments.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={canEditFinances ? 5 : 4}
+                          className="text-center py-6 text-muted-foreground"
+                        >
+                          Nenhum pagamento{' '}
+                          {paymentFilter !== 'Todos' ? paymentFilter.toLowerCase() : ''} encontrado.
                         </TableCell>
-                        <TableCell className="text-center">
-                          {getPaymentStatusBadge(payment.status)}
-                        </TableCell>
-                        {isAdmin && (
-                          <TableCell className="text-right">
-                            <PaymentFormModal
-                              projectId={project.id}
-                              payment={payment}
-                              trigger={
-                                <Button variant="ghost" size="icon">
-                                  <Edit2 className="w-4 h-4" />
-                                </Button>
-                              }
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeletePayment(payment.id)}
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        )}
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                    ) : (
+                      filteredPayments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell className="font-medium">{payment.descricao}</TableCell>
+                          <TableCell>{formatDate(payment.data_vencimento)}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(payment.valor)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getPaymentStatusBadge(payment.status)}
+                          </TableCell>
+                          {canEditFinances && (
+                            <TableCell className="text-right">
+                              <PaymentFormModal
+                                projectId={project.id}
+                                payment={payment}
+                                trigger={
+                                  <Button variant="ghost" size="icon">
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                }
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeletePayment(payment.id)}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" /> Central de Documentos
               </CardTitle>
-              {isAdmin && <ClientDocumentUpload projectId={project.id} />}
-            </CardHeader>{' '}
+              {canUploadDocs && <ClientDocumentUpload projectId={project.id} />}
+            </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {documents.length === 0 ? (
@@ -585,7 +627,7 @@ export default function ClientProjectDetails() {
                             </Button>
                           </a>
                         )}
-                        {isAdmin && (
+                        {canDeleteDocs && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -605,14 +647,16 @@ export default function ClientProjectDetails() {
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Comunicações do Projeto</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ClientComments projectId={project.id} comments={comments} />
-            </CardContent>
-          </Card>
+          {canViewComments && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Comunicações do Projeto</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ClientComments projectId={project.id} comments={comments} />
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Evolução do Progresso</CardTitle>

@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { KanbanTask, TaskPriority, TaskStatus } from './KanbanBoard'
 import { format } from 'date-fns'
 import { TaskAttachments } from './TaskAttachments'
+import { useAuth } from '@/hooks/use-auth'
 
 interface TaskDetailModalProps {
   isOpen: boolean
@@ -66,6 +67,11 @@ export function TaskDetailModal({
   teamMembers,
   onUpdate,
 }: TaskDetailModalProps) {
+  const { effectiveRole } = useAuth()
+  const canEdit =
+    effectiveRole === 'Administrador' ||
+    effectiveRole === 'Gerente de Projeto' ||
+    effectiveRole === 'Projetista'
   const [editedTask, setEditedTask] = useState<KanbanTask>(task)
   const [comments, setComments] = useState(INITIAL_COMMENTS)
   const [history, setHistory] = useState(INITIAL_HISTORY)
@@ -134,6 +140,7 @@ export function TaskDetailModal({
                 <Input
                   value={editedTask.title}
                   onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
+                  disabled={!canEdit}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -143,6 +150,7 @@ export function TaskDetailModal({
                     type="date"
                     value={editedTask.deadline || ''}
                     onChange={(e) => setEditedTask({ ...editedTask, deadline: e.target.value })}
+                    disabled={!canEdit}
                   />
                 </div>
                 <div className="space-y-2">
@@ -152,6 +160,7 @@ export function TaskDetailModal({
                     onValueChange={(v) =>
                       setEditedTask({ ...editedTask, priority: v as TaskPriority })
                     }
+                    disabled={!canEdit}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -168,6 +177,7 @@ export function TaskDetailModal({
                   <Select
                     value={editedTask.status}
                     onValueChange={(v) => setEditedTask({ ...editedTask, status: v as TaskStatus })}
+                    disabled={!canEdit}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -193,15 +203,17 @@ export function TaskDetailModal({
               />
             </TabsContent>
             <TabsContent value="comments" className="space-y-4 mt-0 h-full overflow-y-auto">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Escreva um comentário..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                />
-                <Button onClick={handleAddComment}>Enviar</Button>
-              </div>
+              {canEdit && (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Escreva um comentário..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                  />
+                  <Button onClick={handleAddComment}>Enviar</Button>
+                </div>
+              )}
               <div className="space-y-4 mt-4">
                 {comments.map((c) => (
                   <div key={c.id} className="bg-muted p-3 rounded-lg text-sm">
@@ -233,9 +245,9 @@ export function TaskDetailModal({
         </Tabs>
         <DialogFooter className="px-6 py-4 border-t bg-muted/20">
           <Button variant="outline" onClick={onClose}>
-            Cancelar
+            {canEdit ? 'Cancelar' : 'Fechar'}
           </Button>
-          <Button onClick={handleSave}>Salvar Alterações</Button>
+          {canEdit && <Button onClick={handleSave}>Salvar Alterações</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

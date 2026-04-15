@@ -8,6 +8,9 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => void
   loading: boolean
+  simulatedRole: string | null
+  setSimulatedRole: (role: string | null) => void
+  effectiveRole: string | undefined
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -21,6 +24,9 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<any>(pb.authStore.record)
   const [loading, setLoading] = useState(true)
+  const [simulatedRole, setSimulatedRole] = useState<string | null>(null)
+
+  const effectiveRole = simulatedRole || user?.role
 
   useEffect(() => {
     const unsubscribe = pb.authStore.onChange((_token, record) => {
@@ -86,7 +92,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        signUp,
+        signIn,
+        signOut,
+        loading,
+        simulatedRole,
+        setSimulatedRole,
+        effectiveRole,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

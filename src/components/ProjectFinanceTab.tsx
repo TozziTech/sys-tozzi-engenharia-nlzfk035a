@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { subDays, isAfter } from 'date-fns'
 import useProjectStore from '@/stores/useProjectStore'
+import { useAuth } from '@/hooks/use-auth'
 import { useFinancialCategories } from '@/hooks/use-financial-categories'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -39,6 +40,23 @@ const formatCurrency = (value?: number) => {
 export function ProjectFinanceTab({ project }: { project: any }) {
   const { transactions, updateTransaction } = useProjectStore()
   const { categories } = useFinancialCategories()
+  const { effectiveRole } = useAuth()
+
+  const canViewFinance =
+    effectiveRole === 'Administrador' ||
+    effectiveRole === 'Gerente de Projeto' ||
+    effectiveRole === 'Cliente'
+
+  if (!canViewFinance) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg bg-muted/20">
+        <h3 className="text-lg font-medium">Acesso Restrito</h3>
+        <p className="text-muted-foreground mt-2">
+          Você não tem permissão para visualizar dados financeiros deste projeto.
+        </p>
+      </div>
+    )
+  }
   const [periodFilter, setPeriodFilter] = useState<string>('all')
   const [draggedTx, setDraggedTx] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)

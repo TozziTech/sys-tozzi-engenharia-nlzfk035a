@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
+import { useAuth } from '@/hooks/use-auth'
 import { ptBR } from 'date-fns/locale'
 import { Download, Plus, AlertTriangle, CheckCircle, Clock, History, Printer } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
@@ -30,6 +31,11 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 
 export function ModuleVersions({ module }: { module: any }) {
+  const { effectiveRole } = useAuth()
+  const canEdit =
+    effectiveRole === 'Administrador' ||
+    effectiveRole === 'Gerente de Projeto' ||
+    effectiveRole === 'Projetista'
   const moduleId = module.id
   const [versions, setVersions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -204,120 +210,122 @@ export function ModuleVersions({ module }: { module: any }) {
               <span className="hidden sm:inline">Exportar Relatório</span>
               <span className="sm:hidden">Exportar</span>
             </Button>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1">
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Nova Versão</span>
-                  <span className="sm:hidden">Nova</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Registrar Nova Versão</DialogTitle>
-                  <DialogDescription>
-                    Adicione uma nova versão ou revisão para esta disciplina.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+            {canEdit && (
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1">
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline">Nova Versão</span>
+                    <span className="sm:hidden">Nova</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Registrar Nova Versão</DialogTitle>
+                    <DialogDescription>
+                      Adicione uma nova versão ou revisão para esta disciplina.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="version_label">Versão</Label>
+                        <Input
+                          id="version_label"
+                          placeholder="Ex: V1.0"
+                          value={formData.version_label}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, version_label: e.target.value }))
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="revision">Revisão</Label>
+                        <Input
+                          id="revision"
+                          placeholder="Ex: R01"
+                          value={formData.revision}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, revision: e.target.value }))
+                          }
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="version_label">Versão</Label>
-                      <Input
-                        id="version_label"
-                        placeholder="Ex: V1.0"
-                        value={formData.version_label}
+                      <Label htmlFor="description">Descrição / Alterações</Label>
+                      <Textarea
+                        id="description"
+                        placeholder="O que mudou nesta versão?"
+                        value={formData.description}
                         onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, version_label: e.target.value }))
+                          setFormData((prev) => ({ ...prev, description: e.target.value }))
                         }
-                        required
+                        rows={3}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="revision">Revisão</Label>
-                      <Input
-                        id="revision"
-                        placeholder="Ex: R01"
-                        value={formData.revision}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, revision: e.target.value }))
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="status">Status</Label>
+                        <Select
+                          value={formData.status}
+                          onValueChange={(val) => setFormData((prev) => ({ ...prev, status: val }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Pendente">Pendente</SelectItem>
+                            <SelectItem value="Em Revisão">Em Revisão</SelectItem>
+                            <SelectItem value="Aprovado">Aprovado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="file">Arquivo (Opcional)</Label>
+                        <Input
+                          id="file"
+                          type="file"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null
+                            setFormData((prev) => ({ ...prev, file }))
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 pt-2">
+                      <Checkbox
+                        id="is_critical"
+                        checked={formData.is_critical}
+                        onCheckedChange={(checked) =>
+                          setFormData((prev) => ({ ...prev, is_critical: checked as boolean }))
                         }
                       />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Descrição / Alterações</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="O que mudou nesta versão?"
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, description: e.target.value }))
-                      }
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="status">Status</Label>
-                      <Select
-                        value={formData.status}
-                        onValueChange={(val) => setFormData((prev) => ({ ...prev, status: val }))}
+                      <Label
+                        htmlFor="is_critical"
+                        className="font-normal cursor-pointer flex items-center gap-1.5"
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Pendente">Pendente</SelectItem>
-                          <SelectItem value="Em Revisão">Em Revisão</SelectItem>
-                          <SelectItem value="Aprovado">Aprovado</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        Marcar como versão crítica
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                      </Label>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="file">Arquivo (Opcional)</Label>
-                      <Input
-                        id="file"
-                        type="file"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null
-                          setFormData((prev) => ({ ...prev, file }))
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2 pt-2">
-                    <Checkbox
-                      id="is_critical"
-                      checked={formData.is_critical}
-                      onCheckedChange={(checked) =>
-                        setFormData((prev) => ({ ...prev, is_critical: checked as boolean }))
-                      }
-                    />
-                    <Label
-                      htmlFor="is_critical"
-                      className="font-normal cursor-pointer flex items-center gap-1.5"
-                    >
-                      Marcar como versão crítica
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                    </Label>
-                  </div>
-
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit" disabled={uploading}>
-                      {uploading ? 'Salvando...' : 'Salvar Versão'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                        Cancelar
+                      </Button>
+                      <Button type="submit" disabled={uploading}>
+                        {uploading ? 'Salvando...' : 'Salvar Versão'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </CardHeader>
         <CardContent>

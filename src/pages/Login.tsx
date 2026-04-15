@@ -37,7 +37,7 @@ export default function Login() {
       toast({
         variant: 'destructive',
         title: 'Erro ao fazer login',
-        description: 'Verifique suas credenciais e tente novamente.',
+        description: error.message || 'Verifique suas credenciais e tente novamente.',
       })
       setLoading(false)
       return
@@ -81,13 +81,32 @@ export default function Login() {
                 required
               />
             </div>
+            <div className="flex items-center justify-end">
+              <Button
+                variant="link"
+                className="px-0 font-normal h-auto text-xs"
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+              >
+                Esqueci minha senha
+              </Button>
+            </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <p className="text-sm text-muted-foreground">Sistema de Gestão Tozzi Engenharia</p>
+        <CardFooter className="flex flex-col space-y-4 justify-center border-t p-4">
+          <p className="text-sm text-center text-muted-foreground">
+            Não tem uma conta?{' '}
+            <Button
+              variant="link"
+              className="p-0 h-auto font-semibold"
+              onClick={() => navigate('/signup')}
+            >
+              Cadastrar-se
+            </Button>
+          </p>
         </CardFooter>
       </Card>
     </div>

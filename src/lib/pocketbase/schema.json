@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-15T18:07:57.838Z",
+  "generatedAt": "2026-04-15T18:32:05.154Z",
   "collections": [
     {
       "name": "users",
@@ -7,7 +7,7 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
+        "create": "",
         "update": "@request.auth.id = id || @request.auth.role = 'Administrador'",
         "delete": "@request.auth.role = 'Administrador'"
       },
@@ -109,7 +109,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Ativo", "Inativo", "Em Férias"]
+          "selectValues": ["Ativo", "Inativo", "Em Férias", "Pendente"]
         },
         {
           "name": "role",

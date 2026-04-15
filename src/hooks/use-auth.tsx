@@ -4,9 +4,10 @@ import { ClientResponseError } from 'pocketbase'
 
 interface AuthContextType {
   user: any
-  signUp: (email: string, password: string) => Promise<{ error: any }>
+  signUp: (data: any) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => void
+  requestPasswordReset: (email: string) => Promise<{ error: any }>
   loading: boolean
 }
 
@@ -31,7 +32,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (pb.authStore.isValid) {
         try {
           const authData = await pb.collection('users').authRefresh()
-          setUser(authData.record)
+          if (authData.record.status === 'Pendente' || authData.record.status === 'Inativo') {
+            pb.authStore.clear()
+            setUser(null)
+          } else {
+            setUser(authData.record)
+          }
         } catch (error) {
           console.error('Failed to refresh auth', error)
           pb.authStore.clear()
@@ -49,10 +55,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [])
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (data: any) => {
     try {
-      await pb.collection('users').create({ email, password, passwordConfirm: password })
-      await pb.collection('users').authWithPassword(email, password)
+      const tempCodigo = 'TEMP-' + Math.random().toString(36).substring(2, 8).toUpperCase()
+      await pb.collection('users').create({
+        ...data,
+        status: 'Pendente',
+        role: 'Visitante',
+        codigo: data.codigo || tempCodigo,
+      })
       return { error: null }
     } catch (error) {
       return { error }
@@ -61,7 +72,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      await pb.collection('users').authWithPassword(email, password)
+      const authData = await pb.collection('users').authWithPassword(email, password)
+      if (authData.record.status === 'Pendente') {
+        pb.authStore.clear()
+        return {
+          error: {
+            message:
+              'Sua conta está aguardando aprovação. Você receberá um aviso assim que for liberada.',
+          },
+        }
+      }
+      if (authData.record.status === 'Inativo') {
+        pb.authStore.clear()
+        return { error: { message: 'Sua conta está inativa. Contate o administrador.' } }
+      }
+      return { error: null }
+    } catch (error) {
+      return { error }
+    }
+  }
+
+  const requestPasswordReset = async (email: string) => {
+    try {
+      await pb.collection('users').requestPasswordReset(email)
       return { error: null }
     } catch (error) {
       return { error }
@@ -86,6 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signUp,
         signIn,
         signOut,
+        requestPasswordReset,
         loading,
       }}
     >

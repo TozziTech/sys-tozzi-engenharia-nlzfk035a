@@ -53,6 +53,8 @@ import { RoleGuard } from './components/auth/RoleGuard'
 import { AdminGuard } from './components/auth/AdminGuard'
 import { ThemeColorInjector } from './components/ThemeColorInjector'
 import Login from './pages/Login'
+import SignUp from './pages/SignUp'
+import ForgotPassword from './pages/ForgotPassword'
 
 const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
@@ -66,6 +68,8 @@ const App = () => (
             <Sonner />
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route element={<RoleGuard />}>
                 <Route element={<Layout />}>
                   <Route path="/" element={<Dashboard />} />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
@@ -16,16 +16,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield } from 'lucide-react'
+import { Shield, Clock, CheckCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export default function AccessControl() {
   const [users, setUsers] = useState<any[]>([])
   const { toast } = useToast()
 
+  // Approval Dialog State
+  const [approvalUser, setApprovalUser] = useState<any>(null)
+  const [selectedRole, setSelectedRole] = useState('Visitante')
+  const [codigo, setCodigo] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const loadData = async () => {
     try {
-      const records = await pb.collection('users').getFullList({ sort: 'name' })
+      const records = await pb.collection('users').getFullList({ sort: '-created' })
       setUsers(records)
     } catch (e) {
       console.error(e)
@@ -37,12 +55,43 @@ export default function AccessControl() {
   }, [])
   useRealtime('users', () => loadData())
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
+  const pendingUsers = useMemo(() => users.filter((u) => u.status === 'Pendente'), [users])
+  const activeUsers = useMemo(() => users.filter((u) => u.status !== 'Pendente'), [users])
+
+  const handleUpdateUser = async (userId: string, data: any, successMsg: string) => {
     try {
-      await pb.collection('users').update(userId, { role: newRole })
-      toast({ title: 'Sucesso', description: 'Nível de acesso atualizado.' })
+      await pb.collection('users').update(userId, data)
+      toast({ title: 'Sucesso', description: successMsg })
     } catch (e) {
-      toast({ title: 'Erro', description: 'Falha ao atualizar acesso.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Falha ao atualizar registro.', variant: 'destructive' })
+    }
+  }
+
+  const openApproval = (user: any) => {
+    setApprovalUser(user)
+    setSelectedRole('Visitante')
+    setCodigo(user.codigo?.startsWith('TEMP') ? '' : user.codigo || '')
+  }
+
+  const submitApproval = async () => {
+    if (!codigo.trim()) {
+      toast({ title: 'Erro', description: 'Código é obrigatório.', variant: 'destructive' })
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      await pb.collection('users').update(approvalUser.id, {
+        status: 'Ativo',
+        role: selectedRole,
+        codigo: codigo.trim(),
+      })
+      toast({ title: 'Sucesso', description: 'Usuário aprovado e ativado.' })
+      setApprovalUser(null)
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao aprovar usuário.', variant: 'destructive' })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -53,48 +102,175 @@ export default function AccessControl() {
           <Shield className="h-8 w-8 text-primary" /> Controle de Acesso
         </h1>
         <p className="text-muted-foreground">
-          Gerencie os níveis de acesso dos usuários na plataforma.
+          Gerencie os níveis de acesso e aprovações de novos usuários na plataforma.
         </p>
       </div>
-      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>E-mail</TableHead>
-              <TableHead>Código</TableHead>
-              <TableHead>Nível de Acesso</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((u) => (
-              <TableRow key={u.id}>
-                <TableCell className="font-medium">{u.name || 'Sem nome'}</TableCell>
-                <TableCell>{u.email}</TableCell>
-                <TableCell>{u.codigo}</TableCell>
-                <TableCell>
-                  <Select
-                    value={u.role || 'Visitante'}
-                    onValueChange={(val) => handleRoleChange(u.id, val)}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Administrador">Administrador</SelectItem>
-                      <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
-                      <SelectItem value="Projetista">Projetista</SelectItem>
-                      <SelectItem value="Estagiário">Estagiário</SelectItem>
-                      <SelectItem value="Visitante">Visitante</SelectItem>
-                      <SelectItem value="Cliente">Cliente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+
+      <Tabs defaultValue="active" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="active" className="flex gap-2">
+            <CheckCircle className="h-4 w-4" /> Usuários Registrados
+          </TabsTrigger>
+          <TabsTrigger value="pending" className="flex gap-2">
+            <Clock className="h-4 w-4" /> Aguardando Aprovação
+            {pendingUsers.length > 0 && (
+              <span className="ml-1 bg-primary text-primary-foreground text-[10px] px-2 py-0.5 rounded-full">
+                {pendingUsers.length}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active">
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>E-mail</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Nível de Acesso</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {activeUsers.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.name || 'Sem nome'}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>{u.codigo}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={u.role || 'Visitante'}
+                        onValueChange={(val) =>
+                          handleUpdateUser(u.id, { role: val }, 'Nível de acesso atualizado.')
+                        }
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Administrador">Administrador</SelectItem>
+                          <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                          <SelectItem value="Projetista">Projetista</SelectItem>
+                          <SelectItem value="Estagiário">Estagiário</SelectItem>
+                          <SelectItem value="Visitante">Visitante</SelectItem>
+                          <SelectItem value="Cliente">Cliente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={u.status || 'Ativo'}
+                        onValueChange={(val) =>
+                          handleUpdateUser(u.id, { status: val }, 'Status atualizado.')
+                        }
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Ativo">Ativo</SelectItem>
+                          <SelectItem value="Inativo">Inativo</SelectItem>
+                          <SelectItem value="Em Férias">Em Férias</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {activeUsers.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                      Nenhum usuário encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>E-mail</TableHead>
+                  <TableHead>Data da Solicitação</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingUsers.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.name || 'Sem nome'}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>{new Date(u.created).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" onClick={() => openApproval(u)}>
+                        Aprovar Acesso
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {pendingUsers.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                      Nenhum cadastro pendente.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={!!approvalUser} onOpenChange={(open) => !open && setApprovalUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aprovar Acesso</DialogTitle>
+            <DialogDescription>
+              Defina as permissões para o usuário <strong>{approvalUser?.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nível de Acesso (Role)</Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Administrador">Administrador</SelectItem>
+                  <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                  <SelectItem value="Projetista">Projetista</SelectItem>
+                  <SelectItem value="Estagiário">Estagiário</SelectItem>
+                  <SelectItem value="Visitante">Visitante</SelectItem>
+                  <SelectItem value="Cliente">Cliente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Código do Usuário (Obrigatório e Único)</Label>
+              <Input
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                placeholder="Ex: TZZ-001"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApprovalUser(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={submitApproval} disabled={isSubmitting || !codigo.trim()}>
+              {isSubmitting ? 'Salvando...' : 'Aprovar e Ativar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

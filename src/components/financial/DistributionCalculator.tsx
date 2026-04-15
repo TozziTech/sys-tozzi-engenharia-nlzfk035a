@@ -28,6 +28,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { DistributionChart } from './DistributionChart'
 
 const formSchema = z.object({
   description: z.string().min(1, 'Descrição é obrigatória'),
@@ -302,7 +303,9 @@ export function DistributionCalculator() {
       </div>
 
       <div className="xl:col-span-2 space-y-6">
-        <Card className="h-full border-border/50 shadow-sm flex flex-col">
+        <DistributionChart data={history} />
+
+        <Card className="border-border/50 shadow-sm flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <History className="h-5 w-5 text-primary" />
@@ -312,8 +315,8 @@ export function DistributionCalculator() {
               Listagem de todas as distribuições calculadas e salvas.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 p-0 sm:p-6 sm:pt-0">
-            <div className="rounded-md border border-border/50 h-full max-h-[600px] overflow-y-auto relative">
+          <CardContent className="p-0 sm:p-6 sm:pt-0">
+            <div className="rounded-md border border-border/50 max-h-[400px] overflow-y-auto relative">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                   <TableRow>

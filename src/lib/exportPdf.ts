@@ -401,9 +401,12 @@ export function exportDistributionPDF(records: any[], currentUser: string, setti
             <tr>
               <th>Data</th>
               <th>Descrição</th>
-              <th class="text-right">Valor Bruto</th>
+              <th class="text-right">Bruto</th>
+              <th class="text-right">NF</th>
+              <th class="text-right">ART</th>
               <th class="text-right">Despesas</th>
-              <th class="text-right">Valor Líquido</th>
+              <th class="text-right">Cap. Giro</th>
+              <th class="text-right">Líquido</th>
               <th class="text-right">Samuel</th>
               <th class="text-right">Tozzi</th>
             </tr>
@@ -416,7 +419,10 @@ export function exportDistributionPDF(records: any[], currentUser: string, setti
                 <td>${format(new Date(r.date || r.created), 'dd/MM/yyyy')}</td>
                 <td>${r.description}</td>
                 <td class="text-right">${formatCurrency(r.total_amount)}</td>
+                <td class="text-right">${formatCurrency(r.nf_amount || 0)}</td>
+                <td class="text-right">${formatCurrency(r.art_amount || 0)}</td>
                 <td class="text-right">${formatCurrency(r.expenses)}</td>
+                <td class="text-right">${formatCurrency((r.total_amount || 0) * ((r.working_capital_pct || 0) / 100))}</td>
                 <td class="text-right" style="font-weight: bold;">${formatCurrency(r.net_value)}</td>
                 <td class="text-right" style="color: #2563eb; font-weight: 600;">${formatCurrency(r.samuel_amount)}</td>
                 <td class="text-right" style="color: #059669; font-weight: 600;">${formatCurrency(r.tozzi_amount)}</td>

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   ChartContainer,
   ChartTooltip,
@@ -11,154 +11,125 @@ import {
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-const chartConfig = {
-  samuel: { label: 'Samuel', color: 'hsl(var(--chart-1))' },
-  tozzi: { label: 'Tozzi', color: 'hsl(var(--chart-2))' },
+interface Props {
+  data: any[]
 }
 
-export function DistributionChart({ data }: { data: any[] }) {
-  const currentYear = new Date().getFullYear()
+export function DistributionChart({ data }: Props) {
+  // Annual Chart (Grouped by Year)
+  const annualData = useMemo(() => {
+    const grouped = data.reduce((acc: any, curr) => {
+      const year = new Date(curr.date || curr.created).getFullYear().toString()
+      if (!acc[year]) {
+        acc[year] = { year, samuel: 0, tozzi: 0, net: 0 }
+      }
+      acc[year].samuel += curr.samuel_amount || 0
+      acc[year].tozzi += curr.tozzi_amount || 0
+      acc[year].net += curr.net_value || 0
+      return acc
+    }, {})
 
-  const { monthlyData, annualData, hasData } = useMemo(() => {
-    const currentYearData = data.filter((item) => {
-      const d = new Date(item.date || item.created)
-      return d.getFullYear() === currentYear
-    })
+    return Object.values(grouped).sort((a: any, b: any) => a.year.localeCompare(b.year))
+  }, [data])
 
-    const monthly = currentYearData.reduce(
-      (acc, curr) => {
-        const d = new Date(curr.date || curr.created)
-        const month = format(d, 'MMM', { locale: ptBR })
-        const monthKey = month.charAt(0).toUpperCase() + month.slice(1)
-        if (!acc[monthKey]) {
-          acc[monthKey] = {
-            name: monthKey,
-            samuel: 0,
-            tozzi: 0,
-            sort: d.getMonth(),
-          }
-        }
-        acc[monthKey].samuel += curr.samuel_amount || 0
-        acc[monthKey].tozzi += curr.tozzi_amount || 0
-        return acc
-      },
-      {} as Record<string, any>,
-    )
+  // Monthly Chart (Grouped by Month/Year)
+  const monthlyData = useMemo(() => {
+    const grouped = data.reduce((acc: any, curr) => {
+      const date = new Date(curr.date || curr.created)
+      const key = format(date, 'yyyy-MM')
+      const label = format(date, 'MMM/yy', { locale: ptBR })
 
-    const monthlyArray = Object.values(monthly).sort((a: any, b: any) => a.sort - b.sort)
+      if (!acc[key]) {
+        acc[key] = { key, label, samuel: 0, tozzi: 0, net: 0, timestamp: date.getTime() }
+      }
+      acc[key].samuel += curr.samuel_amount || 0
+      acc[key].tozzi += curr.tozzi_amount || 0
+      acc[key].net += curr.net_value || 0
+      return acc
+    }, {})
 
-    let totalSamuel = 0
-    let totalTozzi = 0
-    currentYearData.forEach((curr) => {
-      totalSamuel += curr.samuel_amount || 0
-      totalTozzi += curr.tozzi_amount || 0
-    })
-
-    const annualArray = [
-      { name: 'Samuel', valor: totalSamuel, fill: 'var(--color-samuel)' },
-      { name: 'Tozzi', valor: totalTozzi, fill: 'var(--color-tozzi)' },
-    ]
-
-    return {
-      monthlyData: monthlyArray,
-      annualData: annualArray,
-      hasData: currentYearData.length > 0,
-    }
-  }, [data, currentYear])
+    return Object.values(grouped)
+      .sort((a: any, b: any) => a.timestamp - b.timestamp)
+      .slice(-12) // last 12 months
+  }, [data])
 
   return (
-    <div className="flex flex-col gap-6 h-full">
-      <Card className="shadow-sm border-border/50 flex flex-col">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Distribuição Mensal {currentYear}</CardTitle>
-          <CardDescription>Visão comparativa dos valores distribuídos por mês</CardDescription>
+    <div className="space-y-6 h-full flex flex-col">
+      <Card
+        className="flex-1 flex flex-col border-border/50 shadow-sm animate-fade-in-up"
+        style={{ animationDelay: '100ms' }}
+      >
+        <CardHeader>
+          <CardTitle className="text-lg">Distribuição Anual</CardTitle>
+          <CardDescription>Visão geral de distribuição por ano</CardDescription>
         </CardHeader>
-        <CardContent className="flex-1">
-          {!hasData ? (
-            <div className="flex items-center justify-center h-[250px] text-sm text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
-              <p>Nenhum dado de distribuição encontrado para este período.</p>
-            </div>
-          ) : (
-            <ChartContainer config={chartConfig} className="h-[250px] w-full">
-              <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                <XAxis
-                  dataKey="name"
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs text-muted-foreground"
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) =>
-                    new Intl.NumberFormat('pt-BR', {
-                      notation: 'compact',
-                      compactDisplay: 'short',
-                    }).format(v)
-                  }
-                  className="text-xs text-muted-foreground"
-                />
-                <ChartTooltip
-                  cursor={{ fill: 'var(--muted)' }}
-                  content={<ChartTooltipContent indicator="dashed" />}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar dataKey="samuel" fill="var(--color-samuel)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="tozzi" fill="var(--color-tozzi)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
-          )}
+        <CardContent className="flex-1 min-h-[300px]">
+          <ChartContainer
+            config={{
+              samuel: { label: 'Samuel', color: 'hsl(var(--chart-1))' },
+              tozzi: { label: 'Tozzi', color: 'hsl(var(--chart-2))' },
+            }}
+            className="h-full w-full"
+          >
+            <BarChart data={annualData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey="year" tickLine={false} axisLine={false} tickMargin={10} />
+              <YAxis
+                tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar
+                dataKey="samuel"
+                name="Samuel"
+                fill="hsl(var(--chart-1))"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar dataKey="tozzi" name="Tozzi" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
         </CardContent>
       </Card>
 
-      <Card className="shadow-sm border-border/50 flex flex-col">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Distribuição Anual {currentYear}</CardTitle>
-          <CardDescription>Visão consolidada dos valores no ano</CardDescription>
+      <Card
+        className="flex-1 flex flex-col border-border/50 shadow-sm animate-fade-in-up"
+        style={{ animationDelay: '200ms' }}
+      >
+        <CardHeader>
+          <CardTitle className="text-lg">Distribuição Mensal</CardTitle>
+          <CardDescription>Evolução mês a mês (últimos 12 meses)</CardDescription>
         </CardHeader>
-        <CardContent className="flex-1">
-          {!hasData ? (
-            <div className="flex items-center justify-center h-[250px] text-sm text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
-              <p>Nenhum dado de distribuição encontrado para este período.</p>
-            </div>
-          ) : (
-            <ChartContainer
-              config={{
-                valor: { label: 'Valor (R$)' },
-                samuel: { color: 'hsl(var(--chart-1))' },
-                tozzi: { color: 'hsl(var(--chart-2))' },
-              }}
-              className="h-[250px] w-full"
-            >
-              <BarChart data={annualData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                <XAxis
-                  dataKey="name"
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs text-muted-foreground"
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) =>
-                    new Intl.NumberFormat('pt-BR', {
-                      notation: 'compact',
-                      compactDisplay: 'short',
-                    }).format(v)
-                  }
-                  className="text-xs text-muted-foreground"
-                />
-                <ChartTooltip cursor={{ fill: 'var(--muted)' }} content={<ChartTooltipContent />} />
-                <Bar dataKey="valor" radius={[4, 4, 0, 0]} barSize={60}>
-                  {annualData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
-          )}
+        <CardContent className="flex-1 min-h-[300px]">
+          <ChartContainer
+            config={{
+              samuel: { label: 'Samuel', color: 'hsl(var(--chart-1))' },
+              tozzi: { label: 'Tozzi', color: 'hsl(var(--chart-2))' },
+            }}
+            className="h-full w-full"
+          >
+            <BarChart data={monthlyData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={10} />
+              <YAxis
+                tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar
+                dataKey="samuel"
+                name="Samuel"
+                fill="hsl(var(--chart-1))"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar dataKey="tozzi" name="Tozzi" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
         </CardContent>
       </Card>
     </div>

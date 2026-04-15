@@ -56,9 +56,9 @@ export function EditDistributionDialog({ record, isOpen, onClose, onSaved }: Pro
   const safeTozziPct = Number(tozziPct) || 0
 
   const nfAmount = safeTotal * (safeNfPct / 100)
-  const grossProfit = safeTotal - safeExpenses - safeArtAmount - nfAmount
-  const workingCapitalValue = grossProfit > 0 ? grossProfit * (safeCapitalPct / 100) : 0
-  const netValue = grossProfit > 0 ? grossProfit - workingCapitalValue : 0
+  const workingCapitalValue = safeTotal * (safeCapitalPct / 100)
+  const calculatedNet = safeTotal - safeExpenses - safeArtAmount - nfAmount - workingCapitalValue
+  const netValue = Math.max(0, calculatedNet)
   const samuelAmount = netValue * (safeSamuelPct / 100)
   const tozziAmount = netValue * (safeTozziPct / 100)
 

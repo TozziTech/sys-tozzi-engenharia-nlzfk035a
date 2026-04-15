@@ -20,6 +20,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { DistributionChart } from './DistributionChart'
 import { DistributionKPIs } from './DistributionKPIs'
 import { DistributionHistoryTable } from './DistributionHistoryTable'
+import { EditDistributionDialog } from './EditDistributionDialog'
 
 const formSchema = z.object({
   description: z.string().min(1, 'Descrição é obrigatória'),
@@ -37,6 +38,7 @@ type FormValues = z.infer<typeof formSchema>
 export function DistributionCalculator() {
   const [history, setHistory] = useState<any[]>([])
   const [isCalculating, setIsCalculating] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<any | null>(null)
   const { toast } = useToast()
 
   const form = useForm<FormValues>({
@@ -341,7 +343,18 @@ export function DistributionCalculator() {
         </div>
       </div>
 
-      <DistributionHistoryTable history={history} onDelete={handleDelete} />
+      <DistributionHistoryTable
+        history={history}
+        onDelete={handleDelete}
+        onEdit={setEditingRecord}
+      />
+
+      <EditDistributionDialog
+        record={editingRecord}
+        isOpen={!!editingRecord}
+        onClose={() => setEditingRecord(null)}
+        onSaved={loadHistory}
+      />
     </div>
   )
 }

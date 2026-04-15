@@ -264,7 +264,10 @@ export function exportDistributionCSV(records: any[]) {
     'Data',
     'Descrição',
     'Valor Bruto',
+    'NF (R$)',
+    'ART (R$)',
     'Despesas',
+    'Capital de Giro',
     'Valor Líquido',
     'Samuel (R$)',
     'Tozzi (R$)',
@@ -273,7 +276,19 @@ export function exportDistributionCSV(records: any[]) {
   const rows = records.map((r) => {
     const date = `"${format(new Date(r.date || r.created), 'dd/MM/yyyy')}"`
     const desc = `"${(r.description || '').replace(/"/g, '""')}"`
-    return [date, desc, r.total_amount, r.expenses, r.net_value, r.samuel_amount, r.tozzi_amount]
+    const cg = (r.total_amount || 0) * ((r.working_capital_pct || 0) / 100)
+    return [
+      date,
+      desc,
+      r.total_amount || 0,
+      r.nf_amount || 0,
+      r.art_amount || 0,
+      r.expenses || 0,
+      cg,
+      r.net_value || 0,
+      r.samuel_amount || 0,
+      r.tozzi_amount || 0,
+    ]
   })
 
   const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-16T05:20:38.423Z",
+  "generatedAt": "2026-04-16T05:24:21.954Z",
   "collections": [
     {
       "name": "users",
@@ -2045,7 +2045,7 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX `idx_contacts_code` ON `contacts` (code)"]
+      "indexes": ["CREATE UNIQUE INDEX `idx_contacts_code_unique` ON `contacts` (code)"]
     },
     {
       "name": "document_resources",

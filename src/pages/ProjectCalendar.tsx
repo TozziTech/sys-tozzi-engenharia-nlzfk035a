@@ -24,6 +24,7 @@ import {
   Briefcase,
   Layers,
   CheckSquare,
+  Plus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +40,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
@@ -46,11 +58,13 @@ import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { exportCalendarCSV } from '@/lib/export'
 import { exportCalendarPDF } from '@/lib/exportPdf'
+import { StatusBadge } from '@/components/StatusBadge'
 
 type CalendarEvent = {
   id: string
   realId: string
   title: string
+  rawTitle: string
   date: string
   type: 'project' | 'module' | 'task'
   status: string
@@ -68,6 +82,14 @@ export default function ProjectCalendar() {
   const { toast } = useToast()
   const [settings, setSettings] = useState<any>(null)
   const navigate = useNavigate()
+
+  const [isNewActivityOpen, setIsNewActivityOpen] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDate, setNewTaskDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [newTaskDescription, setNewTaskDescription] = useState('')
+
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
@@ -102,6 +124,7 @@ export default function ProjectCalendar() {
             id: `proj_${p.id}`,
             realId: p.id,
             title: `Projeto: ${p.name}`,
+            rawTitle: p.name,
             date: p.end_date.split(' ')[0],
             type: 'project',
             status: p.status,
@@ -117,6 +140,7 @@ export default function ProjectCalendar() {
             id: `mod_${m.id}`,
             realId: m.id,
             title: `Disciplina: ${m.name}`,
+            rawTitle: m.name,
             projectName: m.expand?.project?.name,
             date: m.deadline.split(' ')[0],
             type: 'module',
@@ -133,6 +157,7 @@ export default function ProjectCalendar() {
             id: `task_${t.id}`,
             realId: t.id,
             title: `Tarefa: ${t.title}`,
+            rawTitle: t.title,
             projectName: t.expand?.project?.name,
             date: t.due_date.split(' ')[0],
             type: 'task',
@@ -157,6 +182,46 @@ export default function ProjectCalendar() {
   useRealtime('project_modules', () => loadData())
   useRealtime('projects', () => loadData())
 
+  const handleCreateActivity = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTaskTitle || !newTaskDate) return
+
+    try {
+      await pb.collection('tasks').create({
+        title: newTaskTitle,
+        due_date: `${newTaskDate} 12:00:00.000Z`,
+        description: newTaskDescription,
+        status: 'Pendente',
+      })
+      toast({ title: 'Atividade criada com sucesso!' })
+      setIsNewActivityOpen(false)
+      setNewTaskTitle('')
+      setNewTaskDate(format(new Date(), 'yyyy-MM-dd'))
+      setNewTaskDescription('')
+    } catch (error) {
+      toast({ title: 'Erro ao criar atividade', variant: 'destructive' })
+    }
+  }
+
+  const startEditing = (e: CalendarEvent) => {
+    if (e.type === 'task' && canEdit) {
+      setEditingTaskId(e.realId)
+      setEditTitle(e.rawTitle)
+    }
+  }
+
+  const saveEditing = async (realId: string) => {
+    try {
+      if (editTitle.trim()) {
+        await pb.collection('tasks').update(realId, { title: editTitle.trim() })
+        toast({ title: 'Atividade atualizada com sucesso!' })
+      }
+    } catch (err) {
+      toast({ title: 'Erro ao atualizar atividade', variant: 'destructive' })
+    }
+    setEditingTaskId(null)
+  }
+
   const uniqueDisciplines = useMemo(() => {
     const names = new Set(events.map((e) => e.discipline).filter(Boolean) as string[])
     return Array.from(names).sort()
@@ -179,6 +244,18 @@ export default function ProjectCalendar() {
     })
     return map
   }, [filteredEvents])
+
+  const monthEvents = useMemo(() => {
+    return filteredEvents
+      .filter((e) => {
+        const d = new Date(`${e.date}T12:00:00`)
+        return isSameMonth(d, currentDate)
+      })
+      .sort(
+        (a, b) =>
+          new Date(`${a.date}T12:00:00`).getTime() - new Date(`${b.date}T12:00:00`).getTime(),
+      )
+  }, [filteredEvents, currentDate])
 
   const days = useMemo(() => {
     if (viewMode === 'month') {
@@ -295,6 +372,62 @@ export default function ProjectCalendar() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Dialog open={isNewActivityOpen} onOpenChange={setIsNewActivityOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nova Atividade</span>
+                <span className="sm:hidden">Nova</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nova Atividade</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateActivity} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Título</Label>
+                  <Input
+                    id="title"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    required
+                    placeholder="Ex: Reunião de Alinhamento"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date">Data de Entrega</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={newTaskDate}
+                    onChange={(e) => setNewTaskDate(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="desc">Descrição (Opcional)</Label>
+                  <Textarea
+                    id="desc"
+                    value={newTaskDescription}
+                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    placeholder="Detalhes da atividade..."
+                  />
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsNewActivityOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit">Salvar</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
@@ -423,7 +556,6 @@ export default function ProjectCalendar() {
                   const dateKey = format(day, 'yyyy-MM-dd')
                   const dayEvents = eventsByDate[dateKey] || []
 
-                  // Sort: Projects > Modules > Tasks
                   dayEvents.sort((a, b) => {
                     const order = { project: 0, module: 1, task: 2 }
                     return order[a.type] - order[b.type]
@@ -485,7 +617,7 @@ export default function ProjectCalendar() {
                                 : '',
                               e.type === 'module' ? 'border-l-4 border-l-blue-500' : '',
                             )}
-                            title={`${e.title} ${e.projectName ? `- ${e.projectName}` : ''}`}
+                            title={`${e.rawTitle} ${e.projectName ? `- ${e.projectName}` : ''}`}
                           >
                             <div className="flex items-start">
                               {getTypeIcon(e.type)}
@@ -507,6 +639,68 @@ export default function ProjectCalendar() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="mt-8 space-y-4 animate-fade-in-up">
+        <h3 className="text-xl font-bold">Atividades do Mês</h3>
+        {monthEvents.length === 0 ? (
+          <p className="text-muted-foreground">Nenhuma atividade agendada para este mês.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {monthEvents.map((e) => (
+              <div
+                key={e.id}
+                className="flex items-center justify-between p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-muted text-muted-foreground font-bold shrink-0">
+                    {format(new Date(`${e.date}T12:00:00`), 'dd')}
+                  </div>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    {editingTaskId === e.realId && e.type === 'task' ? (
+                      <Input
+                        autoFocus
+                        value={editTitle}
+                        onChange={(ev) => setEditTitle(ev.target.value)}
+                        onBlur={() => saveEditing(e.realId)}
+                        onKeyDown={(ev) => {
+                          if (ev.key === 'Enter') saveEditing(e.realId)
+                          if (ev.key === 'Escape') setEditingTaskId(null)
+                        }}
+                        className="h-7 py-1 px-2 text-sm font-semibold mb-0.5 max-w-[200px]"
+                      />
+                    ) : (
+                      <span
+                        className={cn(
+                          'font-semibold text-sm truncate',
+                          e.type === 'task' &&
+                            canEdit &&
+                            'cursor-pointer hover:underline text-primary',
+                        )}
+                        onClick={() => startEditing(e)}
+                        title={e.rawTitle}
+                      >
+                        {e.rawTitle}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                      {getTypeIcon(e.type)}
+                      {e.type === 'project'
+                        ? 'Projeto'
+                        : e.type === 'module'
+                          ? 'Disciplina'
+                          : 'Tarefa'}
+                      {e.projectName && <span className="truncate"> • {e.projectName}</span>}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 shrink-0 pl-2">
+                  <StatusBadge status={e.status as any} endDate={e.date} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

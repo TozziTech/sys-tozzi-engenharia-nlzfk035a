@@ -2,11 +2,15 @@ import pb from '@/lib/pocketbase/client'
 
 export interface Contact {
   id: string
+  code: string
   name: string
   company: string
   phone: string
+  alt_phone?: string
   email: string
-  category: 'Cliente' | 'Fornecedor' | 'Parceiro'
+  address?: string
+  notes?: string
+  category: string
   is_favorite?: boolean
   created: string
   updated: string

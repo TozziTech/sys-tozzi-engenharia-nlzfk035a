@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-16T04:43:12.600Z",
+  "generatedAt": "2026-04-16T04:54:12.160Z",
   "collections": [
     {
       "name": "users",
@@ -1995,13 +1995,6 @@
           "system": false
         },
         {
-          "name": "category",
-          "type": "select",
-          "required": true,
-          "system": false,
-          "selectValues": ["Cliente", "Fornecedor", "Parceiro"]
-        },
-        {
           "name": "created",
           "type": "autodate",
           "required": false,
@@ -2020,9 +2013,39 @@
           "type": "bool",
           "required": false,
           "system": false
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "alt_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "address",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE UNIQUE INDEX `idx_contacts_code` ON `contacts` (code)"]
     },
     {
       "name": "document_resources",

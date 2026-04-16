@@ -299,35 +299,37 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                     })()}
                   </div>
 
-                  {canEdit && (
-                    <div className="flex justify-end gap-2 pt-2 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedModuleForTasks(mod)}
-                      >
-                        <ListTree className="w-4 h-4 mr-2" /> Tarefas
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setEditingModule(mod)
-                          setIsModalOpen(true)
-                        }}
-                      >
-                        <Edit2 className="w-4 h-4 mr-2" /> Editar
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteModuleId(mod)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" /> Remover
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex justify-end gap-2 pt-2 border-t">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedModuleForTasks(mod)}
+                    >
+                      <ListTree className="w-4 h-4 mr-2" /> Tarefas
+                    </Button>
+                    {canEdit && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingModule(mod)
+                            setIsModalOpen(true)
+                          }}
+                        >
+                          <Edit2 className="w-4 h-4 mr-2" /> Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteModuleId(mod)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" /> Remover
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </Card>
             ))}

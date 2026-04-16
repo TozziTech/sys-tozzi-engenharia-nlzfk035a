@@ -83,6 +83,7 @@ type CalendarEvent = {
   link: string
   discipline?: string
   priority?: string
+  tags?: string[]
 }
 
 const FilterPopover = ({
@@ -172,6 +173,7 @@ export default function ProjectCalendar() {
   const [statusFilter, setStatusFilter] = useState<string[]>([])
   const [priorityFilter, setPriorityFilter] = useState<string[]>([])
   const [projectFilter, setProjectFilter] = useState<string[]>([])
+  const [tagFilter, setTagFilter] = useState<string[]>([])
 
   const { user } = useAuth()
   const { toast } = useToast()
@@ -203,7 +205,7 @@ export default function ProjectCalendar() {
     try {
       const [tasksRes, modulesRes, projectsRes] = await Promise.all([
         pb.collection('tasks').getFullList({
-          expand: 'project,module',
+          expand: 'project,module,tags',
           filter: 'due_date != ""',
         }),
         pb.collection('project_modules').getFullList({
@@ -252,6 +254,7 @@ export default function ProjectCalendar() {
 
       tasksRes.forEach((t) => {
         if (t.due_date) {
+          const tags = t.expand?.tags?.map((tag: any) => tag.name) || []
           allEvents.push({
             id: `task_${t.id}`,
             realId: t.id,
@@ -264,6 +267,7 @@ export default function ProjectCalendar() {
             link: `/projects/${t.project}`,
             discipline: t.expand?.module?.name,
             priority: t.priority,
+            tags,
           })
         }
       })
@@ -291,6 +295,11 @@ export default function ProjectCalendar() {
     [events],
   )
   const uniquePriorities = ['Baixa', 'Média', 'Alta', 'Urgente']
+
+  const uniqueTags = useMemo(
+    () => Array.from(new Set(events.flatMap((e) => e.tags || []).filter(Boolean))),
+    [events],
+  )
 
   const handleCreateActivity = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -404,9 +413,11 @@ export default function ProjectCalendar() {
         return false
       if (projectFilter.length > 0 && (!e.projectName || !projectFilter.includes(e.projectName)))
         return false
+      if (tagFilter.length > 0 && (!e.tags || !e.tags.some((t) => tagFilter.includes(t))))
+        return false
       return true
     })
-  }, [monthEvents, statusFilter, priorityFilter, projectFilter])
+  }, [monthEvents, statusFilter, priorityFilter, projectFilter, tagFilter])
 
   const days = useMemo(() => {
     if (viewMode === 'month') {
@@ -579,7 +590,7 @@ export default function ProjectCalendar() {
                 <div className="space-y-3 p-3 border rounded-md bg-muted/20">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="recurring" className="flex-1 cursor-pointer">
-                      Tarefa Recorrente?
+                      É recorrente?
                     </Label>
                     <Switch id="recurring" checked={isRecurring} onCheckedChange={setIsRecurring} />
                   </div>
@@ -874,77 +885,107 @@ export default function ProjectCalendar() {
               selected={projectFilter}
               onChange={setProjectFilter}
             />
+            <FilterPopover
+              title="Categoria/Tags"
+              options={uniqueTags}
+              selected={tagFilter}
+              onChange={setTagFilter}
+            />
           </div>
         </div>
 
         {filteredMonthEvents.length === 0 ? (
           <div className="p-8 text-center border rounded-lg border-dashed bg-muted/20">
-            <p className="text-muted-foreground">
-              Nenhuma atividade encontrada para estes filtros no mês atual.
-            </p>
+            <p className="text-muted-foreground">Nenhuma atividade encontrada para este período.</p>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredMonthEvents.map((e) => (
               <div
                 key={e.id}
-                className="flex items-center justify-between p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow"
+                className="flex items-start justify-between p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow gap-4"
               >
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-muted text-muted-foreground font-bold shrink-0">
+                <div className="flex items-start gap-4 flex-1 min-w-0">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-muted text-muted-foreground font-bold shrink-0 mt-0.5">
                     {format(new Date(`${e.date}T12:00:00`), 'dd')}
                   </div>
                   <div className="flex flex-col flex-1 min-w-0">
-                    {editingTaskId === e.realId && e.type === 'task' ? (
-                      <Input
-                        autoFocus
-                        value={editTitle}
-                        onChange={(ev) => setEditTitle(ev.target.value)}
-                        onBlur={() => saveEditing(e.realId)}
-                        onKeyDown={(ev) => {
-                          if (ev.key === 'Enter') saveEditing(e.realId)
-                          if (ev.key === 'Escape') setEditingTaskId(null)
-                        }}
-                        className="h-7 py-1 px-2 text-sm font-semibold mb-0.5 max-w-[200px]"
-                      />
-                    ) : (
-                      <span
-                        className={cn(
-                          'font-semibold text-sm truncate',
-                          e.type === 'task' &&
-                            canEdit &&
-                            'cursor-pointer hover:underline text-primary',
-                        )}
-                        onClick={() => startEditing(e)}
-                        title={e.rawTitle}
-                      >
-                        {e.rawTitle}
-                      </span>
-                    )}
-                    <span
-                      className={cn(
-                        'text-xs flex items-center gap-1 truncate mt-0.5',
-                        e.priority === 'Urgente'
-                          ? 'text-red-600 font-semibold dark:text-red-400'
-                          : 'text-muted-foreground',
-                      )}
-                    >
-                      {getTypeIcon(e.type)}
-                      {e.type === 'project'
-                        ? 'Projeto'
-                        : e.type === 'module'
-                          ? 'Disciplina'
-                          : 'Tarefa'}
-                      {e.projectName && <span className="truncate"> • {e.projectName}</span>}
-                      {e.priority === 'Urgente' && (
-                        <span className="ml-1 text-[9px] bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-sm uppercase font-bold tracking-wider">
-                          Urgente
+                    <div className="flex items-center gap-2 mb-0.5">
+                      {editingTaskId === e.realId && e.type === 'task' ? (
+                        <Input
+                          autoFocus
+                          value={editTitle}
+                          onChange={(ev) => setEditTitle(ev.target.value)}
+                          onBlur={() => saveEditing(e.realId)}
+                          onKeyDown={(ev) => {
+                            if (ev.key === 'Enter') saveEditing(e.realId)
+                            if (ev.key === 'Escape') setEditingTaskId(null)
+                          }}
+                          className="h-7 py-1 px-2 text-sm font-semibold max-w-[200px]"
+                        />
+                      ) : (
+                        <span
+                          className={cn(
+                            'font-semibold text-sm truncate',
+                            e.type === 'task' &&
+                              canEdit &&
+                              'cursor-pointer hover:underline text-primary',
+                          )}
+                          onClick={() => startEditing(e)}
+                          title={e.rawTitle}
+                        >
+                          {e.rawTitle}
                         </span>
                       )}
+                      {e.priority && (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[9px] px-1 py-0 h-4 tracking-wider uppercase shrink-0',
+                            e.priority === 'Urgente'
+                              ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400'
+                              : e.priority === 'Alta'
+                                ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400'
+                                : e.priority === 'Média'
+                                  ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400'
+                                  : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300',
+                          )}
+                        >
+                          {e.priority}
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-xs flex flex-wrap items-center gap-1.5 text-muted-foreground mt-0.5">
+                      <span className="font-medium whitespace-nowrap">
+                        {format(new Date(`${e.date}T12:00:00`), 'dd/MM/yyyy')}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1 whitespace-nowrap">
+                        {getTypeIcon(e.type)}
+                        {e.type === 'project'
+                          ? 'Projeto'
+                          : e.type === 'module'
+                            ? 'Disciplina'
+                            : 'Tarefa'}
+                      </span>
+                      {e.projectName && <span className="truncate"> • {e.projectName}</span>}
                     </span>
+                    {e.tags && e.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {e.tags.map((t) => (
+                          <Badge
+                            key={t}
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0 h-4 font-normal"
+                          >
+                            {t}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0 pl-2">
+                <div className="flex flex-col items-end gap-2 shrink-0">
                   <StatusBadge status={e.status as any} endDate={e.date} />
                 </div>
               </div>

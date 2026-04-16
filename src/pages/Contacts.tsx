@@ -22,6 +22,11 @@ const getWhatsAppUrl = (phone: string) => {
   return `https://wa.me/${withCountry}`
 }
 import { getContacts, deleteContact, updateContact, type Contact } from '@/services/contacts'
+import { getAllContactInteractions, type ContactInteraction } from '@/services/contact_interactions'
+import { differenceInDays, parseISO } from 'date-fns'
+import { AlertCircle } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Badge } from '@/components/ui/badge'
 import { useRealtime } from '@/hooks/use-realtime'
 import { exportContactsCSV } from '@/lib/export'
 import { Button } from '@/components/ui/button'
@@ -71,6 +76,7 @@ import { Upload } from 'lucide-react'
 export default function Contacts() {
   const { toast } = useToast()
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [interactions, setInteractions] = useState<ContactInteraction[]>([])
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -115,10 +121,14 @@ export default function Contacts() {
 
   const loadContacts = async () => {
     try {
-      const data = await getContacts()
+      const [data, interactionsData] = await Promise.all([
+        getContacts(),
+        getAllContactInteractions(),
+      ])
       setContacts(data)
+      setInteractions(interactionsData)
     } catch (error) {
-      console.error('Failed to load contacts:', error)
+      console.error('Failed to load data:', error)
     }
   }
 
@@ -164,6 +174,10 @@ export default function Contacts() {
     loadContacts()
   })
 
+  useRealtime('contact_interactions', () => {
+    loadContacts()
+  })
+
   const handleSort = (key: 'code' | 'name') => {
     setSortConfig((prev) => ({
       key,
@@ -203,12 +217,23 @@ export default function Contacts() {
   const getCategoryColor = (cat: string) => {
     const norm = cat?.toLowerCase() || ''
     if (norm.includes('cliente'))
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+      return 'bg-blue-100 text-blue-800 hover:bg-blue-100/80 border-transparent dark:bg-blue-900/30 dark:text-blue-300'
     if (norm.includes('fornecedor'))
-      return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+      return 'bg-slate-100 text-slate-800 hover:bg-slate-100/80 border-transparent dark:bg-slate-800 dark:text-slate-300'
     if (norm.includes('parceiro'))
-      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-    return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+      return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100/80 border-transparent dark:bg-emerald-900/30 dark:text-emerald-300'
+    return 'bg-gray-100 text-gray-800 hover:bg-gray-100/80 border-transparent dark:bg-gray-800 dark:text-gray-300'
+  }
+
+  const getContactAlert = (contactId: string) => {
+    const lastInteraction = interactions.find((i) => i.contact === contactId)
+    const dateStr = lastInteraction?.interaction_date || lastInteraction?.created
+    const days = dateStr ? differenceInDays(new Date(), parseISO(dateStr)) : Infinity
+
+    return {
+      needsAttention: days > 30 || !dateStr,
+      days: days === Infinity ? null : days,
+    }
   }
 
   const existingCategories = Array.from(new Set(contacts.map((c) => c.category).filter(Boolean)))
@@ -337,17 +362,34 @@ export default function Contacts() {
                       <TableCell className="font-mono text-sm text-muted-foreground">
                         {contact.code || '-'}
                       </TableCell>
-                      <TableCell className="font-medium">{contact.name}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {contact.name}
+                          {(() => {
+                            const alert = getContactAlert(contact.id)
+                            if (alert.needsAttention) {
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertCircle className="h-4 w-4 text-amber-500" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {alert.days === null
+                                      ? 'Nenhuma interação registrada'
+                                      : `Sem contato há ${alert.days} dias`}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )
+                            }
+                            return null
+                          })()}
+                        </div>
+                      </TableCell>
                       <TableCell>{contact.company || '-'}</TableCell>
                       <TableCell>
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                            getCategoryColor(contact.category),
-                          )}
-                        >
+                        <Badge variant="outline" className={cn(getCategoryColor(contact.category))}>
                           {contact.category}
-                        </span>
+                        </Badge>
                       </TableCell>
                       <TableCell>{contact.phone || '-'}</TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -389,14 +431,12 @@ export default function Contacts() {
                           {viewingContact.code}
                         </span>
                       )}
-                      <span
-                        className={cn(
-                          'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                          getCategoryColor(viewingContact.category),
-                        )}
+                      <Badge
+                        variant="outline"
+                        className={cn(getCategoryColor(viewingContact.category))}
                       >
                         {viewingContact.category}
-                      </span>
+                      </Badge>
                     </SheetDescription>
                   </div>
                   <Button

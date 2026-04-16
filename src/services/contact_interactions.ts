@@ -24,6 +24,11 @@ export const getContactInteractions = (contactId: string) =>
     expand: 'user',
   })
 
+export const getAllContactInteractions = () =>
+  pb.collection('contact_interactions').getFullList<ContactInteraction>({
+    sort: '-interaction_date,-created',
+  })
+
 export const createContactInteraction = (data: Partial<ContactInteraction>) =>
   pb.collection('contact_interactions').create<ContactInteraction>(data)
 

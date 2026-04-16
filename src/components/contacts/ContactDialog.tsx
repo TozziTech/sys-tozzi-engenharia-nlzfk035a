@@ -38,7 +38,7 @@ import { extractFieldErrors } from '@/lib/pocketbase/errors'
 const phoneRegex = /^\(\d{2}\) \d{4,5}-\d{4}$/
 
 const formSchema = z.object({
-  code: z.string().min(1, 'Código é obrigatório'),
+  code: z.string().optional(),
   name: z.string().min(1, 'Nome é obrigatório'),
   company: z.string().optional(),
   phone: z
@@ -184,9 +184,9 @@ export function ContactDialog({
                 name="code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Código *</FormLabel>
+                    <FormLabel>Código (Auto)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: CTT-001" {...field} />
+                      <Input placeholder="Gerado automaticamente" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -46,6 +46,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
+import { HistoricoLancamentos } from '@/components/meu-painel/HistoricoLancamentos'
 import { NoteCard } from '@/components/NoteCard'
 import { MyTasksList } from '@/components/meu-painel/MyTasksList'
 import { cn } from '@/lib/utils'
@@ -290,9 +291,16 @@ export default function MeuPainel() {
               ativas.
             </p>
           </div>
-          <TabsList>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="financeiro">Planilha Financeira</TabsTrigger>
+          <TabsList className="w-full sm:w-auto flex flex-col sm:flex-row h-auto gap-2 p-1 sm:gap-0 sm:p-1 bg-transparent sm:bg-muted">
+            <TabsTrigger value="dashboard" className="w-full sm:w-auto">
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="financeiro" className="w-full sm:w-auto">
+              Planilha Financeira
+            </TabsTrigger>
+            <TabsTrigger value="historico" className="w-full sm:w-auto">
+              Histórico de Lançamentos
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -489,6 +497,10 @@ export default function MeuPainel() {
 
         <TabsContent value="financeiro" className="space-y-6">
           <PlanilhaFinanceira />
+        </TabsContent>
+
+        <TabsContent value="historico" className="space-y-6">
+          <HistoricoLancamentos />
         </TabsContent>
       </Tabs>
     </div>

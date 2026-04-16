@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { ArrowRight, AlertCircle, Clock, CheckCircle2, Briefcase } from 'lucide-react'
+import { ArrowRight, AlertCircle, Clock, CheckCircle2, Briefcase, Activity } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { isToday, parseISO } from 'date-fns'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 
 interface Project {
   id: string
@@ -26,6 +28,7 @@ interface UrgentTask {
 export default function Index() {
   const [projects, setProjects] = useState<Project[]>([])
   const [urgentTasks, setUrgentTasks] = useState<UrgentTask[]>([])
+  const [interactionsData, setInteractionsData] = useState<{ date: string; count: number }[]>([])
   const [loading, setLoading] = useState(true)
 
   const loadData = async () => {
@@ -58,6 +61,38 @@ export default function Index() {
           }))
           .filter((t) => t.project),
       )
+
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
+
+      const interactions = await pb.collection('contact_interactions').getFullList({
+        filter: `interaction_date >= "${thirtyDaysAgoStr}"`,
+        sort: 'interaction_date',
+      })
+
+      const grouped = interactions.reduce(
+        (acc, curr) => {
+          const date = curr.interaction_date
+            ? curr.interaction_date.split('T')[0]
+            : curr.created.split('T')[0]
+          acc[date] = (acc[date] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      )
+
+      const chartData = []
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        const dateStr = d.toISOString().split('T')[0]
+        chartData.push({
+          date: dateStr,
+          count: grouped[dateStr] || 0,
+        })
+      }
+      setInteractionsData(chartData)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
     } finally {
@@ -71,6 +106,7 @@ export default function Index() {
 
   useRealtime('projects', loadData)
   useRealtime('tarefas_hierarquicas', loadData)
+  useRealtime('contact_interactions', loadData)
 
   const activeProjects = projects.filter((p) => p.status === 'Em Andamento').length
   const completedProjects = projects.filter((p) => p.status === 'Concluído').length
@@ -92,103 +128,156 @@ export default function Index() {
         </p>
       </div>
 
-      {/* Critical Deadlines Section */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-destructive" />
-          Prazos Críticos (Hoje)
-        </h2>
-
-        {urgentTasks.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {urgentTasks.map((task) => (
-              <Alert
-                key={task.id}
-                variant="destructive"
-                className="bg-destructive/5 border-destructive/20 relative overflow-hidden group"
-              >
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-destructive" />
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle className="flex items-center justify-between">
-                  <span className="font-semibold truncate pr-4">{task.titulo}</span>
-                  <span className="text-xs font-normal whitespace-nowrap bg-destructive/10 px-2 py-1 rounded-full text-destructive">
-                    Hoje
-                  </span>
-                </AlertTitle>
-                <AlertDescription className="mt-2 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground line-clamp-1">
-                    Projeto: {task.project?.name}
-                  </span>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    asChild
-                    className="p-0 h-auto text-destructive hover:text-destructive/80"
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <section>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Atividade de Contatos (Últimos 30 dias)
+            </h2>
+            <Card>
+              <CardContent className="p-6">
+                <ChartContainer
+                  config={{
+                    count: {
+                      label: 'Interações',
+                      color: 'hsl(var(--primary))',
+                    },
+                  }}
+                  className="h-[300px] w-full"
+                >
+                  <BarChart
+                    data={interactionsData}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                   >
-                    <Link to={`/projects/${task.projeto_id}`}>
-                      Acessar <ArrowRight className="ml-1 h-3 w-3" />
-                    </Link>
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            ))}
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(val) => {
+                        const d = parseISO(val)
+                        return `${d.getDate()}/${d.getMonth() + 1}`
+                      }}
+                      tickLine={false}
+                      axisLine={false}
+                      fontSize={12}
+                    />
+                    <YAxis tickLine={false} axisLine={false} fontSize={12} allowDecimals={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Prazos Críticos (Hoje)
+            </h2>
+
+            {urgentTasks.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {urgentTasks.map((task) => (
+                  <Alert
+                    key={task.id}
+                    variant="destructive"
+                    className="bg-destructive/5 border-destructive/20 relative overflow-hidden group"
+                  >
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-destructive" />
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle className="flex items-center justify-between">
+                      <span className="font-semibold truncate pr-4">{task.titulo}</span>
+                      <span className="text-xs font-normal whitespace-nowrap bg-destructive/10 px-2 py-1 rounded-full text-destructive">
+                        Hoje
+                      </span>
+                    </AlertTitle>
+                    <AlertDescription className="mt-2 flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground line-clamp-1">
+                        Projeto: {task.project?.name}
+                      </span>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        asChild
+                        className="p-0 h-auto text-destructive hover:text-destructive/80"
+                      >
+                        <Link to={`/projects/${task.projeto_id}`}>
+                          Acessar <ArrowRight className="ml-1 h-3 w-3" />
+                        </Link>
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ))}
+              </div>
+            ) : (
+              <Card className="bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30">
+                <CardContent className="flex items-center gap-3 py-6 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <p className="font-medium">
+                    Nenhuma tarefa urgente para hoje. Tudo sob controle!
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </section>
+        </div>
+
+        <div className="space-y-6">
+          <section className="flex flex-col gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total de Projetos
+                </CardTitle>
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{projects.length}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Em Andamento
+                </CardTitle>
+                <Clock className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  {activeProjects}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Concluídos
+                </CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {completedProjects}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <div className="flex flex-col gap-3">
+            <Button asChild className="w-full">
+              <Link to="/projects">
+                Ver Todos os Projetos <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/contacts">
+                Gerenciar Contatos <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
-        ) : (
-          <Card className="bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30">
-            <CardContent className="flex items-center gap-3 py-6 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="h-5 w-5" />
-              <p className="font-medium">Nenhuma tarefa urgente para hoje. Tudo sob controle!</p>
-            </CardContent>
-          </Card>
-        )}
+        </div>
       </section>
-
-      {/* Overview Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total de Projetos
-            </CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{projects.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Em Andamento
-            </CardTitle>
-            <Clock className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              {activeProjects}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Concluídos</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-              {completedProjects}
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <div className="flex justify-end">
-        <Button asChild>
-          <Link to="/projects">
-            Ver Todos os Projetos <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
-      </div>
     </div>
   )
 }

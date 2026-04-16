@@ -39,10 +39,12 @@ export default function Settings() {
     primary_color: '#D4AF37',
     background_color: '',
     background_preset: '',
+    contact_alert_days: 30,
   })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState('')
   const [savingCompany, setSavingCompany] = useState(false)
+  const [formErrors, setFormErrors] = useState<{ contact_alert_days?: string }>({})
 
   // Scheduled Reports State
   const [scheduleForm, setScheduleForm] = useState({
@@ -132,8 +134,8 @@ export default function Settings() {
           primary_color: record.primary_color || '#D4AF37',
           background_color: record.background_color || '',
           background_preset: record.background_preset || '',
-        })
-        if (record.logo) {
+          contact_alert_days: record.contact_alert_days || 30,
+        })        if (record.logo) {
           setLogoPreview(
             `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${record.id}/${record.logo}`,
           )
@@ -173,6 +175,11 @@ export default function Settings() {
   }
 
   const handleSaveCompany = async () => {
+    if (companyForm.contact_alert_days < 1) {
+      setFormErrors({ contact_alert_days: 'O valor deve ser maior ou igual a 1.' })
+      return
+    }
+    setFormErrors({})
     setSavingCompany(true)
     try {
       const formData = new FormData()
@@ -183,6 +190,7 @@ export default function Settings() {
       formData.append('primary_color', companyForm.primary_color)
       formData.append('background_color', companyForm.background_color)
       formData.append('background_preset', companyForm.background_preset)
+      formData.append('contact_alert_days', companyForm.contact_alert_days.toString())
       if (logoFile) formData.append('logo', logoFile)
 
       if (companyForm.id) {
@@ -192,6 +200,11 @@ export default function Settings() {
         setCompanyForm((prev) => ({ ...prev, id: res.id }))
       }
       toast({ title: 'Dados da empresa salvos com sucesso!' })
+      try {
+        await pb.send('/backend/v1/trigger-contact-alerts', { method: 'POST' })
+      } catch (e) {
+        console.error('Failed to trigger contact alerts', e)
+      }
     } catch (e) {
       toast({ title: 'Erro ao salvar os dados da empresa', variant: 'destructive' })
     } finally {
@@ -281,6 +294,20 @@ export default function Settings() {
                   onChange={handlePhoneChange}
                   placeholder="(00) 00000-0000"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_alert_days">Limite de Alerta de Retorno (Dias)</Label>
+                <Input
+                  id="contact_alert_days"
+                  type="number"
+                  min="1"
+                  value={companyForm.contact_alert_days}
+                  onChange={(e) => setCompanyForm({ ...companyForm, contact_alert_days: Number(e.target.value) })}
+                />
+                {formErrors.contact_alert_days && (
+                  <p className="text-xs text-destructive">{formErrors.contact_alert_days}</p>
+                )}
+                <p className="text-xs text-muted-foreground">Dias sem interação para contatos favoritos gerarem notificação.</p>
               </div>
               <div className="space-y-2 md:col-span-2 pt-2 border-t mt-2">
                 <Label htmlFor="logo">Logotipo (PNG, JPG, SVG)</Label>

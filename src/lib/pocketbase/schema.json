@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-16T05:25:40.718Z",
+  "generatedAt": "2026-04-16T05:38:24.548Z",
   "collections": [
     {
       "name": "users",
@@ -823,6 +823,12 @@
         {
           "name": "chart_colors",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contact_alert_days",
+          "type": "number",
           "required": false,
           "system": false
         }

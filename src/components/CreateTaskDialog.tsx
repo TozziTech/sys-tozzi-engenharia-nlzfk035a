@@ -44,6 +44,7 @@ export function CreateTaskDialog({
   const [dueDate, setDueDate] = useState('')
   const [parentTask, setParentTask] = useState('none')
   const [responsible, setResponsible] = useState('none')
+  const [priority, setPriority] = useState('Média')
 
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -94,6 +95,9 @@ export function CreateTaskDialog({
 
       if (responsible && responsible !== 'none') {
         data.responsible = responsible
+      }
+      if (priority) {
+        data.priority = priority
       }
 
       await createTask(data)
@@ -175,6 +179,21 @@ export function CreateTaskDialog({
                     {t.title}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="priority">Prioridade</Label>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger id="priority">
+                <SelectValue placeholder="Média" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Baixa">Baixa</SelectItem>
+                <SelectItem value="Média">Média</SelectItem>
+                <SelectItem value="Alta">Alta</SelectItem>
+                <SelectItem value="Urgente">Urgente</SelectItem>
               </SelectContent>
             </Select>
           </div>

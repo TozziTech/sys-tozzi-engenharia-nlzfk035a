@@ -13,6 +13,8 @@ import {
   isToday,
   addWeeks,
   subWeeks,
+  addDays,
+  addYears,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
@@ -51,6 +53,15 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Separator } from '@/components/ui/separator'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
@@ -71,6 +82,85 @@ type CalendarEvent = {
   projectName?: string
   link: string
   discipline?: string
+  priority?: string
+}
+
+const FilterPopover = ({
+  title,
+  options,
+  selected,
+  onChange,
+}: {
+  title: string
+  options: string[]
+  selected: string[]
+  onChange: (val: string[]) => void
+}) => {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="flex items-center gap-2 border-dashed h-8">
+          <Filter className="h-4 w-4" />
+          {title}
+          {selected.length > 0 && (
+            <>
+              <Separator orientation="vertical" className="mx-1 h-4" />
+              <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
+                {selected.length}
+              </Badge>
+              <div className="hidden space-x-1 lg:flex">
+                {selected.length > 2 ? (
+                  <Badge variant="secondary" className="rounded-sm px-1 font-normal">
+                    {selected.length} selec.
+                  </Badge>
+                ) : (
+                  options
+                    .filter((opt) => selected.includes(opt))
+                    .map((opt) => (
+                      <Badge
+                        variant="secondary"
+                        key={opt}
+                        className="rounded-sm px-1 font-normal truncate max-w-[80px]"
+                      >
+                        {opt}
+                      </Badge>
+                    ))
+                )}
+              </div>
+            </>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[200px] p-0" align="start">
+        <ScrollArea className="h-64 p-3">
+          <div className="space-y-3">
+            {options.map((opt) => (
+              <div key={opt} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`${title}-${opt}`}
+                  checked={selected.includes(opt)}
+                  onCheckedChange={(checked) => {
+                    if (checked) onChange([...selected, opt])
+                    else onChange(selected.filter((x) => x !== opt))
+                  }}
+                />
+                <label
+                  htmlFor={`${title}-${opt}`}
+                  className="text-sm font-medium leading-none cursor-pointer truncate flex-1"
+                  title={opt}
+                >
+                  {opt}
+                </label>
+              </div>
+            ))}
+            {options.length === 0 && (
+              <div className="text-sm text-muted-foreground">Nenhuma opção.</div>
+            )}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 export default function ProjectCalendar() {
@@ -78,6 +168,11 @@ export default function ProjectCalendar() {
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedDisciplines, setSelectedDisciplines] = useState<string[]>([])
+
+  const [statusFilter, setStatusFilter] = useState<string[]>([])
+  const [priorityFilter, setPriorityFilter] = useState<string[]>([])
+  const [projectFilter, setProjectFilter] = useState<string[]>([])
+
   const { user } = useAuth()
   const { toast } = useToast()
   const [settings, setSettings] = useState<any>(null)
@@ -87,6 +182,10 @@ export default function ProjectCalendar() {
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDate, setNewTaskDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [newTaskDescription, setNewTaskDescription] = useState('')
+  const [newTaskPriority, setNewTaskPriority] = useState('Média')
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [frequency, setFrequency] = useState('Semanal')
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
 
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
@@ -164,6 +263,7 @@ export default function ProjectCalendar() {
             status: t.status,
             link: `/projects/${t.project}`,
             discipline: t.expand?.module?.name,
+            priority: t.priority,
           })
         }
       })
@@ -182,22 +282,62 @@ export default function ProjectCalendar() {
   useRealtime('project_modules', () => loadData())
   useRealtime('projects', () => loadData())
 
+  const uniqueStatuses = useMemo(
+    () => Array.from(new Set(events.map((e) => e.status).filter(Boolean))),
+    [events],
+  )
+  const uniqueProjects = useMemo(
+    () => Array.from(new Set(events.map((e) => e.projectName).filter(Boolean))),
+    [events],
+  )
+  const uniquePriorities = ['Baixa', 'Média', 'Alta', 'Urgente']
+
   const handleCreateActivity = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTaskTitle || !newTaskDate) return
 
     try {
-      await pb.collection('tasks').create({
-        title: newTaskTitle,
-        due_date: `${newTaskDate} 12:00:00.000Z`,
-        description: newTaskDescription,
-        status: 'Pendente',
-      })
-      toast({ title: 'Atividade criada com sucesso!' })
+      let currentDateObj = new Date(`${newTaskDate}T12:00:00.000Z`)
+      let limitDate = recurrenceEndDate
+        ? new Date(`${recurrenceEndDate}T12:00:00.000Z`)
+        : addMonths(currentDateObj, 12)
+      const groupId = Math.random().toString(36).substring(2, 15)
+
+      const promises = []
+
+      while (currentDateObj <= limitDate) {
+        promises.push(
+          pb.collection('tasks').create({
+            title: newTaskTitle,
+            due_date: currentDateObj.toISOString(),
+            description: newTaskDescription,
+            status: 'Pendente',
+            priority: newTaskPriority,
+            is_recurring: isRecurring,
+            frequency: isRecurring ? frequency : '',
+            recurrence_group_id: isRecurring ? groupId : '',
+          }),
+        )
+
+        if (!isRecurring) break
+
+        if (frequency === 'Diário') currentDateObj = addDays(currentDateObj, 1)
+        else if (frequency === 'Semanal') currentDateObj = addWeeks(currentDateObj, 1)
+        else if (frequency === 'Mensal') currentDateObj = addMonths(currentDateObj, 1)
+        else if (frequency === 'Anual') currentDateObj = addYears(currentDateObj, 1)
+      }
+
+      await Promise.all(promises)
+
+      toast({ title: 'Atividade(s) criada(s) com sucesso!' })
       setIsNewActivityOpen(false)
       setNewTaskTitle('')
       setNewTaskDate(format(new Date(), 'yyyy-MM-dd'))
       setNewTaskDescription('')
+      setNewTaskPriority('Média')
+      setIsRecurring(false)
+      setFrequency('Semanal')
+      setRecurrenceEndDate('')
     } catch (error) {
       toast({ title: 'Erro ao criar atividade', variant: 'destructive' })
     }
@@ -257,6 +397,17 @@ export default function ProjectCalendar() {
       )
   }, [filteredEvents, currentDate])
 
+  const filteredMonthEvents = useMemo(() => {
+    return monthEvents.filter((e) => {
+      if (statusFilter.length > 0 && !statusFilter.includes(e.status)) return false
+      if (priorityFilter.length > 0 && (!e.priority || !priorityFilter.includes(e.priority)))
+        return false
+      if (projectFilter.length > 0 && (!e.projectName || !projectFilter.includes(e.projectName)))
+        return false
+      return true
+    })
+  }, [monthEvents, statusFilter, priorityFilter, projectFilter])
+
   const days = useMemo(() => {
     if (viewMode === 'month') {
       const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 0 })
@@ -308,7 +459,10 @@ export default function ProjectCalendar() {
     const periodLabel =
       viewMode === 'month'
         ? format(currentDate, 'MMMM yyyy', { locale: ptBR })
-        : `Semana de ${format(startOfWeek(currentDate, { weekStartsOn: 0 }), 'dd/MM')} a ${format(endOfWeek(currentDate, { weekStartsOn: 0 }), 'dd/MM')}`
+        : `Semana de ${format(startOfWeek(currentDate, { weekStartsOn: 0 }), 'dd/MM')} a ${format(
+            endOfWeek(currentDate, { weekStartsOn: 0 }),
+            'dd/MM',
+          )}`
     exportCalendarPDF(filteredEvents as any, periodLabel, user?.name || 'Usuário', settings)
   }
 
@@ -380,11 +534,11 @@ export default function ProjectCalendar() {
                 <span className="sm:hidden">Nova</span>
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Nova Atividade</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleCreateActivity} className="space-y-4">
+              <form onSubmit={handleCreateActivity} className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label htmlFor="title">Título</Label>
                   <Input
@@ -395,16 +549,72 @@ export default function ProjectCalendar() {
                     placeholder="Ex: Reunião de Alinhamento"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date">Data de Entrega</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={newTaskDate}
-                    onChange={(e) => setNewTaskDate(e.target.value)}
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="date">Data (Início)</Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      value={newTaskDate}
+                      onChange={(e) => setNewTaskDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="priority">Prioridade</Label>
+                    <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Baixa">Baixa</SelectItem>
+                        <SelectItem value="Média">Média</SelectItem>
+                        <SelectItem value="Alta">Alta</SelectItem>
+                        <SelectItem value="Urgente">Urgente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
+                <div className="space-y-3 p-3 border rounded-md bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="recurring" className="flex-1 cursor-pointer">
+                      Tarefa Recorrente?
+                    </Label>
+                    <Switch id="recurring" checked={isRecurring} onCheckedChange={setIsRecurring} />
+                  </div>
+
+                  {isRecurring && (
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-dashed">
+                      <div className="space-y-2">
+                        <Label htmlFor="frequency">Frequência</Label>
+                        <Select value={frequency} onValueChange={setFrequency}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Diário">Diário</SelectItem>
+                            <SelectItem value="Semanal">Semanal</SelectItem>
+                            <SelectItem value="Mensal">Mensal</SelectItem>
+                            <SelectItem value="Anual">Anual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="endDate">Data Fim (Opcional)</Label>
+                        <Input
+                          id="endDate"
+                          type="date"
+                          value={recurrenceEndDate}
+                          onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                          min={newTaskDate}
+                        />
+                        <p className="text-[10px] text-muted-foreground mt-1">Limite: 12 meses</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="desc">Descrição (Opcional)</Label>
                   <Textarea
@@ -412,6 +622,8 @@ export default function ProjectCalendar() {
                     value={newTaskDescription}
                     onChange={(e) => setNewTaskDescription(e.target.value)}
                     placeholder="Detalhes da atividade..."
+                    className="resize-none"
+                    rows={3}
                   />
                 </div>
                 <DialogFooter>
@@ -641,12 +853,39 @@ export default function ProjectCalendar() {
       </Card>
 
       <div className="mt-8 space-y-4 animate-fade-in-up">
-        <h3 className="text-xl font-bold">Atividades do Mês</h3>
-        {monthEvents.length === 0 ? (
-          <p className="text-muted-foreground">Nenhuma atividade agendada para este mês.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h3 className="text-xl font-bold">Atividades do Mês</h3>
+          <div className="flex flex-wrap items-center gap-2 bg-muted/30 p-1.5 rounded-md border">
+            <FilterPopover
+              title="Status"
+              options={uniqueStatuses}
+              selected={statusFilter}
+              onChange={setStatusFilter}
+            />
+            <FilterPopover
+              title="Prioridade"
+              options={uniquePriorities}
+              selected={priorityFilter}
+              onChange={setPriorityFilter}
+            />
+            <FilterPopover
+              title="Projeto"
+              options={uniqueProjects}
+              selected={projectFilter}
+              onChange={setProjectFilter}
+            />
+          </div>
+        </div>
+
+        {filteredMonthEvents.length === 0 ? (
+          <div className="p-8 text-center border rounded-lg border-dashed bg-muted/20">
+            <p className="text-muted-foreground">
+              Nenhuma atividade encontrada para estes filtros no mês atual.
+            </p>
+          </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {monthEvents.map((e) => (
+            {filteredMonthEvents.map((e) => (
               <div
                 key={e.id}
                 className="flex items-center justify-between p-4 rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow"
@@ -682,7 +921,14 @@ export default function ProjectCalendar() {
                         {e.rawTitle}
                       </span>
                     )}
-                    <span className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                    <span
+                      className={cn(
+                        'text-xs flex items-center gap-1 truncate mt-0.5',
+                        e.priority === 'Urgente'
+                          ? 'text-red-600 font-semibold dark:text-red-400'
+                          : 'text-muted-foreground',
+                      )}
+                    >
                       {getTypeIcon(e.type)}
                       {e.type === 'project'
                         ? 'Projeto'
@@ -690,6 +936,11 @@ export default function ProjectCalendar() {
                           ? 'Disciplina'
                           : 'Tarefa'}
                       {e.projectName && <span className="truncate"> • {e.projectName}</span>}
+                      {e.priority === 'Urgente' && (
+                        <span className="ml-1 text-[9px] bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-sm uppercase font-bold tracking-wider">
+                          Urgente
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>

@@ -59,9 +59,11 @@ export function MyTasksList() {
   // Inline Editing State
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
 
   const loadTasks = async () => {
     if (!user) return
+    setIsLoading(true)
     try {
       const data = await pb.collection('tasks').getFullList({
         filter: `responsible = "${user.id}"`,
@@ -71,6 +73,8 @@ export function MyTasksList() {
       setTasks(data)
     } catch (err) {
       console.error(err)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -489,7 +493,9 @@ export function MyTasksList() {
         )}
 
         <div className="border border-slate-100 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 overflow-hidden">
-          {tree.length === 0 && inlineCreateId !== 'root' ? (
+          {isLoading ? (
+            <div className="py-8 text-center text-slate-500 text-sm">Carregando tarefas...</div>
+          ) : tree.length === 0 && inlineCreateId !== 'root' ? (
             <div className="py-8 text-center text-slate-500 text-sm">
               Nenhuma tarefa atribuída a você no momento.
             </div>

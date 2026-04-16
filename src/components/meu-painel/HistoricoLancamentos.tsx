@@ -14,8 +14,10 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 
 export function HistoricoLancamentos() {
   const [records, setRecords] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const loadData = async () => {
+    setIsLoading(true)
     try {
       const data = await pb.collection('distribution_calculations').getFullList({
         sort: '-date,-created',
@@ -23,6 +25,8 @@ export function HistoricoLancamentos() {
       setRecords(data)
     } catch (error) {
       console.error(error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -61,7 +65,13 @@ export function HistoricoLancamentos() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {records.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Carregando lançamentos...
+                  </TableCell>
+                </TableRow>
+              ) : records.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Nenhum lançamento encontrado.

@@ -70,9 +70,11 @@ export function PlanilhaFinanceira() {
   }
 
   const [pagamentosPorServico, setPagamentosPorServico] = useState<Record<string, number>>({})
+  const [isLoading, setIsLoading] = useState(true)
 
   const loadData = async () => {
     if (!user) return
+    setIsLoading(true)
     try {
       const [records, pgs] = await Promise.all([
         pb.collection('servicos_financeiros').getFullList({
@@ -94,6 +96,8 @@ export function PlanilhaFinanceira() {
       setPagamentosPorServico(pagamentosMap)
     } catch (e) {
       console.error(e)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -356,7 +360,13 @@ export function PlanilhaFinanceira() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredServicos.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  Carregando serviços financeiros...
+                </TableCell>
+              </TableRow>
+            ) : filteredServicos.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Nenhum serviço financeiro encontrado.

@@ -11,10 +11,33 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import { Trash2, GripVertical, Plus, ChevronRight, ChevronDown, CheckSquare } from 'lucide-react'
+import {
+  Trash2,
+  GripVertical,
+  Plus,
+  ChevronRight,
+  ChevronDown,
+  CheckSquare,
+  Calendar,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent } from '@/components/ui/card'
+
+const getTaskStatusColor = (status: string) => {
+  switch (status) {
+    case 'Concluído':
+      return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+    case 'Em Andamento':
+      return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
+    case 'Cancelado':
+      return 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800'
+    case 'Pendente':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800'
+    default:
+      return 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+  }
+}
 
 export function MyTasksList() {
   const { user } = useAuth()
@@ -32,6 +55,10 @@ export function MyTasksList() {
 
   const [inlineCreateId, setInlineCreateId] = useState<string | null>(null)
   const [inlineCreateTitle, setInlineCreateTitle] = useState('')
+
+  // Inline Editing State
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
 
   const loadTasks = async () => {
     if (!user) return
@@ -165,6 +192,41 @@ export function MyTasksList() {
     }
   }
 
+  const handleSaveEdit = async () => {
+    if (!editingId) return
+    const node = tasks.find((t) => t.id === editingId)
+    if (!node) return
+
+    const newTitle = editingTitle.trim()
+    if (!newTitle || newTitle === node.title) {
+      setEditingId(null)
+      return
+    }
+
+    try {
+      await pb.collection('tasks').update(editingId, { title: newTitle })
+      setEditingId(null)
+    } catch (e) {
+      toast({ title: 'Erro ao salvar', variant: 'destructive' })
+    }
+  }
+
+  const handleEditKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleSaveEdit()
+    if (e.key === 'Escape') setEditingId(null)
+  }
+
+  const handleUpdateDueDate = async (id: string, dateStr: string) => {
+    try {
+      await pb.collection('tasks').update(id, {
+        due_date: dateStr ? `${dateStr} 12:00:00.000Z` : '',
+      })
+      toast({ title: 'Data atualizada' })
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar data', variant: 'destructive' })
+    }
+  }
+
   const onDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id)
     setDraggedId(id)
@@ -175,9 +237,18 @@ export function MyTasksList() {
     if (id === draggedId) return
     const rect = e.currentTarget.getBoundingClientRect()
     const y = e.clientY - rect.top
+    const x = e.clientX - rect.left
+
     let position: 'before' | 'after' | 'inside' = 'inside'
-    if (y < rect.height * 0.25) position = 'before'
-    else if (y > rect.height * 0.75) position = 'after'
+
+    // If dragging slightly to the right, favor creating a subtask (inside)
+    if (x > 40) {
+      position = 'inside'
+    } else {
+      if (y < rect.height * 0.3) position = 'before'
+      else if (y > rect.height * 0.7) position = 'after'
+    }
+
     setDropTarget({ id, position })
   }
 
@@ -240,9 +311,11 @@ export function MyTasksList() {
             setDropTarget(null)
           }}
           className={cn(
-            'group flex items-center gap-2 py-2 px-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-md transition-colors border-b border-transparent hover:border-slate-100 dark:hover:border-slate-800',
+            'group flex items-center gap-2 py-1.5 px-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-transparent hover:border-slate-100 dark:hover:border-slate-800 relative',
             draggedId === node.id && 'opacity-50',
-            dropTarget?.id === node.id && dropTarget.position === 'inside' && 'bg-accent/50',
+            dropTarget?.id === node.id &&
+              dropTarget.position === 'inside' &&
+              'bg-accent/50 border-l-2 border-l-primary',
             dropTarget?.id === node.id &&
               dropTarget.position === 'before' &&
               'border-t-2 border-t-primary rounded-t-none',
@@ -252,19 +325,33 @@ export function MyTasksList() {
           )}
           style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}
         >
-          <div className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 text-slate-400">
+          <div className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 text-slate-400 shrink-0">
             <GripVertical className="h-4 w-4" />
           </div>
           <div
             onClickCapture={(e) => toggleSelection(node.id, e)}
-            className="flex items-center cursor-pointer"
+            className="flex items-center cursor-pointer shrink-0"
           >
             <Checkbox checked={isSelected} onCheckedChange={() => {}} />
           </div>
+
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 p-0"
+            className="h-6 w-6 p-0 shrink-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+            onClick={() => {
+              setInlineCreateId(node.id)
+              setExpandedIds((prev) => new Set(prev).add(node.id))
+            }}
+            title="Adicionar subtarefa"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 p-0 shrink-0"
             onClick={() => toggleExpand(node.id)}
           >
             {hasChildren ? (
@@ -278,48 +365,69 @@ export function MyTasksList() {
             )}
           </Button>
 
+          <div className="flex-1 flex items-center min-w-0 mr-4">
+            {editingId === node.id ? (
+              <Input
+                autoFocus
+                value={editingTitle}
+                onChange={(e) => setEditingTitle(e.target.value)}
+                onBlur={handleSaveEdit}
+                onKeyDown={handleEditKeyDown}
+                className="h-7 text-sm py-1 px-2 m-0 w-full"
+              />
+            ) : (
+              <span
+                onClick={() => {
+                  setEditingId(node.id)
+                  setEditingTitle(node.title)
+                }}
+                className={cn(
+                  'text-sm font-medium cursor-text px-1.5 py-0.5 rounded hover:bg-slate-200/50 dark:hover:bg-slate-800 truncate transition-colors',
+                  node.status === 'Concluído'
+                    ? 'line-through text-slate-400'
+                    : 'text-slate-700 dark:text-slate-200',
+                )}
+                title="Clique para editar o título"
+              >
+                {node.title}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0 bg-slate-50 dark:bg-slate-900/50 px-2 py-0.5 rounded border border-transparent group-hover:border-slate-200 dark:group-hover:border-slate-700 transition-colors">
+            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="date"
+              className="text-xs bg-transparent border-none outline-none cursor-pointer text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 w-[100px] sm:w-[110px]"
+              value={node.due_date ? node.due_date.split(' ')[0] : ''}
+              onChange={(e) => handleUpdateDueDate(node.id, e.target.value)}
+              title="Data de Vencimento"
+            />
+          </div>
+
           <span
             className={cn(
-              'flex-1 text-sm font-medium',
-              node.status === 'Concluído'
-                ? 'line-through text-slate-400'
-                : 'text-slate-700 dark:text-slate-200',
+              'text-xs px-2 py-0.5 rounded border whitespace-nowrap shrink-0 ml-2 font-medium',
+              getTaskStatusColor(node.status || 'Pendente'),
             )}
           >
-            {node.title}
-          </span>
-
-          <span className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 whitespace-nowrap">
             {node.status || 'Pendente'}
           </span>
 
           {node.expand?.project && (
             <span
-              className="text-xs text-slate-400 truncate max-w-[120px]"
+              className="text-xs text-slate-400 truncate max-w-[120px] shrink-0 ml-3 hidden sm:inline-block"
               title={node.expand.project.name}
             >
               {node.expand.project.name}
             </span>
           )}
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 shrink-0"
-            onClick={() => {
-              setInlineCreateId(node.id)
-              setExpandedIds((prev) => new Set(prev).add(node.id))
-            }}
-            title="Adicionar subtarefa"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
         </div>
 
         {inlineCreateId === node.id && (
           <div
-            className="flex items-center gap-2 py-2 px-3"
-            style={{ paddingLeft: `${(depth + 1) * 1.5 + 0.75}rem` }}
+            className="flex items-center gap-2 py-2 px-3 border-l-2 border-primary/30 ml-[2.25rem]"
+            style={{ paddingLeft: `${(depth + 1) * 1.5}rem` }}
           >
             <Input
               autoFocus
@@ -331,7 +439,7 @@ export function MyTasksList() {
                   setInlineCreateId(null)
                 }
               }}
-              placeholder="Digite o título e pressione Enter..."
+              placeholder="Digite o título da subtarefa e pressione Enter..."
               className="h-8 text-sm"
             />
           </div>
@@ -354,7 +462,8 @@ export function MyTasksList() {
               Minhas Tarefas
             </h3>
             <p className="text-sm text-slate-500">
-              Gerencie suas responsabilidades de forma hierárquica.
+              Gerencie suas responsabilidades. Edite títulos clicando neles, adicione subtarefas ou
+              arraste para reorganizar.
             </p>
           </div>
           <Button size="sm" onClick={() => setInlineCreateId('root')}>
@@ -402,13 +511,19 @@ export function MyTasksList() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                {['Pendente', 'Em Andamento', 'Revisão', 'Espera', 'Atrasado', 'Concluído'].map(
-                  (s) => (
-                    <DropdownMenuItem key={s} onClick={() => handleBatchStatus(s)}>
-                      {s}
-                    </DropdownMenuItem>
-                  ),
-                )}
+                {[
+                  'Pendente',
+                  'Em Andamento',
+                  'Revisão',
+                  'Espera',
+                  'Atrasado',
+                  'Concluído',
+                  'Cancelado',
+                ].map((s) => (
+                  <DropdownMenuItem key={s} onClick={() => handleBatchStatus(s)}>
+                    {s}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
             <Button variant="destructive" size="sm" onClick={handleBatchDelete}>

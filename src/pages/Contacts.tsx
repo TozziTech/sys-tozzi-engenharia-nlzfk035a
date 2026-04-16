@@ -63,6 +63,10 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ImportContactsDialog } from '@/components/contacts/ImportContactsDialog'
+import { ContactHistoryTab } from '@/components/contacts/ContactHistoryTab'
+import { Upload } from 'lucide-react'
 
 export default function Contacts() {
   const { toast } = useToast()
@@ -73,6 +77,11 @@ export default function Contacts() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [deletingContact, setDeletingContact] = useState<Contact | null>(null)
   const [viewingContact, setViewingContact] = useState<Contact | null>(null)
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [sortConfig, setSortConfig] = useState<{
+    key: 'code' | 'name' | null
+    dir: 'asc' | 'desc'
+  }>({ key: null, dir: 'asc' })
 
   const handleNew = () => {
     setEditingContact(null)
@@ -155,6 +164,13 @@ export default function Contacts() {
     loadContacts()
   })
 
+  const handleSort = (key: 'code' | 'name') => {
+    setSortConfig((prev) => ({
+      key,
+      dir: prev.key === key && prev.dir === 'asc' ? 'desc' : 'asc',
+    }))
+  }
+
   const filteredContacts = contacts
     .filter((c) => {
       const s = search.toLowerCase()
@@ -167,6 +183,11 @@ export default function Contacts() {
       return matchesSearch && matchesCategory
     })
     .sort((a, b) => {
+      if (sortConfig.key) {
+        const valA = String(a[sortConfig.key] || '')
+        const valB = String(b[sortConfig.key] || '')
+        return sortConfig.dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA)
+      }
       if (a.is_favorite === b.is_favorite) {
         return a.name.localeCompare(b.name)
       }
@@ -233,14 +254,22 @@ export default function Contacts() {
               </Button>
             )}
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setIsImportOpen(true)}
+              className="w-full sm:w-auto flex-1"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Importar
+            </Button>
+            <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto flex-1">
               <Download className="mr-2 h-4 w-4" />
               Exportar
             </Button>
-            <Button onClick={handleNew} className="w-full sm:w-auto">
+            <Button onClick={handleNew} className="w-full sm:w-auto flex-1">
               <Plus className="mr-2 h-4 w-4" />
-              Novo Contato
+              Novo
             </Button>
           </div>
         </div>
@@ -256,7 +285,18 @@ export default function Contacts() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
-                  <TableHead>Nome</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort('code')}
+                  >
+                    Código {sortConfig.key === 'code' && (sortConfig.dir === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort('name')}
+                  >
+                    Nome {sortConfig.key === 'name' && (sortConfig.dir === 'asc' ? '↑' : '↓')}
+                  </TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead>Telefone</TableHead>
@@ -294,12 +334,10 @@ export default function Contacts() {
                           />
                         </Button>
                       </TableCell>
-                      <TableCell className="font-medium">
-                        {contact.code && (
-                          <span className="text-muted-foreground mr-1">[{contact.code}]</span>
-                        )}
-                        {contact.name}
+                      <TableCell className="font-mono text-sm text-muted-foreground">
+                        {contact.code || '-'}
                       </TableCell>
+                      <TableCell className="font-medium">{contact.name}</TableCell>
                       <TableCell>{contact.company || '-'}</TableCell>
                       <TableCell>
                         <span
@@ -374,96 +412,117 @@ export default function Contacts() {
                 </div>
               </SheetHeader>
 
-              <div className="space-y-6">
-                {viewingContact.company && (
+              <Tabs defaultValue="info" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="info">Informações</TabsTrigger>
+                  <TabsTrigger value="history">Histórico</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="info" className="space-y-6">
+                  {viewingContact.company && (
+                    <div className="flex items-start gap-3">
+                      <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Empresa</p>
+                        <p className="text-sm text-muted-foreground">{viewingContact.company}</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-start gap-3">
-                    <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium mb-1">Telefones</p>
+                      {viewingContact.phone ? (
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm text-muted-foreground">
+                            {viewingContact.phone} (Principal)
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                            asChild
+                          >
+                            <a
+                              href={getWhatsAppUrl(viewingContact.phone)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Chamar no WhatsApp"
+                            >
+                              <MessageCircle className="h-3 w-3 text-green-600 dark:text-green-500" />
+                            </a>
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Não informado (Principal)
+                        </p>
+                      )}
+                      {viewingContact.alt_phone && (
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-muted-foreground">
+                            {viewingContact.alt_phone} (Alternativo)
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                            asChild
+                          >
+                            <a
+                              href={getWhatsAppUrl(viewingContact.alt_phone)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Chamar no WhatsApp"
+                            >
+                              <MessageCircle className="h-3 w-3 text-green-600 dark:text-green-500" />
+                            </a>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium">Empresa</p>
-                      <p className="text-sm text-muted-foreground">{viewingContact.company}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-start gap-3">
-                  <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium mb-1">Telefones</p>
-                    {viewingContact.phone ? (
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm text-muted-foreground">
-                          {viewingContact.phone} (Principal)
-                        </p>
-                        <Button variant="outline" size="icon" className="h-6 w-6 shrink-0" asChild>
-                          <a
-                            href={getWhatsAppUrl(viewingContact.phone)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Chamar no WhatsApp"
-                          >
-                            <MessageCircle className="h-3 w-3 text-green-600 dark:text-green-500" />
-                          </a>
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Não informado (Principal)
+                      <p className="text-sm font-medium">E-mail</p>
+                      <p className="text-sm text-muted-foreground">
+                        {viewingContact.email || 'Não informado'}
                       </p>
-                    )}
-                    {viewingContact.alt_phone && (
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-muted-foreground">
-                          {viewingContact.alt_phone} (Alternativo)
-                        </p>
-                        <Button variant="outline" size="icon" className="h-6 w-6 shrink-0" asChild>
-                          <a
-                            href={getWhatsAppUrl(viewingContact.alt_phone)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Chamar no WhatsApp"
-                          >
-                            <MessageCircle className="h-3 w-3 text-green-600 dark:text-green-500" />
-                          </a>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium">E-mail</p>
-                    <p className="text-sm text-muted-foreground">
-                      {viewingContact.email || 'Não informado'}
-                    </p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Endereço Completo</p>
-                    <p className="text-sm text-muted-foreground break-words">
-                      {viewingContact.address || 'Nenhum endereço cadastrado.'}
-                    </p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="flex items-start gap-3">
-                  <AlignLeft className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Observações</p>
-                    <div className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">
-                      {viewingContact.notes || 'Nenhuma observação registrada.'}
                     </div>
                   </div>
-                </div>
-              </div>
+
+                  <Separator />
+
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Endereço Completo</p>
+                      <p className="text-sm text-muted-foreground break-words">
+                        {viewingContact.address || 'Nenhum endereço cadastrado.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-start gap-3">
+                    <AlignLeft className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Observações</p>
+                      <div className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">
+                        {viewingContact.notes || 'Nenhuma observação registrada.'}
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="history">
+                  <ContactHistoryTab contactId={viewingContact.id} />
+                </TabsContent>
+              </Tabs>
             </>
           )}
         </SheetContent>
@@ -475,6 +534,12 @@ export default function Contacts() {
         onSuccess={loadContacts}
         contact={editingContact}
         existingCategories={existingCategories}
+      />
+
+      <ImportContactsDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onSuccess={loadContacts}
       />
 
       <AlertDialog

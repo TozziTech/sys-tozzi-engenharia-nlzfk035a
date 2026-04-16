@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-16T04:59:35.220Z",
+  "generatedAt": "2026-04-16T05:11:26.606Z",
   "collections": [
     {
       "name": "users",
@@ -2738,6 +2738,63 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "contact_interactions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "contact",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "contacts"
+        },
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "content",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "interaction_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_contact_interactions_contact ON contact_interactions (contact)",
+        "CREATE INDEX idx_contact_interactions_date ON contact_interactions (interaction_date DESC)"
+      ]
     }
   ]
 }

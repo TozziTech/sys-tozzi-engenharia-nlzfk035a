@@ -12,7 +12,15 @@ import {
   Mail,
   MapPin,
   AlignLeft,
+  MessageCircle,
 } from 'lucide-react'
+
+const getWhatsAppUrl = (phone: string) => {
+  const digits = phone.replace(/\D/g, '')
+  if (!digits) return '#'
+  const withCountry = digits.length <= 11 ? `55${digits}` : digits
+  return `https://wa.me/${withCountry}`
+}
 import { getContacts, deleteContact, updateContact, type Contact } from '@/services/contacts'
 import { useRealtime } from '@/hooks/use-realtime'
 import { exportContactsCSV } from '@/lib/export'
@@ -379,15 +387,45 @@ export default function Contacts() {
 
                 <div className="flex items-start gap-3">
                   <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium">Telefones</p>
-                    <p className="text-sm text-muted-foreground">
-                      {viewingContact.phone || 'Não informado'} (Principal)
-                    </p>
-                    {viewingContact.alt_phone && (
-                      <p className="text-sm text-muted-foreground">
-                        {viewingContact.alt_phone} (Alternativo)
+                  <div className="flex-1">
+                    <p className="text-sm font-medium mb-1">Telefones</p>
+                    {viewingContact.phone ? (
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm text-muted-foreground">
+                          {viewingContact.phone} (Principal)
+                        </p>
+                        <Button variant="outline" size="icon" className="h-6 w-6 shrink-0" asChild>
+                          <a
+                            href={getWhatsAppUrl(viewingContact.phone)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Chamar no WhatsApp"
+                          >
+                            <MessageCircle className="h-3 w-3 text-green-600 dark:text-green-500" />
+                          </a>
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Não informado (Principal)
                       </p>
+                    )}
+                    {viewingContact.alt_phone && (
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground">
+                          {viewingContact.alt_phone} (Alternativo)
+                        </p>
+                        <Button variant="outline" size="icon" className="h-6 w-6 shrink-0" asChild>
+                          <a
+                            href={getWhatsAppUrl(viewingContact.alt_phone)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Chamar no WhatsApp"
+                          >
+                            <MessageCircle className="h-3 w-3 text-green-600 dark:text-green-500" />
+                          </a>
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>

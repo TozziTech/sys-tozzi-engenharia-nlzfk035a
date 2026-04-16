@@ -71,7 +71,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ImportContactsDialog } from '@/components/contacts/ImportContactsDialog'
 import { ContactHistoryTab } from '@/components/contacts/ContactHistoryTab'
-import { Upload } from 'lucide-react'
+import { ExportInteractionsDialog } from '@/components/contacts/ExportInteractionsDialog'
+import { Upload, FileText, Download as DownloadIcon } from 'lucide-react'
 
 export default function Contacts() {
   const { toast } = useToast()
@@ -84,6 +85,8 @@ export default function Contacts() {
   const [deletingContact, setDeletingContact] = useState<Contact | null>(null)
   const [viewingContact, setViewingContact] = useState<Contact | null>(null)
   const [isImportOpen, setIsImportOpen] = useState(false)
+  const [isExportInteractionsOpen, setIsExportInteractionsOpen] = useState(false)
+  const [exportInitialContactId, setExportInitialContactId] = useState<string | null>(null)
   const [sortConfig, setSortConfig] = useState<{
     key: 'code' | 'name' | null
     dir: 'asc' | 'desc'
@@ -292,6 +295,17 @@ export default function Contacts() {
               <Download className="mr-2 h-4 w-4" />
               Exportar
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setExportInitialContactId(null)
+                setIsExportInteractionsOpen(true)
+              }}
+              className="w-full sm:w-auto flex-1"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Histórico
+            </Button>
             <Button onClick={handleNew} className="w-full sm:w-auto flex-1">
               <Plus className="mr-2 h-4 w-4" />
               Novo
@@ -439,16 +453,30 @@ export default function Contacts() {
                       </Badge>
                     </SheetDescription>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      handleEdit(viewingContact)
-                      setViewingContact(null)
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        setExportInitialContactId(viewingContact.id)
+                        setIsExportInteractionsOpen(true)
+                      }}
+                      title="Exportar Histórico"
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        handleEdit(viewingContact)
+                        setViewingContact(null)
+                      }}
+                      title="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </SheetHeader>
 
@@ -580,6 +608,13 @@ export default function Contacts() {
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
         onSuccess={loadContacts}
+      />
+
+      <ExportInteractionsDialog
+        open={isExportInteractionsOpen}
+        onOpenChange={setIsExportInteractionsOpen}
+        contacts={contacts}
+        initialContactId={exportInitialContactId}
       />
 
       <AlertDialog

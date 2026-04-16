@@ -14,6 +14,11 @@ export interface ContactInteraction {
       avatar?: string
       email: string
     }
+    contact?: {
+      name: string
+      code: string
+      company?: string
+    }
   }
 }
 
@@ -21,12 +26,13 @@ export const getContactInteractions = (contactId: string) =>
   pb.collection('contact_interactions').getFullList<ContactInteraction>({
     filter: `contact = "${contactId}"`,
     sort: '-interaction_date,-created',
-    expand: 'user',
+    expand: 'user,contact',
   })
 
 export const getAllContactInteractions = () =>
   pb.collection('contact_interactions').getFullList<ContactInteraction>({
     sort: '-interaction_date,-created',
+    expand: 'user,contact',
   })
 
 export const createContactInteraction = (data: Partial<ContactInteraction>) =>

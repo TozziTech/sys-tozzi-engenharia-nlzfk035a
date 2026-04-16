@@ -256,6 +256,7 @@ interface ProjectStore {
   addProject: (p: Project) => void
   updateProject: (id: string, p: Partial<Project>) => void
   deleteProject: (id: string) => void
+  restoreProject: (id: string) => void
 
   comments: Comment[]
   addComment: (c: Comment) => void
@@ -340,6 +341,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           budget: r.budget || 0,
           spent: r.spent || 0,
           description: r.description,
+          deletedAt: r.deleted_at ? r.deleted_at : undefined,
         })),
       )
     } catch (e) {
@@ -516,7 +518,18 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const deleteProject = async (id: string) => {
     try {
-      await pb.collection('projects').delete(id)
+      const now = new Date().toISOString()
+      await pb.collection('projects').update(id, { deleted_at: now })
+      setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, deletedAt: now } : p)))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const restoreProject = async (id: string) => {
+    try {
+      await pb.collection('projects').update(id, { deleted_at: null })
+      setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, deletedAt: undefined } : p)))
     } catch (e) {
       console.error(e)
     }
@@ -687,6 +700,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         addProject,
         updateProject,
         deleteProject,
+        restoreProject,
         comments,
         addComment,
         notifications,

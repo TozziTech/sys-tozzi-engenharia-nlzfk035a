@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Filter, XCircle, Plus, CalendarDays } from 'lucide-react'
+import { Filter, XCircle, Plus, CalendarDays, Trash2, ArrowLeft } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
 import {
   Select,
@@ -19,6 +19,7 @@ export default function Projects() {
   const [status, setStatus] = useState<string>('all')
   const [client, setClient] = useState<string>('all')
   const [engineer, setEngineer] = useState<string>('all')
+  const [showTrash, setShowTrash] = useState(false)
 
   const uniqueClients = useMemo(
     () => Array.from(new Set(projects.map((p) => p.client))),
@@ -39,10 +40,11 @@ export default function Projects() {
       const matchStatus = status === 'all' || p.status === status
       const matchClient = client === 'all' || p.client === client
       const matchEngineer = engineer === 'all' || p.engineer === engineer
+      const matchTrash = showTrash ? !!p.deletedAt : !p.deletedAt
 
-      return matchSearch && matchDisc && matchStatus && matchClient && matchEngineer
+      return matchSearch && matchDisc && matchStatus && matchClient && matchEngineer && matchTrash
     })
-  }, [projects, globalSearch, discipline, status, client, engineer])
+  }, [projects, globalSearch, discipline, status, client, engineer, showTrash])
 
   const clearFilters = () => {
     setDiscipline('all')
@@ -66,6 +68,21 @@ export default function Projects() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            variant={showTrash ? 'default' : 'outline'}
+            onClick={() => setShowTrash(!showTrash)}
+            className={showTrash ? 'bg-red-600 hover:bg-red-700' : ''}
+          >
+            {showTrash ? (
+              <>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Voltar aos Projetos
+              </>
+            ) : (
+              <>
+                <Trash2 className="mr-2 h-4 w-4" /> Lixeira
+              </>
+            )}
+          </Button>
           <Button
             variant="outline"
             onClick={async () => {
@@ -190,16 +207,19 @@ export default function Projects() {
             alt="No projects"
             className="w-64 h-64 object-cover rounded-full mb-6 opacity-80"
           />
-          <h3 className="text-xl font-semibold text-slate-900 mb-2">Nenhum projeto encontrado</h3>
+          <h3 className="text-xl font-semibold text-slate-900 mb-2">
+            {showTrash ? 'Lixeira vazia' : 'Nenhum projeto encontrado'}
+          </h3>
           <p className="text-muted-foreground max-w-md">
-            Não encontramos nenhum projeto com os filtros aplicados. Tente ajustar sua busca ou crie
-            um novo projeto.
+            {showTrash
+              ? 'Não há projetos excluídos recentemente.'
+              : 'Não encontramos nenhum projeto com os filtros aplicados. Tente ajustar sua busca ou crie um novo projeto.'}
           </p>
         </div>
       ) : (
         <>
-          <ProjectTable projects={filteredProjects} />
-          <ProjectCardList projects={filteredProjects} />
+          <ProjectTable projects={filteredProjects} isTrashView={showTrash} />
+          <ProjectCardList projects={filteredProjects} isTrashView={showTrash} />
         </>
       )}
     </div>

@@ -136,4 +136,5 @@ export interface Project {
   cno?: string
   cnpj?: string
   is_priority?: boolean
+  deletedAt?: string
 }

@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { format } from 'date-fns'
+import { format, differenceInDays, startOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Edit2, Eye, Trash2, AlertCircle, Star } from 'lucide-react'
+import { Edit2, Eye, Trash2, Star, RotateCcw } from 'lucide-react'
 import { Project } from '@/types/project'
 import { Badge } from '@/components/ui/badge'
-import { differenceInDays, startOfDay } from 'date-fns'
 import {
   Table,
   TableBody,
@@ -34,17 +33,18 @@ import { useToast } from '@/hooks/use-toast'
 
 interface ProjectTableProps {
   projects: Project[]
+  isTrashView?: boolean
 }
 
-export function ProjectTable({ projects }: ProjectTableProps) {
+export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const navigate = useNavigate()
-  const { deleteProject } = useProjectStore()
+  const { deleteProject, restoreProject } = useProjectStore()
   const { toast } = useToast()
 
   const isCritical = (project: Project) => {
-    if (project.status === 'Concluído') return false
+    if (project.status === 'Concluído' || project.deletedAt) return false
     const end = startOfDay(new Date(project.endDate))
     const today = startOfDay(new Date())
     const diff = differenceInDays(end, today)
@@ -55,9 +55,8 @@ export function ProjectTable({ projects }: ProjectTableProps) {
     if (projectToDelete) {
       deleteProject(projectToDelete.id)
       toast({
-        title: 'Projeto excluído',
-        description:
-          'O projeto foi removido com sucesso. Nota: os dados serão resetados ao recarregar a página (sem backend).',
+        title: 'Projeto movido para a lixeira',
+        description: 'Projeto movido para a lixeira. Você tem 30 dias para restaurá-lo.',
       })
       setProjectToDelete(null)
     }
@@ -73,8 +72,19 @@ export function ProjectTable({ projects }: ProjectTableProps) {
             <TableHead className="font-semibold text-slate-900">Cliente</TableHead>
             <TableHead className="font-semibold text-slate-900">Início</TableHead>
             <TableHead className="font-semibold text-slate-900">Entrega</TableHead>
-            <TableHead className="font-semibold text-slate-900">Status</TableHead>
-            <TableHead className="font-semibold text-slate-900 w-[200px]">Progresso</TableHead>
+            {isTrashView ? (
+              <>
+                <TableHead className="font-semibold text-slate-900">Excluído em</TableHead>
+                <TableHead className="font-semibold text-slate-900 w-[200px]">
+                  Dias Restantes
+                </TableHead>
+              </>
+            ) : (
+              <>
+                <TableHead className="font-semibold text-slate-900">Status</TableHead>
+                <TableHead className="font-semibold text-slate-900 w-[200px]">Progresso</TableHead>
+              </>
+            )}
             <TableHead className="text-right"></TableHead>
           </TableRow>
         </TableHeader>
@@ -82,28 +92,30 @@ export function ProjectTable({ projects }: ProjectTableProps) {
           {projects.map((project) => (
             <TableRow
               key={project.id}
-              className={`group transition-colors cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isCritical(project) ? 'bg-red-50/30 hover:bg-red-50/50' : ''}`}
-              onClick={() => navigate(`/projects/${project.id}`)}
+              className={`group transition-colors ${!isTrashView ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50' : 'hover:bg-slate-50'} ${isCritical(project) ? 'bg-red-50/30 hover:bg-red-50/50' : ''}`}
+              onClick={() => !isTrashView && navigate(`/projects/${project.id}`)}
             >
               <TableCell className="font-medium text-slate-900">
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      pb.collection('projects')
-                        .update(project.id, { is_priority: !project.is_priority })
-                        .then(() =>
-                          useProjectStore
-                            .getState()
-                            .updateProject(project.id, { is_priority: !project.is_priority }),
-                        )
-                        .catch(console.error)
-                    }}
-                    className={`focus:outline-none transition-colors ${project.is_priority ? 'text-yellow-500 hover:text-yellow-600' : 'text-slate-300 hover:text-yellow-400'}`}
-                    title={project.is_priority ? 'Remover prioridade' : 'Marcar como prioridade'}
-                  >
-                    <Star className={`h-4 w-4 ${project.is_priority ? 'fill-current' : ''}`} />
-                  </button>
+                  {!isTrashView && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        pb.collection('projects')
+                          .update(project.id, { is_priority: !project.is_priority })
+                          .then(() =>
+                            useProjectStore
+                              .getState()
+                              .updateProject(project.id, { is_priority: !project.is_priority }),
+                          )
+                          .catch(console.error)
+                      }}
+                      className={`focus:outline-none transition-colors ${project.is_priority ? 'text-yellow-500 hover:text-yellow-600' : 'text-slate-300 hover:text-yellow-400'}`}
+                      title={project.is_priority ? 'Remover prioridade' : 'Marcar como prioridade'}
+                    >
+                      <Star className={`h-4 w-4 ${project.is_priority ? 'fill-current' : ''}`} />
+                    </button>
+                  )}
                   {project.name}
                   {isCritical(project) && (
                     <Badge
@@ -123,47 +135,94 @@ export function ProjectTable({ projects }: ProjectTableProps) {
               <TableCell className="text-slate-600">
                 {format(new Date(project.endDate), 'dd MMM yyyy', { locale: ptBR })}
               </TableCell>
-              <TableCell>
-                <StatusBadge status={project.status} />
-              </TableCell>
-              <TableCell>
-                <AnimatedProgress value={project.progress} />
-              </TableCell>
+
+              {isTrashView ? (
+                <>
+                  <TableCell className="text-slate-600">
+                    {project.deletedAt
+                      ? format(new Date(project.deletedAt), 'dd MMM yyyy', { locale: ptBR })
+                      : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {project.deletedAt ? (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                        {Math.max(
+                          0,
+                          30 - differenceInDays(new Date(), new Date(project.deletedAt)),
+                        )}{' '}
+                        dias
+                      </Badge>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                </>
+              ) : (
+                <>
+                  <TableCell>
+                    <StatusBadge status={project.status} />
+                  </TableCell>
+                  <TableCell>
+                    <AnimatedProgress value={project.progress} />
+                  </TableCell>
+                </>
+              )}
+
               <TableCell className="text-right">
                 <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-slate-500 hover:text-indigo-600"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      navigate(`/projects/${project.id}`)
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-slate-500 hover:text-indigo-600"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setProjectToEdit(project)
-                    }}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-slate-500 hover:text-red-600"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setProjectToDelete(project)
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {isTrashView ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-green-600 hover:text-green-700 border-green-200 bg-green-50 hover:bg-green-100"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        restoreProject(project.id)
+                        toast({
+                          title: 'Projeto restaurado',
+                          description: 'Projeto restaurado com sucesso.',
+                        })
+                      }}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-1.5" /> Restaurar
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/projects/${project.id}`)
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setProjectToEdit(project)
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-500 hover:text-red-600"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setProjectToDelete(project)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </TableCell>
             </TableRow>
@@ -185,10 +244,10 @@ export function ProjectTable({ projects }: ProjectTableProps) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogTitle>Mover para a lixeira?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Isso excluirá permanentemente o projeto "
-              {projectToDelete?.name}" do sistema.
+              Você está movendo o projeto "{projectToDelete?.name}" para a lixeira. Ele poderá ser
+              restaurado em até 30 dias antes de ser excluído permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -197,7 +256,7 @@ export function ProjectTable({ projects }: ProjectTableProps) {
               onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              Excluir Projeto
+              Mover para Lixeira
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

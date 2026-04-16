@@ -135,7 +135,8 @@ export default function Settings() {
           background_color: record.background_color || '',
           background_preset: record.background_preset || '',
           contact_alert_days: record.contact_alert_days || 30,
-        })        if (record.logo) {
+        })
+        if (record.logo) {
           setLogoPreview(
             `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${record.id}/${record.logo}`,
           )
@@ -302,12 +303,16 @@ export default function Settings() {
                   type="number"
                   min="1"
                   value={companyForm.contact_alert_days}
-                  onChange={(e) => setCompanyForm({ ...companyForm, contact_alert_days: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setCompanyForm({ ...companyForm, contact_alert_days: Number(e.target.value) })
+                  }
                 />
                 {formErrors.contact_alert_days && (
                   <p className="text-xs text-destructive">{formErrors.contact_alert_days}</p>
                 )}
-                <p className="text-xs text-muted-foreground">Dias sem interação para contatos favoritos gerarem notificação.</p>
+                <p className="text-xs text-muted-foreground">
+                  Dias sem interação para contatos favoritos gerarem notificação.
+                </p>
               </div>
               <div className="space-y-2 md:col-span-2 pt-2 border-t mt-2">
                 <Label htmlFor="logo">Logotipo (PNG, JPG, SVG)</Label>

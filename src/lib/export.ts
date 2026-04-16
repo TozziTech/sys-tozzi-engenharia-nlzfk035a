@@ -114,3 +114,38 @@ export function exportDocumentsCSV(data: any[]) {
 export function exportInteractionsCSV(data: any[]) {
   genericExport(data, 'interacoes')
 }
+
+export function exportCalendarCSV(data: any[]) {
+  genericExport(data, 'calendario')
+}
+export function exportAuditLogsCSV(data: any[]) {
+  genericExport(data, 'historico')
+}
+export function exportTeamCSV(data: any[]) {
+  genericExport(data, 'equipe')
+}
+export function exportServicosFinanceirosCSV(data: any[]) {
+  genericExport(data, 'servicos_financeiros')
+}
+
+export function exportWord(content: string, filename: string) {
+  const blob = new Blob(['\uFEFF' + content], { type: 'application/msword' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+export function exportPDF(content: string, filename: string) {
+  const blob = new Blob(['\uFEFF' + content], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}

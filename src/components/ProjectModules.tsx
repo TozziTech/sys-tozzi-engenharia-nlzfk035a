@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/alert-dialog'
 
 export function ProjectModules({ projectId }: { projectId: string }) {
-  const { user, effectiveRole } = useAuth()
+  const { user } = useAuth()
   const { toast } = useToast()
   const [modules, setModules] = useState<ProjectModule[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -45,7 +45,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  const canEdit = effectiveRole === 'Administrador' || effectiveRole === 'Gerente de Projeto'
+  const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
   const loadData = async () => {
     try {

@@ -127,6 +127,9 @@ export function exportTeamCSV(data: any[]) {
 export function exportServicosFinanceirosCSV(data: any[]) {
   genericExport(data, 'servicos_financeiros')
 }
+export function exportDistributionCSV(data: any[]) {
+  genericExport(data, 'distribuicao')
+}
 
 export function exportWord(content: string, filename: string) {
   const blob = new Blob(['\uFEFF' + content], { type: 'application/msword' })

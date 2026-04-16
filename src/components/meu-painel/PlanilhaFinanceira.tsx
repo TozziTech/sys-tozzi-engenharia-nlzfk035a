@@ -340,18 +340,18 @@ export function PlanilhaFinanceira() {
         </CardContent>
       </Card>
 
-      <div className="border rounded-md bg-card overflow-x-auto shadow-sm">
-        <Table>
+      <div className="border rounded-md bg-card overflow-x-auto shadow-sm w-full">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[40px]"></TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead>Projeto/Serviço</TableHead>
-              <TableHead>Observações</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Data Início</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Valor Total</TableHead>
+              <TableHead className="whitespace-nowrap">ID</TableHead>
+              <TableHead className="whitespace-nowrap">Projeto/Serviço</TableHead>
+              <TableHead className="whitespace-nowrap w-full min-w-[300px]">Observações</TableHead>
+              <TableHead className="whitespace-nowrap">Cliente</TableHead>
+              <TableHead className="whitespace-nowrap">Data Início</TableHead>
+              <TableHead className="whitespace-nowrap">Status</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Valor Total</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -393,14 +393,16 @@ export function PlanilhaFinanceira() {
                       <TableCell className="font-medium whitespace-nowrap text-primary">
                         {s.codigo}
                       </TableCell>
-                      <TableCell className="font-medium">{s.projeto_servico}</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {s.projeto_servico}
+                      </TableCell>
                       <TableCell
-                        className="text-muted-foreground max-w-[200px] truncate"
+                        className="text-muted-foreground min-w-[300px] w-full"
                         title={s.observacoes}
                       >
                         {s.observacoes || '-'}
                       </TableCell>
-                      <TableCell>{s.cliente || '-'}</TableCell>
+                      <TableCell className="whitespace-nowrap">{s.cliente || '-'}</TableCell>
                       <TableCell className="whitespace-nowrap">
                         {s.data_inicio ? format(new Date(s.data_inicio), 'dd/MM/yyyy') : '-'}
                       </TableCell>

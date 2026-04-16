@@ -278,7 +278,7 @@ export default function MeuPainel() {
   if (!user) return null
 
   return (
-    <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500 max-w-7xl mx-auto w-full">
+    <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500 w-full mx-auto">
       <Tabs defaultValue="dashboard" className="w-full space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex flex-col gap-2">

@@ -40,7 +40,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -62,6 +62,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
@@ -77,6 +78,7 @@ type CalendarEvent = {
   title: string
   rawTitle: string
   date: string
+  startDate?: string
   type: 'project' | 'module' | 'task'
   status: string
   projectName?: string
@@ -166,7 +168,7 @@ const FilterPopover = ({
 
 export default function ProjectCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'timeline'>('month')
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedDisciplines, setSelectedDisciplines] = useState<string[]>([])
 
@@ -227,6 +229,7 @@ export default function ProjectCalendar() {
             title: `Projeto: ${p.name}`,
             rawTitle: p.name,
             date: p.end_date.split(' ')[0],
+            startDate: (p.start_date || p.created).split(' ')[0],
             type: 'project',
             status: p.status,
             link: `/projects/${p.id}`,
@@ -244,6 +247,7 @@ export default function ProjectCalendar() {
             rawTitle: m.name,
             projectName: m.expand?.project?.name,
             date: m.deadline.split(' ')[0],
+            startDate: m.created.split(' ')[0],
             type: 'module',
             status: m.status,
             link: `/projects/${m.project}`,
@@ -262,6 +266,7 @@ export default function ProjectCalendar() {
             rawTitle: t.title,
             projectName: t.expand?.project?.name,
             date: t.due_date.split(' ')[0],
+            startDate: t.created.split(' ')[0],
             type: 'task',
             status: t.status,
             link: `/projects/${t.project}`,
@@ -419,6 +424,49 @@ export default function ProjectCalendar() {
     })
   }, [monthEvents, statusFilter, priorityFilter, projectFilter, tagFilter])
 
+  // Timeline events handling
+  const timelineDays = useMemo(() => {
+    return eachDayOfInterval({
+      start: startOfMonth(currentDate),
+      end: endOfMonth(currentDate),
+    })
+  }, [currentDate])
+
+  const timelineEvents = useMemo(() => {
+    const start = startOfMonth(currentDate)
+    const end = endOfMonth(currentDate)
+    return filteredEvents
+      .filter((e) => {
+        const eEnd = new Date(`${e.date}T12:00:00`)
+        const eStart = e.startDate ? new Date(`${e.startDate}T12:00:00`) : eEnd
+        return eStart <= end && eEnd >= start
+      })
+      .filter((e) => {
+        if (statusFilter.length > 0 && !statusFilter.includes(e.status)) return false
+        if (priorityFilter.length > 0 && (!e.priority || !priorityFilter.includes(e.priority)))
+          return false
+        if (projectFilter.length > 0 && (!e.projectName || !projectFilter.includes(e.projectName)))
+          return false
+        if (tagFilter.length > 0 && (!e.tags || !e.tags.some((t) => tagFilter.includes(t))))
+          return false
+        return true
+      })
+      .sort(
+        (a, b) =>
+          new Date(`${a.date}T12:00:00`).getTime() - new Date(`${b.date}T12:00:00`).getTime(),
+      )
+  }, [filteredEvents, currentDate, statusFilter, priorityFilter, projectFilter, tagFilter])
+
+  const groupedTimelineEvents = useMemo(() => {
+    const groups: Record<string, CalendarEvent[]> = {}
+    timelineEvents.forEach((e) => {
+      const key = e.projectName || 'Sem Projeto'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(e)
+    })
+    return groups
+  }, [timelineEvents])
+
   const days = useMemo(() => {
     if (viewMode === 'month') {
       const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 0 })
@@ -432,9 +480,9 @@ export default function ProjectCalendar() {
   }, [currentDate, viewMode])
 
   const handlePrev = () =>
-    setCurrentDate((prev) => (viewMode === 'month' ? subMonths(prev, 1) : subWeeks(prev, 1)))
+    setCurrentDate((prev) => (viewMode === 'week' ? subWeeks(prev, 1) : subMonths(prev, 1)))
   const handleNext = () =>
-    setCurrentDate((prev) => (viewMode === 'month' ? addMonths(prev, 1) : addWeeks(prev, 1)))
+    setCurrentDate((prev) => (viewMode === 'week' ? addWeeks(prev, 1) : addMonths(prev, 1)))
   const handleToday = () => setCurrentDate(new Date())
 
   const handleDrop = async (e: React.DragEvent, targetDate: Date) => {
@@ -468,7 +516,7 @@ export default function ProjectCalendar() {
 
   const handleExportPDF = () => {
     const periodLabel =
-      viewMode === 'month'
+      viewMode === 'month' || viewMode === 'timeline'
         ? format(currentDate, 'MMMM yyyy', { locale: ptBR })
         : `Semana de ${format(startOfWeek(currentDate, { weekStartsOn: 0 }), 'dd/MM')} a ${format(
             endOfWeek(currentDate, { weekStartsOn: 0 }),
@@ -713,10 +761,14 @@ export default function ProjectCalendar() {
             </PopoverContent>
           </Popover>
 
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'month' | 'week')}>
+          <Tabs
+            value={viewMode}
+            onValueChange={(v) => setViewMode(v as 'month' | 'week' | 'timeline')}
+          >
             <TabsList>
               <TabsTrigger value="month">Mês</TabsTrigger>
               <TabsTrigger value="week">Semana</TabsTrigger>
+              <TabsTrigger value="timeline">Cronograma</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -737,7 +789,7 @@ export default function ProjectCalendar() {
       <Card className="shadow-sm border-muted/60">
         <CardHeader className="flex flex-col sm:flex-row items-center justify-between pb-4">
           <CardTitle className="text-xl font-semibold capitalize">
-            {viewMode === 'month'
+            {viewMode === 'month' || viewMode === 'timeline'
               ? format(currentDate, 'MMMM yyyy', { locale: ptBR })
               : `Semana de ${format(startOfWeek(currentDate, { weekStartsOn: 0 }), 'dd/MM')} a ${format(
                   endOfWeek(currentDate, { weekStartsOn: 0 }),
@@ -757,109 +809,245 @@ export default function ProjectCalendar() {
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-6 sm:pt-0">
-          <div className="w-full overflow-x-auto pb-2 scrollbar-thin">
-            <div className="min-w-[800px] border rounded-lg overflow-hidden bg-muted/10">
-              <div className="grid grid-cols-7 bg-muted/30 border-b">
-                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
-                  <div
-                    key={d}
-                    className="p-3 text-center text-sm font-semibold text-muted-foreground"
-                  >
-                    {d}
+          {viewMode === 'timeline' ? (
+            <ScrollArea className="w-full border rounded-lg bg-card">
+              <div className="min-w-[800px]">
+                {/* Header */}
+                <div className="flex border-b bg-muted/30 sticky top-0 z-30">
+                  <div className="w-56 md:w-72 shrink-0 border-r p-3 text-sm font-semibold bg-muted/30 sticky left-0 z-30 shadow-[1px_0_0_0_hsl(var(--border))]">
+                    Projeto / Atividade
                   </div>
-                ))}
-              </div>
-              <div
-                className={cn(
-                  'grid grid-cols-7 gap-px bg-border',
-                  viewMode === 'month' ? 'auto-rows-fr' : '',
-                )}
-              >
-                {days.map((day, i) => {
-                  const dateKey = format(day, 'yyyy-MM-dd')
-                  const dayEvents = eventsByDate[dateKey] || []
-
-                  dayEvents.sort((a, b) => {
-                    const order = { project: 0, module: 1, task: 2 }
-                    return order[a.type] - order[b.type]
-                  })
-
-                  return (
-                    <div
-                      key={i}
-                      className={cn(
-                        'min-h-[140px] p-2 bg-background transition-colors flex flex-col gap-1',
-                        !isSameMonth(day, currentDate) && viewMode === 'month'
-                          ? 'bg-muted/30 text-muted-foreground/50'
-                          : '',
-                      )}
-                      onDragOver={(e) => {
-                        if (canEdit) {
-                          e.preventDefault()
-                          e.currentTarget.classList.add('bg-muted/50')
-                        }
-                      }}
-                      onDragLeave={(e) => {
-                        e.currentTarget.classList.remove('bg-muted/50')
-                      }}
-                      onDrop={(e) => {
-                        e.currentTarget.classList.remove('bg-muted/50')
-                        handleDrop(e, day)
-                      }}
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <span
+                  <div className="flex-1 flex">
+                    {timelineDays.map((d) => (
+                      <div
+                        key={d.toISOString()}
+                        className="flex-1 border-r last:border-0 p-2 text-center text-xs font-medium text-muted-foreground min-w-[40px]"
+                      >
+                        <div
                           className={cn(
-                            'text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full',
-                            isToday(day) ? 'bg-primary text-primary-foreground shadow-sm' : '',
+                            'w-6 h-6 mx-auto flex items-center justify-center rounded-full',
+                            isToday(d) && 'bg-primary text-primary-foreground',
                           )}
                         >
-                          {format(day, 'd')}
-                        </span>
+                          {format(d, 'dd')}
+                        </div>
                       </div>
-                      <div className="space-y-1.5 flex-1 max-h-[160px] overflow-y-auto pr-1 scrollbar-thin">
-                        {dayEvents.map((e) => (
-                          <div
-                            key={e.id}
-                            draggable={canEdit}
-                            onDragStart={(ev) => {
-                              if (canEdit) {
-                                ev.dataTransfer.setData('text/plain', `${e.type}|${e.realId}`)
-                                ev.currentTarget.style.opacity = '0.5'
-                              }
-                            }}
-                            onDragEnd={(ev) => {
-                              ev.currentTarget.style.opacity = '1'
-                            }}
-                            onClick={() => navigate(e.link)}
-                            className={cn(
-                              'text-[11px] leading-tight p-1.5 rounded-md border shadow-sm transition-all hover:brightness-95 cursor-pointer',
-                              getStatusColor(e.status, e.type),
-                              e.type === 'project'
-                                ? 'border-l-4 border-l-indigo-500 font-bold'
-                                : '',
-                              e.type === 'module' ? 'border-l-4 border-l-blue-500' : '',
-                            )}
-                            title={`${e.rawTitle} ${e.projectName ? `- ${e.projectName}` : ''}`}
-                          >
-                            <div className="flex items-start">
+                    ))}
+                  </div>
+                </div>
+
+                {/* Body */}
+                {Object.keys(groupedTimelineEvents).length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    Nenhuma atividade neste período.
+                  </div>
+                ) : (
+                  Object.entries(groupedTimelineEvents).map(([project, evs]) => (
+                    <div key={project} className="flex flex-col group/project">
+                      <div className="flex bg-muted/10 border-b">
+                        <div className="w-56 md:w-72 shrink-0 border-r p-2 text-sm font-semibold sticky left-0 z-20 shadow-[1px_0_0_0_hsl(var(--border))] flex items-center gap-2 bg-muted/10">
+                          <Briefcase className="w-4 h-4 text-indigo-500" />
+                          <span className="truncate">{project}</span>
+                        </div>
+                        <div className="flex-1 flex bg-muted/5">
+                          {timelineDays.map((_, i) => (
+                            <div key={i} className="flex-1 border-r last:border-0 min-w-[40px]" />
+                          ))}
+                        </div>
+                      </div>
+                      {evs.map((e) => {
+                        const eStart = e.startDate
+                          ? new Date(`${e.startDate}T12:00:00`)
+                          : new Date(`${e.date}T12:00:00`)
+                        const eEnd = new Date(`${e.date}T12:00:00`)
+                        const monthStart = startOfMonth(currentDate)
+                        const monthEnd = endOfMonth(currentDate)
+
+                        let startCol = 1
+                        if (eStart > monthStart) startCol = eStart.getDate()
+
+                        let endCol = timelineDays.length + 1
+                        if (eEnd <= monthEnd) endCol = eEnd.getDate() + 1
+
+                        if (startCol >= endCol) startCol = endCol - 1
+
+                        const leftPct = ((startCol - 1) / timelineDays.length) * 100
+                        const widthPct = Math.max(
+                          ((endCol - startCol) / timelineDays.length) * 100,
+                          (1 / timelineDays.length) * 100,
+                        )
+
+                        return (
+                          <div key={e.id} className="flex border-b last:border-0 hover:bg-muted/5">
+                            <div className="w-56 md:w-72 shrink-0 border-r p-2 pl-6 text-xs truncate flex items-center gap-2 bg-background sticky left-0 z-20 shadow-[1px_0_0_0_hsl(var(--border))]">
                               {getTypeIcon(e.type)}
-                              <div className="truncate flex-1 font-semibold">{e.title}</div>
+                              <span
+                                className={cn(
+                                  'truncate',
+                                  canEdit &&
+                                    e.type === 'task' &&
+                                    'cursor-pointer hover:underline text-primary',
+                                )}
+                                onClick={() => startEditing(e)}
+                                title={e.rawTitle}
+                              >
+                                {e.rawTitle}
+                              </span>
                             </div>
-                            {e.projectName && (
-                              <div className="text-[10px] opacity-80 truncate pl-4 mt-0.5">
-                                {e.projectName}
+                            <div className="flex-1 flex relative">
+                              {/* Grid lines */}
+                              {timelineDays.map((_, i) => (
+                                <div
+                                  key={i}
+                                  className="flex-1 border-r last:border-0 min-h-10 min-w-[40px]"
+                                />
+                              ))}
+                              {/* Timeline Bar */}
+                              <div
+                                className="absolute top-1.5 bottom-1.5 flex items-center px-1 z-10"
+                                style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                              >
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className={cn(
+                                        'h-full w-full rounded shadow-sm border text-[10px] flex items-center px-1.5 truncate cursor-pointer transition-all hover:brightness-95',
+                                        getStatusColor(e.status, e.type),
+                                      )}
+                                      onClick={() => navigate(e.link)}
+                                    >
+                                      <span className="truncate font-medium">{e.rawTitle}</span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="font-semibold">{e.rawTitle}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Início: {format(eStart, 'dd/MM/yyyy')}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Entrega: {format(eEnd, 'dd/MM/yyyy')}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Status: {e.status}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
                               </div>
-                            )}
+                            </div>
                           </div>
-                        ))}
-                      </div>
+                        )
+                      })}
                     </div>
-                  )
-                })}
+                  ))
+                )}
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          ) : (
+            <div className="w-full overflow-x-auto pb-2 scrollbar-thin">
+              <div className="min-w-[800px] border rounded-lg overflow-hidden bg-muted/10">
+                <div className="grid grid-cols-7 bg-muted/30 border-b">
+                  {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+                    <div
+                      key={d}
+                      className="p-3 text-center text-sm font-semibold text-muted-foreground"
+                    >
+                      {d}
+                    </div>
+                  ))}
+                </div>
+                <div
+                  className={cn(
+                    'grid grid-cols-7 gap-px bg-border',
+                    viewMode === 'month' ? 'auto-rows-fr' : '',
+                  )}
+                >
+                  {days.map((day, i) => {
+                    const dateKey = format(day, 'yyyy-MM-dd')
+                    const dayEvents = eventsByDate[dateKey] || []
+
+                    dayEvents.sort((a, b) => {
+                      const order = { project: 0, module: 1, task: 2 }
+                      return order[a.type] - order[b.type]
+                    })
+
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          'min-h-[140px] p-2 bg-background transition-colors flex flex-col gap-1',
+                          !isSameMonth(day, currentDate) && viewMode === 'month'
+                            ? 'bg-muted/30 text-muted-foreground/50'
+                            : '',
+                        )}
+                        onDragOver={(e) => {
+                          if (canEdit) {
+                            e.preventDefault()
+                            e.currentTarget.classList.add('bg-muted/50')
+                          }
+                        }}
+                        onDragLeave={(e) => {
+                          e.currentTarget.classList.remove('bg-muted/50')
+                        }}
+                        onDrop={(e) => {
+                          e.currentTarget.classList.remove('bg-muted/50')
+                          handleDrop(e, day)
+                        }}
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span
+                            className={cn(
+                              'text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full',
+                              isToday(day) ? 'bg-primary text-primary-foreground shadow-sm' : '',
+                            )}
+                          >
+                            {format(day, 'd')}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5 flex-1 max-h-[160px] overflow-y-auto pr-1 scrollbar-thin">
+                          {dayEvents.map((e) => (
+                            <div
+                              key={e.id}
+                              draggable={canEdit}
+                              onDragStart={(ev) => {
+                                if (canEdit) {
+                                  ev.dataTransfer.setData('text/plain', `${e.type}|${e.realId}`)
+                                  ev.currentTarget.style.opacity = '0.5'
+                                }
+                              }}
+                              onDragEnd={(ev) => {
+                                ev.currentTarget.style.opacity = '1'
+                              }}
+                              onClick={() => navigate(e.link)}
+                              className={cn(
+                                'text-[11px] leading-tight p-1.5 rounded-md border shadow-sm transition-all hover:brightness-95 cursor-pointer',
+                                getStatusColor(e.status, e.type),
+                                e.type === 'project'
+                                  ? 'border-l-4 border-l-indigo-500 font-bold'
+                                  : '',
+                                e.type === 'module' ? 'border-l-4 border-l-blue-500' : '',
+                              )}
+                              title={`${e.rawTitle} ${e.projectName ? `- ${e.projectName}` : ''}`}
+                            >
+                              <div className="flex items-start">
+                                {getTypeIcon(e.type)}
+                                <div className="truncate flex-1 font-semibold">{e.title}</div>
+                              </div>
+                              {e.projectName && (
+                                <div className="text-[10px] opacity-80 truncate pl-4 mt-0.5">
+                                  {e.projectName}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

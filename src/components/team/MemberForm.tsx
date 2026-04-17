@@ -233,8 +233,12 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
           const match = record.codigo.match(new RegExp(`^${prefix}-(\\d+)`))
           if (match && parseInt(match[1], 10) > maxNum) maxNum = parseInt(match[1], 10)
         }
-        if (isMounted)
-          form.setValue('codigo', `${prefix}-${(maxNum + 1).toString().padStart(3, '0')}`)
+        if (isMounted) {
+          form.setValue('codigo', `${prefix}-${(maxNum + 1).toString().padStart(3, '0')}`, {
+            shouldValidate: true,
+            shouldDirty: true,
+          })
+        }
       } catch (e) {
         console.error('Error fetching codigos', e)
       }
@@ -264,10 +268,11 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
           const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
           const data = await res.json()
           if (!data.erro) {
-            form.setValue('logradouro', data.logradouro || '')
-            form.setValue('bairro', data.bairro || '')
-            form.setValue('cidade', data.localidade || '')
-            form.setValue('uf', data.uf || '')
+            const opts = { shouldValidate: true, shouldDirty: true }
+            form.setValue('logradouro', data.logradouro || '', opts)
+            form.setValue('bairro', data.bairro || '', opts)
+            form.setValue('cidade', data.localidade || '', opts)
+            form.setValue('uf', data.uf || '', opts)
           } else {
             toast({ title: 'CEP não encontrado', variant: 'destructive' })
           }
@@ -376,7 +381,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Nome Completo</FormLabel>
                           <FormControl>
-                            <Input placeholder="Ex: João da Silva" {...field} />
+                            <Input placeholder="Ex: João da Silva" {...field} autoFocus />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -460,7 +465,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Formação</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger ref={field.ref}>
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -509,7 +514,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Status</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger ref={field.ref}>
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 import { z } from 'zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -98,7 +98,8 @@ const formSchema = z
 
 type FormValues = z.infer<typeof formSchema>
 
-function FormacaoCustomField({ control }: { control: any }) {
+// Stabilized sub-components to prevent unmounting/remounting cycles that break active element
+const FormacaoCustomField = memo(function FormacaoCustomField({ control }: { control: any }) {
   const formacao = useWatch({ control, name: 'formacaoSelect' })
   if (formacao !== 'Outros') return null
 
@@ -110,16 +111,16 @@ function FormacaoCustomField({ control }: { control: any }) {
         <FormItem>
           <FormLabel>Especifique</FormLabel>
           <FormControl>
-            <Input tabIndex={7} placeholder="Sua formação..." {...field} />
+            <Input placeholder="Sua formação..." {...field} />
           </FormControl>
           <FormMessage />
         </FormItem>
       )}
     />
   )
-}
+})
 
-function SubmitButton({
+const SubmitButton = memo(function SubmitButton({
   control,
   loading,
   onCancel,
@@ -134,16 +135,45 @@ function SubmitButton({
   return (
     <div className="p-6 pt-4 border-t bg-muted/10">
       <DialogFooter>
-        <Button variant="outline" type="button" onClick={onCancel} disabled={loading} tabIndex={26}>
+        <Button variant="outline" type="button" onClick={onCancel} disabled={loading}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={loading || !isCodigoValid} tabIndex={25}>
+        <Button type="submit" disabled={loading || !isCodigoValid}>
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Salvar Membro
         </Button>
       </DialogFooter>
     </div>
   )
+})
+
+const DEFAULT_VALUES: FormValues = {
+  name: '',
+  codigo: '',
+  password: '',
+  role: 'Projetista',
+  status: 'Ativo',
+  crea: '',
+  formacaoSelect: 'Engenheiro Civil',
+  formacaoCustom: '',
+  email: '',
+  phone: '',
+  altPhone: '',
+  logradouro: '',
+  numero: '',
+  bairro: '',
+  cidade: '',
+  uf: '',
+  cep: '',
+  cpf: '',
+  rg: '',
+  birth_date: '',
+  bank_bank: '',
+  bank_agency: '',
+  bank_account: '',
+  bank_pix: '',
+  documentos_link: '',
+  notes: '',
 }
 
 export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
@@ -153,35 +183,26 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: '',
-      codigo: '',
-      password: '',
-      role: 'Projetista',
-      status: 'Ativo',
-      crea: '',
-      formacaoSelect: 'Engenheiro Civil',
-      formacaoCustom: '',
-      email: '',
-      phone: '',
-      altPhone: '',
-      logradouro: '',
-      numero: '',
-      bairro: '',
-      cidade: '',
-      uf: '',
-      cep: '',
-      cpf: '',
-      rg: '',
-      birth_date: '',
-      bank_bank: '',
-      bank_agency: '',
-      bank_account: '',
-      bank_pix: '',
-      documentos_link: '',
-      notes: '',
-    },
+    defaultValues: DEFAULT_VALUES,
   })
+
+  // Load offline draft
+  useEffect(() => {
+    if (!open) return
+    const draft = localStorage.getItem('memberFormDraft')
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft)
+        form.reset({ ...DEFAULT_VALUES, ...parsed })
+        toast({
+          title: 'Rascunho recuperado',
+          description: 'Seus dados não salvos foram recuperados localmente.',
+        })
+      } catch (e) {
+        console.error('Failed to parse draft', e)
+      }
+    }
+  }, [open, form, toast])
 
   const handleMaskedChange = useCallback(
     (
@@ -239,20 +260,24 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
             shouldDirty: true,
           })
         }
-      } catch (e) {
-        console.error('Error fetching codigos', e)
+      } catch (e: any) {
+        if (e.status !== 0) console.error('Error fetching codigos', e)
       }
     }
 
-    // Initial fetch
-    updateCodigo(form.getValues('role') || 'Projetista')
-
-    // Subscribe to changes to prevent re-rendering the whole form
+    // Subscribe to changes to prevent re-rendering the whole form and handle drafts
     const subscription = form.watch((value, { name }) => {
       if (name === 'role') {
         updateCodigo(value.role || 'Projetista')
       }
+      // Save offline draft on any change
+      localStorage.setItem('memberFormDraft', JSON.stringify(value))
     })
+
+    // If it's a new form without a draft, init codigo
+    if (!localStorage.getItem('memberFormDraft')) {
+      updateCodigo(form.getValues('role') || 'Projetista')
+    }
 
     return () => {
       isMounted = false
@@ -285,7 +310,9 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   )
 
   useEffect(() => {
-    if (!open) form.reset()
+    if (!open) {
+      form.reset(DEFAULT_VALUES)
+    }
   }, [open, form])
 
   const onSubmit = async (data: FormValues) => {
@@ -325,8 +352,19 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       const createdRecord = await pb.collection('users').create(payload)
       onAdd(createdRecord as unknown as User)
       toast({ title: 'Sucesso', description: 'Membro adicionado com sucesso.' })
+      localStorage.removeItem('memberFormDraft')
       setOpen(false)
     } catch (err: any) {
+      if (!window.navigator.onLine || err.status === 0) {
+        toast({
+          title: 'Conexão perdida',
+          description:
+            'Não foi possível salvar no servidor. Seus dados estão salvos localmente e você pode tentar novamente mais tarde.',
+          variant: 'destructive',
+        })
+        return
+      }
+
       const errors = extractFieldErrors(err)
       let hasFieldError = false
       Object.entries(errors).forEach(([key, msg]) => {
@@ -388,13 +426,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Nome Completo</FormLabel>
                           <FormControl>
-                            <Input
-                              tabIndex={1}
-                              id="member-name"
-                              placeholder="Ex: João da Silva"
-                              {...field}
-                              autoFocus
-                            />
+                            <Input id="member-name" placeholder="Ex: João da Silva" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -408,7 +440,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>CPF</FormLabel>
                           <FormControl>
                             <Input
-                              tabIndex={2}
                               placeholder="000.000.000-00"
                               maxLength={14}
                               {...field}
@@ -427,7 +458,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>RG</FormLabel>
                           <FormControl>
                             <Input
-                              tabIndex={3}
                               placeholder="00.000.000-0"
                               maxLength={14}
                               {...field}
@@ -445,7 +475,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Registro CREA/CAU</FormLabel>
                           <FormControl>
-                            <Input tabIndex={4} placeholder="123456/UF" {...field} />
+                            <Input placeholder="123456/UF" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -458,7 +488,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Data de Nascimento</FormLabel>
                           <FormControl>
-                            <Input tabIndex={5} type="date" {...field} />
+                            <Input type="date" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -480,7 +510,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Formação</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger tabIndex={6} ref={field.ref}>
+                              <SelectTrigger ref={field.ref}>
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -512,7 +542,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Senha Provisória</FormLabel>
                           <FormControl>
                             <Input
-                              tabIndex={8}
                               type="password"
                               placeholder="Mínimo de 8 caracteres"
                               {...field}
@@ -530,7 +559,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Status</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger tabIndex={9} ref={field.ref}>
+                              <SelectTrigger ref={field.ref}>
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -554,8 +583,8 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Código (ID)</FormLabel>
                           <FormControl>
                             <Input
-                              tabIndex={-1}
                               disabled
+                              tabIndex={-1}
                               className="bg-muted font-mono"
                               {...field}
                             />
@@ -580,7 +609,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Telefone</FormLabel>
                           <FormControl>
                             <Input
-                              tabIndex={10}
                               placeholder="(00) 00000-0000"
                               maxLength={15}
                               {...field}
@@ -599,7 +627,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Tel. Alternativo</FormLabel>
                           <FormControl>
                             <Input
-                              tabIndex={11}
                               placeholder="(00) 00000-0000"
                               maxLength={15}
                               {...field}
@@ -617,12 +644,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input
-                              tabIndex={12}
-                              type="email"
-                              placeholder="contato@exemplo.com"
-                              {...field}
-                            />
+                            <Input type="email" placeholder="contato@exemplo.com" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -644,7 +666,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>CEP</FormLabel>
                           <FormControl>
                             <Input
-                              tabIndex={13}
                               placeholder="00000-000"
                               maxLength={9}
                               {...field}
@@ -669,7 +690,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-7">
                           <FormLabel>Logradouro</FormLabel>
                           <FormControl>
-                            <Input tabIndex={14} placeholder="Rua, Avenida..." {...field} />
+                            <Input placeholder="Rua, Avenida..." {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -682,7 +703,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-2">
                           <FormLabel>Número</FormLabel>
                           <FormControl>
-                            <Input tabIndex={15} placeholder="123" {...field} />
+                            <Input placeholder="123" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -695,7 +716,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-4">
                           <FormLabel>Bairro</FormLabel>
                           <FormControl>
-                            <Input tabIndex={16} placeholder="Centro" {...field} />
+                            <Input placeholder="Centro" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -708,7 +729,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-5">
                           <FormLabel>Cidade</FormLabel>
                           <FormControl>
-                            <Input tabIndex={17} placeholder="São Paulo" {...field} />
+                            <Input placeholder="São Paulo" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -721,7 +742,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-3">
                           <FormLabel>UF</FormLabel>
                           <FormControl>
-                            <Input tabIndex={18} placeholder="SP" maxLength={2} {...field} />
+                            <Input placeholder="SP" maxLength={2} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -742,7 +763,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Banco</FormLabel>
                           <FormControl>
-                            <Input tabIndex={19} placeholder="Ex: Itaú" {...field} />
+                            <Input placeholder="Ex: Itaú" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -755,7 +776,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Agência</FormLabel>
                           <FormControl>
-                            <Input tabIndex={20} placeholder="0000" {...field} />
+                            <Input placeholder="0000" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -768,7 +789,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Conta Corrente</FormLabel>
                           <FormControl>
-                            <Input tabIndex={21} placeholder="00000-0" {...field} />
+                            <Input placeholder="00000-0" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -781,7 +802,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Chave PIX</FormLabel>
                           <FormControl>
-                            <Input tabIndex={22} placeholder="CPF, Email..." {...field} />
+                            <Input placeholder="CPF, Email..." {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -802,7 +823,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormLabel>Observações</FormLabel>
                         <FormControl>
                           <Textarea
-                            tabIndex={23}
                             placeholder="Detalhes adicionais..."
                             className="resize-none"
                             {...field}
@@ -825,11 +845,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                       <FormItem>
                         <FormLabel>Link da Pasta (Nuvem)</FormLabel>
                         <FormControl>
-                          <Input
-                            tabIndex={24}
-                            placeholder="https://drive.google.com/..."
-                            {...field}
-                          />
+                          <Input placeholder="https://drive.google.com/..." {...field} />
                         </FormControl>
                         <FormDescription>
                           Cole o link da pasta de documentos do profissional.

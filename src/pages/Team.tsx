@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
+import { useNavigate } from 'react-router-dom'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MemberCard } from '@/components/team/MemberCard'
-import { MemberForm } from '@/components/team/MemberForm'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { exportTeamCSV } from '@/lib/export'
@@ -37,6 +37,7 @@ export default function Team() {
   const [searchQuery, setSearchQuery] = useState('')
   const { toast } = useToast()
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   const loadUsers = async () => {
     try {
@@ -47,16 +48,12 @@ export default function Team() {
     }
   }
 
-  const [isFormOpen, setIsFormOpen] = useState(false)
-
   useEffect(() => {
     loadUsers()
   }, [])
 
   useRealtime('users', () => {
-    if (!isFormOpen) {
-      loadUsers()
-    }
+    loadUsers()
   })
 
   const formacoes = useMemo(() => {
@@ -139,7 +136,9 @@ export default function Team() {
               <RoleManagementModal users={dbUsers} onUpdate={loadUsers} />
             </>
           )}
-          <MemberForm onAdd={() => loadUsers()} onOpenChange={setIsFormOpen} />
+          <Button onClick={() => navigate('/team/new')}>
+            <Plus className="mr-2 h-4 w-4" /> Adicionar Membro
+          </Button>
         </div>
       </div>
 

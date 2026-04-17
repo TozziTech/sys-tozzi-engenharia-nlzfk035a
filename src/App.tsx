@@ -33,6 +33,7 @@ import Bottlenecks from './pages/Bottlenecks'
 import Timesheet from './pages/Timesheet'
 import History from './pages/History'
 import Team from './pages/Team'
+import TeamNew from './pages/TeamNew'
 import Activities from './pages/Activities'
 import PendingReport from './pages/PendingReport'
 import Finance from './pages/Finance'
@@ -103,6 +104,7 @@ const App = () => (
                   <Route path="/timesheet" element={<Timesheet />} />
                   <Route path="/history" element={<History />} />
                   <Route path="/team" element={<Team />} />
+                  <Route path="/team/new" element={<TeamNew />} />
                   <Route path="/activities" element={<Activities />} />
                   <Route path="/pending-report" element={<PendingReport />} />
                   <Route path="/performance" element={<Performance />} />

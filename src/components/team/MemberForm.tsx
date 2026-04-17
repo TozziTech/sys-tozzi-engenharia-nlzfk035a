@@ -110,7 +110,7 @@ function FormacaoCustomField({ control }: { control: any }) {
         <FormItem>
           <FormLabel>Especifique</FormLabel>
           <FormControl>
-            <Input placeholder="Sua formação..." {...field} />
+            <Input tabIndex={7} placeholder="Sua formação..." {...field} />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -134,10 +134,10 @@ function SubmitButton({
   return (
     <div className="p-6 pt-4 border-t bg-muted/10">
       <DialogFooter>
-        <Button variant="outline" type="button" onClick={onCancel} disabled={loading}>
+        <Button variant="outline" type="button" onClick={onCancel} disabled={loading} tabIndex={26}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={loading || !isCodigoValid}>
+        <Button type="submit" disabled={loading || !isCodigoValid} tabIndex={25}>
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Salvar Membro
         </Button>
@@ -353,7 +353,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
           <Plus className="mr-2 h-4 w-4" /> Adicionar Membro
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col p-0 overflow-hidden">
+      <DialogContent
+        className="sm:max-w-[800px] h-[90vh] flex flex-col p-0 overflow-hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          setTimeout(() => document.getElementById('member-name')?.focus(), 0)
+        }}
+      >
         <div className="p-6 pb-4 border-b">
           <DialogHeader>
             <DialogTitle className="text-xl">Novo Membro</DialogTitle>
@@ -381,7 +388,13 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Nome Completo</FormLabel>
                           <FormControl>
-                            <Input placeholder="Ex: João da Silva" {...field} autoFocus />
+                            <Input
+                              tabIndex={1}
+                              id="member-name"
+                              placeholder="Ex: João da Silva"
+                              {...field}
+                              autoFocus
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -395,6 +408,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>CPF</FormLabel>
                           <FormControl>
                             <Input
+                              tabIndex={2}
                               placeholder="000.000.000-00"
                               maxLength={14}
                               {...field}
@@ -413,6 +427,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>RG</FormLabel>
                           <FormControl>
                             <Input
+                              tabIndex={3}
                               placeholder="00.000.000-0"
                               maxLength={14}
                               {...field}
@@ -430,7 +445,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Registro CREA/CAU</FormLabel>
                           <FormControl>
-                            <Input placeholder="123456/UF" {...field} />
+                            <Input tabIndex={4} placeholder="123456/UF" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -443,7 +458,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Data de Nascimento</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input tabIndex={5} type="date" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -465,7 +480,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Formação</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger ref={field.ref}>
+                              <SelectTrigger tabIndex={6} ref={field.ref}>
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -497,6 +512,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Senha Provisória</FormLabel>
                           <FormControl>
                             <Input
+                              tabIndex={8}
                               type="password"
                               placeholder="Mínimo de 8 caracteres"
                               {...field}
@@ -514,7 +530,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Status</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger ref={field.ref}>
+                              <SelectTrigger tabIndex={9} ref={field.ref}>
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -537,7 +553,12 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Código (ID)</FormLabel>
                           <FormControl>
-                            <Input disabled className="bg-muted font-mono" {...field} />
+                            <Input
+                              tabIndex={-1}
+                              disabled
+                              className="bg-muted font-mono"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -559,6 +580,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Telefone</FormLabel>
                           <FormControl>
                             <Input
+                              tabIndex={10}
                               placeholder="(00) 00000-0000"
                               maxLength={15}
                               {...field}
@@ -577,6 +599,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Tel. Alternativo</FormLabel>
                           <FormControl>
                             <Input
+                              tabIndex={11}
                               placeholder="(00) 00000-0000"
                               maxLength={15}
                               {...field}
@@ -594,7 +617,12 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input type="email" placeholder="contato@exemplo.com" {...field} />
+                            <Input
+                              tabIndex={12}
+                              type="email"
+                              placeholder="contato@exemplo.com"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -616,6 +644,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>CEP</FormLabel>
                           <FormControl>
                             <Input
+                              tabIndex={13}
                               placeholder="00000-000"
                               maxLength={9}
                               {...field}
@@ -640,7 +669,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-7">
                           <FormLabel>Logradouro</FormLabel>
                           <FormControl>
-                            <Input placeholder="Rua, Avenida..." {...field} />
+                            <Input tabIndex={14} placeholder="Rua, Avenida..." {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -653,7 +682,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-2">
                           <FormLabel>Número</FormLabel>
                           <FormControl>
-                            <Input placeholder="123" {...field} />
+                            <Input tabIndex={15} placeholder="123" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -666,7 +695,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-4">
                           <FormLabel>Bairro</FormLabel>
                           <FormControl>
-                            <Input placeholder="Centro" {...field} />
+                            <Input tabIndex={16} placeholder="Centro" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -679,7 +708,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-5">
                           <FormLabel>Cidade</FormLabel>
                           <FormControl>
-                            <Input placeholder="São Paulo" {...field} />
+                            <Input tabIndex={17} placeholder="São Paulo" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -692,7 +721,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-3">
                           <FormLabel>UF</FormLabel>
                           <FormControl>
-                            <Input placeholder="SP" maxLength={2} {...field} />
+                            <Input tabIndex={18} placeholder="SP" maxLength={2} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -713,7 +742,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Banco</FormLabel>
                           <FormControl>
-                            <Input placeholder="Ex: Itaú" {...field} />
+                            <Input tabIndex={19} placeholder="Ex: Itaú" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -726,7 +755,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Agência</FormLabel>
                           <FormControl>
-                            <Input placeholder="0000" {...field} />
+                            <Input tabIndex={20} placeholder="0000" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -739,7 +768,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Conta Corrente</FormLabel>
                           <FormControl>
-                            <Input placeholder="00000-0" {...field} />
+                            <Input tabIndex={21} placeholder="00000-0" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -752,7 +781,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Chave PIX</FormLabel>
                           <FormControl>
-                            <Input placeholder="CPF, Email..." {...field} />
+                            <Input tabIndex={22} placeholder="CPF, Email..." {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -773,6 +802,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormLabel>Observações</FormLabel>
                         <FormControl>
                           <Textarea
+                            tabIndex={23}
                             placeholder="Detalhes adicionais..."
                             className="resize-none"
                             {...field}
@@ -795,7 +825,11 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                       <FormItem>
                         <FormLabel>Link da Pasta (Nuvem)</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://drive.google.com/..." {...field} />
+                          <Input
+                            tabIndex={24}
+                            placeholder="https://drive.google.com/..."
+                            {...field}
+                          />
                         </FormControl>
                         <FormDescription>
                           Cole o link da pasta de documentos do profissional.

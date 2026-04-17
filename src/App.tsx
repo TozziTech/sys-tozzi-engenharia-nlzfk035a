@@ -45,6 +45,7 @@ import Equipments from './pages/Equipments'
 import Audit from './pages/Audit'
 import AdminDocuments from './pages/admin/AdminDocuments'
 import AnalyticsDashboard from './pages/admin/AnalyticsDashboard'
+import AdminUsers from './pages/admin/AdminUsers'
 import AccessControl from './pages/AccessControl'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
 import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
@@ -119,6 +120,7 @@ const App = () => (
                     <Route path="/admin/audit-logs" element={<Audit />} />
                     <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
                     <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
+                    <Route path="/admin/users" element={<AdminUsers />} />
                   </Route>
                   <Route path="/access-control" element={<AccessControl />} />
                   <Route

@@ -116,7 +116,7 @@ const navigationGroups = [
         adminOnly: true,
       },
       { name: 'Configurações', href: '/settings', icon: Settings },
-      { name: 'Acessos', href: '/access-control', icon: Shield },
+      { name: 'Acessos e Usuários', href: '/admin/users', icon: Shield, adminOnly: true },
       { name: 'Auditoria Executiva', href: '/admin/audit-log', icon: History, adminOnly: true },
     ],
   },

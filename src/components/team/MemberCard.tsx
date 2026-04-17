@@ -78,23 +78,6 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Bar, BarChart } from 'recharts'
 import { cn } from '@/lib/utils'
 
-const getRoleColor = (role: string) => {
-  switch (role) {
-    case 'Administrador':
-      return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
-    case 'Gerente de Projeto':
-      return 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800'
-    case 'Projetista':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800'
-    case 'Estagiário':
-      return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800'
-    case 'Visitante':
-      return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800/50 dark:text-gray-300 dark:border-gray-700'
-    default:
-      return 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
-  }
-}
-
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'Ativo':
@@ -228,17 +211,6 @@ export function MemberCard({
                     >
                       {u.status || 'Ativo'}
                     </Badge>
-                    {u.role && (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'ml-2 text-xs font-semibold border shrink-0',
-                          getRoleColor(u.role),
-                        )}
-                      >
-                        {u.role}
-                      </Badge>
-                    )}
                   </DialogTitle>{' '}
                   <DialogDescription className="text-base font-medium text-primary mt-1 flex items-center gap-2">
                     <Briefcase className="h-4 w-4" /> {formacaoDisplay}
@@ -466,30 +438,6 @@ export function MemberCard({
                 <SelectItem value="Em Férias">Em Férias</SelectItem>
               </SelectContent>
             </Select>
-
-            {u.role && (
-              <Select
-                value={u.role || 'Projetista'}
-                onValueChange={(val) => handleQuickEdit('role', val)}
-                disabled={currentUser?.role !== 'Administrador'}
-              >
-                <SelectTrigger
-                  className={cn(
-                    'h-auto px-2.5 py-0.5 text-xs font-bold tracking-wider rounded-md border w-fit focus:ring-0 focus:ring-offset-0 whitespace-nowrap [&>svg]:hidden shrink-0 shadow-none',
-                    getRoleColor(u.role),
-                  )}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Administrador">Administrador</SelectItem>
-                  <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
-                  <SelectItem value="Projetista">Projetista</SelectItem>
-                  <SelectItem value="Estagiário">Estagiário</SelectItem>
-                  <SelectItem value="Visitante">Visitante</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
           </div>
         </div>
 
@@ -1240,7 +1188,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                     />
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <FormField
                       control={form.control}
                       name="status"
@@ -1258,30 +1206,6 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                               <SelectItem value="Inativo">Inativo</SelectItem>
                               <SelectItem value="Em Férias">Em Férias</SelectItem>
                             </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem className="col-span-1">
-                          <FormLabel>Cargo no Sistema</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione..." />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Administrador">Administrador</SelectItem>
-                              <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
-                              <SelectItem value="Projetista">Projetista</SelectItem>
-                              <SelectItem value="Estagiário">Estagiário</SelectItem>
-                              <SelectItem value="Visitante">Visitante</SelectItem>
-                            </SelectContent>{' '}
                           </Select>
                           <FormMessage />
                         </FormItem>

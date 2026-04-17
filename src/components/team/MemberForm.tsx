@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { z } from 'zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -48,6 +48,12 @@ const ROLE_PREFIXES: Record<string, string> = {
   Cliente: 'CLI',
 }
 
+const maskCEP = (val: string) =>
+  val
+    .replace(/\D/g, '')
+    .replace(/^(\d{5})(\d)/, '$1-$2')
+    .slice(0, 9)
+
 const formSchema = z
   .object({
     name: z.string().min(1, 'O nome é obrigatório.'),
@@ -92,6 +98,54 @@ const formSchema = z
 
 type FormValues = z.infer<typeof formSchema>
 
+function FormacaoCustomField({ control }: { control: any }) {
+  const formacao = useWatch({ control, name: 'formacaoSelect' })
+  if (formacao !== 'Outros') return null
+
+  return (
+    <FormField
+      control={control}
+      name="formacaoCustom"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Especifique</FormLabel>
+          <FormControl>
+            <Input placeholder="Sua formação..." {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
+}
+
+function SubmitButton({
+  control,
+  loading,
+  onCancel,
+}: {
+  control: any
+  loading: boolean
+  onCancel: () => void
+}) {
+  const codigo = useWatch({ control, name: 'codigo' })
+  const isCodigoValid = !!codigo?.trim()
+
+  return (
+    <div className="p-6 pt-4 border-t bg-muted/10">
+      <DialogFooter>
+        <Button variant="outline" type="button" onClick={onCancel} disabled={loading}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={loading || !isCodigoValid}>
+          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Salvar Membro
+        </Button>
+      </DialogFooter>
+    </div>
+  )
+}
+
 export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -128,12 +182,6 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       notes: '',
     },
   })
-
-  const role = form.watch('role')
-  const cepValue = form.watch('cep')
-  const formacaoSelectValue = form.watch('formacaoSelect')
-  const codigoValue = form.watch('codigo')
-  const isCodigoValid = !!codigoValue?.trim()
 
   const handleMaskedChange = useCallback(
     (
@@ -173,8 +221,9 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   useEffect(() => {
     if (!open) return
     let isMounted = true
-    const prefix = ROLE_PREFIXES[role] || 'PER'
-    const fetchNextCodigo = async () => {
+
+    const updateCodigo = async (currentRole: string) => {
+      const prefix = ROLE_PREFIXES[currentRole] || 'PER'
       try {
         const records = await pb
           .collection('users')
@@ -190,29 +239,45 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
         console.error('Error fetching codigos', e)
       }
     }
-    fetchNextCodigo()
+
+    // Initial fetch
+    updateCodigo(form.getValues('role') || 'Projetista')
+
+    // Subscribe to changes to prevent re-rendering the whole form
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'role') {
+        updateCodigo(value.role || 'Projetista')
+      }
+    })
+
     return () => {
       isMounted = false
+      subscription.unsubscribe()
     }
-  }, [open, role, form])
+  }, [open, form])
 
-  useEffect(() => {
-    if (!cepValue) return
-    const cleanCep = cepValue.replace(/\D/g, '')
-    if (cleanCep.length === 8) {
-      fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
-        .then((res) => res.json())
-        .then((data) => {
+  const fetchCep = useCallback(
+    async (cep: string) => {
+      const cleanCep = cep.replace(/\D/g, '')
+      if (cleanCep.length === 8) {
+        try {
+          const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+          const data = await res.json()
           if (!data.erro) {
             form.setValue('logradouro', data.logradouro || '')
             form.setValue('bairro', data.bairro || '')
             form.setValue('cidade', data.localidade || '')
             form.setValue('uf', data.uf || '')
-          } else toast({ title: 'CEP não encontrado', variant: 'destructive' })
-        })
-        .catch(() => toast({ title: 'Erro ao buscar CEP', variant: 'destructive' }))
-    }
-  }, [cepValue, form, toast])
+          } else {
+            toast({ title: 'CEP não encontrado', variant: 'destructive' })
+          }
+        } catch {
+          toast({ title: 'Erro ao buscar CEP', variant: 'destructive' })
+        }
+      }
+    },
+    [form, toast],
+  )
 
   useEffect(() => {
     if (!open) form.reset()
@@ -418,21 +483,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         </FormItem>
                       )}
                     />
-                    {formacaoSelectValue === 'Outros' && (
-                      <FormField
-                        control={form.control}
-                        name="formacaoCustom"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Especifique</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Sua formação..." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
+                    <FormacaoCustomField control={form.control} />
                     <FormField
                       control={form.control}
                       name="password"
@@ -564,15 +615,12 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                               maxLength={9}
                               {...field}
                               onChange={(e) =>
-                                handleMaskedChange(
-                                  e,
-                                  (val) =>
-                                    val
-                                      .replace(/\D/g, '')
-                                      .replace(/^(\d{5})(\d)/, '$1-$2')
-                                      .slice(0, 9),
-                                  field.onChange,
-                                )
+                                handleMaskedChange(e, maskCEP, (newVal) => {
+                                  field.onChange(newVal)
+                                  if (newVal.replace(/\D/g, '').length === 8) {
+                                    fetchCep(newVal)
+                                  }
+                                })
                               }
                             />
                           </FormControl>
@@ -754,22 +802,11 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                 </div>
               </div>
             </ScrollArea>
-            <div className="p-6 pt-4 border-t bg-muted/10">
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  disabled={loading}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={loading || !isCodigoValid}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar Membro
-                </Button>
-              </DialogFooter>
-            </div>
+            <SubmitButton
+              control={form.control}
+              loading={loading}
+              onCancel={() => setOpen(false)}
+            />
           </form>
         </Form>
       </DialogContent>

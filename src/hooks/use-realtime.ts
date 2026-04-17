@@ -7,8 +7,6 @@ import type { RecordSubscription } from 'pocketbase'
  * ALWAYS use this hook instead of subscribing inline.
  * Uses the per-listener UnsubscribeFunc so multiple components
  * can safely subscribe to the same collection without conflicts.
- * Includes an exponential backoff strategy for connection errors
- * (like HTTP2 protocol errors) to prevent UI flickering or crashing.
  */
 export function useRealtime(
   collectionName: string,
@@ -23,42 +21,21 @@ export function useRealtime(
 
     let unsubscribeFn: (() => Promise<void>) | undefined
     let cancelled = false
-    let retryTimeoutId: ReturnType<typeof setTimeout> | undefined
 
-    const connect = async (retryCount = 0) => {
-      if (cancelled) return
-
-      try {
-        const fn = await pb.collection(collectionName).subscribe('*', (e) => {
-          if (!cancelled) {
-            callbackRef.current(e)
-          }
-        })
-
+    pb.collection(collectionName)
+      .subscribe('*', (e) => {
+        callbackRef.current(e)
+      })
+      .then((fn) => {
         if (cancelled) {
           fn().catch(() => {})
         } else {
           unsubscribeFn = fn
         }
-      } catch (err) {
-        if (cancelled) return
-
-        // Exponential backoff strategy for reconnections: 2s, 4s, 8s, up to 30s
-        const backoffDelay = Math.min(1000 * Math.pow(2, retryCount + 1), 30000)
-
-        retryTimeoutId = setTimeout(() => {
-          connect(retryCount + 1)
-        }, backoffDelay)
-      }
-    }
-
-    connect()
+      })
 
     return () => {
       cancelled = true
-      if (retryTimeoutId) {
-        clearTimeout(retryTimeoutId)
-      }
       if (unsubscribeFn) {
         unsubscribeFn().catch(() => {})
       }

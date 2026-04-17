@@ -59,8 +59,17 @@ const formSchema = z
     name: z.string().min(1, 'O nome é obrigatório.'),
     codigo: z.string().trim().min(1, 'O código é obrigatório.'),
     password: z.string().min(8, 'A senha deve ter no mínimo 8 caracteres.'),
-    role: z.string().default('Projetista'),
-    status: z.string().default('Ativo'),
+    role: z
+      .enum([
+        'Administrador',
+        'Gerente de Projeto',
+        'Projetista',
+        'Estagiário',
+        'Visitante',
+        'Cliente',
+      ])
+      .default('Projetista'),
+    status: z.enum(['Ativo', 'Inativo', 'Em Férias', 'Pendente']).default('Ativo'),
     crea: z.string().optional().default(''),
     formacaoSelect: z.string().default('Engenheiro Civil'),
     formacaoCustom: z.string().optional().default(''),
@@ -111,7 +120,14 @@ const FormacaoCustomField = memo(function FormacaoCustomField({ control }: { con
         <FormItem>
           <FormLabel>Especifique</FormLabel>
           <FormControl>
-            <Input placeholder="Sua formação..." {...field} />
+            <Input
+              id="member-formacao-custom"
+              autoComplete="off"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              placeholder="Sua formação..."
+              {...field}
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -176,10 +192,24 @@ const DEFAULT_VALUES: FormValues = {
   notes: '',
 }
 
-export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
+export function MemberForm({
+  onAdd,
+  onOpenChange,
+}: {
+  onAdd?: (user: User) => void
+  onOpenChange?: (open: boolean) => void
+}) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+
+  const handleOpenChange = useCallback(
+    (newOpen: boolean) => {
+      setOpen(newOpen)
+      onOpenChange?.(newOpen)
+    },
+    [onOpenChange],
+  )
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -298,6 +328,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
             form.setValue('bairro', data.bairro || '', opts)
             form.setValue('cidade', data.localidade || '', opts)
             form.setValue('uf', data.uf || '', opts)
+            // Auto focus number field after successful CEP fetch
+            setTimeout(() => {
+              document.getElementById('member-numero')?.focus()
+            }, 100)
           } else {
             toast({ title: 'CEP não encontrado', variant: 'destructive' })
           }
@@ -350,10 +384,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
       if (data.birth_date) payload.birth_date = data.birth_date
 
       const createdRecord = await pb.collection('users').create(payload)
-      onAdd(createdRecord as unknown as User)
+      onAdd?.(createdRecord as unknown as User)
       toast({ title: 'Sucesso', description: 'Membro adicionado com sucesso.' })
       localStorage.removeItem('memberFormDraft')
-      setOpen(false)
+      handleOpenChange(false)
     } catch (err: any) {
       if (!window.navigator.onLine || err.status === 0) {
         toast({
@@ -385,7 +419,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" /> Adicionar Membro
@@ -426,7 +460,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Nome Completo</FormLabel>
                           <FormControl>
-                            <Input id="member-name" placeholder="Ex: João da Silva" {...field} />
+                            <Input
+                              id="member-name"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="Ex: João da Silva"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -440,6 +481,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>CPF</FormLabel>
                           <FormControl>
                             <Input
+                              id="member-cpf"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
                               placeholder="000.000.000-00"
                               maxLength={14}
                               {...field}
@@ -458,6 +503,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>RG</FormLabel>
                           <FormControl>
                             <Input
+                              id="member-rg"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
                               placeholder="00.000.000-0"
                               maxLength={14}
                               {...field}
@@ -470,25 +519,17 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                     />
                     <FormField
                       control={form.control}
-                      name="crea"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Registro CREA/CAU</FormLabel>
-                          <FormControl>
-                            <Input placeholder="123456/UF" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
                       name="birth_date"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Data de Nascimento</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input
+                              id="member-birth_date"
+                              autoComplete="off"
+                              type="date"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -504,13 +545,68 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Função (Perfil)</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger id="member-role" ref={field.ref}>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {[
+                                'Administrador',
+                                'Gerente de Projeto',
+                                'Projetista',
+                                'Estagiário',
+                                'Visitante',
+                                'Cliente',
+                              ].map((f) => (
+                                <SelectItem key={f} value={f}>
+                                  {f}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger id="member-status" ref={field.ref}>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {['Ativo', 'Inativo', 'Em Férias', 'Pendente'].map((s) => (
+                                <SelectItem key={s} value={s}>
+                                  {s}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
                       name="formacaoSelect"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Formação</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger ref={field.ref}>
+                              <SelectTrigger id="member-formacao" ref={field.ref}>
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -536,14 +632,17 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                     <FormacaoCustomField control={form.control} />
                     <FormField
                       control={form.control}
-                      name="password"
+                      name="crea"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Senha Provisória</FormLabel>
+                          <FormLabel>Registro CREA/CAU</FormLabel>
                           <FormControl>
                             <Input
-                              type="password"
-                              placeholder="Mínimo de 8 caracteres"
+                              id="member-crea"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="123456/UF"
                               {...field}
                             />
                           </FormControl>
@@ -553,24 +652,19 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                     />
                     <FormField
                       control={form.control}
-                      name="status"
+                      name="password"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger ref={field.ref}>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {['Ativo', 'Inativo', 'Em Férias'].map((s) => (
-                                <SelectItem key={s} value={s}>
-                                  {s}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormLabel>Senha Provisória</FormLabel>
+                          <FormControl>
+                            <Input
+                              id="member-password"
+                              type="password"
+                              autoComplete="new-password"
+                              placeholder="Mínimo de 8 caracteres"
+                              {...field}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -583,6 +677,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Código (ID)</FormLabel>
                           <FormControl>
                             <Input
+                              id="member-codigo"
                               disabled
                               tabIndex={-1}
                               className="bg-muted font-mono"
@@ -609,6 +704,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Telefone</FormLabel>
                           <FormControl>
                             <Input
+                              id="member-phone"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
                               placeholder="(00) 00000-0000"
                               maxLength={15}
                               {...field}
@@ -627,6 +726,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>Tel. Alternativo</FormLabel>
                           <FormControl>
                             <Input
+                              id="member-altPhone"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
                               placeholder="(00) 00000-0000"
                               maxLength={15}
                               {...field}
@@ -644,7 +747,15 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input type="email" placeholder="contato@exemplo.com" {...field} />
+                            <Input
+                              id="member-email"
+                              type="email"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="contato@exemplo.com"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -666,6 +777,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                           <FormLabel>CEP</FormLabel>
                           <FormControl>
                             <Input
+                              id="member-cep"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
                               placeholder="00000-000"
                               maxLength={9}
                               {...field}
@@ -690,7 +805,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-7">
                           <FormLabel>Logradouro</FormLabel>
                           <FormControl>
-                            <Input placeholder="Rua, Avenida..." {...field} />
+                            <Input
+                              id="member-logradouro"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="Rua, Avenida..."
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -703,7 +825,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-2">
                           <FormLabel>Número</FormLabel>
                           <FormControl>
-                            <Input placeholder="123" {...field} />
+                            <Input
+                              id="member-numero"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="123"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -716,7 +845,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-4">
                           <FormLabel>Bairro</FormLabel>
                           <FormControl>
-                            <Input placeholder="Centro" {...field} />
+                            <Input
+                              id="member-bairro"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="Centro"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -729,7 +865,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-5">
                           <FormLabel>Cidade</FormLabel>
                           <FormControl>
-                            <Input placeholder="São Paulo" {...field} />
+                            <Input
+                              id="member-cidade"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="São Paulo"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -742,7 +885,15 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem className="col-span-12 sm:col-span-3">
                           <FormLabel>UF</FormLabel>
                           <FormControl>
-                            <Input placeholder="SP" maxLength={2} {...field} />
+                            <Input
+                              id="member-uf"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="SP"
+                              maxLength={2}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -763,7 +914,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Banco</FormLabel>
                           <FormControl>
-                            <Input placeholder="Ex: Itaú" {...field} />
+                            <Input
+                              id="member-bank_bank"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="Ex: Itaú"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -776,7 +934,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Agência</FormLabel>
                           <FormControl>
-                            <Input placeholder="0000" {...field} />
+                            <Input
+                              id="member-bank_agency"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="0000"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -789,7 +954,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Conta Corrente</FormLabel>
                           <FormControl>
-                            <Input placeholder="00000-0" {...field} />
+                            <Input
+                              id="member-bank_account"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="00000-0"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -802,7 +974,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormItem>
                           <FormLabel>Chave PIX</FormLabel>
                           <FormControl>
-                            <Input placeholder="CPF, Email..." {...field} />
+                            <Input
+                              id="member-bank_pix"
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              placeholder="CPF, Email..."
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -823,6 +1002,10 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                         <FormLabel>Observações</FormLabel>
                         <FormControl>
                           <Textarea
+                            id="member-notes"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
                             placeholder="Detalhes adicionais..."
                             className="resize-none"
                             {...field}
@@ -845,7 +1028,14 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
                       <FormItem>
                         <FormLabel>Link da Pasta (Nuvem)</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://drive.google.com/..." {...field} />
+                          <Input
+                            id="member-documentos_link"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            placeholder="https://drive.google.com/..."
+                            {...field}
+                          />
                         </FormControl>
                         <FormDescription>
                           Cole o link da pasta de documentos do profissional.
@@ -860,7 +1050,7 @@ export function MemberForm({ onAdd }: { onAdd: (user: User) => void }) {
             <SubmitButton
               control={form.control}
               loading={loading}
-              onCancel={() => setOpen(false)}
+              onCancel={() => handleOpenChange(false)}
             />
           </form>
         </Form>

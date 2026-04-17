@@ -47,12 +47,16 @@ export default function Team() {
     }
   }
 
+  const [isFormOpen, setIsFormOpen] = useState(false)
+
   useEffect(() => {
     loadUsers()
   }, [])
 
   useRealtime('users', () => {
-    loadUsers()
+    if (!isFormOpen) {
+      loadUsers()
+    }
   })
 
   const formacoes = useMemo(() => {
@@ -135,7 +139,7 @@ export default function Team() {
               <RoleManagementModal users={dbUsers} onUpdate={loadUsers} />
             </>
           )}
-          <MemberForm onAdd={() => {}} />
+          <MemberForm onAdd={() => loadUsers()} onOpenChange={setIsFormOpen} />
         </div>
       </div>
 

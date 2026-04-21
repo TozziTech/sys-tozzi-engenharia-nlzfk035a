@@ -1,4 +1,5 @@
 import { type Contact } from '@/services/contacts'
+import { type Client } from '@/services/clients'
 
 const escapeCSV = (str: string | undefined | null | number) => {
   if (str === null || str === undefined || str === '') return '""'
@@ -87,8 +88,38 @@ export function exportTimeLogsCSV(data: any[]) {
 export function exportEquipmentsCSV(data: any[]) {
   genericExport(data, 'equipamentos')
 }
-export function exportClientsCSV(data: any[]) {
-  genericExport(data, 'clientes')
+export function exportClientsCSV(clients: Client[]) {
+  const headers = [
+    'Código',
+    'Nome',
+    'Status',
+    'E-mail',
+    'Telefone',
+    'Telefone Alt',
+    'CNPJ/CPF',
+    'Cidade',
+    'UF',
+    'Contato',
+    'Observações',
+  ]
+  const rows = clients.map((c) =>
+    [
+      escapeCSV(c.code),
+      escapeCSV(c.name),
+      escapeCSV(c.status || 'Ativo'),
+      escapeCSV(c.email),
+      escapeCSV(c.phone),
+      escapeCSV(c.alt_phone),
+      escapeCSV(c.cnpj_cpf),
+      escapeCSV(c.cidade),
+      escapeCSV(c.uf),
+      escapeCSV(c.contact_name),
+      escapeCSV(c.notes),
+    ].join(';'),
+  )
+
+  const csvContent = [headers.join(';'), ...rows].join('\n')
+  downloadCSV(csvContent, `clientes_${new Date().toISOString().split('T')[0]}.csv`)
 }
 export function exportContractsCSV(data: any[]) {
   genericExport(data, 'contratos')

@@ -10,6 +10,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { Client } from '@/services/clients'
@@ -23,10 +31,12 @@ interface Props {
 
 export function ClientFormDialog({ open, onOpenChange, client, onSuccess }: Props) {
   const [editingClient, setEditingClient] = useState<Partial<Client>>(client)
+  const [newFiles, setNewFiles] = useState<File[]>([])
   const { toast } = useToast()
 
   useEffect(() => {
     setEditingClient(client)
+    setNewFiles([])
   }, [client, open])
 
   const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,6 +64,12 @@ export function ClientFormDialog({ open, onOpenChange, client, onSuccess }: Prop
     }
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setNewFiles(Array.from(e.target.files))
+    }
+  }
+
   const handleSave = async () => {
     if (!editingClient.name || !editingClient.cnpj_cpf) {
       toast({
@@ -64,11 +80,23 @@ export function ClientFormDialog({ open, onOpenChange, client, onSuccess }: Prop
       return
     }
     try {
+      const formData = new FormData()
+      Object.keys(editingClient).forEach((key) => {
+        const val = (editingClient as any)[key]
+        if (val !== null && val !== undefined && key !== 'documents' && key !== 'expand') {
+          formData.append(key, String(val))
+        }
+      })
+
+      newFiles.forEach((file) => {
+        formData.append('documents', file)
+      })
+
       if (editingClient.id) {
-        await pb.collection('clients').update(editingClient.id, editingClient)
+        await pb.collection('clients').update(editingClient.id, formData)
         toast({ title: 'Sucesso', description: 'Cliente atualizado com sucesso.' })
       } else {
-        await pb.collection('clients').create(editingClient)
+        await pb.collection('clients').create(formData)
         toast({ title: 'Sucesso', description: 'Cliente cadastrado com sucesso.' })
       }
       onSuccess()
@@ -83,7 +111,7 @@ export function ClientFormDialog({ open, onOpenChange, client, onSuccess }: Prop
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingClient.id ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
           <DialogDescription>Preencha as informações do cliente abaixo.</DialogDescription>
@@ -118,34 +146,39 @@ export function ClientFormDialog({ open, onOpenChange, client, onSuccess }: Prop
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-primary border-b pb-2">
-              Redes Sociais e Website
-            </h3>
+            <h3 className="text-sm font-semibold text-primary border-b pb-2">Administrativo</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={editingClient.status || 'Ativo'}
+                  onValueChange={(val) => setEditingClient({ ...editingClient, status: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Adicionar Documentos</Label>
+                <Input type="file" multiple onChange={handleFileChange} />
+                {editingClient.documents && editingClient.documents.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {editingClient.documents.length} documento(s) já anexado(s)
+                  </p>
+                )}
+              </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label>Website</Label>
-                <Input
-                  value={editingClient.website || ''}
-                  onChange={(e) => setEditingClient({ ...editingClient, website: e.target.value })}
-                  placeholder="www.empresa.com.br"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Instagram</Label>
-                <Input
-                  value={editingClient.instagram || ''}
-                  onChange={(e) =>
-                    setEditingClient({ ...editingClient, instagram: e.target.value })
-                  }
-                  placeholder="@empresa"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Facebook</Label>
-                <Input
-                  value={editingClient.facebook || ''}
-                  onChange={(e) => setEditingClient({ ...editingClient, facebook: e.target.value })}
-                  placeholder="facebook.com/empresa"
+                <Label>Observações Internas</Label>
+                <Textarea
+                  value={editingClient.notes || ''}
+                  onChange={(e) => setEditingClient({ ...editingClient, notes: e.target.value })}
+                  placeholder="Notas sobre o cliente, instruções, etc."
+                  className="min-h-[80px]"
                 />
               </div>
             </div>
@@ -233,6 +266,40 @@ export function ClientFormDialog({ open, onOpenChange, client, onSuccess }: Prop
                     maxLength={2}
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-primary border-b pb-2">
+              Redes Sociais e Website
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Website</Label>
+                <Input
+                  value={editingClient.website || ''}
+                  onChange={(e) => setEditingClient({ ...editingClient, website: e.target.value })}
+                  placeholder="www.empresa.com.br"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Instagram</Label>
+                <Input
+                  value={editingClient.instagram || ''}
+                  onChange={(e) =>
+                    setEditingClient({ ...editingClient, instagram: e.target.value })
+                  }
+                  placeholder="@empresa"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Facebook</Label>
+                <Input
+                  value={editingClient.facebook || ''}
+                  onChange={(e) => setEditingClient({ ...editingClient, facebook: e.target.value })}
+                  placeholder="facebook.com/empresa"
+                />
               </div>
             </div>
           </div>

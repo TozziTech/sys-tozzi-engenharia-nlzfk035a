@@ -2,6 +2,10 @@ import pb from '@/lib/pocketbase/client'
 
 export interface Client {
   id: string
+  code?: string
+  status?: string
+  notes?: string
+  documents?: string[]
   name: string
   email?: string
   phone?: string

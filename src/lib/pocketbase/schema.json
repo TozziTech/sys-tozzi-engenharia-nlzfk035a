@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-21T20:50:35.933Z",
+  "generatedAt": "2026-04-21T21:53:52.804Z",
   "collections": [
     {
       "name": "users",
@@ -961,9 +961,34 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Ativo", "Inativo"]
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documents",
+          "type": "file",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE UNIQUE INDEX `idx_clients_code` ON `clients` (code)"]
     },
     {
       "name": "audit_logs",

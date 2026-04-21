@@ -5,10 +5,27 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
-import { Instagram, Facebook, Globe, FileText } from 'lucide-react'
+import { Separator } from '@/components/ui/separator'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Instagram,
+  Facebook,
+  Globe,
+  FileText,
+  Mail,
+  Phone,
+  User,
+  MapPin,
+  Building2,
+  Hash,
+  AlignLeft,
+  Download,
+  ExternalLink,
+} from 'lucide-react'
 import { Client } from '@/services/clients'
 import { cn } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
+import React from 'react'
 
 interface Props {
   open: boolean
@@ -16,173 +33,251 @@ interface Props {
   client: Client | null
 }
 
+const InfoRow = ({
+  icon,
+  label,
+  value,
+  className,
+}: {
+  icon?: React.ReactNode
+  label: string
+  value?: string | null
+  className?: string
+}) => {
+  if (!value) return null
+  return (
+    <div className={cn('flex items-start gap-3 py-3', className)}>
+      {icon && <div className="text-muted-foreground mt-0.5">{icon}</div>}
+      <div className="space-y-1.5 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground leading-none">
+          {label}
+        </p>
+        <p className="text-sm font-medium text-foreground break-words">{value}</p>
+      </div>
+    </div>
+  )
+}
+
 export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
   if (!client) return null
 
   const formatAddress = (c: Client) => {
-    if (c.logradouro || c.cidade || c.cep) {
-      return [
-        c.logradouro,
-        c.numero ? `, ${c.numero}` : '',
-        c.bairro ? ` - ${c.bairro}` : '',
-        c.cidade ? ` - ${c.cidade}` : '',
-        c.uf ? `/${c.uf}` : '',
-        c.cep ? ` (CEP: ${c.cep})` : '',
-      ]
-        .filter(Boolean)
-        .join('')
+    const parts = []
+    if (c.logradouro) {
+      parts.push(`${c.logradouro}${c.numero ? `, ${c.numero}` : ''}`)
     }
-    return c.address || 'Não informado'
+    if (c.bairro) parts.push(`Bairro: ${c.bairro}`)
+    if (c.cidade) parts.push(`${c.cidade}${c.uf ? ` - ${c.uf}` : ''}`)
+    if (c.cep) parts.push(`CEP: ${c.cep}`)
+
+    if (parts.length > 0) return parts.join('\n')
+    return c.address
   }
 
   const status = client.status || 'Ativo'
+  const isActive = status === 'Ativo'
+  const addressFormatted = formatAddress(client)
+  const hasContact = client.contact_name || client.email || client.phone || client.alt_phone
+  const hasSocial = client.website || client.instagram || client.facebook
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <div className="flex items-center gap-3 mt-4">
-            <SheetTitle className="text-xl">{client.name}</SheetTitle>
-            <span
-              className={cn(
-                'px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider shrink-0',
-                status === 'Ativo'
-                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-              )}
-            >
-              {status}
-            </span>
-          </div>
-          <SheetDescription>Resumo de dados do cliente</SheetDescription>
-        </SheetHeader>
+      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col gap-0 border-l shadow-2xl">
+        <div className="p-6 pb-5 bg-muted/30">
+          <SheetHeader className="text-left">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1.5">
+                <SheetTitle className="text-2xl font-bold leading-tight">{client.name}</SheetTitle>
+                <div className="flex items-center gap-1.5 text-muted-foreground font-mono text-xs">
+                  <Hash className="h-3.5 w-3.5" />
+                  {client.code || 'Sem código'}
+                </div>
+              </div>
+              <span
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider shrink-0 border shadow-sm',
+                  isActive
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+                    : 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700',
+                )}
+              >
+                {status}
+              </span>
+            </div>
+          </SheetHeader>
+        </div>
 
-        <div className="mt-8 space-y-8">
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Administrativo
-            </h4>
-            <div className="space-y-3 text-sm bg-muted/30 p-3 rounded-md border border-border/50">
-              <p>
-                <span className="font-medium text-foreground">Código:</span>{' '}
-                <span className="font-mono">{client.code || 'Não gerado'}</span>
-              </p>
-              {client.notes && (
-                <div>
-                  <span className="font-medium text-foreground">Observações:</span>
-                  <p className="whitespace-pre-wrap mt-1 text-muted-foreground bg-background p-2 rounded-sm border text-xs">
+        <Separator />
+
+        <ScrollArea className="flex-1">
+          <div className="p-6 space-y-8">
+            {/* Identificação */}
+            {client.cnpj_cpf && (
+              <div className="space-y-3">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Identificação
+                </h4>
+                <div className="bg-card rounded-lg border border-border shadow-sm divide-y divide-border">
+                  <InfoRow className="px-4" label="CNPJ/CPF" value={client.cnpj_cpf} />
+                </div>
+              </div>
+            )}
+
+            {/* Contato */}
+            {hasContact && (
+              <div className="space-y-3">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
+                  <User className="h-4 w-4 text-primary" />
+                  Contato
+                </h4>
+                <div className="bg-card rounded-lg border border-border shadow-sm divide-y divide-border">
+                  <InfoRow
+                    className="px-4"
+                    icon={<User className="h-4 w-4" />}
+                    label="Pessoa de Contato"
+                    value={client.contact_name}
+                  />
+                  <InfoRow
+                    className="px-4"
+                    icon={<Mail className="h-4 w-4" />}
+                    label="Email"
+                    value={client.email}
+                  />
+                  <InfoRow
+                    className="px-4"
+                    icon={<Phone className="h-4 w-4" />}
+                    label="Telefone Principal"
+                    value={client.phone}
+                  />
+                  <InfoRow
+                    className="px-4"
+                    icon={<Phone className="h-4 w-4" />}
+                    label="Telefone Alternativo"
+                    value={client.alt_phone}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Endereço */}
+            <div className="space-y-3">
+              <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
+                <MapPin className="h-4 w-4 text-primary" />
+                Endereço
+              </h4>
+              <div className="bg-card rounded-lg p-4 border border-border shadow-sm text-sm whitespace-pre-wrap leading-relaxed font-medium">
+                {addressFormatted || (
+                  <span className="text-muted-foreground italic font-normal">Não informado</span>
+                )}
+              </div>
+            </div>
+
+            {/* Presença Digital */}
+            {hasSocial && (
+              <div className="space-y-3">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
+                  <Globe className="h-4 w-4 text-primary" />
+                  Presença Digital
+                </h4>
+                <div className="flex flex-col gap-2">
+                  {client.website && (
+                    <a
+                      href={
+                        client.website.startsWith('http')
+                          ? client.website
+                          : `https://${client.website}`
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card shadow-sm hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Globe className="h-5 w-5 text-blue-500" />
+                        <span className="text-sm font-medium">{client.website}</span>
+                      </div>
+                      <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
+                  )}
+                  {client.instagram && (
+                    <a
+                      href={`https://instagram.com/${client.instagram.replace('@', '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card shadow-sm hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Instagram className="h-5 w-5 text-pink-600" />
+                        <span className="text-sm font-medium">{client.instagram}</span>
+                      </div>
+                      <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
+                  )}
+                  {client.facebook && (
+                    <a
+                      href={
+                        client.facebook.startsWith('http')
+                          ? client.facebook
+                          : `https://facebook.com/${client.facebook}`
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card shadow-sm hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Facebook className="h-5 w-5 text-blue-600" />
+                        <span className="text-sm font-medium">{client.facebook}</span>
+                      </div>
+                      <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Documentos */}
+            {client.documents && client.documents.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Documentos
+                </h4>
+                <div className="flex flex-col gap-2">
+                  {client.documents.map((doc) => (
+                    <a
+                      key={doc}
+                      href={pb.files.getURL(client, doc)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card shadow-sm hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium truncate">{doc}</span>
+                      </div>
+                      <Download className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 sm:opacity-100 group-hover:opacity-100 transition-opacity" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Observações Internas */}
+            {client.notes && (
+              <div className="space-y-3 pt-2">
+                <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-5 shadow-sm">
+                  <h4 className="flex items-center gap-2 text-sm font-bold text-amber-800 dark:text-amber-500 uppercase tracking-wide mb-3">
+                    <AlignLeft className="h-4 w-4" />
+                    Observações Internas
+                  </h4>
+                  <p className="text-sm text-amber-900/90 dark:text-amber-100/80 whitespace-pre-wrap leading-relaxed font-medium">
                     {client.notes}
                   </p>
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Contato
-            </h4>
-            <div className="space-y-2 text-sm bg-muted/30 p-3 rounded-md border border-border/50">
-              <p>
-                <span className="font-medium text-foreground">Nome:</span>{' '}
-                {client.contact_name || '-'}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Email:</span> {client.email || '-'}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Telefone Principal:</span>{' '}
-                {client.phone || '-'}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Telefone Alt.:</span>{' '}
-                {client.alt_phone || '-'}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">CNPJ/CPF:</span>{' '}
-                {client.cnpj_cpf || '-'}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Endereço
-            </h4>
-            <div className="text-sm bg-muted/30 p-3 rounded-md border border-border/50">
-              {formatAddress(client)}
-            </div>
-          </div>
-
-          {client.documents && client.documents.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Documentos
-              </h4>
-              <div className="flex flex-col gap-2 text-sm bg-muted/30 p-3 rounded-md border border-border/50">
-                {client.documents.map((doc) => (
-                  <a
-                    key={doc}
-                    href={pb.files.getURL(client, doc)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2 text-primary hover:underline bg-background p-2 rounded-sm border"
-                  >
-                    <FileText className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{doc}</span>
-                  </a>
-                ))}
               </div>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Redes Sociais e Site
-            </h4>
-            <div className="flex flex-col gap-3 text-sm bg-muted/30 p-3 rounded-md border border-border/50">
-              {client.website && (
-                <a
-                  href={
-                    client.website.startsWith('http') ? client.website : `https://${client.website}`
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 text-blue-600 hover:underline"
-                >
-                  <Globe className="h-4 w-4" /> {client.website}
-                </a>
-              )}
-              {client.instagram && (
-                <a
-                  href={`https://instagram.com/${client.instagram.replace('@', '')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 text-pink-600 hover:underline"
-                >
-                  <Instagram className="h-4 w-4" /> {client.instagram}
-                </a>
-              )}
-              {client.facebook && (
-                <a
-                  href={
-                    client.facebook.startsWith('http')
-                      ? client.facebook
-                      : `https://facebook.com/${client.facebook}`
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 text-blue-800 hover:underline"
-                >
-                  <Facebook className="h-4 w-4" /> {client.facebook}
-                </a>
-              )}
-              {!client.website && !client.instagram && !client.facebook && (
-                <p className="text-muted-foreground italic">Nenhuma rede social informada</p>
-              )}
-            </div>
+            )}
           </div>
-        </div>
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   )

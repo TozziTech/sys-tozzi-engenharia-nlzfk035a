@@ -15,6 +15,9 @@ export interface Client {
   uf?: string
   alt_phone?: string
   contact_name?: string
+  instagram?: string
+  facebook?: string
+  website?: string
   created: string
   updated: string
 }

@@ -33,6 +33,14 @@ interface Client {
   phone: string
   cnpj_cpf: string
   address: string
+  cep?: string
+  logradouro?: string
+  numero?: string
+  bairro?: string
+  cidade?: string
+  uf?: string
+  alt_phone?: string
+  contact_name?: string
 }
 
 const EMPTY_CLIENT: Partial<Client> = {
@@ -41,6 +49,14 @@ const EMPTY_CLIENT: Partial<Client> = {
   phone: '',
   cnpj_cpf: '',
   address: '',
+  cep: '',
+  logradouro: '',
+  numero: '',
+  bairro: '',
+  cidade: '',
+  uf: '',
+  alt_phone: '',
+  contact_name: '',
 }
 
 export default function Clients() {
@@ -65,6 +81,60 @@ export default function Clients() {
     loadData()
   }, [])
   useRealtime('clients', () => loadData())
+
+  const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '')
+    if (val.length > 8) val = val.slice(0, 8)
+
+    const formattedCep = val.length >= 5 ? `${val.slice(0, 5)}-${val.slice(5)}` : val
+
+    setEditingClient({ ...editingClient, cep: formattedCep })
+
+    if (val.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${val}/json/`)
+        const data = await res.json()
+        if (!data.erro) {
+          setEditingClient((prev) => ({
+            ...prev,
+            logradouro: data.logradouro || prev.logradouro,
+            bairro: data.bairro || prev.bairro,
+            cidade: data.localidade || prev.cidade,
+            uf: data.uf || prev.uf,
+          }))
+        } else {
+          toast({
+            title: 'CEP não encontrado',
+            description: 'Verifique o número do CEP informado.',
+            variant: 'destructive',
+          })
+        }
+      } catch (err) {
+        console.error('ViaCEP Error:', err)
+        toast({
+          title: 'Erro ao buscar CEP',
+          description: 'Não foi possível consultar o endereço.',
+          variant: 'destructive',
+        })
+      }
+    }
+  }
+
+  const formatAddress = (c: Client) => {
+    if (c.logradouro || c.cidade || c.cep) {
+      return [
+        c.logradouro,
+        c.numero ? `, ${c.numero}` : '',
+        c.bairro ? ` - ${c.bairro}` : '',
+        c.cidade ? ` - ${c.cidade}` : '',
+        c.uf ? `/${c.uf}` : '',
+        c.cep ? ` (CEP: ${c.cep})` : '',
+      ]
+        .filter(Boolean)
+        .join('')
+    }
+    return c.address || 'Não informado'
+  }
 
   const filteredClients = clients.filter(
     (c) =>
@@ -206,12 +276,26 @@ export default function Clients() {
                         Telefone
                       </span>
                       <span className="text-foreground font-medium">
-                        {client.phone || 'Não informado'}
+                        {[client.phone, client.alt_phone].filter(Boolean).join(' / ') ||
+                          'Não informado'}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-3">
+                  {client.contact_name && (
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <div className="h-4 w-4 shrink-0 flex items-center justify-center text-primary/70">
+                        <span className="text-xs">👤</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/70">
+                          Contato
+                        </span>
+                        <span className="text-foreground font-medium">{client.contact_name}</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-start gap-3 text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4 shrink-0 text-primary/70 mt-1" />
                     <div className="flex flex-col">
@@ -219,7 +303,7 @@ export default function Clients() {
                         Endereço
                       </span>
                       <span className="text-foreground font-medium line-clamp-3">
-                        {client.address || 'Não informado'}
+                        {formatAddress(client)}
                       </span>
                     </div>
                   </div>
@@ -237,52 +321,151 @@ export default function Clients() {
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingClient.id ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
             <DialogDescription>Preencha as informações do cliente abaixo.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>Nome / Razão Social</Label>
-              <Input
-                value={editingClient.name || ''}
-                onChange={(e) => setEditingClient({ ...editingClient, name: e.target.value })}
-                placeholder="Ex: Construtora Silva"
-              />
+          <div className="grid gap-6 py-4">
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-primary border-b pb-2">Dados Principais</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Nome / Razão Social *</Label>
+                  <Input
+                    value={editingClient.name || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, name: e.target.value })}
+                    placeholder="Ex: Construtora Silva"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>CNPJ / CPF *</Label>
+                  <Input
+                    value={editingClient.cnpj_cpf || ''}
+                    onChange={(e) =>
+                      setEditingClient({ ...editingClient, cnpj_cpf: e.target.value })
+                    }
+                    placeholder="Ex: 00.000.000/0000-00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>E-mail</Label>
+                  <Input
+                    type="email"
+                    value={editingClient.email || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, email: e.target.value })}
+                    placeholder="contato@empresa.com"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>CNPJ / CPF</Label>
-              <Input
-                value={editingClient.cnpj_cpf || ''}
-                onChange={(e) => setEditingClient({ ...editingClient, cnpj_cpf: e.target.value })}
-                placeholder="Ex: 00.000.000/0000-00"
-              />
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-primary border-b pb-2">
+                Informações de Contato
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Nome do Contato</Label>
+                  <Input
+                    value={editingClient.contact_name || ''}
+                    onChange={(e) =>
+                      setEditingClient({ ...editingClient, contact_name: e.target.value })
+                    }
+                    placeholder="Ex: João da Silva"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone Principal</Label>
+                  <Input
+                    value={editingClient.phone || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, phone: e.target.value })}
+                    placeholder="(11) 99999-9999"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone Alternativo</Label>
+                  <Input
+                    value={editingClient.alt_phone || ''}
+                    onChange={(e) =>
+                      setEditingClient({ ...editingClient, alt_phone: e.target.value })
+                    }
+                    placeholder="(11) 88888-8888"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>E-mail</Label>
-              <Input
-                type="email"
-                value={editingClient.email || ''}
-                onChange={(e) => setEditingClient({ ...editingClient, email: e.target.value })}
-                placeholder="contato@empresa.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input
-                value={editingClient.phone || ''}
-                onChange={(e) => setEditingClient({ ...editingClient, phone: e.target.value })}
-                placeholder="(11) 99999-9999"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Endereço Completo</Label>
-              <Input
-                value={editingClient.address || ''}
-                onChange={(e) => setEditingClient({ ...editingClient, address: e.target.value })}
-                placeholder="Rua, Número, Bairro, Cidade - UF"
-              />
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-primary border-b pb-2">Endereço</h3>
+              <div className="grid grid-cols-10 gap-4">
+                <div className="col-span-10 sm:col-span-3 space-y-2">
+                  <Label>CEP</Label>
+                  <Input
+                    value={editingClient.cep || ''}
+                    onChange={handleCepChange}
+                    placeholder="00000-000"
+                    maxLength={9}
+                  />
+                </div>
+                <div className="col-span-10 sm:col-span-7 hidden sm:block"></div>
+
+                <div className="col-span-10 sm:col-span-7 space-y-2">
+                  <Label>Logradouro</Label>
+                  <Input
+                    value={editingClient.logradouro || ''}
+                    onChange={(e) =>
+                      setEditingClient({ ...editingClient, logradouro: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="col-span-10 sm:col-span-3 space-y-2">
+                  <Label>Número</Label>
+                  <Input
+                    value={editingClient.numero || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, numero: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-10 sm:col-span-5 space-y-2">
+                  <Label>Bairro</Label>
+                  <Input
+                    value={editingClient.bairro || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, bairro: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-10 sm:col-span-4 space-y-2">
+                  <Label>Cidade</Label>
+                  <Input
+                    value={editingClient.cidade || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, cidade: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-10 sm:col-span-1 space-y-2">
+                  <Label>UF</Label>
+                  <Input
+                    value={editingClient.uf || ''}
+                    onChange={(e) =>
+                      setEditingClient({
+                        ...editingClient,
+                        uf: e.target.value.toUpperCase().slice(0, 2),
+                      })
+                    }
+                    maxLength={2}
+                  />
+                </div>
+                <div className="col-span-10 space-y-2 pt-2">
+                  <Label className="text-muted-foreground text-xs">
+                    Endereço (Complemento / Legado)
+                  </Label>
+                  <Input
+                    value={editingClient.address || ''}
+                    onChange={(e) =>
+                      setEditingClient({ ...editingClient, address: e.target.value })
+                    }
+                    placeholder="Complemento ou registro antigo"
+                  />
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>

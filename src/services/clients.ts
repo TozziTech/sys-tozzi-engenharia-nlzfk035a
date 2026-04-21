@@ -7,6 +7,14 @@ export interface Client {
   phone?: string
   cnpj_cpf?: string
   address?: string
+  cep?: string
+  logradouro?: string
+  numero?: string
+  bairro?: string
+  cidade?: string
+  uf?: string
+  alt_phone?: string
+  contact_name?: string
   created: string
   updated: string
 }

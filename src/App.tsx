@@ -47,7 +47,6 @@ import Audit from './pages/Audit'
 import AdminDocuments from './pages/admin/AdminDocuments'
 import AnalyticsDashboard from './pages/admin/AnalyticsDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
-import AccessControl from './pages/AccessControl'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
 import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
 import { AuthProvider } from './hooks/use-auth'
@@ -124,7 +123,6 @@ const App = () => (
                     <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
                     <Route path="/admin/users" element={<AdminUsers />} />
                   </Route>
-                  <Route path="/access-control" element={<AccessControl />} />
                   <Route
                     path="/files/library"
                     element={<DocumentResourcesPage category="Biblioteca" title="Biblioteca" />}

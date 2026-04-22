@@ -977,13 +977,77 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
 
               <ScrollArea className="flex-1 px-6 mt-6">
                 <TabsContent value="personal" className="space-y-4 m-0 pb-6">
-                  <MemberIdentityFields form={form} isEdit />
+                  <MemberIdentityFields form={form} isEdit user={user} />
 
                   <div className="pt-4 border-t border-border/50 mt-6">
                     <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground" /> Endereço
                     </h4>
                     <MemberAddressFields form={form} />
+                  </div>
+
+                  <div className="pt-4 border-t border-border/50 mt-6">
+                    <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" /> Documentos
+                    </h4>
+
+                    {existingDocs.length > 0 && (
+                      <div className="mb-4 space-y-2">
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Documentos Anexados
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {existingDocs.map((doc) => (
+                            <div
+                              key={doc}
+                              className="flex items-center justify-between p-2 text-sm border rounded-md bg-muted/20"
+                            >
+                              <a
+                                href={pb.files.getURL(user as any, doc)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="truncate font-medium hover:underline hover:text-primary pr-2"
+                              >
+                                {doc}
+                              </a>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleRemoveDoc(doc)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <FormField
+                      control={form.control}
+                      name="documents"
+                      render={({ field: { value, onChange, ...field } }) => (
+                        <FormItem>
+                          <FormLabel>Adicionar Novos Documentos</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="file"
+                              multiple
+                              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                              onChange={(e) => onChange(e.target.files)}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Selecione um ou mais arquivos (cópias de CREA, contratos, etc.) para
+                            anexar ao perfil.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </TabsContent>
 
@@ -1066,71 +1130,6 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                       </FormItem>
                     )}
                   />
-
-                  <div className="pt-4 border-t border-border/50 mt-6">
-                    <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" /> Documentos
-                      Profissionais
-                    </h4>
-
-                    {existingDocs.length > 0 && (
-                      <div className="mb-4 space-y-2">
-                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                          Documentos Anexados
-                        </Label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {existingDocs.map((doc) => (
-                            <div
-                              key={doc}
-                              className="flex items-center justify-between p-2 text-sm border rounded-md bg-muted/20"
-                            >
-                              <a
-                                href={pb.files.getURL(user as any, doc)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="truncate font-medium hover:underline hover:text-primary pr-2"
-                              >
-                                {doc}
-                              </a>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => handleRemoveDoc(doc)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <FormField
-                      control={form.control}
-                      name="documents"
-                      render={({ field: { value, onChange, ...field } }) => (
-                        <FormItem>
-                          <FormLabel>Adicionar Novos Documentos</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="file"
-                              multiple
-                              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                              onChange={(e) => onChange(e.target.files)}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Selecione um ou mais arquivos (cópias de CREA, contratos, etc.) para
-                            anexar ao perfil.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
 
                   <div className="pt-4 border-t border-border/50 mt-6">
                     <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">

@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/form'
 import { DatePicker } from './DatePicker'
 import { ClientCombobox } from './ClientCombobox'
+import { EngineerCombobox } from './EngineerCombobox'
 import useProjectStore from '@/stores/useProjectStore'
 import type { Discipline, Project, Status } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
@@ -67,7 +68,6 @@ const formSchema = z
     path: ['endDate'],
   })
 
-const ENGINEERS = ['Eng. Ricardo Silva', 'Eng. Maria Santos', 'Eng. Carlos Oliveira']
 const DISCIPLINES = [
   'Estrutural',
   'Hidrossanitário',
@@ -273,20 +273,9 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
                 render={({ field }) => (
                   <FormItem className="col-span-2 sm:col-span-1">
                     <FormLabel>Engenheiro Responsável</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {ENGINEERS.map((e) => (
-                          <SelectItem key={e} value={e}>
-                            {e}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <EngineerCombobox value={field.value} onChange={field.onChange} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

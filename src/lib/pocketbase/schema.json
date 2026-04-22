@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-22T02:59:01.875Z",
+  "generatedAt": "2026-04-22T03:26:15.052Z",
   "collections": [
     {
       "name": "users",
@@ -2898,6 +2898,60 @@
         "CREATE INDEX idx_contact_interactions_contact ON contact_interactions (contact)",
         "CREATE INDEX idx_contact_interactions_date ON contact_interactions (interaction_date DESC)"
       ]
+    },
+    {
+      "name": "documentos_clientes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clients"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Contrato", "Identificação", "Financeiro", "Outros"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_doc_cli_cliente ON documentos_clientes (cliente)"]
     }
   ]
 }

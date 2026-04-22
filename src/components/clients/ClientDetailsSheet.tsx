@@ -1,10 +1,4 @@
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -22,15 +16,28 @@ import {
   Download,
   ExternalLink,
   Activity,
+  Plus,
+  Save,
+  Loader2,
 } from 'lucide-react'
 import { Client } from '@/services/clients'
 import { cn } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { FilePreviewModal, PreviewFile } from '@/components/FilePreviewModal'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { toast } from 'sonner'
 
 interface Props {
   open: boolean
@@ -68,6 +75,14 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
   const [loadingLogs, setLoadingLogs] = useState(false)
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null)
 
+  // Document Upload State
+  const [newDocs, setNewDocs] = useState<any[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadName, setUploadName] = useState('')
+  const [uploadCategory, setUploadCategory] = useState<string>('Outros')
+  const [uploading, setUploading] = useState(false)
+
   const getFileType = (filename: string): 'image' | 'pdf' | 'other' => {
     const ext = filename.split('.').pop()?.toLowerCase()
     if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext || '')) return 'image'
@@ -92,17 +107,30 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
     }
   }
 
-  const handleBatchDownload = async () => {
-    if (!client?.documents) return
-    for (const doc of client.documents) {
-      const url = pb.files.getURL(client, doc)
-      await downloadFile(url, doc)
+  const fetchNewDocs = async () => {
+    if (!client) return
+    try {
+      const res = await pb.collection('documentos_clientes').getFullList({
+        filter: `cliente = '${client.id}'`,
+        sort: '-created',
+      })
+      setNewDocs(res)
+    } catch (err) {
+      console.error('Error fetching client docs:', err)
     }
+  }
+
+  const resetForm = () => {
+    setUploadFile(null)
+    setUploadName('')
+    setUploadCategory('Outros')
   }
 
   useEffect(() => {
     if (open && client) {
       setLoadingLogs(true)
+      fetchNewDocs()
+
       pb.collection('audit_logs')
         .getFullList({
           filter: `resource = 'clients' && details.client_id = '${client.id}'`,
@@ -128,8 +156,87 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
         })
     } else {
       setLogs([])
+      setNewDocs([])
+      setIsUploading(false)
+      resetForm()
     }
   }, [open, client])
+
+  const handleUpload = async () => {
+    if (!uploadFile || !uploadName || !client) {
+      toast.error('Preencha o nome e selecione um arquivo')
+      return
+    }
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('cliente', client.id)
+      formData.append('nome', uploadName)
+      formData.append('arquivo', uploadFile)
+      formData.append('categoria', uploadCategory)
+
+      await pb.collection('documentos_clientes').create(formData)
+      toast.success('Documento enviado com sucesso')
+      setIsUploading(false)
+      resetForm()
+      fetchNewDocs()
+    } catch (error) {
+      console.error(error)
+      toast.error('Erro ao enviar documento')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const unifiedDocs = useMemo(() => {
+    const docs: any[] = []
+    if (client?.documents) {
+      client.documents.forEach((doc) => {
+        docs.push({
+          id: doc,
+          name: doc,
+          filename: doc,
+          url: pb.files.getURL(client, doc),
+          type: getFileType(doc),
+          isLegacy: true,
+          category: 'Legado',
+        })
+      })
+    }
+    newDocs.forEach((doc) => {
+      docs.push({
+        id: doc.id,
+        name: doc.nome,
+        filename: doc.arquivo,
+        url: pb.files.getURL(doc, doc.arquivo),
+        type: getFileType(doc.arquivo),
+        isLegacy: false,
+        category: doc.categoria || 'Outros',
+      })
+    })
+    return docs
+  }, [client, newDocs])
+
+  const handleBatchDownload = async () => {
+    for (const doc of unifiedDocs) {
+      await downloadFile(doc.url, doc.filename)
+    }
+  }
+
+  const getCategoryColor = (category?: string) => {
+    switch (category) {
+      case 'Contrato':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400'
+      case 'Identificação':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400'
+      case 'Financeiro':
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400'
+      case 'Legado':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400'
+      default:
+        return 'bg-zinc-100 text-zinc-800 dark:bg-zinc-500/20 dark:text-zinc-400'
+    }
+  }
 
   if (!client) return null
 
@@ -308,49 +415,126 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
             )}
 
             {/* Documentos */}
-            {client.documents && client.documents.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
-                    <FileText className="h-4 w-4 text-primary" />
-                    Documentos
-                  </h4>
-                  {client.documents.length > 1 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Documentos
+                </h4>
+                <div className="flex items-center gap-2">
+                  {unifiedDocs.length > 1 && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-8 text-xs"
                       onClick={handleBatchDownload}
                     >
-                      <Download className="h-3.5 w-3.5 mr-2" />
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
                       Baixar Todos
                     </Button>
                   )}
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => setIsUploading(!isUploading)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    Adicionar
+                  </Button>
                 </div>
+              </div>
+
+              {isUploading && (
+                <div className="bg-muted/50 border border-border rounded-lg p-4 space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold">Arquivo</label>
+                    <Input
+                      type="file"
+                      className="text-xs h-9"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          setUploadFile(file)
+                          if (!uploadName) setUploadName(file.name.split('.')[0])
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold">Nome do Documento</label>
+                      <Input
+                        placeholder="Ex: Contrato Social"
+                        value={uploadName}
+                        onChange={(e) => setUploadName(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold">Categoria</label>
+                      <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Contrato">Contrato</SelectItem>
+                          <SelectItem value="Identificação">Identificação</SelectItem>
+                          <SelectItem value="Financeiro">Financeiro</SelectItem>
+                          <SelectItem value="Outros">Outros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setIsUploading(false)}
+                      disabled={uploading}
+                      className="h-8 text-xs"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleUpload}
+                      disabled={uploading}
+                      className="h-8 text-xs"
+                    >
+                      {uploading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-3.5 w-3.5 mr-2" />
+                      )}
+                      Salvar Documento
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {unifiedDocs.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {client.documents.map((doc) => {
-                    const url = pb.files.getURL(client, doc)
-                    const type = getFileType(doc)
-                    const isImage = type === 'image'
+                  {unifiedDocs.map((doc) => {
+                    const isImage = doc.type === 'image'
                     return (
                       <div
-                        key={doc}
+                        key={doc.id}
                         className="group relative flex flex-col rounded-lg border border-border bg-card shadow-sm overflow-hidden hover:border-primary/50 transition-colors"
                       >
                         <div
                           className="aspect-[4/3] bg-muted/50 flex items-center justify-center cursor-pointer border-b border-border relative overflow-hidden"
                           onClick={() => {
-                            if (type === 'image' || type === 'pdf') {
-                              setPreviewFile({ url, name: doc, type })
+                            if (doc.type === 'image' || doc.type === 'pdf') {
+                              setPreviewFile({ url: doc.url, name: doc.filename, type: doc.type })
                             } else {
-                              window.open(url, '_blank')
+                              window.open(doc.url, '_blank')
                             }
                           }}
                         >
                           {isImage ? (
                             <img
-                              src={url}
-                              alt={doc}
+                              src={doc.url}
+                              alt={doc.name}
                               className="w-full h-full object-cover transition-transform group-hover:scale-105"
                             />
                           ) : (
@@ -358,13 +542,24 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
                           )}
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 pointer-events-none">
                             <span className="text-white text-xs font-medium px-3 py-1.5 bg-black/40 rounded-full backdrop-blur-sm">
-                              {type === 'image' || type === 'pdf' ? 'Visualizar' : 'Abrir'}
+                              {doc.type === 'image' || doc.type === 'pdf' ? 'Visualizar' : 'Abrir'}
                             </span>
+                          </div>
+                          <div className="absolute top-2 left-2 z-10">
+                            <Badge
+                              variant="secondary"
+                              className={cn(
+                                'text-[9px] uppercase font-bold tracking-wider py-0 px-1.5 border-transparent shadow-sm',
+                                getCategoryColor(doc.category),
+                              )}
+                            >
+                              {doc.category}
+                            </Badge>
                           </div>
                         </div>
                         <div className="p-2.5 flex items-center justify-between gap-2">
-                          <span className="text-xs font-medium truncate flex-1" title={doc}>
-                            {doc}
+                          <span className="text-xs font-medium truncate flex-1" title={doc.name}>
+                            {doc.name}
                           </span>
                           <Button
                             variant="ghost"
@@ -372,7 +567,7 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
                             className="h-6 w-6 shrink-0 z-20 hover:bg-primary/10 hover:text-primary"
                             onClick={(e) => {
                               e.stopPropagation()
-                              downloadFile(url, doc)
+                              downloadFile(doc.url, doc.filename)
                             }}
                             title="Baixar"
                           >
@@ -383,8 +578,17 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
                     )
                   })}
                 </div>
-              </div>
-            )}
+              ) : (
+                !isUploading && (
+                  <div className="bg-card rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground text-sm flex flex-col items-center justify-center gap-3">
+                    <div className="p-3 bg-muted rounded-full">
+                      <FileText className="h-6 w-6 opacity-40" />
+                    </div>
+                    <p>Nenhum documento encontrado.</p>
+                  </div>
+                )
+              )}
+            </div>
 
             {/* Observações Internas */}
             {client.notes && (

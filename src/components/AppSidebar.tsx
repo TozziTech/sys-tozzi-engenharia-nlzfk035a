@@ -61,11 +61,6 @@ const getNavigationGroups = (user: any) => [
           'Visitante',
         ],
       },
-      {
-        name: 'Meu Projeto',
-        href: user?.role === 'Cliente' ? '/gestao/painel-cliente' : '/meus-projetos',
-        icon: FolderKanban,
-      },
     ],
   },
   {
@@ -177,6 +172,18 @@ export function AppSidebar() {
             return null
           }
 
+          const visibleItems = group.items.filter((item) => {
+            if ((item as any).adminOnly && user?.role !== 'Administrador') return false
+            if (
+              (item as any).allowedRoles &&
+              (!user?.role || !(item as any).allowedRoles.includes(user.role))
+            )
+              return false
+            return true
+          })
+
+          if (visibleItems.length === 0) return null
+
           return (
             <SidebarGroup key={group.label} className={i !== 0 ? 'pt-0' : ''}>
               <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 mb-1">
@@ -184,14 +191,7 @@ export function AppSidebar() {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {group.items.map((item) => {
-                    if (item.adminOnly && user?.role !== 'Administrador') return null
-                    if (
-                      (item as any).allowedRoles &&
-                      (!user?.role || !(item as any).allowedRoles.includes(user.role))
-                    )
-                      return null
-
+                  {visibleItems.map((item) => {
                     const isActive =
                       location.pathname === item.href ||
                       (location.pathname === '/' && item.href === '/dashboard')

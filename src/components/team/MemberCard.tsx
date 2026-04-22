@@ -34,6 +34,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form'
 import useProjectStore from '@/stores/useProjectStore'
 import { useAuth } from '@/hooks/use-auth'

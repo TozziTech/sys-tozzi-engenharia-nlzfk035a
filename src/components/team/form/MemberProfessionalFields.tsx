@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select'
 import { MemberFormValues } from '@/lib/schemas/member'
 
-const FormacaoCustomField = ({ form }: { form: UseFormReturn<MemberFormValues> }) => {
+const FormacaoCustomField = ({ form }: { form: UseFormReturn<any> }) => {
   const formacao = useWatch({ control: form.control, name: 'formacaoSelect' })
   if (formacao !== 'Outros') return null
 
@@ -39,7 +39,7 @@ const FormacaoCustomField = ({ form }: { form: UseFormReturn<MemberFormValues> }
   )
 }
 
-export function MemberProfessionalFields({ form }: { form: UseFormReturn<MemberFormValues> }) {
+export function MemberProfessionalFields({ form }: { form: UseFormReturn<any> }) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'Administrador'
 

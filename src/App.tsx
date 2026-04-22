@@ -34,6 +34,7 @@ import Timesheet from './pages/Timesheet'
 import History from './pages/History'
 import Team from './pages/Team'
 import TeamNew from './pages/TeamNew'
+import TeamEdit from './pages/TeamEdit'
 import Activities from './pages/Activities'
 import PendingReport from './pages/PendingReport'
 import Finance from './pages/Finance'
@@ -104,6 +105,7 @@ const App = () => (
                   <Route path="/history" element={<History />} />
                   <Route path="/team" element={<Team />} />
                   <Route path="/team/new" element={<TeamNew />} />
+                  <Route path="/team/:id/edit" element={<TeamEdit />} />
                   <Route path="/activities" element={<Activities />} />
                   <Route path="/pending-report" element={<PendingReport />} />
                   <Route path="/performance" element={<Performance />} />

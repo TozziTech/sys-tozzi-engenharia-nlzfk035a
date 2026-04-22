@@ -82,6 +82,7 @@ import { MemberIdentityFields } from './form/MemberIdentityFields'
 import { MemberAddressFields } from './form/MemberAddressFields'
 import { editMemberFormSchema, EditMemberFormValues } from '@/lib/schemas/member'
 import { X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -520,12 +521,16 @@ export function MemberCard({
               <FileDown className="h-5 w-5" />
             </Button>
             <StatusHistoryDialog user={user} />
-            <MemberEditDialog
-              user={user}
-              onSave={onUpdate}
-              open={isEditOpen}
-              onOpenChange={setIsEditOpen}
-            />
+            <Link to={`/team/${user.id}/edit`}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                title="Editar Membro"
+              >
+                <Edit2 className="h-5 w-5" />
+              </Button>
+            </Link>
             {u.status === 'Inativo' ? (
               <>
                 {currentUser?.role === 'Administrador' && (

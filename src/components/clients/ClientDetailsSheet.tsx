@@ -21,11 +21,14 @@ import {
   AlignLeft,
   Download,
   ExternalLink,
+  Activity,
 } from 'lucide-react'
 import { Client } from '@/services/clients'
 import { cn } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { format } from 'date-fns'
 
 interface Props {
   open: boolean
@@ -59,6 +62,40 @@ const InfoRow = ({
 }
 
 export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
+  const [logs, setLogs] = useState<any[]>([])
+  const [loadingLogs, setLoadingLogs] = useState(false)
+
+  useEffect(() => {
+    if (open && client) {
+      setLoadingLogs(true)
+      pb.collection('audit_logs')
+        .getFullList({
+          filter: `resource = 'clients' && details.client_id = '${client.id}'`,
+          sort: '-created',
+          expand: 'user_id',
+        })
+        .then((res) => {
+          setLogs(res)
+        })
+        .catch((err) => {
+          console.error('Error fetching logs, trying fallback filter', err)
+          pb.collection('audit_logs')
+            .getFullList({
+              filter: `resource = 'clients' && details ~ '${client.id}'`,
+              sort: '-created',
+              expand: 'user_id',
+            })
+            .then(setLogs)
+            .catch(console.error)
+        })
+        .finally(() => {
+          setLoadingLogs(false)
+        })
+    } else {
+      setLogs([])
+    }
+  }, [open, client])
+
   if (!client) return null
 
   const formatAddress = (c: Client) => {
@@ -276,6 +313,59 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
                 </div>
               </div>
             )}
+
+            {/* Histórico de Atividades */}
+            <div className="space-y-3 pt-2">
+              <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
+                <Activity className="h-4 w-4 text-primary" />
+                Histórico de Atividades
+              </h4>
+              <div className="bg-card rounded-lg border border-border shadow-sm p-5 overflow-hidden">
+                {loadingLogs ? (
+                  <div className="text-sm text-muted-foreground text-center py-4 animate-pulse font-medium">
+                    Carregando histórico...
+                  </div>
+                ) : logs.length === 0 ? (
+                  <div className="text-sm text-muted-foreground text-center py-4 font-medium">
+                    Nenhuma atividade registrada até o momento.
+                  </div>
+                ) : (
+                  <div className="space-y-5 relative before:absolute before:inset-0 before:ml-[1.125rem] before:-translate-x-px before:h-full before:w-0.5 before:bg-border">
+                    {logs.map((log) => {
+                      const user = log.expand?.user_id
+                      const userName = user?.name || user?.email || 'Sistema'
+                      const avatarUrl =
+                        user && user.avatar ? pb.files.getURL(user, user.avatar) : ''
+                      return (
+                        <div key={log.id} className="relative flex items-start gap-4 group">
+                          <div className="relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-background shadow-sm shrink-0 group-hover:border-primary/50 transition-colors">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={avatarUrl} />
+                              <AvatarFallback className="text-[10px] uppercase font-bold text-muted-foreground bg-muted">
+                                {userName.substring(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
+                          <div className="flex flex-col flex-1 pt-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium text-foreground leading-none">
+                                {log.action}
+                              </p>
+                              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap mt-0.5 shrink-0">
+                                {format(new Date(log.created), 'dd/MM/yyyy HH:mm')}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1.5 truncate">
+                              Por <span className="font-medium text-foreground/80">{userName}</span>
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </ScrollArea>
       </SheetContent>

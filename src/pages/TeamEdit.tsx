@@ -292,7 +292,7 @@ export default function TeamEdit() {
                 Documentos
               </TabsTrigger>
               <TabsTrigger value="projetos" className="py-2 col-span-2 md:col-span-1">
-                Projetos
+                Projetos Associados
               </TabsTrigger>
             </TabsList>
 

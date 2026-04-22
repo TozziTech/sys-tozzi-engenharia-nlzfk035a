@@ -29,6 +29,8 @@ import pb from '@/lib/pocketbase/client'
 import React, { useEffect, useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { format } from 'date-fns'
+import { Button } from '@/components/ui/button'
+import { FilePreviewModal, PreviewFile } from '@/components/FilePreviewModal'
 
 interface Props {
   open: boolean
@@ -64,6 +66,39 @@ const InfoRow = ({
 export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
   const [logs, setLogs] = useState<any[]>([])
   const [loadingLogs, setLoadingLogs] = useState(false)
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null)
+
+  const getFileType = (filename: string): 'image' | 'pdf' | 'other' => {
+    const ext = filename.split('.').pop()?.toLowerCase()
+    if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext || '')) return 'image'
+    if (ext === 'pdf') return 'pdf'
+    return 'other'
+  }
+
+  const downloadFile = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const blobUrl = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (error) {
+      window.open(url, '_blank')
+    }
+  }
+
+  const handleBatchDownload = async () => {
+    if (!client?.documents) return
+    for (const doc of client.documents) {
+      const url = pb.files.getURL(client, doc)
+      await downloadFile(url, doc)
+    }
+  }
 
   useEffect(() => {
     if (open && client) {
@@ -275,26 +310,78 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
             {/* Documentos */}
             {client.documents && client.documents.length > 0 && (
               <div className="space-y-3">
-                <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
-                  <FileText className="h-4 w-4 text-primary" />
-                  Documentos
-                </h4>
-                <div className="flex flex-col gap-2">
-                  {client.documents.map((doc) => (
-                    <a
-                      key={doc}
-                      href={pb.files.getURL(client, doc)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card shadow-sm hover:bg-muted/50 transition-colors group"
+                <div className="flex items-center justify-between">
+                  <h4 className="flex items-center gap-2 text-sm font-bold text-foreground/80 uppercase tracking-wide">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Documentos
+                  </h4>
+                  {client.documents.length > 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={handleBatchDownload}
                     >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-medium truncate">{doc}</span>
+                      <Download className="h-3.5 w-3.5 mr-2" />
+                      Baixar Todos
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {client.documents.map((doc) => {
+                    const url = pb.files.getURL(client, doc)
+                    const type = getFileType(doc)
+                    const isImage = type === 'image'
+                    return (
+                      <div
+                        key={doc}
+                        className="group relative flex flex-col rounded-lg border border-border bg-card shadow-sm overflow-hidden hover:border-primary/50 transition-colors"
+                      >
+                        <div
+                          className="aspect-[4/3] bg-muted/50 flex items-center justify-center cursor-pointer border-b border-border relative overflow-hidden"
+                          onClick={() => {
+                            if (type === 'image' || type === 'pdf') {
+                              setPreviewFile({ url, name: doc, type })
+                            } else {
+                              window.open(url, '_blank')
+                            }
+                          }}
+                        >
+                          {isImage ? (
+                            <img
+                              src={url}
+                              alt={doc}
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            <FileText className="h-8 w-8 text-muted-foreground opacity-50" />
+                          )}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 pointer-events-none">
+                            <span className="text-white text-xs font-medium px-3 py-1.5 bg-black/40 rounded-full backdrop-blur-sm">
+                              {type === 'image' || type === 'pdf' ? 'Visualizar' : 'Abrir'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="p-2.5 flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium truncate flex-1" title={doc}>
+                            {doc}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0 z-20 hover:bg-primary/10 hover:text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              downloadFile(url, doc)
+                            }}
+                            title="Baixar"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                      <Download className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 sm:opacity-100 group-hover:opacity-100 transition-opacity" />
-                    </a>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -369,6 +456,7 @@ export function ClientDetailsSheet({ open, onOpenChange, client }: Props) {
           </div>
         </ScrollArea>
       </SheetContent>
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
     </Sheet>
   )
 }

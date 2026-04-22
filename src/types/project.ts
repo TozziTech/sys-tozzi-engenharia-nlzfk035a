@@ -122,7 +122,7 @@ export interface Project {
   id: string
   name: string
   client: string
-  discipline: Discipline
+  discipline?: Discipline
   status: Status
   startDate: string
   endDate: string
@@ -135,6 +135,7 @@ export interface Project {
   observations?: string
   cno?: string
   cnpj?: string
+  cnpj_obra?: string
   is_priority?: boolean
   deletedAt?: string
 }

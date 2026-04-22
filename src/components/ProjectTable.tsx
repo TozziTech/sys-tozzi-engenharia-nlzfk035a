@@ -68,7 +68,6 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
         <TableHeader className="bg-slate-50/50">
           <TableRow className="hover:bg-transparent">
             <TableHead className="font-semibold text-slate-900">Nome do Projeto</TableHead>
-            <TableHead className="font-semibold text-slate-900">Disciplina</TableHead>
             <TableHead className="font-semibold text-slate-900">Cliente</TableHead>
             <TableHead className="font-semibold text-slate-900">Início</TableHead>
             <TableHead className="font-semibold text-slate-900">Entrega</TableHead>
@@ -127,7 +126,6 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                   )}
                 </div>
               </TableCell>
-              <TableCell className="text-slate-600">{project.discipline}</TableCell>
               <TableCell className="text-slate-600">{project.client}</TableCell>
               <TableCell className="text-slate-600">
                 {format(new Date(project.startDate), 'dd MMM yyyy', { locale: ptBR })}

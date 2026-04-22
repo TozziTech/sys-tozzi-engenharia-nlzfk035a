@@ -27,7 +27,7 @@ export function EngineerCombobox({ value, onChange }: EngineerComboboxProps) {
     const fetchEngineers = async () => {
       try {
         const records = await pb.collection('users').getFullList({
-          filter: "role = 'Projetista' || role = 'Gerente de Projeto' || role = 'Administrador'",
+          filter: "role = 'Gerente de Projeto' || role = 'Administrador'",
           sort: 'name',
         })
         setEngineers(

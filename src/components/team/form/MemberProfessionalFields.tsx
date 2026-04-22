@@ -1,4 +1,5 @@
 import { UseFormReturn, useWatch } from 'react-hook-form'
+import { useAuth } from '@/hooks/use-auth'
 import {
   FormControl,
   FormDescription,
@@ -39,63 +40,70 @@ const FormacaoCustomField = ({ form }: { form: UseFormReturn<MemberFormValues> }
 }
 
 export function MemberProfessionalFields({ form }: { form: UseFormReturn<MemberFormValues> }) {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'Administrador'
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <FormField
-        control={form.control}
-        name="role"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Função (Perfil) *</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {[
-                  'Administrador',
-                  'Gerente de Projeto',
-                  'Projetista',
-                  'Estagiário',
-                  'Visitante',
-                  'Cliente',
-                ].map((f) => (
-                  <SelectItem key={f} value={f}>
-                    {f}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="status"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Status *</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {['Ativo', 'Inativo', 'Em Férias', 'Pendente'].map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {isAdmin && (
+        <>
+          <FormField
+            control={form.control}
+            name="role"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nível de Acesso *</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {[
+                      'Administrador',
+                      'Gerente de Projeto',
+                      'Projetista',
+                      'Estagiário',
+                      'Visitante',
+                      'Cliente',
+                    ].map((f) => (
+                      <SelectItem key={f} value={f}>
+                        {f}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status *</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {['Ativo', 'Inativo', 'Em Férias', 'Pendente'].map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
+      )}
       <FormField
         control={form.control}
         name="formacaoSelect"

@@ -700,6 +700,7 @@ function StatusHistoryDialog({ user }: { user: User }) {
 }
 function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
   const { projects } = useProjectStore()
+  const { user: currentUser } = useAuth()
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const [selectedProjects, setSelectedProjects] = useState<string[]>(user.assignedProjects || [])
@@ -1047,47 +1048,76 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                     />
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem className="col-span-1">
-                          <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione..." />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Ativo">Ativo</SelectItem>
-                              <SelectItem value="Inativo">Inativo</SelectItem>
-                              <SelectItem value="Em Férias">Em Férias</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="documentos_link"
-                      render={({ field }) => (
-                        <FormItem className="col-span-1">
-                          <FormLabel>Link de Documentos (Nuvem)</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="https://drive.google.com/..."
-                              autoComplete="off"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  {currentUser?.role === 'Administrador' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem className="col-span-1">
+                            <FormLabel>Nível de Acesso</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Administrador">Administrador</SelectItem>
+                                <SelectItem value="Gerente de Projeto">
+                                  Gerente de Projeto
+                                </SelectItem>
+                                <SelectItem value="Projetista">Projetista</SelectItem>
+                                <SelectItem value="Estagiário">Estagiário</SelectItem>
+                                <SelectItem value="Visitante">Visitante</SelectItem>
+                                <SelectItem value="Cliente">Cliente</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem className="col-span-1">
+                            <FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione..." />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Ativo">Ativo</SelectItem>
+                                <SelectItem value="Inativo">Inativo</SelectItem>
+                                <SelectItem value="Em Férias">Em Férias</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
+                  <FormField
+                    control={form.control}
+                    name="documentos_link"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Link de Documentos (Nuvem)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="https://drive.google.com/..."
+                            autoComplete="off"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <div className="pt-4 border-t border-border/50 mt-6">
                     <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">

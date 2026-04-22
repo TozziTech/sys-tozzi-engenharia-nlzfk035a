@@ -17,7 +17,6 @@ import { Search, Users, Download, Plus } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
-import { RoleManagementModal } from '@/components/team/RoleManagementModal'
 import { TeamAuditModal } from '@/components/team/TeamAuditModal'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -130,12 +129,7 @@ export default function Team() {
           <Button variant="outline" onClick={() => exportTeamCSV(filteredMembers)}>
             <Download className="mr-2 h-4 w-4" /> Exportar
           </Button>
-          {user?.role === 'Administrador' && (
-            <>
-              <TeamAuditModal />
-              <RoleManagementModal users={dbUsers} onUpdate={loadUsers} />
-            </>
-          )}
+          {user?.role === 'Administrador' && <TeamAuditModal />}
           <Button onClick={() => navigate('/team/new')}>
             <Plus className="mr-2 h-4 w-4" /> Adicionar Membro
           </Button>

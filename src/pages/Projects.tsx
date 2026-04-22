@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
-import { Filter, XCircle, Plus, CalendarDays, Trash2, ArrowLeft } from 'lucide-react'
+import { Filter, XCircle, Plus, CalendarDays, Trash2, ArrowLeft, Briefcase } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -30,6 +31,12 @@ export default function Projects() {
     () => Array.from(new Set(projects.map((p) => p.engineer))),
     [projects],
   )
+
+  const totalOpenContracts = useMemo(() => {
+    return projects
+      .filter((p) => !p.deletedAt && p.status !== 'Concluído' && p.status !== 'Cancelado')
+      .reduce((sum, p) => sum + (Number(p.budget) || 0), 0)
+  }, [projects])
 
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
@@ -115,6 +122,27 @@ export default function Projects() {
             <Plus className="mr-2 h-4 w-4" /> Novo Projeto
           </Button>
         </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <Card className="shadow-sm border-slate-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-slate-700">
+              Valor Total de Contratos em Aberto
+            </CardTitle>
+            <Briefcase className="h-4 w-4 text-slate-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-900">
+              {new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+              }).format(totalOpenContracts)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Soma dos projetos em andamento</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters Bar */}

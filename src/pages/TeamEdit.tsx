@@ -276,7 +276,7 @@ export default function TeamEdit() {
                 Dados Bancários
               </TabsTrigger>
               <TabsTrigger value="documentos" className="py-2 col-span-2 md:col-span-1">
-                Observações e Docs
+                Observações e Documentos
               </TabsTrigger>
             </TabsList>
 

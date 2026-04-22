@@ -196,7 +196,7 @@
   body {
     @apply bg-background font-sans antialiased text-foreground transition-colors duration-300;
     background-image:
-      linear-gradient(to bottom, rgba(20, 20, 22, 0.93), rgba(20, 20, 22, 0.97)),
+      linear-gradient(to bottom, rgba(20, 20, 22, 0.85), rgba(20, 20, 22, 0.95)),
       url('https://img.usecurling.com/p/1920/1080?q=structural%20engineering&color=black');
     background-size: cover;
     background-position: center;

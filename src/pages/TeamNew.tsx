@@ -38,7 +38,13 @@ export default function TeamNew() {
       formData.append('name', data.name)
       formData.append('email', data.email)
       formData.append('password', data.password)
-      formData.append('passwordConfirm', data.password)
+      formData.append('passwordConfirm', data.passwordConfirm)
+
+      // Remove verified field explicitly if present in any generic data iteration
+      if (formData.has('verified')) {
+        formData.delete('verified')
+      }
+
       if (data.avatar instanceof File) {
         formData.append('avatar', data.avatar)
       }

@@ -59,13 +59,29 @@ const refinements = (schema: z.ZodType<any, any, any>) =>
 export const memberFormSchema = refinements(
   baseMemberSchema.extend({
     password: z.string().min(8, 'A senha deve ter no mínimo 8 caracteres.'),
+    passwordConfirm: z.string().min(8, 'A confirmação de senha é obrigatória.'),
   }),
-)
+).refine((data: any) => data.password === data.passwordConfirm, {
+  message: 'As senhas não coincidem.',
+  path: ['passwordConfirm'],
+})
 
 export const editMemberFormSchema = refinements(
   baseMemberSchema.extend({
     password: z.string().optional(),
+    passwordConfirm: z.string().optional(),
   }),
+).refine(
+  (data: any) => {
+    if (data.password && data.password !== data.passwordConfirm) {
+      return false
+    }
+    return true
+  },
+  {
+    message: 'As senhas não coincidem.',
+    path: ['passwordConfirm'],
+  },
 )
 
 export type MemberFormValues = z.infer<typeof memberFormSchema>
@@ -75,6 +91,7 @@ export const DEFAULT_MEMBER_VALUES: MemberFormValues = {
   name: '',
   codigo: '',
   password: '',
+  passwordConfirm: '',
   email: '',
   role: 'Projetista',
   status: 'Ativo',

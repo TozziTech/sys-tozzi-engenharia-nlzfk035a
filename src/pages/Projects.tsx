@@ -39,7 +39,7 @@ const months = [
   { value: '12', label: 'Dezembro' },
 ]
 
-export default function Projects() {
+export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: boolean }) {
   const { projects, globalSearch, setNewProjectModalOpen } = useProjectStore()
   const { user } = useAuth()
 
@@ -86,6 +86,8 @@ export default function Projects() {
         }
       }
 
+      const matchMine = filterOnlyMine ? p.engineer === user?.name : true
+
       return (
         matchSearch &&
         matchDisc &&
@@ -93,7 +95,8 @@ export default function Projects() {
         matchClient &&
         matchEngineer &&
         matchTrash &&
-        matchPeriod
+        matchPeriod &&
+        matchMine
       )
     })
   }, [
@@ -106,6 +109,8 @@ export default function Projects() {
     showTrash,
     filterMonth,
     filterYear,
+    filterOnlyMine,
+    user?.name,
   ])
 
   const prioritizedProjects = useMemo(() => {
@@ -168,10 +173,12 @@ export default function Projects() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
-            Lista de Projetos
+            {filterOnlyMine ? 'Meus Projetos' : 'Lista de Projetos'}
           </h1>
           <p className="text-muted-foreground">
-            Pesquise, filtre e gerencie os detalhes dos projetos.
+            {filterOnlyMine
+              ? 'Visualize e gerencie os projetos sob sua responsabilidade.'
+              : 'Pesquise, filtre e gerencie os detalhes dos projetos.'}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">

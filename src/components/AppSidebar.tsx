@@ -63,7 +63,7 @@ const getNavigationGroups = (user: any) => [
       },
       {
         name: 'Meu Projeto',
-        href: user?.role === 'Cliente' ? '/gestao/painel-cliente' : '/projects',
+        href: user?.role === 'Cliente' ? '/gestao/painel-cliente' : '/meus-projetos',
         icon: FolderKanban,
       },
     ],
@@ -86,6 +86,7 @@ const getNavigationGroups = (user: any) => [
     label: 'Operações',
     allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
+      { name: 'Projetos', href: '/projects', icon: FolderKanban },
       { name: 'Lançamentos Financeiros', href: '/financial', icon: DollarSign },
       { name: 'Cronograma', href: '/schedule', icon: CalendarDays },
       { name: 'Calendário', href: '/calendar', icon: CalendarIcon },

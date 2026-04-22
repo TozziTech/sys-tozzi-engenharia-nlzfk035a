@@ -89,7 +89,7 @@ const App = () => (
                   <Route path="/" element={<HomeRoute />} />
                   <Route path="/meu-painel" element={<MeuPainel />} />
                   <Route path="/designer-panel" element={<DesignerPanel />} />
-                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/meus-projetos" element={<Projects filterOnlyMine />} />
                   <Route path="/projects/:id" element={<ProjectDetails />} />
                   <Route
                     path="/projects/:id/disciplines/:moduleId"
@@ -131,6 +131,7 @@ const App = () => (
                   {/* Restricted to Admins and Project Managers */}
                   <Route element={<ManagerGuard />}>
                     <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/projects" element={<Projects />} />
                     <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
                     <Route path="/financial-dashboard" element={<FinancialDashboard />} />
                     <Route path="/diagnostics" element={<Bottlenecks />} />

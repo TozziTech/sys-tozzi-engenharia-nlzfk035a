@@ -471,6 +471,7 @@ export function MemberCard({
                 <SelectItem value="Ativo">Ativo</SelectItem>
                 <SelectItem value="Inativo">Inativo</SelectItem>
                 <SelectItem value="Em Férias">Em Férias</SelectItem>
+                <SelectItem value="Pendente">Pendente</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1048,59 +1049,6 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                     />
                   )}
 
-                  {currentUser?.role === 'Administrador' && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="role"
-                        render={({ field }) => (
-                          <FormItem className="col-span-1">
-                            <FormLabel>Nível de Acesso</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione..." />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="Administrador">Administrador</SelectItem>
-                                <SelectItem value="Gerente de Projeto">
-                                  Gerente de Projeto
-                                </SelectItem>
-                                <SelectItem value="Projetista">Projetista</SelectItem>
-                                <SelectItem value="Estagiário">Estagiário</SelectItem>
-                                <SelectItem value="Visitante">Visitante</SelectItem>
-                                <SelectItem value="Cliente">Cliente</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="status"
-                        render={({ field }) => (
-                          <FormItem className="col-span-1">
-                            <FormLabel>Status</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione..." />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="Ativo">Ativo</SelectItem>
-                                <SelectItem value="Inativo">Inativo</SelectItem>
-                                <SelectItem value="Em Férias">Em Férias</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
                   <FormField
                     control={form.control}
                     name="documentos_link"
@@ -1246,6 +1194,69 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                 </TabsContent>
 
                 <TabsContent value="projects" className="space-y-4 m-0 pb-6">
+                  {currentUser?.role === 'Administrador' && (
+                    <>
+                      <div className="mb-4">
+                        <Label className="text-base font-semibold">Controles de Acesso</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Gerencie o nível de permissão e o status da conta deste membro.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 pb-6 border-b border-border/50 mb-6">
+                        <FormField
+                          control={form.control}
+                          name="role"
+                          render={({ field }) => (
+                            <FormItem className="col-span-1">
+                              <FormLabel>Nível de Acesso</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Administrador">Administrador</SelectItem>
+                                  <SelectItem value="Gerente de Projeto">
+                                    Gerente de Projeto
+                                  </SelectItem>
+                                  <SelectItem value="Projetista">Projetista</SelectItem>
+                                  <SelectItem value="Estagiário">Estagiário</SelectItem>
+                                  <SelectItem value="Visitante">Visitante</SelectItem>
+                                  <SelectItem value="Cliente">Cliente</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="status"
+                          render={({ field }) => (
+                            <FormItem className="col-span-1">
+                              <FormLabel>Status</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Ativo">Ativo</SelectItem>
+                                  <SelectItem value="Inativo">Inativo</SelectItem>
+                                  <SelectItem value="Em Férias">Em Férias</SelectItem>
+                                  <SelectItem value="Pendente">Pendente</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </>
+                  )}
+
                   <div className="mb-4">
                     <Label className="text-base font-semibold">Projetos Atribuídos</Label>
                     <p className="text-sm text-muted-foreground">

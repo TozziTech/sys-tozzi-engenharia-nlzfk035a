@@ -145,7 +145,16 @@ export function ClientFormDialog({ open, onOpenChange, client, onSuccess }: Prop
       const formData = new FormData()
       Object.keys(editingClient).forEach((key) => {
         const val = (editingClient as any)[key]
-        if (val !== null && val !== undefined && key !== 'documents' && key !== 'expand') {
+        const excludedKeys = [
+          'documents',
+          'expand',
+          'id',
+          'collectionId',
+          'collectionName',
+          'created',
+          'updated',
+        ]
+        if (val !== null && val !== undefined && !excludedKeys.includes(key)) {
           formData.append(key, String(val))
         }
       })

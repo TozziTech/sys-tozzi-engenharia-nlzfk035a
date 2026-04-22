@@ -1,27 +1,24 @@
 onRecordUpdateRequest((e) => {
-  const oldStatus = e.record.original().getString('status')
-  const newStatus = e.record.getString('status')
+  const authRecord = e.auth
+  let isAdmin = false
 
-  if (oldStatus && newStatus && oldStatus !== newStatus && e.auth) {
-    try {
-      const auditLogs = $app.findCollectionByNameOrId('audit_logs')
-      const log = new Record(auditLogs)
+  if (authRecord && authRecord.collection().name === 'users') {
+    isAdmin = authRecord.getString('role') === 'Administrador'
+  }
 
-      log.set('user_id', e.auth.id)
-      log.set('action', 'Alteração de Status')
-      log.set('resource', 'users')
-      log.set('details', {
-        collaborator_id: e.record.id,
-        collaborator_name: e.record.getString('name') || e.record.getString('email') || '',
-        old_status: oldStatus,
-        new_status: newStatus,
-      })
+  if (!isAdmin && !e.hasSuperuserAuth()) {
+    // Prevent non-admins from updating their role or status
+    const originalRole = e.record.original().getString('role')
+    const originalStatus = e.record.original().getString('status')
 
-      $app.saveNoValidate(log)
-    } catch (err) {
-      console.log('Error saving user status audit log:', err)
+    if (e.record.getString('role') !== originalRole) {
+      e.record.set('role', originalRole)
+    }
+
+    if (e.record.getString('status') !== originalStatus) {
+      e.record.set('status', originalStatus)
     }
   }
 
-  return e.next()
+  e.next()
 }, 'users')

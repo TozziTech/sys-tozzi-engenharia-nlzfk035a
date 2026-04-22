@@ -10,7 +10,7 @@ export function MemberAdditionalFields({ form }: { form: UseFormReturn<MemberFor
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormField
           control={form.control}
-          name="bank_bank"
+          name="banco_nome"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Banco</FormLabel>
@@ -23,7 +23,7 @@ export function MemberAdditionalFields({ form }: { form: UseFormReturn<MemberFor
         />
         <FormField
           control={form.control}
-          name="bank_agency"
+          name="agencia"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Agência</FormLabel>
@@ -36,7 +36,7 @@ export function MemberAdditionalFields({ form }: { form: UseFormReturn<MemberFor
         />
         <FormField
           control={form.control}
-          name="bank_account"
+          name="conta"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Conta Corrente</FormLabel>
@@ -49,7 +49,7 @@ export function MemberAdditionalFields({ form }: { form: UseFormReturn<MemberFor
         />
         <FormField
           control={form.control}
-          name="bank_pix"
+          name="chave_pix"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Chave PIX</FormLabel>

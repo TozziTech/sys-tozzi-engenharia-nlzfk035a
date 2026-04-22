@@ -15,6 +15,27 @@ export function MemberIdentityFields({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <FormField
         control={form.control}
+        name="avatar"
+        render={({ field: { value, onChange, ...fieldProps } }) => (
+          <FormItem className="md:col-span-2">
+            <FormLabel>Avatar (Opcional)</FormLabel>
+            <FormControl>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) onChange(file)
+                }}
+                {...fieldProps}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
         name="name"
         render={({ field }) => (
           <FormItem className="md:col-span-2">
@@ -66,7 +87,7 @@ export function MemberIdentityFields({
           <FormItem>
             <FormLabel>Código (ID) *</FormLabel>
             <FormControl>
-              <Input disabled={!isEdit} tabIndex={-1} className="bg-muted font-mono" {...field} />
+              <Input placeholder="Ex: ENG-001" className="font-mono" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>

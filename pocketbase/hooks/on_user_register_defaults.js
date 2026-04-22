@@ -1,20 +1,23 @@
 onRecordCreateRequest((e) => {
-  const body = e.requestInfo().body
-
+  const authRecord = e.auth
   let isAdmin = false
-  if (e.auth && e.auth.getString('role') === 'Administrador') {
-    isAdmin = true
+
+  if (authRecord && authRecord.collection().name === 'users') {
+    isAdmin = authRecord.getString('role') === 'Administrador'
   }
 
-  // Enforce Pendente status for self-registered users
-  if (!e.hasSuperuserAuth() && !isAdmin) {
-    body.status = 'Pendente'
-    body.role = 'Visitante'
-
-    if (!body.codigo) {
-      body.codigo = 'P-' + $security.randomString(6).toUpperCase()
-    }
+  if (!isAdmin && !e.hasSuperuserAuth()) {
+    // Public registration: force defaults to prevent privilege escalation
+    e.record.set('status', 'Pendente')
+    e.record.set('role', 'Projetista')
+  } else {
+    // Admin registration: use provided values, fallback if empty
+    if (!e.record.getString('status')) e.record.set('status', 'Ativo')
+    if (!e.record.getString('role')) e.record.set('role', 'Projetista')
   }
+
+  // Auto-verify all users so they can log in immediately upon creation
+  e.record.setVerified(true)
 
   e.next()
 }, 'users')

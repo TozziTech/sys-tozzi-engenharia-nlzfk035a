@@ -23,6 +23,7 @@ import { MemberIdentityFields } from '@/components/team/form/MemberIdentityField
 import { MemberAddressFields } from '@/components/team/form/MemberAddressFields'
 import { MemberProfessionalFields } from '@/components/team/form/MemberProfessionalFields'
 import { MemberAdditionalFields } from '@/components/team/form/MemberAdditionalFields'
+import { MemberDocumentsFields } from '@/components/team/form/MemberDocumentsFields'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -261,11 +262,22 @@ export default function TeamEdit() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 px-4 sm:px-0">
           <Tabs defaultValue="identidade" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="identidade">Identidade</TabsTrigger>
-              <TabsTrigger value="endereco">Endereço</TabsTrigger>
-              <TabsTrigger value="profissional">Profissional</TabsTrigger>
-              <TabsTrigger value="adicionais">Adicionais</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
+              <TabsTrigger value="identidade" className="py-2">
+                Identidade
+              </TabsTrigger>
+              <TabsTrigger value="endereco" className="py-2">
+                Endereço
+              </TabsTrigger>
+              <TabsTrigger value="profissional" className="py-2">
+                Profissional
+              </TabsTrigger>
+              <TabsTrigger value="bancarios" className="py-2">
+                Dados Bancários
+              </TabsTrigger>
+              <TabsTrigger value="documentos" className="py-2 col-span-2 md:col-span-1">
+                Observações e Docs
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="identidade" className="mt-4 space-y-4">
@@ -341,11 +353,39 @@ export default function TeamEdit() {
                 </CardHeader>
                 <CardContent>
                   <MemberProfessionalFields form={form} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="bancarios" className="mt-4 space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Dados Bancários</CardTitle>
+                  <CardDescription>
+                    Informações financeiras para repasses e pagamentos.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <MemberAdditionalFields form={form} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="documentos" className="mt-4 space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Observações e Documentos</CardTitle>
+                  <CardDescription>
+                    Gerencie anotações gerais, links na nuvem e arquivos do colaborador.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <MemberDocumentsFields form={form} />
 
                   {existingDocs.length > 0 && (
                     <div className="mt-6 pt-6 border-t border-border/50">
                       <h4 className="font-semibold text-sm mb-4 text-foreground">
-                        Documentos Anexados
+                        Documentos Anexados Atuais
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {existingDocs.map((doc) => (
@@ -375,18 +415,6 @@ export default function TeamEdit() {
                       </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="adicionais" className="mt-4 space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informações Adicionais</CardTitle>
-                  <CardDescription>Dados bancários e observações.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <MemberAdditionalFields form={form} />
                 </CardContent>
               </Card>
             </TabsContent>

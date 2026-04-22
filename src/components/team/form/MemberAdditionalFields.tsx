@@ -61,24 +61,6 @@ export function MemberAdditionalFields({ form }: { form: UseFormReturn<any> }) {
           )}
         />
       </div>
-
-      <FormField
-        control={form.control}
-        name="notes"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Observações Gerais</FormLabel>
-            <FormControl>
-              <Textarea
-                placeholder="Detalhes adicionais sobre o membro..."
-                className="min-h-[100px] resize-none"
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
     </div>
   )
 }

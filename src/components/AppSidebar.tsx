@@ -45,7 +45,7 @@ import { Label } from '@/components/ui/label'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuth } from '@/hooks/use-auth'
 
-const navigationGroups = [
+const getNavigationGroups = (user: any) => [
   {
     label: 'Gestão Projetista',
     items: [
@@ -61,10 +61,16 @@ const navigationGroups = [
           'Visitante',
         ],
       },
+      {
+        name: 'Meu Projeto',
+        href: user?.role === 'Cliente' ? '/gestao/painel-cliente' : '/projects',
+        icon: FolderKanban,
+      },
     ],
   },
   {
     label: 'Gestão',
+    allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
       { name: 'Painel do Cliente', href: '/gestao/painel-cliente', icon: LayoutDashboard },
       { name: 'Visão Executiva', href: '/executive-dashboard', icon: LineChart },
@@ -78,9 +84,9 @@ const navigationGroups = [
   },
   {
     label: 'Operações',
+    allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
       { name: 'Lançamentos Financeiros', href: '/financial', icon: DollarSign },
-      { name: 'Projetos', href: '/projects', icon: FolderKanban },
       { name: 'Cronograma', href: '/schedule', icon: CalendarDays },
       { name: 'Calendário', href: '/calendar', icon: CalendarIcon },
       { name: 'Orçamentos', href: '/quotes', icon: FileText },
@@ -89,6 +95,7 @@ const navigationGroups = [
   },
   {
     label: 'Cadastro',
+    allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
       { name: 'Projetistas', href: '/team', icon: Users },
       { name: 'Clientes', href: '/clients', icon: Briefcase },
@@ -123,6 +130,7 @@ const navigationGroups = [
   },
   {
     label: 'Governança e Admin',
+    allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
       {
         name: 'Visão Geral da Carteira',
@@ -146,6 +154,8 @@ export function AppSidebar() {
     navigate('/login')
   }
 
+  const groups = getNavigationGroups(user)
+
   return (
     <Sidebar className="border-r border-border">
       <SidebarHeader className="p-4 flex flex-row items-center gap-3">
@@ -161,48 +171,55 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarSeparator className="bg-border" />
       <SidebarContent className="scrollbar-hide py-2">
-        {navigationGroups.map((group, i) => (
-          <SidebarGroup key={group.label} className={i !== 0 ? 'pt-0' : ''}>
-            <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 mb-1">
-              {group.label}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => {
-                  if (item.adminOnly && user?.role !== 'Administrador') return null
-                  if (
-                    (item as any).allowedRoles &&
-                    (!user?.role || !(item as any).allowedRoles.includes(user.role))
-                  )
-                    return null
+        {groups.map((group, i) => {
+          if (group.allowedRoles && (!user?.role || !group.allowedRoles.includes(user.role))) {
+            return null
+          }
 
-                  const isActive =
-                    location.pathname === item.href ||
-                    (location.pathname === '/' && item.href === '/dashboard')
-                  return (
-                    <SidebarMenuItem key={item.name}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive}
-                        tooltip={item.name}
-                        className={
-                          isActive
-                            ? 'bg-primary/20 text-primary hover:bg-primary/30 hover:text-primary'
-                            : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                        }
-                      >
-                        <Link to={item.href} className="flex items-center gap-3">
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+          return (
+            <SidebarGroup key={group.label} className={i !== 0 ? 'pt-0' : ''}>
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60 uppercase tracking-wider px-2 mb-1">
+                {group.label}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => {
+                    if (item.adminOnly && user?.role !== 'Administrador') return null
+                    if (
+                      (item as any).allowedRoles &&
+                      (!user?.role || !(item as any).allowedRoles.includes(user.role))
+                    )
+                      return null
+
+                    const isActive =
+                      location.pathname === item.href ||
+                      (location.pathname === '/' && item.href === '/dashboard')
+
+                    return (
+                      <SidebarMenuItem key={item.name}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.name}
+                          className={
+                            isActive
+                              ? 'bg-primary/20 text-primary hover:bg-primary/30 hover:text-primary'
+                              : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                          }
+                        >
+                          <Link to={item.href} className="flex items-center gap-3">
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )
+        })}
       </SidebarContent>
       <SidebarFooter className="p-4 space-y-4 border-t border-border mt-auto">
         <div className="flex items-center justify-between px-2">

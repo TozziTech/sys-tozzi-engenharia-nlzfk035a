@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { ProjectTable } from '@/components/ProjectTable'
 import { ProjectCardList } from '@/components/ProjectCardList'
+import { useAuth } from '@/hooks/use-auth'
 
 const months = [
   { value: '1', label: 'Janeiro' },
@@ -40,6 +41,7 @@ const months = [
 
 export default function Projects() {
   const { projects, globalSearch, setNewProjectModalOpen } = useProjectStore()
+  const { user } = useAuth()
 
   const [discipline, setDiscipline] = useState<string>('all')
   const [status, setStatus] = useState<string>('all')
@@ -106,29 +108,43 @@ export default function Projects() {
     filterYear,
   ])
 
+  const prioritizedProjects = useMemo(() => {
+    const sorted = [...filteredProjects]
+    if (user?.role === 'Projetista') {
+      sorted.sort((a, b) => {
+        const aIsMine = a.engineer === user.name
+        const bIsMine = b.engineer === user.name
+        if (aIsMine && !bIsMine) return -1
+        if (!aIsMine && bIsMine) return 1
+        return 0
+      })
+    }
+    return sorted
+  }, [filteredProjects, user?.role, user?.name])
+
   const totalOpenContracts = useMemo(() => {
-    return filteredProjects
+    return prioritizedProjects
       .filter((p) => p.status !== 'Concluído' && p.status !== 'Cancelado')
       .reduce((sum, p) => sum + (Number(p.budget) || 0), 0)
-  }, [filteredProjects])
+  }, [prioritizedProjects])
 
   const inProgressCount = useMemo(() => {
-    return filteredProjects.filter(
+    return prioritizedProjects.filter(
       (p) => p.status === 'Em Andamento' || (p.status as any) === 'Em Execução',
     ).length
-  }, [filteredProjects])
+  }, [prioritizedProjects])
 
   const finishedThisMonthCount = useMemo(() => {
     const targetMonth = filterMonth !== 'all' ? parseInt(filterMonth) : new Date().getMonth() + 1
     const targetYear = filterYear !== 'all' ? parseInt(filterYear) : new Date().getFullYear()
 
-    return filteredProjects.filter((p) => {
+    return prioritizedProjects.filter((p) => {
       if (p.status !== 'Concluído') return false
       const d = new Date(p.endDate)
       if (isNaN(d.getTime())) return false
       return d.getMonth() + 1 === targetMonth && d.getFullYear() === targetYear
     }).length
-  }, [filteredProjects, filterMonth, filterYear])
+  }, [prioritizedProjects, filterMonth, filterYear])
 
   const clearFilters = () => {
     setDiscipline('all')
@@ -366,7 +382,7 @@ export default function Projects() {
       </div>
 
       {/* Content Area */}
-      {filteredProjects.length === 0 ? (
+      {prioritizedProjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <img
             src="https://img.usecurling.com/p/300/300?q=empty%20desk&color=gray"
@@ -384,8 +400,8 @@ export default function Projects() {
         </div>
       ) : (
         <>
-          <ProjectTable projects={filteredProjects} isTrashView={showTrash} />
-          <ProjectCardList projects={filteredProjects} isTrashView={showTrash} />
+          <ProjectTable projects={prioritizedProjects} isTrashView={showTrash} />
+          <ProjectCardList projects={prioritizedProjects} isTrashView={showTrash} />
         </>
       )}
     </div>

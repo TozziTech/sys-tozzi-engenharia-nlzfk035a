@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -50,14 +50,23 @@ import AnalyticsDashboard from './pages/admin/AnalyticsDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
 import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
-import { AuthProvider } from './hooks/use-auth'
+import { AuthProvider, useAuth } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
 import { AdminGuard } from './components/auth/AdminGuard'
+import { ManagerGuard } from './components/auth/ManagerGuard'
 import { ThemeColorInjector } from './components/ThemeColorInjector'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+
+function HomeRoute() {
+  const { user } = useAuth()
+  if (user?.role === 'Cliente') return <Navigate to="/gestao/painel-cliente" replace />
+  if (user?.role === 'Administrador' || user?.role === 'Gerente de Projeto')
+    return <Navigate to="/dashboard" replace />
+  return <Navigate to="/meu-painel" replace />
+}
 
 const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
@@ -76,11 +85,8 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<RoleGuard />}>
                 <Route element={<Layout />}>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
-                  <Route path="/gestao/painel-cliente" element={<ClientDashboard />} />
-                  <Route path="/gestao/painel-cliente/:id" element={<ClientProjectDetails />} />
+                  {/* Public authenticated routes */}
+                  <Route path="/" element={<HomeRoute />} />
                   <Route path="/meu-painel" element={<MeuPainel />} />
                   <Route path="/designer-panel" element={<DesignerPanel />} />
                   <Route path="/projects" element={<Projects />} />
@@ -89,42 +95,10 @@ const App = () => (
                     path="/projects/:id/disciplines/:moduleId"
                     element={<DisciplineDetails />}
                   />
-                  <Route path="/financial" element={<Financial />} />
-                  <Route path="/financeiro" element={<Finance />} />
-                  <Route path="/clients" element={<Clients />} />
-                  <Route path="/contacts" element={<Contacts />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/gantt" element={<Gantt />} />
-                  <Route path="/schedule" element={<Gantt />} />
-                  <Route path="/calendar" element={<ProjectCalendar />} />
-                  <Route path="/bottlenecks" element={<Bottlenecks />} />
-                  <Route path="/diagnostics" element={<Bottlenecks />} />
-                  <Route path="/financial-dashboard" element={<FinancialDashboard />} />
-                  <Route path="/timesheet" element={<Timesheet />} />
-                  <Route path="/history" element={<History />} />
-                  <Route path="/team" element={<Team />} />
-                  <Route path="/team/new" element={<TeamNew />} />
-                  <Route path="/team/:id/edit" element={<TeamEdit />} />
-                  <Route path="/activities" element={<Activities />} />
-                  <Route path="/pending-report" element={<PendingReport />} />
-                  <Route path="/performance" element={<Performance />} />
-                  <Route path="/deadline-audit" element={<DeadlineAudit />} />
-                  <Route path="/management/bank-accounts" element={<BankAccounts />} />
-                  <Route path="/quotes" element={<Quotes />} />
-                  <Route path="/operations/contract-generator" element={<ContractGenerator />} />
-                  <Route path="/gestao-central" element={<GestaoCentral />} />
-                  <Route path="/equipments" element={<Equipments />} />
-                  <Route path="/equipment" element={<Equipments />} />
-                  <Route path="/audit" element={<Audit />} />
-                  <Route element={<AdminGuard />}>
-                    <Route path="/audit-logs" element={<Audit />} />
-                    <Route path="/admin/audit-log" element={<Audit />} />
-                    <Route path="/admin/audit-logs" element={<Audit />} />
-                    <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
-                    <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
-                    <Route path="/admin/users" element={<AdminUsers />} />
-                  </Route>
+                  <Route path="/gestao/painel-cliente" element={<ClientDashboard />} />
+                  <Route path="/gestao/painel-cliente/:id" element={<ClientProjectDetails />} />
+
+                  {/* Document & File Routes */}
                   <Route
                     path="/files/library"
                     element={<DocumentResourcesPage category="Biblioteca" title="Biblioteca" />}
@@ -153,6 +127,50 @@ const App = () => (
                     element={<DocumentResourcesPage category="Cursos" title="Cursos" />}
                   />
                   <Route path="/files/favorites" element={<FavoriteDocumentsPage />} />
+
+                  {/* Restricted to Admins and Project Managers */}
+                  <Route element={<ManagerGuard />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
+                    <Route path="/financial-dashboard" element={<FinancialDashboard />} />
+                    <Route path="/diagnostics" element={<Bottlenecks />} />
+                    <Route path="/bottlenecks" element={<Bottlenecks />} />
+                    <Route path="/performance" element={<Performance />} />
+                    <Route path="/deadline-audit" element={<DeadlineAudit />} />
+                    <Route path="/management/bank-accounts" element={<BankAccounts />} />
+                    <Route path="/financial" element={<Financial />} />
+                    <Route path="/financeiro" element={<Finance />} />
+                    <Route path="/schedule" element={<Gantt />} />
+                    <Route path="/gantt" element={<Gantt />} />
+                    <Route path="/calendar" element={<ProjectCalendar />} />
+                    <Route path="/quotes" element={<Quotes />} />
+                    <Route path="/operations/contract-generator" element={<ContractGenerator />} />
+                    <Route path="/team" element={<Team />} />
+                    <Route path="/team/new" element={<TeamNew />} />
+                    <Route path="/team/:id/edit" element={<TeamEdit />} />
+                    <Route path="/clients" element={<Clients />} />
+                    <Route path="/contacts" element={<Contacts />} />
+                    <Route path="/equipments" element={<Equipments />} />
+                    <Route path="/equipment" element={<Equipments />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/timesheet" element={<Timesheet />} />
+                    <Route path="/history" element={<History />} />
+                    <Route path="/activities" element={<Activities />} />
+                    <Route path="/pending-report" element={<PendingReport />} />
+                    <Route path="/gestao-central" element={<GestaoCentral />} />
+                    <Route path="/audit" element={<Audit />} />
+                  </Route>
+
+                  {/* Admin Only Routes */}
+                  <Route element={<AdminGuard />}>
+                    <Route path="/audit-logs" element={<Audit />} />
+                    <Route path="/admin/audit-log" element={<Audit />} />
+                    <Route path="/admin/audit-logs" element={<Audit />} />
+                    <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
+                    <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
+                    <Route path="/admin/users" element={<AdminUsers />} />
+                  </Route>
                 </Route>
               </Route>
               <Route path="*" element={<NotFound />} />

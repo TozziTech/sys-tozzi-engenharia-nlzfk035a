@@ -47,9 +47,25 @@ import { useAuth } from '@/hooks/use-auth'
 
 const navigationGroups = [
   {
+    label: 'Gestão Projetista',
+    items: [
+      {
+        name: 'Meu Painel',
+        href: '/meu-painel',
+        icon: LayoutDashboard,
+        allowedRoles: [
+          'Administrador',
+          'Gerente de Projeto',
+          'Projetista',
+          'Estagiário',
+          'Visitante',
+        ],
+      },
+    ],
+  },
+  {
     label: 'Gestão',
     items: [
-      { name: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
       { name: 'Painel do Cliente', href: '/gestao/painel-cliente', icon: LayoutDashboard },
       { name: 'Visão Executiva', href: '/executive-dashboard', icon: LineChart },
       { name: 'Dashboard Geral', href: '/dashboard', icon: LayoutDashboard },

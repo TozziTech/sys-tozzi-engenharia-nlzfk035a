@@ -29,6 +29,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { DatePicker } from './DatePicker'
+import { ClientCombobox } from './ClientCombobox'
 import useProjectStore from '@/stores/useProjectStore'
 import type { Discipline } from '@/types/project'
 import { useToast } from '@/hooks/use-toast'
@@ -149,7 +150,7 @@ export function NewProjectModal() {
                   <FormItem className="col-span-2 sm:col-span-1">
                     <FormLabel>Cliente</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: Construtora Alfa" {...field} />
+                      <ClientCombobox value={field.value} onChange={field.onChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

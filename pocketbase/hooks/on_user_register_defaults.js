@@ -16,8 +16,5 @@ onRecordCreateRequest((e) => {
     if (!e.record.getString('role')) e.record.set('role', 'Projetista')
   }
 
-  // Auto-verify all users so they can log in immediately upon creation
-  e.record.setVerified(true)
-
   e.next()
 }, 'users')

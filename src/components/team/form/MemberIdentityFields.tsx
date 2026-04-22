@@ -106,24 +106,44 @@ export function MemberIdentityFields({
       />
 
       {!isEdit && (
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Senha Provisória *</FormLabel>
-              <FormControl>
-                <Input
-                  type="password"
-                  placeholder="Mínimo de 8 caracteres"
-                  autoComplete="new-password"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <>
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Senha Provisória *</FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    placeholder="Mínimo de 8 caracteres"
+                    autoComplete="new-password"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="passwordConfirm"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirmar Senha *</FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    placeholder="Confirme a senha"
+                    autoComplete="new-password"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
       )}
 
       <FormField
@@ -139,8 +159,6 @@ export function MemberIdentityFields({
           </FormItem>
         )}
       />
-
-      {!isEdit && <div className="hidden md:block" />}
 
       <FormField
         control={form.control}

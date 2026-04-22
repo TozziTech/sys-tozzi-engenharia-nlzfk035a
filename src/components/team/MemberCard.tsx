@@ -77,6 +77,9 @@ import { exportUserPDF } from '@/lib/exportPdf'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Bar, BarChart } from 'recharts'
 import { cn } from '@/lib/utils'
+import { MemberIdentityFields } from './form/MemberIdentityFields'
+import { MemberAddressFields } from './form/MemberAddressFields'
+import { editMemberFormSchema, EditMemberFormValues } from '@/lib/schemas/member'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -663,55 +666,6 @@ function StatusHistoryDialog({ user }: { user: User }) {
     </Dialog>
   )
 }
-const editFormSchema = z
-  .object({
-    name: z.string().min(1, 'O nome do membro é obrigatório.'),
-    codigo: z.string().min(1, 'O código é obrigatório.'),
-    role: z.string().default('Projetista'),
-    status: z.string().default('Ativo'),
-    crea: z.string().optional().default(''),
-    formacaoSelect: z.string().default('Engenheiro Civil'),
-    formacaoCustom: z.string().optional().default(''),
-    email: z.string().email('Email inválido.').min(1, 'O email é obrigatório.'),
-    phone: z.string().optional().default(''),
-    altPhone: z.string().optional().default(''),
-    logradouro: z.string().optional().default(''),
-    numero: z.string().optional().default(''),
-    bairro: z.string().optional().default(''),
-    cidade: z.string().optional().default(''),
-    uf: z.string().optional().default(''),
-    cep: z.string().optional().default(''),
-    cpf: z.string().optional().default(''),
-    rg: z.string().optional().default(''),
-    birthDate: z.string().optional().default(''),
-    bank_bank: z.string().optional().default(''),
-    bank_agency: z.string().optional().default(''),
-    bank_account: z.string().optional().default(''),
-    bank_pix: z.string().optional().default(''),
-  })
-  .refine(
-    (data) => {
-      if (data.formacaoSelect === 'Outros' && !data.formacaoCustom) return false
-      return true
-    },
-    {
-      message: 'Especifique a formação.',
-      path: ['formacaoCustom'],
-    },
-  )
-  .refine(
-    (data) => {
-      if (data.cpf && data.cpf.replace(/\D/g, '').length > 0 && !validateCPF(data.cpf)) return false
-      return true
-    },
-    {
-      message: 'O CPF informado é inválido.',
-      path: ['cpf'],
-    },
-  )
-
-type EditFormValues = z.infer<typeof editFormSchema>
-
 function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
   const { projects } = useProjectStore()
   const [loading, setLoading] = useState(false)
@@ -728,8 +682,8 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
   ]
   const isPredefined = predefined.includes(initialFormacao)
 
-  const form = useForm<EditFormValues>({
-    resolver: zodResolver(editFormSchema),
+  const form = useForm<EditMemberFormValues>({
+    resolver: zodResolver(editMemberFormSchema),
     defaultValues: {
       name: user.name || '',
       codigo: (user as any).codigo || '',
@@ -753,11 +707,13 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
       cep: (user as any).cep || '',
       cpf: (user as any).cpf || '',
       rg: (user as any).rg || '',
-      birthDate: (user as any).birthDate || '',
+      birth_date: (user as any).birth_date || '',
       bank_bank: (user as any).bankData?.bank || '',
       bank_agency: (user as any).bankData?.agency || '',
       bank_account: (user as any).bankData?.account || '',
       bank_pix: (user as any).bankData?.pix || '',
+      documentos_link: (user as any).documentos_link || '',
+      notes: (user as any).notes || '',
     },
   })
 
@@ -786,11 +742,13 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         cep: (user as any).cep || '',
         cpf: (user as any).cpf || '',
         rg: (user as any).rg || '',
-        birthDate: (user as any).birthDate || '',
+        birth_date: (user as any).birth_date || '',
         bank_bank: (user as any).bankData?.bank || '',
         bank_agency: (user as any).bankData?.agency || '',
         bank_account: (user as any).bankData?.account || '',
         bank_pix: (user as any).bankData?.pix || '',
+        documentos_link: (user as any).documentos_link || '',
+        notes: (user as any).notes || '',
       })
       setSelectedProjects(user.assignedProjects || [])
     }
@@ -802,7 +760,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
     )
   }
 
-  const onSubmit = async (data: EditFormValues) => {
+  const onSubmit = async (data: EditMemberFormValues) => {
     const finalFormacao =
       data.formacaoSelect === 'Outros' ? data.formacaoCustom : data.formacaoSelect
 
@@ -819,12 +777,16 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         cep: data.cep,
         name: data.name,
         phone: data.phone,
+        altPhone: data.altPhone,
         crea: data.crea,
         cpf: data.cpf,
         rg: data.rg,
         email: data.email,
         status: data.status,
         role: data.role,
+        birth_date: data.birth_date,
+        documentos_link: data.documentos_link,
+        notes: data.notes,
       })
 
       const updatedUser = {
@@ -866,7 +828,10 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
 
       for (const [key, msg] of Object.entries(fieldErrors)) {
         if (key !== 'codigo' && key !== 'email' && key in data) {
-          form.setError(key as keyof EditFormValues, { type: 'manual', message: msg as string })
+          form.setError(key as keyof EditMemberFormValues, {
+            type: 'manual',
+            message: msg as string,
+          })
           hasFieldError = true
         }
       }
@@ -945,184 +910,13 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
 
               <ScrollArea className="flex-1 px-6 mt-6">
                 <TabsContent value="personal" className="space-y-4 m-0 pb-6">
-                  <div className="grid grid-cols-4 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem className="col-span-3">
-                          <FormLabel>Nome Completo</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="codigo"
-                      render={({ field }) => (
-                        <FormItem className="col-span-1">
-                          <FormLabel>Código</FormLabel>
-                          <FormControl>
-                            <Input disabled className="bg-muted text-muted-foreground" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem className="col-span-1">
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem className="col-span-1">
-                          <FormLabel>Telefone</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              onChange={(e) => field.onChange(maskPhone(e.target.value))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="cpf"
-                      render={({ field }) => (
-                        <FormItem className="col-span-1">
-                          <FormLabel>CPF</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              onChange={(e) => field.onChange(maskCPF(e.target.value))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="rg"
-                      render={({ field }) => (
-                        <FormItem className="col-span-1">
-                          <FormLabel>RG</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              onChange={(e) => field.onChange(maskRG(e.target.value))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <MemberIdentityFields form={form} isEdit />
 
                   <div className="pt-4 border-t border-border/50 mt-6">
                     <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground" /> Endereço
                     </h4>
-                    <div className="grid grid-cols-12 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="logradouro"
-                        render={({ field }) => (
-                          <FormItem className="col-span-12 sm:col-span-8">
-                            <FormLabel>Logradouro</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="numero"
-                        render={({ field }) => (
-                          <FormItem className="col-span-12 sm:col-span-4">
-                            <FormLabel>Número</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="bairro"
-                        render={({ field }) => (
-                          <FormItem className="col-span-12 sm:col-span-5">
-                            <FormLabel>Bairro</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="cidade"
-                        render={({ field }) => (
-                          <FormItem className="col-span-12 sm:col-span-4">
-                            <FormLabel>Cidade</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="uf"
-                        render={({ field }) => (
-                          <FormItem className="col-span-12 sm:col-span-3">
-                            <FormLabel>UF</FormLabel>
-                            <FormControl>
-                              <Input maxLength={2} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="cep"
-                        render={({ field }) => (
-                          <FormItem className="col-span-12 sm:col-span-4">
-                            <FormLabel>CEP</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                    <MemberAddressFields form={form} />
                   </div>
                 </TabsContent>
 

@@ -1,11 +1,10 @@
 import { UseFormReturn } from 'react-hook-form'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { MemberFormValues } from '@/lib/schemas/member'
 import { handleMaskedChange, maskCEP } from './mask-utils'
 import { useToast } from '@/hooks/use-toast'
 
-export function MemberAddressFields({ form }: { form: UseFormReturn<MemberFormValues> }) {
+export function MemberAddressFields({ form }: { form: UseFormReturn<any> }) {
   const { toast } = useToast()
 
   const fetchCep = async (cep: string) => {

@@ -1,11 +1,16 @@
 import { UseFormReturn } from 'react-hook-form'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { MemberFormValues } from '@/lib/schemas/member'
 import { maskCPF, maskRG, maskPhone } from '@/lib/utils'
 import { handleMaskedChange } from './mask-utils'
 
-export function MemberIdentityFields({ form }: { form: UseFormReturn<MemberFormValues> }) {
+export function MemberIdentityFields({
+  form,
+  isEdit,
+}: {
+  form: UseFormReturn<any>
+  isEdit?: boolean
+}) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <FormField
@@ -34,24 +39,26 @@ export function MemberIdentityFields({ form }: { form: UseFormReturn<MemberFormV
           </FormItem>
         )}
       />
-      <FormField
-        control={form.control}
-        name="password"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Senha Provisória *</FormLabel>
-            <FormControl>
-              <Input
-                type="password"
-                placeholder="Mínimo de 8 caracteres"
-                autoComplete="new-password"
-                {...field}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {!isEdit && (
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Senha Provisória *</FormLabel>
+              <FormControl>
+                <Input
+                  type="password"
+                  placeholder="Mínimo de 8 caracteres"
+                  autoComplete="new-password"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
       <FormField
         control={form.control}
         name="codigo"
@@ -59,7 +66,7 @@ export function MemberIdentityFields({ form }: { form: UseFormReturn<MemberFormV
           <FormItem>
             <FormLabel>Código (ID) *</FormLabel>
             <FormControl>
-              <Input disabled tabIndex={-1} className="bg-muted font-mono" {...field} />
+              <Input disabled={!isEdit} tabIndex={-1} className="bg-muted font-mono" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>

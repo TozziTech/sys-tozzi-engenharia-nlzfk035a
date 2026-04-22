@@ -1113,24 +1113,6 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                     />
                   )}
 
-                  <FormField
-                    control={form.control}
-                    name="documentos_link"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Link de Documentos (Nuvem)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="https://drive.google.com/..."
-                            autoComplete="off"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <div className="pt-4 border-t border-border/50 mt-6">
                     <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
                       <Wallet className="h-4 w-4 text-muted-foreground" /> Dados Bancários
@@ -1189,6 +1171,29 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                         )}
                       />
                     </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-border/50 mt-6">
+                    <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" /> Link de Documentos
+                    </h4>
+                    <FormField
+                      control={form.control}
+                      name="documentos_link"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Link na Nuvem</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://drive.google.com/..."
+                              autoComplete="off"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </TabsContent>
 

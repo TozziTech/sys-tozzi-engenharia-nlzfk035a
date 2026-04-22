@@ -145,12 +145,32 @@ export function MemberProfessionalFields({ form }: { form: UseFormReturn<MemberF
         control={form.control}
         name="documentos_link"
         render={({ field }) => (
-          <FormItem className="md:col-span-2">
+          <FormItem className="md:col-span-1">
             <FormLabel>Link de Documentos (Nuvem)</FormLabel>
             <FormControl>
               <Input placeholder="https://drive.google.com/..." autoComplete="off" {...field} />
             </FormControl>
-            <FormDescription>Cole o link da pasta de documentos do profissional.</FormDescription>
+            <FormDescription>Cole o link da pasta de documentos.</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="documents"
+        render={({ field: { value, onChange, ...field } }) => (
+          <FormItem className="md:col-span-1">
+            <FormLabel>Documentos Profissionais</FormLabel>
+            <FormControl>
+              <Input
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(e) => onChange(e.target.files)}
+                {...field}
+              />
+            </FormControl>
+            <FormDescription>Anexe cópia do CREA, contratos, etc.</FormDescription>
             <FormMessage />
           </FormItem>
         )}

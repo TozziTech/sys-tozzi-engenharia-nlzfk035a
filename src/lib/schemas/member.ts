@@ -36,6 +36,7 @@ export const baseMemberSchema = z.object({
   chave_pix: z.string().optional().default(''),
   avatar: z.any().optional(),
   documentos_link: z.string().optional().default(''),
+  documents: z.any().optional(),
   notes: z.string().optional().default(''),
 })
 
@@ -97,5 +98,6 @@ export const DEFAULT_MEMBER_VALUES: MemberFormValues = {
   chave_pix: '',
   avatar: undefined,
   documentos_link: '',
+  documents: undefined,
   notes: '',
 }

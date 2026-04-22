@@ -77,6 +77,12 @@ export default function TeamNew() {
 
       formData.append('notes', data.notes)
 
+      if (data.documents && data.documents.length > 0) {
+        for (let i = 0; i < data.documents.length; i++) {
+          formData.append('documents', data.documents[i])
+        }
+      }
+
       await pb.collection('users').create(formData)
 
       toast({

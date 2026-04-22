@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-22T05:36:41.115Z",
+  "generatedAt": "2026-04-22T05:53:39.951Z",
   "collections": [
     {
       "name": "users",
@@ -188,6 +188,12 @@
         {
           "name": "lockout_until",
           "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documents",
+          "type": "file",
           "required": false,
           "system": false
         }

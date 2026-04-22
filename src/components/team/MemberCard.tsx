@@ -80,6 +80,7 @@ import { cn } from '@/lib/utils'
 import { MemberIdentityFields } from './form/MemberIdentityFields'
 import { MemberAddressFields } from './form/MemberAddressFields'
 import { editMemberFormSchema, EditMemberFormValues } from '@/lib/schemas/member'
+import { X } from 'lucide-react'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -347,6 +348,36 @@ export function MemberCard({
                       </div>
                     )}
                   </div>
+
+                  {/* Documents */}
+                  {u.documents && u.documents.length > 0 && (
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between border-b border-border/50 pb-2">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5" /> Documentos Anexados
+                        </div>
+                        <Badge variant="secondary" className="h-5 px-2 text-xs rounded-full">
+                          {u.documents.length}
+                        </Badge>
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {u.documents.map((doc: string) => (
+                          <a
+                            key={doc}
+                            href={pb.files.getURL(u, doc)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-between bg-muted/10 border border-border/60 p-3 rounded-lg shadow-sm hover:bg-muted/30 transition-colors group/doc"
+                          >
+                            <span className="text-sm font-medium truncate pr-2" title={doc}>
+                              {doc}
+                            </span>
+                            <FileDown className="h-4 w-4 text-muted-foreground group-hover/doc:text-primary shrink-0" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Financial Performance */}
                   <div className="space-y-4">
@@ -671,6 +702,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const [selectedProjects, setSelectedProjects] = useState<string[]>(user.assignedProjects || [])
+  const [existingDocs, setExistingDocs] = useState<string[]>((user as any).documents || [])
 
   const initialFormacao = (user as any).formacao || user.specialty || ''
   const predefined = [
@@ -751,8 +783,23 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         notes: (user as any).notes || '',
       })
       setSelectedProjects(user.assignedProjects || [])
+      setExistingDocs((user as any).documents || [])
     }
   }, [open, user, form, initialFormacao, isPredefined])
+
+  const handleRemoveDoc = async (fileName: string) => {
+    if (!confirm('Deseja remover este documento?')) return
+    try {
+      const updated = await pb.collection('users').update(user.id, {
+        'documents-': fileName,
+      })
+      setExistingDocs(updated.documents || [])
+      onSave({ ...user, documents: updated.documents })
+      toast({ title: 'Sucesso', description: 'Documento removido com sucesso.' })
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    }
+  }
 
   const handleToggleProject = (projectId: string) => {
     setSelectedProjects((prev) =>
@@ -766,7 +813,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
 
     setLoading(true)
     try {
-      await pb.collection('users').update(user.id, {
+      const updateData: any = {
         codigo: data.codigo,
         formacao: finalFormacao,
         logradouro: data.logradouro,
@@ -787,7 +834,23 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         birth_date: data.birth_date,
         documentos_link: data.documentos_link,
         notes: data.notes,
-      })
+      }
+
+      let resUser
+      if (data.documents && data.documents.length > 0) {
+        const formData = new FormData()
+        for (const [key, value] of Object.entries(updateData)) {
+          if (value !== undefined && value !== null) {
+            formData.append(key, value as string)
+          }
+        }
+        for (let i = 0; i < data.documents.length; i++) {
+          formData.append('documents', data.documents[i])
+        }
+        resUser = await pb.collection('users').update(user.id, formData)
+      } else {
+        resUser = await pb.collection('users').update(user.id, updateData)
+      }
 
       const updatedUser = {
         ...user,
@@ -801,6 +864,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
           account: data.bank_account,
           pix: data.bank_pix,
         },
+        documents: resUser.documents,
       }
 
       toast({ title: 'Sucesso', description: 'Membro atualizado com sucesso.' })
@@ -982,7 +1046,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                     />
                   )}
 
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="status"
@@ -1001,6 +1065,88 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
                               <SelectItem value="Em Férias">Em Férias</SelectItem>
                             </SelectContent>
                           </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="documentos_link"
+                      render={({ field }) => (
+                        <FormItem className="col-span-1">
+                          <FormLabel>Link de Documentos (Nuvem)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="https://drive.google.com/..."
+                              autoComplete="off"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-border/50 mt-6">
+                    <h4 className="font-semibold text-sm mb-4 text-foreground flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" /> Documentos
+                      Profissionais
+                    </h4>
+
+                    {existingDocs.length > 0 && (
+                      <div className="mb-4 space-y-2">
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Documentos Anexados
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {existingDocs.map((doc) => (
+                            <div
+                              key={doc}
+                              className="flex items-center justify-between p-2 text-sm border rounded-md bg-muted/20"
+                            >
+                              <a
+                                href={pb.files.getURL(user as any, doc)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="truncate font-medium hover:underline hover:text-primary pr-2"
+                              >
+                                {doc}
+                              </a>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleRemoveDoc(doc)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <FormField
+                      control={form.control}
+                      name="documents"
+                      render={({ field: { value, onChange, ...field } }) => (
+                        <FormItem>
+                          <FormLabel>Adicionar Novos Documentos</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="file"
+                              multiple
+                              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                              onChange={(e) => onChange(e.target.files)}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Selecione um ou mais arquivos (cópias de CREA, contratos, etc.) para
+                            anexar ao perfil.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}

@@ -29,6 +29,7 @@ export interface User {
   role?: 'Administrador' | 'Gerente de Projeto' | 'Projetista'
   hourlyRate?: number
   assignedProjects?: string[]
+  assigned_projects?: string[]
   specialty?: string
   crea?: string
   address?: string

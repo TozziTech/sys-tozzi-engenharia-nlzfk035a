@@ -18,9 +18,13 @@ import { MemberIdentityFields } from '@/components/team/form/MemberIdentityField
 import { MemberProfessionalFields } from '@/components/team/form/MemberProfessionalFields'
 import { MemberAddressFields } from '@/components/team/form/MemberAddressFields'
 import { MemberAdditionalFields } from '@/components/team/form/MemberAdditionalFields'
+import useProjectStore from '@/stores/useProjectStore'
+import { Checkbox } from '@/components/ui/checkbox'
 
 export default function TeamNew() {
   const navigate = useNavigate()
+  const { projects } = useProjectStore()
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([])
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -89,6 +93,12 @@ export default function TeamNew() {
         }
       }
 
+      if (selectedProjects.length > 0) {
+        for (const pid of selectedProjects) {
+          formData.append('assigned_projects', pid)
+        }
+      }
+
       await pb.collection('users').create(formData)
 
       toast({
@@ -146,6 +156,46 @@ export default function TeamNew() {
               <p className="text-sm text-muted-foreground">Informações de residência.</p>
             </div>
             <MemberAddressFields form={form} />
+          </Card>
+
+          <Card className="p-6 border-border/40 shadow-sm">
+            <div className="mb-6 border-b border-border/50 pb-4">
+              <h2 className="text-lg font-semibold">Projetos Atribuídos</h2>
+              <p className="text-sm text-muted-foreground">
+                Selecione os projetos aos quais o membro terá acesso.
+              </p>
+            </div>
+            <div className="border rounded-lg p-1 bg-muted/10 border-border/60 max-h-60 overflow-y-auto">
+              {projects.length > 0 ? (
+                projects.map((project) => (
+                  <label
+                    key={project.id}
+                    className="flex items-center space-x-3 p-3 hover:bg-muted/50 rounded-md cursor-pointer transition-colors"
+                  >
+                    <Checkbox
+                      checked={selectedProjects.includes(project.id)}
+                      onCheckedChange={() => {
+                        setSelectedProjects((prev) =>
+                          prev.includes(project.id)
+                            ? prev.filter((id) => id !== project.id)
+                            : [...prev, project.id],
+                        )
+                      }}
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium leading-none">{project.name}</span>
+                      <span className="text-xs text-muted-foreground mt-1.5">
+                        {project.client} • {project.status}
+                      </span>
+                    </div>
+                  </label>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground p-4 text-center">
+                  Nenhum projeto cadastrado.
+                </p>
+              )}
+            </div>
           </Card>
 
           <Card className="p-6 border-border/40 shadow-sm">

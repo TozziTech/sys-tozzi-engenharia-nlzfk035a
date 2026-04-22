@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-22T19:24:44.885Z",
+  "generatedAt": "2026-04-22T19:37:21.155Z",
   "collections": [
     {
       "name": "users",
@@ -196,6 +196,13 @@
           "type": "file",
           "required": false,
           "system": false
+        },
+        {
+          "name": "assigned_projects",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "projects"
         }
       ],
       "indexes": [

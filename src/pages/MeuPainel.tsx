@@ -106,9 +106,15 @@ export default function MeuPainel() {
       const firstDay = format(startOfMonth(new Date()), 'yyyy-MM-dd')
       const lastDay = format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
+      let projectFilter = `engineer ~ "${user.name}"`
+      if (user.assigned_projects && user.assigned_projects.length > 0) {
+        const ids = user.assigned_projects.map((id: string) => `id = "${id}"`).join(' || ')
+        projectFilter = `(${projectFilter}) || (${ids})`
+      }
+
       const [engineerProjects, mods, logs, th] = await Promise.all([
         pb.collection('projects').getFullList({
-          filter: `engineer ~ "${user.name}"`,
+          filter: projectFilter,
         }),
         pb.collection('project_modules').getFullList({
           filter: `responsible = "${user.id}" || designer = "${user.id}"`,

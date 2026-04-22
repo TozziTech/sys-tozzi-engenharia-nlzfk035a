@@ -117,7 +117,7 @@ export function MemberCard({
 }) {
   const { projects } = useProjectStore()
   const { user: currentUser } = useAuth()
-  const userProjects = projects.filter((p) => user.assignedProjects?.includes(p.id))
+  const userProjects = projects.filter((p) => (user as any).assigned_projects?.includes(p.id))
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
@@ -709,7 +709,9 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
   const { user: currentUser } = useAuth()
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
-  const [selectedProjects, setSelectedProjects] = useState<string[]>(user.assignedProjects || [])
+  const [selectedProjects, setSelectedProjects] = useState<string[]>(
+    (user as any).assigned_projects || [],
+  )
   const [existingDocs, setExistingDocs] = useState<string[]>((user as any).documents || [])
 
   const initialFormacao = (user as any).formacao || user.specialty || ''
@@ -790,7 +792,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         documentos_link: (user as any).documentos_link || '',
         notes: (user as any).notes || '',
       })
-      setSelectedProjects(user.assignedProjects || [])
+      setSelectedProjects((user as any).assigned_projects || [])
       setExistingDocs((user as any).documents || [])
     }
   }, [open, user, form, initialFormacao, isPredefined])
@@ -842,6 +844,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         birth_date: data.birth_date,
         documentos_link: data.documentos_link,
         notes: data.notes,
+        assigned_projects: selectedProjects,
       }
 
       let resUser
@@ -865,7 +868,7 @@ function MemberEditDialog({ user, onSave, open, onOpenChange }: any) {
         ...data,
         formacao: finalFormacao,
         specialty: finalFormacao,
-        assignedProjects: selectedProjects,
+        assigned_projects: selectedProjects,
         bankData: {
           bank: data.bank_bank,
           agency: data.bank_agency,

@@ -87,9 +87,8 @@ export default function Team() {
 
   const filteredMembers = useMemo(() => {
     const filtered = dbUsers.filter((m) => {
-      const isInactive = m.status === 'Inativo'
-      if (statusFilter === 'active' && isInactive) return false
-      if (statusFilter === 'inactive' && !isInactive) return false
+      if (statusFilter === 'active' && m.status !== 'Ativo') return false
+      if (statusFilter === 'inactive' && m.status !== 'Inativo') return false
 
       const mFormacao = m.formacao || m.specialty
       const matchesFormacao = formacaoFilter === 'all' || mFormacao === formacaoFilter

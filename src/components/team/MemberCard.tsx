@@ -61,6 +61,7 @@ import {
   UserCheck,
   UserMinus,
   History,
+  Key,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -123,6 +124,28 @@ export function MemberCard({
 
   const [isUpdating, setIsUpdating] = useState(false)
   const { toast } = useToast()
+
+  const handleAdminPasswordReset = async () => {
+    try {
+      setIsUpdating(true)
+      await pb.collection('users').requestPasswordReset(user.email)
+      await pb.collection('users').update(user.id, { must_change_password: true })
+      await pb.collection('audit_logs').create({
+        user_id: user.id,
+        action: 'ADMIN_PASSWORD_RESET',
+        resource: 'users',
+        details: { admin_id: currentUser?.id },
+      })
+      toast({
+        title: 'Sucesso',
+        description: 'Link de redefinição enviado para o e-mail do usuário.',
+      })
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    } finally {
+      setIsUpdating(false)
+    }
+  }
 
   const handleQuickEdit = async (field: 'status' | 'role', value: string) => {
     const u = user as any
@@ -531,6 +554,17 @@ export function MemberCard({
                 <Edit2 className="h-5 w-5" />
               </Button>
             </Link>
+            {currentUser?.role === 'Administrador' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full text-muted-foreground hover:text-amber-600 hover:bg-amber-100 shrink-0"
+                onClick={handleAdminPasswordReset}
+                title="Redefinir Senha"
+              >
+                <Key className="h-5 w-5" />
+              </Button>
+            )}
             {u.status === 'Inativo' ? (
               <>
                 {currentUser?.role === 'Administrador' && (
@@ -560,10 +594,9 @@ export function MemberCard({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Excluir Membro Permanentemente</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Tem certeza que deseja remover {user.name} da equipe em definitivo?
-                            Todos os vínculos em tarefas, registros financeiros e logs podem ser
-                            perdidos ou desassociados. Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
+                            Tem certeza que deseja excluir este usuário? Esta ação é irreversível e
+                            removerá o acesso permanentemente.
+                          </AlertDialogDescription>{' '}
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>

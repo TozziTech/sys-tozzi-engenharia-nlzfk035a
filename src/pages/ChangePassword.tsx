@@ -79,7 +79,7 @@ export default function ChangePassword() {
 
       await pb.collection('audit_logs').create({
         user_id: user.id,
-        action: 'password_change',
+        action: 'PASSWORD_CHANGE',
         resource: 'users',
         details: { method: 'self_service' },
       })

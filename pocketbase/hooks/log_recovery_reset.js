@@ -6,7 +6,7 @@ routerAdd('POST', '/backend/v1/log-recovery-reset', (e) => {
   try {
     const audit = new Record($app.findCollectionByNameOrId('audit_logs'))
     audit.set('user_id', userId)
-    audit.set('action', 'password_change')
+    audit.set('action', 'PASSWORD_CHANGE')
     audit.set('resource', 'users')
     audit.set('details', { method: 'recovery_link' })
     $app.saveNoValidate(audit)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T06:35:38.984Z",
+  "generatedAt": "2026-04-23T06:42:59.744Z",
   "collections": [
     {
       "name": "users",
@@ -3035,6 +3035,72 @@
         "CREATE INDEX idx_upa_user ON user_project_access (user)",
         "CREATE INDEX idx_upa_project ON user_project_access (project)",
         "CREATE UNIQUE INDEX idx_upa_user_project ON user_project_access (user, project)"
+      ]
+    },
+    {
+      "name": "access_requests",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (user = @request.auth.id || @request.auth.role = 'Administrador')",
+        "view": "@request.auth.id != '' && (user = @request.auth.id || @request.auth.role = 'Administrador')",
+        "create": "@request.auth.id != '' && user = @request.auth.id",
+        "update": "@request.auth.role = 'Administrador'",
+        "delete": "@request.auth.role = 'Administrador'"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "project",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "projects"
+        },
+        {
+          "name": "requested_level",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Leitura", "Edição"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Pendente", "Aprovado", "Negado"]
+        },
+        {
+          "name": "admin_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_access_requests_user ON access_requests (user)",
+        "CREATE INDEX idx_access_requests_project ON access_requests (project)",
+        "CREATE INDEX idx_access_requests_status ON access_requests (status)"
       ]
     }
   ]

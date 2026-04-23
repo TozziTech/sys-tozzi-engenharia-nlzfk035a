@@ -16,7 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield, Clock, CheckCircle, KeyRound, FolderKanban, Search, FileText } from 'lucide-react'
+import {
+  Shield,
+  Clock,
+  CheckCircle,
+  KeyRound,
+  FolderKanban,
+  Search,
+  FileText,
+  History,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -41,12 +50,20 @@ export default function AccessControl() {
   const [users, setUsers] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [accessRecords, setAccessRecords] = useState<any[]>([])
+  const [requests, setRequests] = useState<any[]>([])
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
   const [settings, setSettings] = useState<any>(null)
+
   const { toast } = useToast()
   const { user: currentUser } = useAuth()
 
   const [approvalUser, setApprovalUser] = useState<any>(null)
   const [editProjectsUser, setEditProjectsUser] = useState<any>(null)
+  const [requestActionModal, setRequestActionModal] = useState<{
+    req: any
+    action: 'Aprovar' | 'Negar'
+  } | null>(null)
+  const [adminNotes, setAdminNotes] = useState('')
 
   const [selectedRole, setSelectedRole] = useState('Visitante')
   const [codigo, setCodigo] = useState('')
@@ -54,22 +71,34 @@ export default function AccessControl() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activateNow, setActivateNow] = useState(true)
 
-  // Map of projectId -> accessLevel
   const [selectedAccesses, setSelectedAccesses] = useState<Record<string, string>>({})
   const [projectSearch, setProjectSearch] = useState('')
 
   const loadData = async () => {
     try {
-      const [usersRes, projectsRes, accessRes, settingsRes] = await Promise.all([
+      const [usersRes, projectsRes, accessRes, settingsRes, reqsRes, auditRes] = await Promise.all([
         pb.collection('users').getFullList({ sort: '-created' }),
         pb.collection('projects').getFullList({ sort: 'name', filter: 'status != "Concluído"' }),
         pb.collection('user_project_access').getFullList({ expand: 'project' }),
         pb.collection('company_settings').getFullList(),
+        pb
+          .collection('access_requests')
+          .getFullList({ filter: 'status = "Pendente"', expand: 'user,project', sort: '-created' }),
+        pb
+          .collection('audit_logs')
+          .getFullList({
+            filter: 'resource = "user_project_access"',
+            expand: 'user_id',
+            sort: '-created',
+            limit: 100,
+          }),
       ])
       setUsers(usersRes)
       setProjects(projectsRes)
       setAccessRecords(accessRes)
       if (settingsRes.length > 0) setSettings(settingsRes[0])
+      setRequests(reqsRes)
+      setAuditLogs(auditRes)
     } catch (e) {
       console.error(e)
     }
@@ -80,6 +109,8 @@ export default function AccessControl() {
   }, [])
   useRealtime('users', () => loadData())
   useRealtime('user_project_access', () => loadData())
+  useRealtime('access_requests', () => loadData())
+  useRealtime('audit_logs', () => loadData())
 
   const pendingUsers = useMemo(() => users.filter((u) => u.status === 'Pendente'), [users])
   const activeUsers = useMemo(() => users.filter((u) => u.status !== 'Pendente'), [users])
@@ -112,6 +143,29 @@ export default function AccessControl() {
     }
   }
 
+  const handleProcessRequest = async () => {
+    if (!requestActionModal) return
+    setIsSubmitting(true)
+    try {
+      const status = requestActionModal.action === 'Aprovar' ? 'Aprovado' : 'Negado'
+      await pb.collection('access_requests').update(requestActionModal.req.id, {
+        status,
+        admin_notes: adminNotes,
+      })
+      toast({ title: 'Sucesso', description: `Solicitação ${status.toLowerCase()} com sucesso.` })
+      setRequestActionModal(null)
+      setAdminNotes('')
+    } catch (e) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao processar solicitação.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const openApproval = (user: any) => {
     setApprovalUser(user)
     setSelectedRole(user.role || 'Visitante')
@@ -123,7 +177,6 @@ export default function AccessControl() {
     const accMap: Record<string, string> = {}
     userAcc.forEach((a) => (accMap[a.project] = a.access_level))
     setSelectedAccesses(accMap)
-
     setProjectSearch('')
   }
 
@@ -138,7 +191,6 @@ export default function AccessControl() {
 
   const saveAccesses = async (userId: string) => {
     const existing = accessRecords.filter((a) => a.user === userId)
-
     const toDelete = existing.filter((e) => !selectedAccesses[e.project])
     const toUpdate = existing.filter(
       (e) => selectedAccesses[e.project] && e.access_level !== selectedAccesses[e.project],
@@ -162,11 +214,9 @@ export default function AccessControl() {
         access_level: selectedAccesses[pid],
       })
     }
-
-    // Keep backwards compatibility
-    await pb.collection('users').update(userId, {
-      assigned_projects: Object.keys(selectedAccesses),
-    })
+    await pb
+      .collection('users')
+      .update(userId, { assigned_projects: Object.keys(selectedAccesses) })
   }
 
   const submitApproval = async () => {
@@ -193,18 +243,12 @@ export default function AccessControl() {
         must_change_password: true,
       })
       await saveAccesses(approvalUser.id)
-
       toast({ title: 'Sucesso', description: 'Usuário aprovado e ativado com projetos definidos.' })
       setApprovalUser(null)
-      loadData()
     } catch (err: any) {
       const errors = extractFieldErrors(err)
       if (errors.codigo) {
-        toast({
-          title: 'Erro',
-          description: 'Este código já está em uso por outro usuário.',
-          variant: 'destructive',
-        })
+        toast({ title: 'Erro', description: 'Este código já está em uso.', variant: 'destructive' })
       } else {
         toast({ title: 'Erro', description: 'Falha ao aprovar usuário.', variant: 'destructive' })
       }
@@ -219,7 +263,6 @@ export default function AccessControl() {
       await saveAccesses(editProjectsUser.id)
       toast({ title: 'Sucesso', description: 'Projetos associados atualizados com sucesso.' })
       setEditProjectsUser(null)
-      loadData()
     } catch (e) {
       toast({ title: 'Erro', description: 'Falha ao atualizar projetos.', variant: 'destructive' })
     } finally {
@@ -255,7 +298,7 @@ export default function AccessControl() {
             placeholder="Buscar projetos..."
             value={projectSearch}
             onChange={(e) => setProjectSearch(e.target.value)}
-            className={`pl-9 ${isDarkTheme ? 'bg-zinc-900/50 border-amber-500/20 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-amber-500 hover:border-amber-500/40 transition-colors' : ''}`}
+            className={`pl-9 ${isDarkTheme ? 'bg-zinc-900/50 border-amber-500/20 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-amber-500 hover:border-amber-500/40' : ''}`}
           />
         </div>
         <div
@@ -300,7 +343,6 @@ export default function AccessControl() {
                     </span>
                   </div>
                 </label>
-
                 {isSelected && (
                   <Select
                     value={accessLevel}
@@ -309,7 +351,7 @@ export default function AccessControl() {
                     }
                   >
                     <SelectTrigger
-                      className={`h-8 w-[100px] text-xs ${isDarkTheme ? 'bg-zinc-900/80 border-amber-500/30 text-amber-500 focus:ring-amber-500 hover:border-amber-500 transition-colors' : ''}`}
+                      className={`h-8 w-[100px] text-xs ${isDarkTheme ? 'bg-zinc-900/80 border-amber-500/30 text-amber-500 focus:ring-amber-500 hover:border-amber-500' : ''}`}
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -366,31 +408,41 @@ export default function AccessControl() {
             <Shield className="h-8 w-8 text-primary" /> Controle de Acesso
           </h1>
           <p className="text-muted-foreground">
-            Gerencie os níveis de acesso e aprovações de novos usuários na plataforma.
+            Gerencie acessos, aprovações e auditoria na plataforma.
           </p>
         </div>
-
         <Button
           onClick={handleExportAccessReport}
           variant="outline"
-          className="shrink-0 bg-white border-amber-500/30 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:bg-zinc-950 dark:border-amber-500/30 dark:text-amber-500 dark:hover:bg-zinc-900 dark:hover:text-amber-400"
+          className="bg-white border-amber-500/30 text-amber-700 hover:bg-amber-50 dark:bg-zinc-950 dark:border-amber-500/30 dark:text-amber-500 dark:hover:bg-zinc-900"
         >
-          <FileText className="h-4 w-4 mr-2" /> Exportar Relatório de Acessos
+          <FileText className="h-4 w-4 mr-2" /> Exportar Relatório
         </Button>
       </div>
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="mb-6">
+        <TabsList className="mb-6 flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
           <TabsTrigger value="active" className="flex gap-2">
-            <CheckCircle className="h-4 w-4" /> Usuários Registrados
+            <CheckCircle className="h-4 w-4" /> Usuários
           </TabsTrigger>
           <TabsTrigger value="pending" className="flex gap-2">
-            <Clock className="h-4 w-4" /> Aguardando Aprovação
+            <Clock className="h-4 w-4" /> Aprovações
             {pendingUsers.length > 0 && (
               <span className="ml-1 bg-primary text-primary-foreground text-[10px] px-2 py-0.5 rounded-full">
                 {pendingUsers.length}
               </span>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="requests" className="flex gap-2">
+            <KeyRound className="h-4 w-4" /> Solicitações
+            {requests.length > 0 && (
+              <span className="ml-1 bg-amber-500 text-white dark:text-zinc-950 text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">
+                {requests.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex gap-2">
+            <History className="h-4 w-4" /> Histórico
           </TabsTrigger>
         </TabsList>
 
@@ -401,9 +453,9 @@ export default function AccessControl() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>E-mail</TableHead>
-                  <TableHead>Nível de Acesso</TableHead>
+                  <TableHead>Nível</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Projetos Associados</TableHead>
+                  <TableHead>Projetos</TableHead>
                   {currentUser?.role === 'Administrador' && (
                     <TableHead className="text-right">Ações</TableHead>
                   )}
@@ -461,7 +513,7 @@ export default function AccessControl() {
                                 <Badge
                                   key={a.id}
                                   variant="outline"
-                                  className="bg-zinc-900/80 backdrop-blur-md text-amber-500 border-amber-500/30 truncate max-w-[120px] hover:border-amber-500 transition-colors"
+                                  className="bg-zinc-900/80 backdrop-blur-md text-amber-500 border-amber-500/30 truncate max-w-[120px]"
                                   title={`${a.expand?.project?.name} - ${a.access_level}`}
                                 >
                                   {a.expand?.project?.name} (
@@ -471,7 +523,7 @@ export default function AccessControl() {
                               {userAccs.length > 2 && (
                                 <Badge
                                   variant="outline"
-                                  className="bg-zinc-800/80 backdrop-blur-md text-zinc-400 border-zinc-700"
+                                  className="bg-zinc-800/80 text-zinc-400 border-zinc-700"
                                 >
                                   +{userAccs.length - 2}
                                 </Badge>
@@ -498,7 +550,7 @@ export default function AccessControl() {
                               variant="outline"
                               size="icon"
                               onClick={() => handleAdminReset(u)}
-                              title="Enviar link de redefinição de senha"
+                              title="Link de redefinição de senha"
                             >
                               <KeyRound className="h-4 w-4" />
                             </Button>
@@ -510,10 +562,7 @@ export default function AccessControl() {
                 })}
                 {activeUsers.length === 0 && (
                   <TableRow>
-                    <TableCell
-                      colSpan={currentUser?.role === 'Administrador' ? 6 : 5}
-                      className="text-center py-6 text-muted-foreground"
-                    >
+                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                       Nenhum usuário encontrado.
                     </TableCell>
                   </TableRow>
@@ -560,15 +609,134 @@ export default function AccessControl() {
             </Table>
           </div>
         </TabsContent>
+
+        <TabsContent value="requests">
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Colaborador</TableHead>
+                  <TableHead>Projeto</TableHead>
+                  <TableHead>Nível Solicitado</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {requests.map((req) => (
+                  <TableRow key={req.id}>
+                    <TableCell>{new Date(req.created).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="font-medium">
+                      {req.expand?.user?.name || req.expand?.user?.email}
+                    </TableCell>
+                    <TableCell>{req.expand?.project?.name}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className="bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/30"
+                      >
+                        {req.requested_level}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:text-red-500 dark:hover:bg-red-500/10"
+                          onClick={() => setRequestActionModal({ req, action: 'Negar' })}
+                        >
+                          Negar
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 bg-amber-500 text-white hover:bg-amber-600 dark:text-zinc-950 dark:shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                          onClick={() => setRequestActionModal({ req, action: 'Aprovar' })}
+                        >
+                          Aprovar
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {requests.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      Nenhuma solicitação pendente.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data/Hora</TableHead>
+                  <TableHead>Ação</TableHead>
+                  <TableHead>Projeto</TableHead>
+                  <TableHead>Colaborador Afetado</TableHead>
+                  <TableHead>Executado por</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {auditLogs.map((log) => {
+                  const targetUser = users.find((u) => u.id === log.details?.target_user)
+                  const actionLabel =
+                    log.action === 'access_granted'
+                      ? 'Acesso Concedido'
+                      : log.action === 'access_updated'
+                        ? 'Acesso Atualizado'
+                        : 'Acesso Revogado'
+                  const actionColor =
+                    log.action === 'access_granted'
+                      ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-500/10 dark:border-green-500/20'
+                      : log.action === 'access_updated'
+                        ? 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/20'
+                        : 'text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-500/10 dark:border-red-500/20'
+
+                  return (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date(log.created).toLocaleString('pt-BR')}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={actionColor}>
+                          {actionLabel}{' '}
+                          {log.details?.access_level ? `(${log.details.access_level})` : ''}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{log.details?.project_name}</TableCell>
+                      <TableCell>{targetUser?.name || 'Usuário Desconhecido'}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {log.expand?.user_id?.name || 'Sistema'}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+                {auditLogs.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      Nenhum registro de auditoria encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
       </Tabs>
 
-      {/* Approval Dialog */}
       <Dialog open={!!approvalUser} onOpenChange={(open) => !open && setApprovalUser(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Aprovar Acesso</DialogTitle>
             <DialogDescription>
-              Defina as permissões e projetos para o usuário <strong>{approvalUser?.name}</strong>.
+              Defina as permissões para o usuário <strong>{approvalUser?.name}</strong>.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -600,18 +768,12 @@ export default function AccessControl() {
             </div>
             <div className="space-y-2">
               <Label>Senha Provisória</Label>
-              <Input
-                value={tempPassword}
-                onChange={(e) => setTempPassword(e.target.value)}
-                placeholder="Senha temporária"
-              />
+              <Input value={tempPassword} onChange={(e) => setTempPassword(e.target.value)} />
               <p className="text-[10px] text-muted-foreground">
                 Forçado a alterar no primeiro login.
               </p>
             </div>
-
             <ProjectSelector />
-
             <div className="flex items-center space-x-2 pt-2 border-t mt-4">
               <Switch id="activate" checked={activateNow} onCheckedChange={setActivateNow} />
               <Label htmlFor="activate" className="cursor-pointer">
@@ -630,7 +792,6 @@ export default function AccessControl() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Projects (Glassmorphism Premium) Dialog */}
       <Dialog open={!!editProjectsUser} onOpenChange={(open) => !open && setEditProjectsUser(null)}>
         <DialogContent className="sm:max-w-md bg-zinc-900/80 border-amber-500/20 text-zinc-100 shadow-2xl shadow-black/80 backdrop-blur-md">
           <DialogHeader>
@@ -658,6 +819,61 @@ export default function AccessControl() {
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!requestActionModal}
+        onOpenChange={(open) => !open && setRequestActionModal(null)}
+      >
+        <DialogContent className="bg-white dark:bg-zinc-950 border-amber-500/20 dark:text-zinc-100 shadow-2xl dark:shadow-black/80">
+          <DialogHeader>
+            <DialogTitle
+              className={
+                requestActionModal?.action === 'Aprovar'
+                  ? 'text-amber-600 dark:text-amber-500'
+                  : 'text-red-600 dark:text-red-500'
+              }
+            >
+              {requestActionModal?.action} Solicitação
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 dark:text-zinc-400">
+              {requestActionModal?.action === 'Aprovar'
+                ? `Confirmar acesso de ${requestActionModal.req?.requested_level} para ${requestActionModal.req?.expand?.user?.name} no projeto ${requestActionModal.req?.expand?.project?.name}?`
+                : `Você está negando o acesso de ${requestActionModal.req?.expand?.user?.name} ao projeto ${requestActionModal.req?.expand?.project?.name}.`}
+            </DialogDescription>
+          </DialogHeader>
+          {requestActionModal?.action === 'Negar' && (
+            <div className="space-y-2 py-4">
+              <Label className="text-slate-700 dark:text-zinc-300">Motivo (Opcional)</Label>
+              <Input
+                value={adminNotes}
+                onChange={(e) => setAdminNotes(e.target.value)}
+                placeholder="Ex: Acesso restrito a gerentes."
+                className="dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-200 focus-visible:ring-amber-500"
+              />
+            </div>
+          )}
+          <DialogFooter className="border-t border-slate-200 dark:border-amber-500/20 pt-4 mt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setRequestActionModal(null)}
+              className="text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleProcessRequest}
+              disabled={isSubmitting}
+              className={
+                requestActionModal?.action === 'Aprovar'
+                  ? 'bg-amber-500 text-white dark:text-zinc-950 hover:bg-amber-600'
+                  : 'bg-red-600 text-white hover:bg-red-700'
+              }
+            >
+              {isSubmitting ? 'Processando...' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>

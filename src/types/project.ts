@@ -119,6 +119,16 @@ export interface Transaction {
   status?: 'Pendente' | 'Pago'
 }
 
+export interface AccessRequest {
+  id: string
+  user: string
+  project: string
+  requested_level: 'Leitura' | 'Edição'
+  status: 'Pendente' | 'Aprovado' | 'Negado'
+  admin_notes?: string
+  created: string
+}
+
 export interface Project {
   id: string
   name: string

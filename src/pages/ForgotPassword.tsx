@@ -62,7 +62,8 @@ export default function ForgotPassword() {
             <div className="flex flex-col items-center justify-center space-y-4 py-4 text-center animate-in fade-in zoom-in duration-300">
               <MailCheck className="h-16 w-16 text-primary" />
               <p className="text-sm font-medium">
-                Se o e-mail estiver cadastrado, você receberá um link de recuperação em instantes.
+                Se o e-mail estiver cadastrado, você receberá instruções para redefinir sua senha em
+                instantes.
               </p>
               <Button onClick={() => navigate('/login')} className="mt-4 w-full">
                 Voltar para o Login

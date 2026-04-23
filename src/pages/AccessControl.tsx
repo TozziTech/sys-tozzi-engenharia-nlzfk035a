@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield, Clock, CheckCircle } from 'lucide-react'
+import { Shield, Clock, CheckCircle, KeyRound } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ import { extractFieldErrors } from '@/lib/pocketbase/errors'
 export default function AccessControl() {
   const [users, setUsers] = useState<any[]>([])
   const { toast } = useToast()
+  const { user: currentUser } = useAuth()
 
   // Approval Dialog State
   const [approvalUser, setApprovalUser] = useState<any>(null)
@@ -68,6 +70,25 @@ export default function AccessControl() {
       toast({ title: 'Sucesso', description: successMsg })
     } catch (e) {
       toast({ title: 'Erro', description: 'Falha ao atualizar registro.', variant: 'destructive' })
+    }
+  }
+
+  const handleAdminReset = async (user: any) => {
+    try {
+      await pb.collection('users').requestPasswordReset(user.email)
+      await pb.collection('audit_logs').create({
+        user_id: user.id,
+        action: 'password_reset_request',
+        resource: 'users',
+        details: { method: 'admin_reset', triggered_by: currentUser?.id },
+      })
+      toast({ title: 'Sucesso', description: `Link de redefinição enviado para ${user.email}` })
+    } catch (e) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao enviar link de redefinição.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -157,6 +178,9 @@ export default function AccessControl() {
                   <TableHead>Código</TableHead>
                   <TableHead>Nível de Acesso</TableHead>
                   <TableHead>Status</TableHead>
+                  {currentUser?.role === 'Administrador' && (
+                    <TableHead className="text-right">Ações</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -202,11 +226,27 @@ export default function AccessControl() {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    {currentUser?.role === 'Administrador' && (
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAdminReset(u)}
+                          title="Enviar link de redefinição de senha"
+                        >
+                          <KeyRound className="h-4 w-4 md:mr-2" />
+                          <span className="hidden md:inline">Resetar Senha</span>
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
                 {activeUsers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                    <TableCell
+                      colSpan={currentUser?.role === 'Administrador' ? 6 : 5}
+                      className="text-center py-6 text-muted-foreground"
+                    >
                       Nenhum usuário encontrado.
                     </TableCell>
                   </TableRow>

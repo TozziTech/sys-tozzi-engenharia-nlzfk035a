@@ -101,7 +101,7 @@ export default function Team() {
       const codeB = b.codigo || ''
       return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' })
     })
-  }, [dbUsers, formacaoFilter, searchQuery])
+  }, [dbUsers, formacaoFilter, searchQuery, statusFilter])
 
   const handleDeleteMember = async (id: string) => {
     try {
@@ -300,7 +300,11 @@ export default function Team() {
           <div className="bg-background p-5 rounded-full mb-4 shadow-sm border border-border/50">
             <Users className="h-10 w-10 text-muted-foreground/50" />
           </div>
-          <p className="text-lg font-semibold text-foreground">Nenhum membro encontrado</p>
+          <p className="text-lg font-semibold text-foreground">
+            {statusFilter === 'all'
+              ? 'Nenhum membro encontrado'
+              : `Nenhum membro ${statusFilter.toLowerCase()} encontrado`}
+          </p>
           <p className="text-sm mt-1">
             Ajuste os filtros de busca ou adicione um novo membro à equipe.
           </p>

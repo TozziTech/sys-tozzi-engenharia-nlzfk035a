@@ -56,6 +56,7 @@ import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
 import { ProjectModules } from '@/components/ProjectModules'
 import { ProjectFinanceTab } from '@/components/ProjectFinanceTab'
+import { ProjectDisciplinesTab } from '@/components/ProjectDisciplinesTab'
 import { NoteCard } from '@/components/NoteCard'
 import {
   AlertDialog,
@@ -759,6 +760,9 @@ export default function ProjectDetails() {
               <TabsTrigger value="documents" className="flex-1">
                 Documentos
               </TabsTrigger>
+              <TabsTrigger value="disciplines" className="flex-1">
+                Equipe e Disciplinas
+              </TabsTrigger>
               <TabsTrigger value="finance" className="flex-1">
                 Financeiro
               </TabsTrigger>
@@ -868,6 +872,12 @@ export default function ProjectDetails() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="disciplines" className="mt-4 space-y-6">
+              <div className="w-full">
+                <ProjectDisciplinesTab projectId={project.id} />
+              </div>
             </TabsContent>
 
             <TabsContent value="history" className="mt-4">

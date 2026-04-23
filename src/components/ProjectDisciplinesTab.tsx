@@ -23,6 +23,7 @@ import { Plus, Trash2, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { ProjectModule } from '@/types/project_modules'
+import { useAuth } from '@/hooks/use-auth'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { cn } from '@/lib/utils'
@@ -34,6 +35,9 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   const [newModuleStatus, setNewModuleStatus] = useState<ProjectModule['status']>('Pendente')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
   const loadData = async () => {
     try {
@@ -42,7 +46,7 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
           filter: `project = "${projectId}"`,
           expand: 'responsible,designer',
         }),
-        pb.collection('users').getFullList(),
+        pb.collection('users').getFullList({ filter: 'status != "Inativo"' }),
       ])
       setModules(mods)
       setUsers(usrs)
@@ -130,54 +134,58 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex flex-col gap-3 p-4 border rounded-lg bg-muted/30">
-          <h3 className="text-sm font-medium">Adicionar Nova Disciplina</h3>
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-start">
-            <div className="flex-1 w-full space-y-1">
-              <Input
-                placeholder="Nome da nova disciplina..."
-                value={newModuleName}
-                onChange={(e) => {
-                  setNewModuleName(e.target.value)
-                  if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }))
-                }}
-                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                className={cn(
-                  fieldErrors.name && 'border-destructive focus-visible:ring-destructive',
-                )}
-              />
-              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
-            </div>
-            <div className="w-full sm:w-[200px] space-y-1">
-              <Select
-                value={newModuleStatus}
-                onValueChange={(v: ProjectModule['status']) => {
-                  setNewModuleStatus(v)
-                  if (fieldErrors.status) setFieldErrors((prev) => ({ ...prev, status: '' }))
-                }}
-              >
-                <SelectTrigger
-                  className={cn(fieldErrors.status && 'border-destructive focus:ring-destructive')}
+        {canEdit && (
+          <div className="flex flex-col gap-3 p-4 border rounded-lg bg-muted/30">
+            <h3 className="text-sm font-medium">Adicionar Nova Disciplina</h3>
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-start">
+              <div className="flex-1 w-full space-y-1">
+                <Input
+                  placeholder="Nome da nova disciplina..."
+                  value={newModuleName}
+                  onChange={(e) => {
+                    setNewModuleName(e.target.value)
+                    if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }))
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                  className={cn(
+                    fieldErrors.name && 'border-destructive focus-visible:ring-destructive',
+                  )}
+                />
+                {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
+              </div>
+              <div className="w-full sm:w-[200px] space-y-1">
+                <Select
+                  value={newModuleStatus}
+                  onValueChange={(v: ProjectModule['status']) => {
+                    setNewModuleStatus(v)
+                    if (fieldErrors.status) setFieldErrors((prev) => ({ ...prev, status: '' }))
+                  }}
                 >
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pendente">Pendente</SelectItem>
-                  <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                  <SelectItem value="Concluído">Concluído</SelectItem>
-                  <SelectItem value="Pausado">Pausado</SelectItem>
-                </SelectContent>
-              </Select>
-              {fieldErrors.status && (
-                <p className="text-xs text-destructive">{fieldErrors.status}</p>
-              )}
+                  <SelectTrigger
+                    className={cn(
+                      fieldErrors.status && 'border-destructive focus:ring-destructive',
+                    )}
+                  >
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pendente">Pendente</SelectItem>
+                    <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                    <SelectItem value="Concluído">Concluído</SelectItem>
+                    <SelectItem value="Pausado">Pausado</SelectItem>
+                  </SelectContent>
+                </Select>
+                {fieldErrors.status && (
+                  <p className="text-xs text-destructive">{fieldErrors.status}</p>
+                )}
+              </div>
+              <Button onClick={handleAdd} className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar
+              </Button>
             </div>
-            <Button onClick={handleAdd} className="w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar
-            </Button>
           </div>
-        </div>
+        )}
 
         <div className="rounded-md border overflow-x-auto">
           <Table>
@@ -202,85 +210,142 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Select
-                        value={mod.responsible || 'unassigned'}
-                        onValueChange={(v) => handleUpdate(mod.id, 'responsible', v)}
-                      >
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Sem responsável" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned" className="text-muted-foreground italic">
-                            Sem responsável
-                          </SelectItem>
-                          {users.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage
-                                    src={
-                                      u.avatar
-                                        ? pb.files.getURL(u, u.avatar)
-                                        : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                    }
-                                  />
-                                  <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                </Avatar>
-                                {u.name}
-                              </div>
+                      {canEdit ? (
+                        <Select
+                          value={mod.responsible || 'unassigned'}
+                          onValueChange={(v) => handleUpdate(mod.id, 'responsible', v)}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Sem responsável" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned" className="text-muted-foreground italic">
+                              Sem responsável
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            {users.map((u) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarImage
+                                      src={
+                                        u.avatar
+                                          ? pb.files.getURL(u, u.avatar)
+                                          : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                      }
+                                    />
+                                    <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                  </Avatar>
+                                  {u.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="flex items-center gap-2 w-[200px]">
+                          {mod.expand?.responsible ? (
+                            <>
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage
+                                  src={
+                                    mod.expand.responsible.avatar
+                                      ? pb.files.getURL(
+                                          mod.expand.responsible as any,
+                                          mod.expand.responsible.avatar,
+                                        )
+                                      : `https://img.usecurling.com/ppl/thumbnail?seed=${mod.expand.responsible.id}`
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {mod.expand.responsible.name?.charAt(0) || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{mod.expand.responsible.name}</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground italic">Sem responsável</span>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Select
-                        value={mod.designer || 'unassigned'}
-                        onValueChange={(v) => handleUpdate(mod.id, 'designer', v)}
-                      >
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Sem projetista" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned" className="text-muted-foreground italic">
-                            Sem projetista
-                          </SelectItem>
-                          {users.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage
-                                    src={
-                                      u.avatar
-                                        ? pb.files.getURL(u, u.avatar)
-                                        : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                    }
-                                  />
-                                  <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                </Avatar>
-                                {u.name}
-                              </div>
+                      {canEdit ? (
+                        <Select
+                          value={mod.designer || 'unassigned'}
+                          onValueChange={(v) => handleUpdate(mod.id, 'designer', v)}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Sem projetista" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned" className="text-muted-foreground italic">
+                              Sem projetista
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            {users.map((u) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarImage
+                                      src={
+                                        u.avatar
+                                          ? pb.files.getURL(u, u.avatar)
+                                          : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                      }
+                                    />
+                                    <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                  </Avatar>
+                                  {u.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="flex items-center gap-2 w-[200px]">
+                          {mod.expand?.designer ? (
+                            <>
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage
+                                  src={
+                                    mod.expand.designer.avatar
+                                      ? pb.files.getURL(
+                                          mod.expand.designer as any,
+                                          mod.expand.designer.avatar,
+                                        )
+                                      : `https://img.usecurling.com/ppl/thumbnail?seed=${mod.expand.designer.id}`
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {mod.expand.designer.name?.charAt(0) || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{mod.expand.designer.name}</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground italic">Sem projetista</span>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(mod.id)}
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(mod.id)}
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    Nenhuma disciplina cadastrada para este projeto.
+                    Nenhuma disciplina cadastrada para este projeto.{' '}
+                    {canEdit && 'Use o formulário acima para adicionar.'}
                   </TableCell>
                 </TableRow>
               )}

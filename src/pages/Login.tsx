@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { HardHat, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import pb from '@/lib/pocketbase/client'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -62,7 +63,12 @@ export default function Login() {
       localStorage.removeItem('rememberedEmail')
     }
 
-    navigate('/')
+    const currentUser = pb.authStore.record
+    if (currentUser?.must_change_password) {
+      navigate('/change-password')
+    } else {
+      navigate('/')
+    }
   }
 
   return (

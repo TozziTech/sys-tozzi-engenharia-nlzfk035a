@@ -27,6 +27,20 @@ onRecordAfterUpdateSuccess((e) => {
           newClient.set('status', 'Ativo')
           $app.save(newClient)
         }
+      } else if (role === 'Projetista') {
+        let changed = false
+        const rec = $app.findRecordById('users', e.record.id)
+        if (!rec.getString('crea')) {
+          rec.set('crea', 'Pendente')
+          changed = true
+        }
+        if (!rec.getString('formacao')) {
+          rec.set('formacao', 'Não informada')
+          changed = true
+        }
+        if (changed) {
+          $app.saveNoValidate(rec)
+        }
       }
     } catch (err) {
       $app.logger().error('Error running user approval automation', 'error', String(err))

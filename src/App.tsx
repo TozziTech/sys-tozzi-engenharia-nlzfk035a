@@ -48,6 +48,7 @@ import Audit from './pages/Audit'
 import AdminDocuments from './pages/admin/AdminDocuments'
 import AnalyticsDashboard from './pages/admin/AnalyticsDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
+import AccessControl from './pages/AccessControl'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
 import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
 import { AuthProvider, useAuth } from './hooks/use-auth'
@@ -64,6 +65,7 @@ import ChangePassword from './pages/ChangePassword'
 
 function HomeRoute() {
   const { user } = useAuth()
+  if (user?.must_change_password) return <Navigate to="/change-password" replace />
   if (user?.role === 'Cliente') return <Navigate to="/gestao/painel-cliente" replace />
   if (user?.role === 'Projetista') return <Navigate to="/designer-panel" replace />
   if (user?.role === 'Administrador' || user?.role === 'Gerente de Projeto')
@@ -170,6 +172,7 @@ const App = () => (
 
                   {/* Admin Only Routes */}
                   <Route element={<AdminGuard />}>
+                    <Route path="/admin/access-control" element={<AccessControl />} />
                     <Route path="/audit-logs" element={<Audit />} />
                     <Route path="/admin/audit-log" element={<Audit />} />
                     <Route path="/admin/audit-logs" element={<Audit />} />

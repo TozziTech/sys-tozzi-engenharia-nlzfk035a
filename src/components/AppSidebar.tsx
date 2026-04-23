@@ -20,6 +20,7 @@ import {
   Contact,
   LineChart,
   Activity,
+  Shield,
   BookOpen,
   FileCheck,
   FileStack,
@@ -128,6 +129,12 @@ const getNavigationGroups = (user: any) => [
     label: 'Governança e Admin',
     allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
+      {
+        name: 'Controle de Acesso',
+        href: '/admin/access-control',
+        icon: Shield,
+        adminOnly: true,
+      },
       {
         name: 'Visão Geral da Carteira',
         href: '/admin/analytics',

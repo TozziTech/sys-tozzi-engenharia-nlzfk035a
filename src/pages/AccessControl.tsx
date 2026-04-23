@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 
 export default function AccessControl() {
   const [users, setUsers] = useState<any[]>([])
@@ -41,6 +43,7 @@ export default function AccessControl() {
   const [codigo, setCodigo] = useState('')
   const [tempPassword, setTempPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [activateNow, setActivateNow] = useState(true)
 
   const loadData = async () => {
     try {
@@ -73,6 +76,7 @@ export default function AccessControl() {
     setSelectedRole(user.role || 'Visitante')
     setCodigo(user.codigo?.startsWith('TEMP') ? '' : user.codigo || '')
     setTempPassword(Math.random().toString(36).slice(-8) + 'A1!')
+    setActivateNow(true)
   }
 
   const submitApproval = async () => {
@@ -91,7 +95,7 @@ export default function AccessControl() {
     setIsSubmitting(true)
     try {
       await pb.collection('users').update(approvalUser.id, {
-        status: 'Ativo',
+        status: activateNow ? 'Ativo' : 'Pendente',
         role: selectedRole,
         codigo: codigo.trim(),
         password: tempPassword,
@@ -101,8 +105,17 @@ export default function AccessControl() {
       toast({ title: 'Sucesso', description: 'Usuário aprovado e ativado.' })
       setApprovalUser(null)
       loadData()
-    } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao aprovar usuário.', variant: 'destructive' })
+    } catch (err: any) {
+      const errors = extractFieldErrors(err)
+      if (errors.codigo) {
+        toast({
+          title: 'Erro',
+          description: 'Este código já está em uso por outro usuário.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({ title: 'Erro', description: 'Falha ao aprovar usuário.', variant: 'destructive' })
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -285,6 +298,12 @@ export default function AccessControl() {
               <p className="text-xs text-muted-foreground">
                 O usuário será forçado a alterar esta senha no primeiro login.
               </p>
+            </div>
+            <div className="flex items-center space-x-2 pt-2">
+              <Switch id="activate" checked={activateNow} onCheckedChange={setActivateNow} />
+              <Label htmlFor="activate" className="cursor-pointer">
+                Ativar usuário imediatamente
+              </Label>
             </div>
           </div>
           <DialogFooter>

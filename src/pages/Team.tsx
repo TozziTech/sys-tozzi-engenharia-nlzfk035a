@@ -31,7 +31,7 @@ import {
 
 export default function Team() {
   const [dbUsers, setDbUsers] = useState<any[]>([])
-  const [statusFilter, setStatusFilter] = useState<string>('active')
+  const [statusFilter, setStatusFilter] = useState<string>('Ativo')
   const [formacaoFilter, setFormacaoFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const { toast } = useToast()
@@ -87,8 +87,7 @@ export default function Team() {
 
   const filteredMembers = useMemo(() => {
     const filtered = dbUsers.filter((m) => {
-      if (statusFilter === 'active' && m.status !== 'Ativo') return false
-      if (statusFilter === 'inactive' && m.status !== 'Inativo') return false
+      if (statusFilter !== 'all' && m.status !== statusFilter) return false
 
       const mFormacao = m.formacao || m.specialty
       const matchesFormacao = formacaoFilter === 'all' || mFormacao === formacaoFilter
@@ -155,7 +154,7 @@ export default function Team() {
               <div className="w-px bg-border/60"></div>
               <div className="space-y-1">
                 <p className="text-4xl font-bold tracking-tight text-emerald-600">
-                  {dbUsers.filter((u) => u.status !== 'Inativo').length}
+                  {dbUsers.filter((u) => u.status === 'Ativo').length}
                 </p>
                 <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
                   Ativos
@@ -203,14 +202,53 @@ export default function Team() {
         </div>
       </Card>
 
-      <div className="flex justify-start mb-4">
+      <div className="flex justify-start mb-4 overflow-x-auto pb-2 scrollbar-none">
         <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full sm:w-auto">
-          <TabsList className="bg-muted p-1 h-auto rounded-lg">
-            <TabsTrigger value="active" className="rounded-md px-4 py-1.5 text-sm font-medium">
-              Ativos
+          <TabsList className="bg-muted p-1 h-auto rounded-lg inline-flex w-max min-w-full sm:min-w-0">
+            <TabsTrigger
+              value="all"
+              className="rounded-md px-4 py-1.5 text-sm font-medium flex items-center gap-1.5"
+            >
+              Todos
+              <span className="bg-background/50 text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-sm leading-none">
+                {dbUsers.length}
+              </span>
             </TabsTrigger>
-            <TabsTrigger value="inactive" className="rounded-md px-4 py-1.5 text-sm font-medium">
+            <TabsTrigger
+              value="Ativo"
+              className="rounded-md px-4 py-1.5 text-sm font-medium flex items-center gap-1.5"
+            >
+              Ativos
+              <span className="bg-background/50 text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-sm leading-none">
+                {dbUsers.filter((u) => u.status === 'Ativo').length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="Inativo"
+              className="rounded-md px-4 py-1.5 text-sm font-medium flex items-center gap-1.5"
+            >
               Inativos
+              <span className="bg-background/50 text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-sm leading-none">
+                {dbUsers.filter((u) => u.status === 'Inativo').length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="Em Férias"
+              className="rounded-md px-4 py-1.5 text-sm font-medium flex items-center gap-1.5"
+            >
+              Em Férias
+              <span className="bg-background/50 text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-sm leading-none">
+                {dbUsers.filter((u) => u.status === 'Em Férias').length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="Pendente"
+              className="rounded-md px-4 py-1.5 text-sm font-medium flex items-center gap-1.5"
+            >
+              Pendentes
+              <span className="bg-background/50 text-muted-foreground text-[10px] px-1.5 py-0.5 rounded-sm leading-none">
+                {dbUsers.filter((u) => u.status === 'Pendente').length}
+              </span>
             </TabsTrigger>
           </TabsList>
         </Tabs>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Card } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { useNavigate } from 'react-router-dom'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MemberCard } from '@/components/team/MemberCard'
@@ -21,21 +21,50 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, Users, Download, Plus, FileText, FileSpreadsheet, Loader2 } from 'lucide-react'
+import {
+  Search,
+  Users,
+  Download,
+  Plus,
+  FileText,
+  FileSpreadsheet,
+  Loader2,
+  UserCheck,
+} from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
 import { TeamAuditModal } from '@/components/team/TeamAuditModal'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { PieChart, Pie, Cell } from 'recharts'
+import { PieChart, Pie } from 'recharts'
 import {
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
+  type ChartConfig,
 } from '@/components/ui/chart'
+
+const roleConfig = {
+  value: { label: 'Colaboradores' },
+  Administrador: { label: 'Administrador', color: '#f59e0b' },
+  'Gerente de Projeto': { label: 'Gerente de Projeto', color: '#d97706' },
+  Projetista: { label: 'Projetista', color: '#fbbf24' },
+  Estagiário: { label: 'Estagiário', color: '#fcd34d' },
+  Visitante: { label: 'Visitante', color: '#fef3c7' },
+  Cliente: { label: 'Cliente', color: '#b45309' },
+  'Sem Função': { label: 'Sem Função', color: '#52525b' },
+} satisfies ChartConfig
+
+const statusConfig = {
+  value: { label: 'Colaboradores' },
+  Ativo: { label: 'Ativo', color: '#f59e0b' },
+  Inativo: { label: 'Inativo', color: '#52525b' },
+  'Em Férias': { label: 'Em Férias', color: '#fbbf24' },
+  Pendente: { label: 'Pendente', color: '#fcd34d' },
+  'Sem Status': { label: 'Sem Status', color: '#71717a' },
+} satisfies ChartConfig
 
 export default function Team() {
   const [dbUsers, setDbUsers] = useState<any[]>([])
@@ -80,30 +109,43 @@ export default function Team() {
     return Array.from(forms) as string[]
   }, [dbUsers])
 
-  const formacaoData = useMemo(() => {
-    const counts: Record<string, number> = {}
-    dbUsers.forEach((u) => {
-      const f = u.formacao || u.specialty || 'Não Informada'
-      counts[f] = (counts[f] || 0) + 1
-    })
-    return Object.entries(counts)
-      .map(([name, value], index) => ({
-        name,
-        value,
-        key: `chart${index + 1}`,
-      }))
-      .sort((a, b) => b.value - a.value)
+  const roleCount = useMemo(() => {
+    return dbUsers.reduce(
+      (acc, u) => {
+        const role = u.role || 'Sem Função'
+        acc[role] = (acc[role] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>,
+    )
   }, [dbUsers])
 
-  const chartConfig = useMemo(() => {
-    const config: Record<string, any> = {
-      value: { label: 'Profissionais' },
-    }
-    formacaoData.forEach((item, i) => {
-      config[item.key] = { label: item.name, color: `hsl(var(--chart-${(i % 5) + 1}))` }
-    })
-    return config
-  }, [formacaoData])
+  const statusCount = useMemo(() => {
+    return dbUsers.reduce(
+      (acc, u) => {
+        const status = u.status || 'Sem Status'
+        acc[status] = (acc[status] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>,
+    )
+  }, [dbUsers])
+
+  const roleDataWithFill = useMemo(() => {
+    return Object.entries(roleCount).map(([name, value]) => ({
+      name,
+      value,
+      fill: (roleConfig as any)[name]?.color || '#52525b',
+    }))
+  }, [roleCount])
+
+  const statusDataWithFill = useMemo(() => {
+    return Object.entries(statusCount).map(([name, value]) => ({
+      name,
+      value,
+      fill: (statusConfig as any)[name]?.color || '#71717a',
+    }))
+  }, [statusCount])
 
   const filteredMembers = useMemo(() => {
     const filtered = dbUsers.filter((m) => {
@@ -205,73 +247,135 @@ export default function Team() {
         </div>
       </div>
 
-      <Card className="p-6 md:p-8 rounded-2xl shadow-sm border-border/40 bg-gradient-to-br from-card to-card/50 overflow-hidden">
-        <div className="flex flex-col md:flex-row items-center gap-8">
-          <div className="flex-1 space-y-6 text-center md:text-left">
-            <div>
-              <h2 className="text-xl font-semibold mb-1">Distribuição da Equipe</h2>
-              <p className="text-sm text-muted-foreground">
-                Membros agrupados por área de formação ou especialidade.
-              </p>
-            </div>
-
-            <div className="flex justify-center md:justify-start gap-8">
-              <div className="space-y-1">
-                <p className="text-4xl font-bold tracking-tight">{dbUsers.length}</p>
-                <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
-                  Total
-                </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+        {/* Role Chart Card */}
+        <Card className="bg-zinc-900/80 backdrop-blur-xl border-amber-500/20 shadow-[0_0_30px_-10px_rgba(245,158,11,0.1)] transition-all hover:border-amber-500/40 hover:shadow-[0_0_30px_-5px_rgba(245,158,11,0.2)]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl text-amber-400 flex items-center gap-2 font-semibold">
+              <UserCheck className="h-5 w-5" />
+              Distribuição por Perfil
+            </CardTitle>
+            <CardDescription className="text-zinc-400">
+              Total de colaboradores por função
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {isLoading ? (
+              <div className="h-[280px] flex items-center justify-center text-zinc-500 animate-pulse">
+                Carregando dados...
               </div>
-              <div className="w-px bg-border/60"></div>
-              <div className="space-y-1">
-                <p className="text-4xl font-bold tracking-tight text-emerald-600">
-                  {dbUsers.filter((u) => u.status === 'Ativo').length}
-                </p>
-                <p className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
-                  Ativos
-                </p>
+            ) : dbUsers.length === 0 ? (
+              <div className="h-[280px] flex items-center justify-center text-zinc-500 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/30">
+                Nenhum dado disponível
               </div>
-            </div>
-          </div>
-
-          <div className="h-[220px] w-full md:w-[400px] shrink-0">
-            {formacaoData.length > 0 ? (
-              <ChartContainer config={chartConfig} className="h-full w-full">
+            ) : (
+              <ChartContainer config={roleConfig} className="h-[280px] w-full">
                 <PieChart>
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload
+                        const percent = (data.percent * 100).toFixed(1)
+                        return (
+                          <div className="bg-zinc-950 border border-zinc-800 p-2.5 rounded-lg shadow-lg">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full shadow-sm"
+                                style={{ backgroundColor: data.fill }}
+                              />
+                              <span className="text-zinc-200 font-medium">{data.name}</span>
+                            </div>
+                            <div className="text-zinc-400 text-sm mt-1 ml-5">
+                              Total: {data.value} ({percent}%)
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
                   <Pie
-                    data={formacaoData}
+                    data={roleDataWithFill}
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    innerRadius={65}
+                    innerRadius={70}
                     outerRadius={95}
                     paddingAngle={3}
-                    stroke="none"
-                  >
-                    {formacaoData.map((entry) => (
-                      <Cell
-                        key={entry.key}
-                        fill={`var(--color-${entry.key})`}
-                        className="drop-shadow-sm"
-                      />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend
-                    content={<ChartLegendContent />}
-                    className="-translate-y-2 flex-wrap"
+                    stroke="rgba(24, 24, 27, 0.8)"
+                    strokeWidth={2}
                   />
+                  <ChartLegend content={<ChartLegendContent />} />
                 </PieChart>
               </ChartContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground text-sm border border-dashed border-border/50 rounded-xl">
-                Nenhum dado disponível.
-              </div>
             )}
-          </div>
-        </div>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Status Chart Card */}
+        <Card className="bg-zinc-900/80 backdrop-blur-xl border-amber-500/20 shadow-[0_0_30px_-10px_rgba(245,158,11,0.1)] transition-all hover:border-amber-500/40 hover:shadow-[0_0_30px_-5px_rgba(245,158,11,0.2)]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl text-amber-400 flex items-center gap-2 font-semibold">
+              <Users className="h-5 w-5" />
+              Status dos Colaboradores
+            </CardTitle>
+            <CardDescription className="text-zinc-400">Situação atual da equipe</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {isLoading ? (
+              <div className="h-[280px] flex items-center justify-center text-zinc-500 animate-pulse">
+                Carregando dados...
+              </div>
+            ) : dbUsers.length === 0 ? (
+              <div className="h-[280px] flex items-center justify-center text-zinc-500 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/30">
+                Nenhum dado disponível
+              </div>
+            ) : (
+              <ChartContainer config={statusConfig} className="h-[280px] w-full">
+                <PieChart>
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload
+                        const percent = (data.percent * 100).toFixed(1)
+                        return (
+                          <div className="bg-zinc-950 border border-zinc-800 p-2.5 rounded-lg shadow-lg">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full shadow-sm"
+                                style={{ backgroundColor: data.fill }}
+                              />
+                              <span className="text-zinc-200 font-medium">{data.name}</span>
+                            </div>
+                            <div className="text-zinc-400 text-sm mt-1 ml-5">
+                              Total: {data.value} ({percent}%)
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Pie
+                    data={statusDataWithFill}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={95}
+                    paddingAngle={3}
+                    stroke="rgba(24, 24, 27, 0.8)"
+                    strokeWidth={2}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="flex justify-start mb-4 overflow-x-auto pb-2 scrollbar-none">
         <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full sm:w-auto">

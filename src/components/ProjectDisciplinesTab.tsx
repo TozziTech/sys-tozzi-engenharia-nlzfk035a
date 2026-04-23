@@ -3,14 +3,6 @@ import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -19,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Trash2, Users } from 'lucide-react'
+import { Plus, Trash2, Users, Briefcase } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { ProjectModule } from '@/types/project_modules'
@@ -187,171 +179,197 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
           </div>
         )}
 
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Disciplina</TableHead>
-                <TableHead>Responsável (Gerente)</TableHead>
-                <TableHead>Projetista (Designer)</TableHead>
-                <TableHead className="w-[100px] text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {modules.length > 0 ? (
-                modules.map((mod) => (
-                  <TableRow key={mod.id}>
-                    <TableCell className="font-medium">
-                      <Link
-                        to={`/projects/${projectId}/disciplines/${mod.id}`}
-                        className="text-primary hover:underline"
+        {modules.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {modules.map((mod) => (
+              <Card key={mod.id} className="flex flex-col overflow-hidden shadow-sm">
+                <div className="p-4 pb-3 flex flex-row items-start justify-between gap-2 border-b bg-muted/20">
+                  <div className="space-y-1.5">
+                    <Link
+                      to={`/projects/${projectId}/disciplines/${mod.id}`}
+                      className="font-semibold text-base text-primary hover:underline hover:text-amber-500 transition-colors line-clamp-1 flex items-center gap-2"
+                      title={mod.name}
+                    >
+                      <Briefcase className="h-4 w-4 text-muted-foreground" />
+                      {mod.name}
+                    </Link>
+                    <div className="flex items-center">
+                      <span
+                        className={cn(
+                          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
+                          mod.status === 'Concluído' &&
+                            'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800',
+                          mod.status === 'Em Andamento' &&
+                            'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800',
+                          mod.status === 'Pausado' &&
+                            'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800',
+                          mod.status === 'Pendente' &&
+                            'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
+                        )}
                       >
-                        {mod.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {canEdit ? (
-                        <Select
-                          value={mod.responsible || 'unassigned'}
-                          onValueChange={(v) => handleUpdate(mod.id, 'responsible', v)}
-                        >
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Sem responsável" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned" className="text-muted-foreground italic">
-                              Sem responsável
+                        {mod.status}
+                      </span>
+                    </div>
+                  </div>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(mod.id)}
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      title="Remover disciplina"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <CardContent className="p-4 space-y-4 flex-1 flex flex-col justify-center">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Gerente Responsável
+                    </label>
+                    {canEdit ? (
+                      <Select
+                        value={mod.responsible || 'unassigned'}
+                        onValueChange={(v) => handleUpdate(mod.id, 'responsible', v)}
+                      >
+                        <SelectTrigger className="w-full h-9">
+                          <SelectValue placeholder="Sem responsável" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned" className="text-muted-foreground italic">
+                            Sem responsável
+                          </SelectItem>
+                          {users.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage
+                                    src={
+                                      u.avatar
+                                        ? pb.files.getURL(u, u.avatar)
+                                        : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                    }
+                                  />
+                                  <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">{u.name}</span>
+                              </div>
                             </SelectItem>
-                            {users.map((u) => (
-                              <SelectItem key={u.id} value={u.id}>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-5 w-5">
-                                    <AvatarImage
-                                      src={
-                                        u.avatar
-                                          ? pb.files.getURL(u, u.avatar)
-                                          : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                      }
-                                    />
-                                    <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                  </Avatar>
-                                  {u.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div className="flex items-center gap-2 w-[200px]">
-                          {mod.expand?.responsible ? (
-                            <>
-                              <Avatar className="h-5 w-5">
-                                <AvatarImage
-                                  src={
-                                    mod.expand.responsible.avatar
-                                      ? pb.files.getURL(
-                                          mod.expand.responsible as any,
-                                          mod.expand.responsible.avatar,
-                                        )
-                                      : `https://img.usecurling.com/ppl/thumbnail?seed=${mod.expand.responsible.id}`
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {mod.expand.responsible.name?.charAt(0) || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span>{mod.expand.responsible.name}</span>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground italic">Sem responsável</span>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {canEdit ? (
-                        <Select
-                          value={mod.designer || 'unassigned'}
-                          onValueChange={(v) => handleUpdate(mod.id, 'designer', v)}
-                        >
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Sem projetista" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned" className="text-muted-foreground italic">
-                              Sem projetista
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center gap-2 h-9 px-3 border rounded-md bg-muted/10">
+                        {mod.expand?.responsible ? (
+                          <>
+                            <Avatar className="h-5 w-5">
+                              <AvatarImage
+                                src={
+                                  mod.expand.responsible.avatar
+                                    ? pb.files.getURL(
+                                        mod.expand.responsible as any,
+                                        mod.expand.responsible.avatar,
+                                      )
+                                    : `https://img.usecurling.com/ppl/thumbnail?seed=${mod.expand.responsible.id}`
+                                }
+                              />
+                              <AvatarFallback>
+                                {mod.expand.responsible.name?.charAt(0) || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate text-sm">{mod.expand.responsible.name}</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground italic text-sm">
+                            Sem responsável
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Projetista (Designer)
+                    </label>
+                    {canEdit ? (
+                      <Select
+                        value={mod.designer || 'unassigned'}
+                        onValueChange={(v) => handleUpdate(mod.id, 'designer', v)}
+                      >
+                        <SelectTrigger className="w-full h-9">
+                          <SelectValue placeholder="Sem projetista" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned" className="text-muted-foreground italic">
+                            Sem projetista
+                          </SelectItem>
+                          {users.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage
+                                    src={
+                                      u.avatar
+                                        ? pb.files.getURL(u, u.avatar)
+                                        : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                    }
+                                  />
+                                  <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">{u.name}</span>
+                              </div>
                             </SelectItem>
-                            {users.map((u) => (
-                              <SelectItem key={u.id} value={u.id}>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-5 w-5">
-                                    <AvatarImage
-                                      src={
-                                        u.avatar
-                                          ? pb.files.getURL(u, u.avatar)
-                                          : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                      }
-                                    />
-                                    <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                  </Avatar>
-                                  {u.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div className="flex items-center gap-2 w-[200px]">
-                          {mod.expand?.designer ? (
-                            <>
-                              <Avatar className="h-5 w-5">
-                                <AvatarImage
-                                  src={
-                                    mod.expand.designer.avatar
-                                      ? pb.files.getURL(
-                                          mod.expand.designer as any,
-                                          mod.expand.designer.avatar,
-                                        )
-                                      : `https://img.usecurling.com/ppl/thumbnail?seed=${mod.expand.designer.id}`
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {mod.expand.designer.name?.charAt(0) || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span>{mod.expand.designer.name}</span>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground italic">Sem projetista</span>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {canEdit && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(mod.id)}
-                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    Nenhuma disciplina cadastrada para este projeto.{' '}
-                    {canEdit && 'Use o formulário acima para adicionar.'}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center gap-2 h-9 px-3 border rounded-md bg-muted/10">
+                        {mod.expand?.designer ? (
+                          <>
+                            <Avatar className="h-5 w-5">
+                              <AvatarImage
+                                src={
+                                  mod.expand.designer.avatar
+                                    ? pb.files.getURL(
+                                        mod.expand.designer as any,
+                                        mod.expand.designer.avatar,
+                                      )
+                                    : `https://img.usecurling.com/ppl/thumbnail?seed=${mod.expand.designer.id}`
+                                }
+                              />
+                              <AvatarFallback>
+                                {mod.expand.designer.name?.charAt(0) || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate text-sm">{mod.expand.designer.name}</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground italic text-sm">
+                            Sem projetista
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed rounded-lg bg-muted/10 text-center">
+            <div className="bg-muted p-3 rounded-full mb-3">
+              <Users className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium">Nenhuma disciplina cadastrada</h3>
+            <p className="text-sm text-muted-foreground max-w-sm mt-1">
+              Este projeto ainda não possui disciplinas.{' '}
+              {canEdit &&
+                'Use o formulário acima para adicionar a primeira disciplina e começar a alocar a equipe.'}
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

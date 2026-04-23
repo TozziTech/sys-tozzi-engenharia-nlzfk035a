@@ -26,8 +26,6 @@ import { MemberAdditionalFields } from '@/components/team/form/MemberAdditionalF
 import { MemberDocumentsFields } from '@/components/team/form/MemberDocumentsFields'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import useProjectStore from '@/stores/useProjectStore'
-import { Checkbox } from '@/components/ui/checkbox'
 
 export default function TeamEdit() {
   const { id } = useParams<{ id: string }>()
@@ -38,8 +36,6 @@ export default function TeamEdit() {
   const [saving, setSaving] = useState(false)
   const [userRecord, setUserRecord] = useState<any>(null)
   const [existingDocs, setExistingDocs] = useState<string[]>([])
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([])
-  const { projects } = useProjectStore()
 
   const form = useForm<EditMemberFormValues>({
     resolver: zodResolver(editMemberFormSchema),
@@ -79,7 +75,6 @@ export default function TeamEdit() {
         const record = await pb.collection('users').getOne(id)
         setUserRecord(record)
         setExistingDocs(record.documents || [])
-        setSelectedProjects(record.assigned_projects || [])
 
         const initialFormacao = record.formacao || ''
         const predefined = [
@@ -187,13 +182,8 @@ export default function TeamEdit() {
         }
       }
 
-      if (selectedProjects.length > 0) {
-        for (const pid of selectedProjects) {
-          formData.append('assigned_projects', pid)
-        }
-      } else {
-        formData.append('assigned_projects', '')
-      }
+      // assigned_projects are now managed exclusively via the Access Control panel
+      // omitting them from formData prevents overwriting existing assignments in PocketBase
 
       await pb.collection('users').update(id, formData)
 
@@ -275,7 +265,7 @@ export default function TeamEdit() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 px-4 sm:px-0">
           <Tabs defaultValue="identidade" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
               <TabsTrigger value="identidade" className="py-2">
                 Identidade
               </TabsTrigger>
@@ -290,9 +280,6 @@ export default function TeamEdit() {
               </TabsTrigger>
               <TabsTrigger value="documentos" className="py-2">
                 Documentos
-              </TabsTrigger>
-              <TabsTrigger value="projetos" className="py-2 col-span-2 md:col-span-1">
-                Projetos Associados
               </TabsTrigger>
             </TabsList>
 
@@ -383,50 +370,6 @@ export default function TeamEdit() {
                 </CardHeader>
                 <CardContent>
                   <MemberAdditionalFields form={form} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="projetos" className="mt-4 space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Projetos Atribuídos</CardTitle>
-                  <CardDescription>
-                    Selecione os projetos aos quais o membro tem acesso.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="border rounded-lg p-1 bg-muted/10 border-border/60 max-h-80 overflow-y-auto">
-                    {projects.length > 0 ? (
-                      projects.map((project) => (
-                        <label
-                          key={project.id}
-                          className="flex items-center space-x-3 p-3 hover:bg-muted/50 rounded-md cursor-pointer transition-colors"
-                        >
-                          <Checkbox
-                            checked={selectedProjects.includes(project.id)}
-                            onCheckedChange={() => {
-                              setSelectedProjects((prev) =>
-                                prev.includes(project.id)
-                                  ? prev.filter((id) => id !== project.id)
-                                  : [...prev, project.id],
-                              )
-                            }}
-                          />
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium leading-none">{project.name}</span>
-                            <span className="text-xs text-muted-foreground mt-1.5">
-                              {project.client} • {project.status}
-                            </span>
-                          </div>
-                        </label>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground p-4 text-center">
-                        Nenhum projeto cadastrado.
-                      </p>
-                    )}
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

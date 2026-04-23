@@ -257,12 +257,37 @@ const Dashboard = () => {
   const activeProjectsCount = projects.filter((p) => p.status !== 'Concluído').length
   const completedProjectsCount = projects.filter((p) => p.status === 'Concluído').length
 
+  const isAdmin = user?.role === 'Administrador'
+
   const handlePrint = (mode: 'dashboard' | 'executive') => {
     setPrintMode(mode)
     setTimeout(() => {
       window.print()
       setPrintMode(null)
     }, 100)
+  }
+
+  if (!loading && !isAdmin && projects.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center h-full min-h-[80vh] animate-fade-in-up">
+        <div className="bg-zinc-900/80 backdrop-blur-md border border-amber-500/20 p-8 rounded-2xl max-w-md shadow-2xl shadow-black/40">
+          <div className="bg-amber-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border border-amber-500/20">
+            <Briefcase className="h-10 w-10 text-amber-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-zinc-100 mb-3">Nenhum projeto associado</h2>
+          <p className="text-zinc-400 mb-6 text-sm leading-relaxed">
+            Seu painel está vazio pois você ainda não foi alocado em nenhum projeto. Entre em
+            contato com o gestor ou administrador para solicitar seu acesso.
+          </p>
+          <Button
+            className="w-full bg-amber-500 hover:bg-amber-600 text-zinc-950 font-semibold"
+            onClick={() => window.location.reload()}
+          >
+            Atualizar Painel
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

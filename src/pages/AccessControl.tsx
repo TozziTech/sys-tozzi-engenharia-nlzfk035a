@@ -249,17 +249,17 @@ export default function AccessControl() {
         <Label className={isDarkTheme ? 'text-zinc-200' : ''}>Projetos Associados</Label>
         <div className="relative">
           <Search
-            className={`absolute left-2.5 top-2.5 h-4 w-4 ${isDarkTheme ? 'text-zinc-500' : 'text-muted-foreground'}`}
+            className={`absolute left-2.5 top-2.5 h-4 w-4 ${isDarkTheme ? 'text-amber-500/70' : 'text-muted-foreground'}`}
           />
           <Input
             placeholder="Buscar projetos..."
             value={projectSearch}
             onChange={(e) => setProjectSearch(e.target.value)}
-            className={`pl-9 ${isDarkTheme ? 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-amber-500' : ''}`}
+            className={`pl-9 ${isDarkTheme ? 'bg-zinc-900/50 border-amber-500/20 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-amber-500 hover:border-amber-500/40 transition-colors' : ''}`}
           />
         </div>
         <div
-          className={`border rounded-lg p-1.5 max-h-64 overflow-y-auto ${isDarkTheme ? 'bg-zinc-950/50 backdrop-blur-md border-zinc-800 custom-scrollbar' : 'bg-muted/10'}`}
+          className={`border rounded-lg p-1.5 max-h-64 overflow-y-auto ${isDarkTheme ? 'bg-zinc-900/40 backdrop-blur-md border-amber-500/20 custom-scrollbar' : 'bg-muted/10'}`}
         >
           {filtered.map((project) => {
             const isSelected = !!selectedAccesses[project.id]
@@ -267,13 +267,13 @@ export default function AccessControl() {
             return (
               <div
                 key={project.id}
-                className={`flex items-center justify-between p-2.5 rounded-md transition-colors ${isDarkTheme ? 'hover:bg-zinc-800/50' : 'hover:bg-muted/50'}`}
+                className={`flex items-center justify-between p-2.5 rounded-md transition-colors ${isDarkTheme ? 'hover:bg-zinc-800/60 border border-transparent hover:border-amber-500/10' : 'hover:bg-muted/50'}`}
               >
                 <label className="flex items-center space-x-3 cursor-pointer flex-1">
                   <Checkbox
                     className={
                       isDarkTheme
-                        ? 'border-zinc-600 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:text-zinc-950'
+                        ? 'border-amber-500/30 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:text-zinc-950'
                         : ''
                     }
                     checked={isSelected}
@@ -309,20 +309,34 @@ export default function AccessControl() {
                     }
                   >
                     <SelectTrigger
-                      className={`h-8 w-[100px] text-xs ${isDarkTheme ? 'bg-zinc-900 border-zinc-700 text-zinc-200 focus:ring-amber-500' : ''}`}
+                      className={`h-8 w-[100px] text-xs ${isDarkTheme ? 'bg-zinc-900/80 border-amber-500/30 text-amber-500 focus:ring-amber-500 hover:border-amber-500 transition-colors' : ''}`}
                     >
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className={isDarkTheme ? 'bg-zinc-900 border-zinc-800' : ''}>
+                    <SelectContent
+                      className={
+                        isDarkTheme
+                          ? 'bg-zinc-900/95 backdrop-blur-xl border-amber-500/20 text-zinc-200'
+                          : ''
+                      }
+                    >
                       <SelectItem
                         value="Leitura"
-                        className={isDarkTheme ? 'focus:bg-zinc-800 focus:text-zinc-100' : ''}
+                        className={
+                          isDarkTheme
+                            ? 'focus:bg-amber-500/20 focus:text-amber-500 cursor-pointer'
+                            : ''
+                        }
                       >
                         Leitura
                       </SelectItem>
                       <SelectItem
                         value="Edição"
-                        className={isDarkTheme ? 'focus:bg-zinc-800 focus:text-zinc-100' : ''}
+                        className={
+                          isDarkTheme
+                            ? 'focus:bg-amber-500/20 focus:text-amber-500 cursor-pointer'
+                            : ''
+                        }
                       >
                         Edição
                       </SelectItem>
@@ -447,7 +461,7 @@ export default function AccessControl() {
                                 <Badge
                                   key={a.id}
                                   variant="outline"
-                                  className="bg-zinc-900 text-amber-500 border-amber-500/30 truncate max-w-[120px]"
+                                  className="bg-zinc-900/80 backdrop-blur-md text-amber-500 border-amber-500/30 truncate max-w-[120px] hover:border-amber-500 transition-colors"
                                   title={`${a.expand?.project?.name} - ${a.access_level}`}
                                 >
                                   {a.expand?.project?.name} (
@@ -457,7 +471,7 @@ export default function AccessControl() {
                               {userAccs.length > 2 && (
                                 <Badge
                                   variant="outline"
-                                  className="bg-zinc-800 text-zinc-400 border-zinc-700"
+                                  className="bg-zinc-800/80 backdrop-blur-md text-zinc-400 border-zinc-700"
                                 >
                                   +{userAccs.length - 2}
                                 </Badge>
@@ -618,7 +632,7 @@ export default function AccessControl() {
 
       {/* Edit Projects (Glassmorphism Premium) Dialog */}
       <Dialog open={!!editProjectsUser} onOpenChange={(open) => !open && setEditProjectsUser(null)}>
-        <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 shadow-2xl shadow-black/80 backdrop-blur-md">
+        <DialogContent className="sm:max-w-md bg-zinc-900/80 border-amber-500/20 text-zinc-100 shadow-2xl shadow-black/80 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle className="text-amber-500 flex items-center gap-2">
               <FolderKanban className="h-5 w-5" /> Gestão de Projetos
@@ -630,16 +644,16 @@ export default function AccessControl() {
           <div className="py-2">
             <ProjectSelector isDarkTheme={true} />
           </div>
-          <DialogFooter className="border-t border-zinc-800 pt-4 mt-2">
+          <DialogFooter className="border-t border-amber-500/20 pt-4 mt-2">
             <Button
               variant="ghost"
-              className="text-zinc-300 hover:text-white hover:bg-zinc-800"
+              className="text-zinc-300 hover:text-white hover:bg-zinc-800/50"
               onClick={() => setEditProjectsUser(null)}
             >
               Cancelar
             </Button>
             <Button
-              className="bg-amber-500 text-zinc-950 hover:bg-amber-600 font-semibold"
+              className="bg-amber-500 text-zinc-950 hover:bg-amber-600 font-semibold border border-transparent hover:border-amber-400 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]"
               onClick={submitEditProjects}
               disabled={isSubmitting}
             >

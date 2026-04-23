@@ -5,202 +5,53 @@
 @tailwind utilities;
 
 @layer base {
-  /* Default Theme: Dark Gray and Gold (Engineering Theme) */
   :root,
-  [data-theme-color='zinc'] {
-    --background: 240 5.9% 10%;
-    --foreground: 0 0% 98%;
-    --card: 240 5.9% 12%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 5.9% 12%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 46 65% 52%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 46 65% 52%;
-    --radius: 0.5rem;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 46 65% 52%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 46 65% 52%;
-    --chart-1: 46 65% 52%;
-    --chart-2: 240 5% 65%;
-    --chart-3: 46 40% 40%;
-    --chart-4: 240 5% 40%;
-    --chart-5: 46 80% 70%;
-  }
-
   .dark,
-  .dark[data-theme-color='zinc'] {
-    --background: 240 5.9% 10%;
+  [data-theme-color] {
+    --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
-    --card: 240 5.9% 12%;
+    --card: 240 5.9% 10%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 5.9% 12%;
+    --popover: 240 5.9% 10%;
     --popover-foreground: 0 0% 98%;
-    --primary: 46 65% 52%;
-    --primary-foreground: 240 5.9% 10%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 240 10% 3.9%;
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
     --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent-foreground: 38 92% 50%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 46 65% 52%;
-    --sidebar-background: 240 5.9% 10%;
+    --ring: 38 92% 50%;
+    --radius: 0.75rem;
+    --sidebar-background: 240 10% 3.9%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 46 65% 52%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
+    --sidebar-primary: 38 92% 50%;
+    --sidebar-primary-foreground: 240 10% 3.9%;
     --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-accent-foreground: 38 92% 50%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 46 65% 52%;
-  }
+    --sidebar-ring: 38 92% 50%;
 
-  /* Gold Theme */
-  [data-theme-color='gold'] {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
-    --primary: 46 65% 52%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 10% 10%;
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 5% 45%;
-    --accent: 240 5% 96%;
-    --accent-foreground: 240 10% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5% 90%;
-    --input: 240 5% 90%;
-    --ring: 46 65% 52%;
-    --radius: 0.5rem;
-    --sidebar-background: 240 5% 98%;
-    --sidebar-foreground: 240 10% 10%;
-    --sidebar-primary: 46 65% 52%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 5% 90%;
-    --sidebar-accent-foreground: 240 10% 10%;
-    --sidebar-border: 240 5% 90%;
-    --sidebar-ring: 46 65% 52%;
-    --chart-1: 46 65% 52%;
-    --chart-2: 240 5% 65%;
-    --chart-3: 46 40% 40%;
-    --chart-4: 240 5% 40%;
-    --chart-5: 46 80% 70%;
-  }
-  .dark[data-theme-color='gold'] {
-    --background: 240 5.9% 10%;
-    --foreground: 0 0% 98%;
-    --card: 240 5.9% 12%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 5.9% 12%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 46 65% 52%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 46 65% 52%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 46 65% 52%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 46 65% 52%;
-    --chart-1: 46 65% 52%;
-    --chart-2: 240 5% 65%;
-    --chart-3: 46 40% 40%;
-    --chart-4: 240 5% 40%;
-    --chart-5: 46 80% 70%;
-  }
-
-  /* Blue Theme */
-  [data-theme-color='blue'] {
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --ring: 221.2 83.2% 53.3%;
-  }
-  .dark[data-theme-color='blue'] {
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --ring: 224.3 76.3% 48%;
-  }
-
-  /* Green Theme */
-  [data-theme-color='green'] {
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --ring: 142.1 76.2% 36.3%;
-  }
-  .dark[data-theme-color='green'] {
-    --primary: 142.1 70.6% 45.3%;
-    --primary-foreground: 144.9 80.4% 10%;
-    --ring: 142.4 71.8% 29.2%;
-  }
-
-  /* Rose Theme */
-  [data-theme-color='rose'] {
-    --primary: 346.8 77.2% 49.8%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --ring: 346.8 77.2% 49.8%;
-  }
-  .dark[data-theme-color='rose'] {
-    --primary: 346.8 77.2% 49.8%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --ring: 346.8 77.2% 49.8%;
-  }
-
-  /* Orange Theme */
-  [data-theme-color='orange'] {
-    --primary: 24.6 95% 53.1%;
-    --primary-foreground: 60 9.1% 97.8%;
-    --ring: 24.6 95% 53.1%;
-  }
-  .dark[data-theme-color='orange'] {
-    --primary: 20.5 90.2% 48.2%;
-    --primary-foreground: 60 9.1% 97.8%;
-    --ring: 20.5 90.2% 48.2%;
+    --chart-1: 38 92% 50%;
+    --chart-2: 38 92% 40%;
+    --chart-3: 240 3.7% 15.9%;
+    --chart-4: 240 5% 64.9%;
+    --chart-5: 240 5.9% 10%;
   }
 
   body {
-    @apply bg-background font-sans antialiased text-foreground transition-colors duration-300;
+    @apply bg-zinc-950 font-sans antialiased text-zinc-100 transition-colors duration-300 min-h-screen;
+    background-color: #09090b;
     background-image:
-      linear-gradient(to bottom, rgba(20, 20, 22, 0.85), rgba(20, 20, 22, 0.95)),
-      url('https://img.usecurling.com/p/1920/1080?q=structural%20engineering&color=black');
-    background-size: cover;
-    background-position: center;
+      radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.03) 0%, transparent 50%);
     background-attachment: fixed;
+    color-scheme: dark;
   }
 
   section[aria-label='Notifications alt+T'] {

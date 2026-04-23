@@ -208,25 +208,25 @@ export default function DesignerPanel() {
     <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-              <HardHat className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+          <h2 className="text-3xl font-bold tracking-tight text-zinc-100 flex items-center gap-3">
+            <div className="p-2 bg-amber-500/10 rounded-lg">
+              <HardHat className="h-6 w-6 text-amber-500" />
             </div>
             Painel do Projetista
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-2">
+          <p className="text-zinc-400 mt-2">
             Bem-vindo, {user?.name || 'Projetista'}. Gerencie suas disciplinas e registre suas
             horas.
           </p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center bg-zinc-900/50 backdrop-blur-md p-4 rounded-xl border border-zinc-800 shadow-sm">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
           <Input
             placeholder="Buscar projeto ou disciplina..."
-            className="pl-9 bg-slate-50 dark:bg-slate-800/50"
+            className="pl-9 bg-zinc-950/50"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -267,13 +267,15 @@ export default function DesignerPanel() {
           {filteredModules.map((mod) => (
             <Card
               key={mod.id}
-              className="flex flex-col overflow-hidden hover:shadow-md transition-shadow dark:bg-slate-900/50"
+              className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-zinc-800/50"
             >
-              <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800">
+              <CardHeader className="pb-4 border-b border-zinc-800/50">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1.5 flex-1 pr-2">
-                    <CardTitle className="text-lg leading-tight line-clamp-1">{mod.name}</CardTitle>
-                    <CardDescription className="font-medium text-slate-500 line-clamp-1">
+                    <CardTitle className="text-lg leading-tight line-clamp-1 text-zinc-100">
+                      {mod.name}
+                    </CardTitle>
+                    <CardDescription className="font-medium text-zinc-400 line-clamp-1">
                       Projeto: {mod.expand?.project?.name || 'Desconhecido'}
                     </CardDescription>
                   </div>
@@ -286,7 +288,7 @@ export default function DesignerPanel() {
               <CardContent className="py-5 flex-1 space-y-5">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 flex items-center gap-1.5">
+                    <span className="text-zinc-400 flex items-center gap-1.5">
                       <Calendar className="h-4 w-4" /> Prazo
                     </span>
                     <span
@@ -294,8 +296,8 @@ export default function DesignerPanel() {
                         mod.deadline &&
                         new Date(mod.deadline) < new Date() &&
                         mod.status !== 'Concluído'
-                          ? 'text-rose-600 dark:text-rose-400 font-medium bg-rose-50 dark:bg-rose-900/20 px-2 py-0.5 rounded-md'
-                          : 'font-medium'
+                          ? 'text-rose-400 font-medium bg-rose-900/20 px-2 py-0.5 rounded-md border border-rose-500/20'
+                          : 'font-medium text-zinc-300'
                       }
                     >
                       {mod.deadline
@@ -304,43 +306,39 @@ export default function DesignerPanel() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 flex items-center gap-1.5">
+                    <span className="text-zinc-400 flex items-center gap-1.5">
                       <Clock className="h-4 w-4" /> Última Ativ.
                     </span>
-                    <span className="font-medium text-right max-w-[150px] truncate">
+                    <span className="font-medium text-right max-w-[150px] truncate text-zinc-300">
                       {format(new Date(mod.updated), 'dd/MM/yyyy HH:mm')}
                     </span>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm font-medium">
-                    <span className="text-slate-600 dark:text-slate-300">Progresso</span>
-                    <span
-                      className={
-                        mod.progress === 100 ? 'text-emerald-600 dark:text-emerald-400' : ''
-                      }
-                    >
+                    <span className="text-zinc-400">Progresso</span>
+                    <span className={mod.progress === 100 ? 'text-emerald-400' : 'text-amber-500'}>
                       {mod.progress || 0}%
                     </span>
                   </div>
                   <Progress value={mod.progress || 0} className="h-2" />
                 </div>
               </CardContent>
-              <CardFooter className="pt-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 flex flex-wrap gap-2">
-                <Button asChild variant="default" className="flex-1 min-w-[120px] shadow-sm">
+              <CardFooter className="pt-4 border-t border-zinc-800/50 bg-zinc-950/30 flex flex-wrap gap-2">
+                <Button asChild variant="default" className="flex-1 min-w-[120px]">
                   <Link to={`/projects/${mod.project}/disciplines/${mod.id}`}>
                     Acessar Disciplina
                   </Link>
                 </Button>
                 <Button
-                  variant="secondary"
-                  className="flex-1 min-w-[120px] bg-white dark:bg-slate-800 border shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700"
+                  variant="outline"
+                  className="flex-1 min-w-[120px]"
                   onClick={() => {
                     setSelectedProjectForHours(mod)
                     setIsHoursDialogOpen(true)
                   }}
                 >
-                  <Clock className="h-4 w-4 mr-2 text-indigo-500" />
+                  <Clock className="h-4 w-4 mr-2 text-amber-500" />
                   Lançar Horas
                 </Button>
               </CardFooter>
@@ -348,14 +346,14 @@ export default function DesignerPanel() {
           ))}
 
           {filteredModules.length === 0 && (
-            <div className="col-span-full py-16 text-center bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
-                <HardHat className="h-8 w-8 text-slate-400" />
+            <div className="col-span-full py-16 text-center bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-800/50 mb-4">
+                <HardHat className="h-8 w-8 text-zinc-500" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+              <h3 className="text-lg font-medium text-zinc-100 mb-2">
                 Nenhuma disciplina encontrada
               </h3>
-              <p className="text-slate-500 max-w-sm mx-auto">
+              <p className="text-zinc-400 max-w-sm mx-auto">
                 Não encontramos nenhuma disciplina atribuída a você ou correspondente aos filtros.
               </p>
             </div>

@@ -160,19 +160,17 @@ export function AppSidebar() {
   const groups = getNavigationGroups(user)
 
   return (
-    <Sidebar className="border-r border-border">
+    <Sidebar className="border-r border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
       <SidebarHeader className="p-4 flex flex-row items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-zinc-950 shadow-sm">
           <Home className="h-5 w-5" />
         </div>
         <div className="flex flex-col">
-          <span className="font-semibold tracking-tight text-sidebar-foreground">
-            Tozzi Engenharia
-          </span>
-          <span className="text-xs text-sidebar-foreground/70">Plataforma</span>
+          <span className="font-semibold tracking-tight text-zinc-100">Tozzi Engenharia</span>
+          <span className="text-xs text-amber-500/80">Plataforma Premium</span>
         </div>
       </SidebarHeader>
-      <SidebarSeparator className="bg-border" />
+      <SidebarSeparator className="bg-zinc-800" />
       <SidebarContent className="scrollbar-hide py-2">
         {groups.map((group, i) => {
           if (group.allowedRoles && (!user?.role || !group.allowedRoles.includes(user.role))) {
@@ -211,8 +209,8 @@ export function AppSidebar() {
                           tooltip={item.name}
                           className={
                             isActive
-                              ? 'bg-primary/20 text-primary hover:bg-primary/30 hover:text-primary'
-                              : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                              ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400 border-r-2 border-amber-500 rounded-none rounded-l-md'
+                              : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100'
                           }
                         >
                           <Link to={item.href} className="flex items-center gap-3">

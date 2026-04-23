@@ -141,7 +141,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                           to={`/projects/${projectId}/disciplines/${mod.id}`}
                           className="hover:underline text-primary"
                         >
-                          <h4 className="font-semibold text-base">{mod.name}</h4>
+                          <h4 className="font-semibold text-base text-amber-500">{mod.name}</h4>
                         </Link>
 
                         {tasks
@@ -395,7 +395,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
         onOpenChange={(open) => !open && setSelectedModuleForTasks(null)}
       >
         <DialogContent className="max-w-5xl w-[95vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background border-slate-200 dark:border-slate-800 shadow-xl">
-          <DialogHeader className="px-6 py-5 border-b shrink-0 bg-white dark:bg-slate-950">
+          <DialogHeader className="px-6 py-5 border-b border-zinc-800 shrink-0 bg-zinc-950">
             <DialogTitle className="text-xl">
               Estrutura Analítica (WBS) - {selectedModuleForTasks?.name}
             </DialogTitle>
@@ -403,7 +403,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
               Gerencie a hierarquia de tarefas desta disciplina em formato de planilha.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-auto p-4 md:p-6 bg-slate-50/50 dark:bg-slate-900/20">
+          <div className="flex-1 overflow-auto p-4 md:p-6 bg-zinc-900/50 backdrop-blur-sm">
             {selectedModuleForTasks && <ModuleTreeGrid moduleId={selectedModuleForTasks.id} />}
           </div>
         </DialogContent>

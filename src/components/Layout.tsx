@@ -10,7 +10,7 @@ export default function Layout() {
       <AppSidebar />
       <SidebarInset className="bg-transparent flex flex-col min-h-screen w-full">
         <Header />
-        <main className="flex-1">
+        <main className="flex-1 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <Outlet />
         </main>
         <NewProjectModal />

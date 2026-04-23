@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Trash2, Users, Briefcase } from 'lucide-react'
+import { Plus, Trash2, Users, Briefcase, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { ProjectModule } from '@/types/project_modules'
@@ -19,10 +19,13 @@ import { useAuth } from '@/hooks/use-auth'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   const [modules, setModules] = useState<ProjectModule[]>([])
   const [users, setUsers] = useState<any[]>([])
+  const [projectAccesses, setProjectAccesses] = useState<any[]>([])
+  const [pendingRequests, setPendingRequests] = useState<any[]>([])
   const [newModuleName, setNewModuleName] = useState('')
   const [newModuleStatus, setNewModuleStatus] = useState<ProjectModule['status']>('Pendente')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -33,15 +36,21 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
 
   const loadData = async () => {
     try {
-      const [mods, usrs] = await Promise.all([
+      const [mods, usrs, accessesRes, requestsRes] = await Promise.all([
         pb.collection('project_modules').getFullList<ProjectModule>({
           filter: `project = "${projectId}"`,
           expand: 'responsible,designer',
         }),
         pb.collection('users').getFullList({ filter: 'status != "Inativo"' }),
+        pb.collection('user_project_access').getFullList({ filter: `project = "${projectId}"` }),
+        pb
+          .collection('access_requests')
+          .getFullList({ filter: `project = "${projectId}" && status = "Pendente"` }),
       ])
       setModules(mods)
       setUsers(usrs)
+      setProjectAccesses(accessesRes)
+      setPendingRequests(requestsRes)
     } catch (error) {
       console.error(error)
     }
@@ -52,6 +61,8 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   }, [projectId])
 
   useRealtime('project_modules', loadData)
+  useRealtime('user_project_access', loadData)
+  useRealtime('access_requests', loadData)
 
   const handleUpdate = async (
     moduleId: string,
@@ -63,6 +74,30 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
         .collection('project_modules')
         .update(moduleId, { [field]: value === 'unassigned' ? null : value })
       toast({ title: 'Módulo atualizado com sucesso' })
+
+      if (value !== 'unassigned') {
+        const hasAccess = projectAccesses.some((a) => a.user === value)
+        if (!hasAccess) {
+          const hasPending = pendingRequests.some((r) => r.user === value)
+          if (!hasPending) {
+            await pb.collection('access_requests').create({
+              user: value,
+              project: projectId,
+              requested_level: 'Edição',
+              status: 'Pendente',
+            })
+            const userName = users.find((u) => u.id === value)?.name || 'Usuário'
+            toast({
+              title: 'Acesso solicitado',
+              description: `Acesso solicitado ao administrador para o colaborador ${userName}`,
+            })
+            setPendingRequests((prev) => [
+              ...prev,
+              { user: value, project: projectId, status: 'Pendente' },
+            ])
+          }
+        }
+      }
     } catch (e) {
       toast({ title: 'Erro ao atualizar módulo', variant: 'destructive' })
     }
@@ -240,23 +275,41 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                           <SelectItem value="unassigned" className="text-muted-foreground italic">
                             Sem responsável
                           </SelectItem>
-                          {users.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage
-                                    src={
-                                      u.avatar
-                                        ? pb.files.getURL(u, u.avatar)
-                                        : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                    }
-                                  />
-                                  <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                </Avatar>
-                                <span className="truncate">{u.name}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
+                          {users.map((u) => {
+                            const hasAccess = projectAccesses.some((a) => a.user === u.id)
+                            const hasPending = pendingRequests.some((r) => r.user === u.id)
+                            return (
+                              <SelectItem key={u.id} value={u.id}>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarImage
+                                      src={
+                                        u.avatar
+                                          ? pb.files.getURL(u, u.avatar)
+                                          : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                      }
+                                    />
+                                    <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="truncate">{u.name}</span>
+                                  {!hasAccess && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>
+                                          {hasPending
+                                            ? 'Aguardando aprovação de acesso'
+                                            : 'Sem acesso ao projeto'}
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            )
+                          })}
                         </SelectContent>
                       </Select>
                     ) : (
@@ -279,6 +332,20 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                               </AvatarFallback>
                             </Avatar>
                             <span className="truncate text-sm">{mod.expand.responsible.name}</span>
+                            {!projectAccesses.some((a) => a.user === mod.responsible) && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>
+                                    {pendingRequests.some((r) => r.user === mod.responsible)
+                                      ? 'Aguardando aprovação de acesso'
+                                      : 'Sem acesso ao projeto'}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </>
                         ) : (
                           <span className="text-muted-foreground italic text-sm">
@@ -305,23 +372,41 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                           <SelectItem value="unassigned" className="text-muted-foreground italic">
                             Sem projetista
                           </SelectItem>
-                          {users.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage
-                                    src={
-                                      u.avatar
-                                        ? pb.files.getURL(u, u.avatar)
-                                        : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                    }
-                                  />
-                                  <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                </Avatar>
-                                <span className="truncate">{u.name}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
+                          {users.map((u) => {
+                            const hasAccess = projectAccesses.some((a) => a.user === u.id)
+                            const hasPending = pendingRequests.some((r) => r.user === u.id)
+                            return (
+                              <SelectItem key={u.id} value={u.id}>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarImage
+                                      src={
+                                        u.avatar
+                                          ? pb.files.getURL(u, u.avatar)
+                                          : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                      }
+                                    />
+                                    <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="truncate">{u.name}</span>
+                                  {!hasAccess && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>
+                                          {hasPending
+                                            ? 'Aguardando aprovação de acesso'
+                                            : 'Sem acesso ao projeto'}
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            )
+                          })}
                         </SelectContent>
                       </Select>
                     ) : (
@@ -344,6 +429,20 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                               </AvatarFallback>
                             </Avatar>
                             <span className="truncate text-sm">{mod.expand.designer.name}</span>
+                            {!projectAccesses.some((a) => a.user === mod.designer) && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>
+                                    {pendingRequests.some((r) => r.user === mod.designer)
+                                      ? 'Aguardando aprovação de acesso'
+                                      : 'Sem acesso ao projeto'}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </>
                         ) : (
                           <span className="text-muted-foreground italic text-sm">

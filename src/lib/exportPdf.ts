@@ -1361,6 +1361,99 @@ export function exportProjectHoursPDF(
   }, 250)
 }
 
+export function exportAccessReportPDF(
+  users: any[],
+  accessList: any[],
+  projects: any[],
+  currentUser: string,
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Acessos</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+          th { background-color: ${primaryColor}; color: #ffffff; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <div class="header">
+          <div>
+            ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; margin-bottom: 10px;" />` : ''}
+            <h2 style="margin: 0; color: ${primaryColor};">Relatório de Acessos de Usuários</h2>
+          </div>
+          <div style="text-align: right; color: #6b7280; font-size: 14px;">
+            Gerado por: ${currentUser}<br/>
+            Data: ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Nome do Usuário</th>
+              <th>Função (Role)</th>
+              <th>Projetos Vinculados</th>
+              <th>Nível de Acesso</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${users
+              .map((u) => {
+                const userAccesses = accessList.filter((a) => a.user === u.id)
+                if (userAccesses.length === 0) {
+                  return `
+                    <tr>
+                      <td>${u.name || u.email}</td>
+                      <td>${u.role || '-'}</td>
+                      <td style="color: #6b7280;">Nenhum projeto associado</td>
+                      <td>-</td>
+                    </tr>
+                  `
+                }
+                return userAccesses
+                  .map((acc, index) => {
+                    const proj = projects.find((p) => p.id === acc.project)
+                    return `
+                    <tr>
+                      ${index === 0 ? `<td rowspan="${userAccesses.length}">${u.name || u.email}</td>` : ''}
+                      ${index === 0 ? `<td rowspan="${userAccesses.length}">${u.role || '-'}</td>` : ''}
+                      <td>${proj?.name || '-'}</td>
+                      <td>${acc.access_level}</td>
+                    </tr>
+                  `
+                  })
+                  .join('')
+              })
+              .join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportUserPDF(
   user: any,
   projects: Project[],

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T06:06:16.492Z",
+  "generatedAt": "2026-04-23T06:24:35.982Z",
   "collections": [
     {
       "name": "users",
@@ -2983,6 +2983,59 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_doc_cli_cliente ON documentos_clientes (cliente)"]
+    },
+    {
+      "name": "user_project_access",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'Administrador'",
+        "update": "@request.auth.role = 'Administrador'",
+        "delete": "@request.auth.role = 'Administrador'"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "project",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "projects"
+        },
+        {
+          "name": "access_level",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Leitura", "Edição"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_upa_user ON user_project_access (user)",
+        "CREATE INDEX idx_upa_project ON user_project_access (project)",
+        "CREATE UNIQUE INDEX idx_upa_user_project ON user_project_access (user, project)"
+      ]
     }
   ]
 }

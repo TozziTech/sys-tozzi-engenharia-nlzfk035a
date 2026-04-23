@@ -61,17 +61,39 @@ const Dashboard = () => {
 
   const loadData = async () => {
     try {
-      const [projs, fins, settings, tasksRes, usersRes] = await Promise.all([
+      const [projs, fins, settings, tasksRes, usersRes, accesses] = await Promise.all([
         pb.collection('projects').getFullList(),
         pb.collection('financial_records').getFullList({ sort: 'date' }),
         pb.collection('company_settings').getFullList(),
         pb.collection('tasks').getFullList(),
         pb.collection('users').getFullList(),
+        pb.collection('user_project_access').getFullList(),
       ])
-      setProjects(projs)
-      setFinancials(fins)
+
+      const isAdmin = user?.role === 'Administrador'
+
+      let filteredProjects = projs
+      let filteredTasks = tasksRes
+      let filteredFinancials = fins
+
+      if (!isAdmin) {
+        const authorizedProjectIds = accesses
+          .filter((a) => a.user === user?.id)
+          .map((a) => a.project)
+
+        filteredProjects = projs.filter((p) => authorizedProjectIds.includes(p.id))
+        filteredTasks = tasksRes.filter(
+          (t) => authorizedProjectIds.includes(t.project) || !t.project,
+        )
+        filteredFinancials = fins.filter(
+          (f) => authorizedProjectIds.includes(f.project_id) || !f.project_id,
+        )
+      }
+
+      setProjects(filteredProjects)
+      setFinancials(filteredFinancials)
       if (settings.length > 0) setCompanySettings(settings[0])
-      setTasks(tasksRes)
+      setTasks(filteredTasks)
       setUsers(usersRes)
     } catch (e) {
       console.error(e)
@@ -81,8 +103,10 @@ const Dashboard = () => {
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (user?.id) {
+      loadData()
+    }
+  }, [user])
 
   useRealtime('projects', () => loadData())
   useRealtime('financial_records', () => loadData())

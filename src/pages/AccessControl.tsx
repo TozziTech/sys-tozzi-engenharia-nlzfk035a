@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield, Clock, CheckCircle, KeyRound, FolderKanban, Search } from 'lucide-react'
+import { Shield, Clock, CheckCircle, KeyRound, FolderKanban, Search, FileText } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -35,14 +35,16 @@ import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import { exportAccessReportPDF } from '@/lib/exportPdf'
 
 export default function AccessControl() {
   const [users, setUsers] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
+  const [accessRecords, setAccessRecords] = useState<any[]>([])
+  const [settings, setSettings] = useState<any>(null)
   const { toast } = useToast()
   const { user: currentUser } = useAuth()
 
-  // Approval / Edit Projects State
   const [approvalUser, setApprovalUser] = useState<any>(null)
   const [editProjectsUser, setEditProjectsUser] = useState<any>(null)
 
@@ -52,17 +54,22 @@ export default function AccessControl() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activateNow, setActivateNow] = useState(true)
 
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([])
+  // Map of projectId -> accessLevel
+  const [selectedAccesses, setSelectedAccesses] = useState<Record<string, string>>({})
   const [projectSearch, setProjectSearch] = useState('')
 
   const loadData = async () => {
     try {
-      const [usersRes, projectsRes] = await Promise.all([
-        pb.collection('users').getFullList({ sort: '-created', expand: 'assigned_projects' }),
+      const [usersRes, projectsRes, accessRes, settingsRes] = await Promise.all([
+        pb.collection('users').getFullList({ sort: '-created' }),
         pb.collection('projects').getFullList({ sort: 'name', filter: 'status != "Concluído"' }),
+        pb.collection('user_project_access').getFullList({ expand: 'project' }),
+        pb.collection('company_settings').getFullList(),
       ])
       setUsers(usersRes)
       setProjects(projectsRes)
+      setAccessRecords(accessRes)
+      if (settingsRes.length > 0) setSettings(settingsRes[0])
     } catch (e) {
       console.error(e)
     }
@@ -72,6 +79,7 @@ export default function AccessControl() {
     loadData()
   }, [])
   useRealtime('users', () => loadData())
+  useRealtime('user_project_access', () => loadData())
 
   const pendingUsers = useMemo(() => users.filter((u) => u.status === 'Pendente'), [users])
   const activeUsers = useMemo(() => users.filter((u) => u.status !== 'Pendente'), [users])
@@ -110,14 +118,55 @@ export default function AccessControl() {
     setCodigo(user.codigo?.startsWith('TEMP') ? '' : user.codigo || '')
     setTempPassword(Math.random().toString(36).slice(-8) + 'A1!')
     setActivateNow(true)
-    setSelectedProjects(user.assigned_projects || [])
+
+    const userAcc = accessRecords.filter((a) => a.user === user.id)
+    const accMap: Record<string, string> = {}
+    userAcc.forEach((a) => (accMap[a.project] = a.access_level))
+    setSelectedAccesses(accMap)
+
     setProjectSearch('')
   }
 
   const openEditProjects = (user: any) => {
     setEditProjectsUser(user)
-    setSelectedProjects(user.assigned_projects || [])
+    const userAcc = accessRecords.filter((a) => a.user === user.id)
+    const accMap: Record<string, string> = {}
+    userAcc.forEach((a) => (accMap[a.project] = a.access_level))
+    setSelectedAccesses(accMap)
     setProjectSearch('')
+  }
+
+  const saveAccesses = async (userId: string) => {
+    const existing = accessRecords.filter((a) => a.user === userId)
+
+    const toDelete = existing.filter((e) => !selectedAccesses[e.project])
+    const toUpdate = existing.filter(
+      (e) => selectedAccesses[e.project] && e.access_level !== selectedAccesses[e.project],
+    )
+    const toCreateKeys = Object.keys(selectedAccesses).filter(
+      (pid) => !existing.some((e) => e.project === pid),
+    )
+
+    for (const del of toDelete) {
+      await pb.collection('user_project_access').delete(del.id)
+    }
+    for (const upd of toUpdate) {
+      await pb
+        .collection('user_project_access')
+        .update(upd.id, { access_level: selectedAccesses[upd.project] })
+    }
+    for (const pid of toCreateKeys) {
+      await pb.collection('user_project_access').create({
+        user: userId,
+        project: pid,
+        access_level: selectedAccesses[pid],
+      })
+    }
+
+    // Keep backwards compatibility
+    await pb.collection('users').update(userId, {
+      assigned_projects: Object.keys(selectedAccesses),
+    })
   }
 
   const submitApproval = async () => {
@@ -142,8 +191,9 @@ export default function AccessControl() {
         password: tempPassword,
         passwordConfirm: tempPassword,
         must_change_password: true,
-        assigned_projects: selectedProjects,
       })
+      await saveAccesses(approvalUser.id)
+
       toast({ title: 'Sucesso', description: 'Usuário aprovado e ativado com projetos definidos.' })
       setApprovalUser(null)
       loadData()
@@ -166,9 +216,7 @@ export default function AccessControl() {
   const submitEditProjects = async () => {
     setIsSubmitting(true)
     try {
-      await pb.collection('users').update(editProjectsUser.id, {
-        assigned_projects: selectedProjects,
-      })
+      await saveAccesses(editProjectsUser.id)
       toast({ title: 'Sucesso', description: 'Projetos associados atualizados com sucesso.' })
       setEditProjectsUser(null)
       loadData()
@@ -177,6 +225,16 @@ export default function AccessControl() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleExportAccessReport = () => {
+    exportAccessReportPDF(
+      users,
+      accessRecords,
+      projects,
+      currentUser?.name || currentUser?.email || 'Administrador',
+      settings,
+    )
   }
 
   const ProjectSelector = ({ isDarkTheme = false }: { isDarkTheme?: boolean }) => {
@@ -201,39 +259,79 @@ export default function AccessControl() {
           />
         </div>
         <div
-          className={`border rounded-lg p-1.5 max-h-48 overflow-y-auto ${isDarkTheme ? 'bg-zinc-950/50 backdrop-blur-md border-zinc-800 custom-scrollbar' : 'bg-muted/10'}`}
+          className={`border rounded-lg p-1.5 max-h-64 overflow-y-auto ${isDarkTheme ? 'bg-zinc-950/50 backdrop-blur-md border-zinc-800 custom-scrollbar' : 'bg-muted/10'}`}
         >
-          {filtered.map((project) => (
-            <label
-              key={project.id}
-              className={`flex items-center space-x-3 p-2.5 rounded-md cursor-pointer transition-colors ${isDarkTheme ? 'hover:bg-zinc-800/50' : 'hover:bg-muted/50'}`}
-            >
-              <Checkbox
-                className={
-                  isDarkTheme
-                    ? 'border-zinc-600 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:text-zinc-950'
-                    : ''
-                }
-                checked={selectedProjects.includes(project.id)}
-                onCheckedChange={(checked) => {
-                  if (checked) setSelectedProjects((prev) => [...prev, project.id])
-                  else setSelectedProjects((prev) => prev.filter((id) => id !== project.id))
-                }}
-              />
-              <div className="flex flex-col">
-                <span
-                  className={`text-sm font-medium leading-none ${isDarkTheme ? 'text-zinc-200' : ''}`}
-                >
-                  {project.name}
-                </span>
-                <span
-                  className={`text-[10px] mt-1 uppercase tracking-wider ${isDarkTheme ? 'text-zinc-500' : 'text-muted-foreground'}`}
-                >
-                  {project.client} • {project.status}
-                </span>
+          {filtered.map((project) => {
+            const isSelected = !!selectedAccesses[project.id]
+            const accessLevel = selectedAccesses[project.id] || 'Leitura'
+            return (
+              <div
+                key={project.id}
+                className={`flex items-center justify-between p-2.5 rounded-md transition-colors ${isDarkTheme ? 'hover:bg-zinc-800/50' : 'hover:bg-muted/50'}`}
+              >
+                <label className="flex items-center space-x-3 cursor-pointer flex-1">
+                  <Checkbox
+                    className={
+                      isDarkTheme
+                        ? 'border-zinc-600 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:text-zinc-950'
+                        : ''
+                    }
+                    checked={isSelected}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedAccesses((prev) => ({ ...prev, [project.id]: 'Leitura' }))
+                      } else {
+                        const next = { ...selectedAccesses }
+                        delete next[project.id]
+                        setSelectedAccesses(next)
+                      }
+                    }}
+                  />
+                  <div className="flex flex-col">
+                    <span
+                      className={`text-sm font-medium leading-none ${isDarkTheme ? 'text-zinc-200' : ''}`}
+                    >
+                      {project.name}
+                    </span>
+                    <span
+                      className={`text-[10px] mt-1 uppercase tracking-wider ${isDarkTheme ? 'text-zinc-500' : 'text-muted-foreground'}`}
+                    >
+                      {project.client} • {project.status}
+                    </span>
+                  </div>
+                </label>
+
+                {isSelected && (
+                  <Select
+                    value={accessLevel}
+                    onValueChange={(val) =>
+                      setSelectedAccesses((prev) => ({ ...prev, [project.id]: val }))
+                    }
+                  >
+                    <SelectTrigger
+                      className={`h-8 w-[100px] text-xs ${isDarkTheme ? 'bg-zinc-900 border-zinc-700 text-zinc-200 focus:ring-amber-500' : ''}`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className={isDarkTheme ? 'bg-zinc-900 border-zinc-800' : ''}>
+                      <SelectItem
+                        value="Leitura"
+                        className={isDarkTheme ? 'focus:bg-zinc-800 focus:text-zinc-100' : ''}
+                      >
+                        Leitura
+                      </SelectItem>
+                      <SelectItem
+                        value="Edição"
+                        className={isDarkTheme ? 'focus:bg-zinc-800 focus:text-zinc-100' : ''}
+                      >
+                        Edição
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
-            </label>
-          ))}
+            )
+          })}
           {filtered.length === 0 && (
             <p
               className={`text-sm p-4 text-center ${isDarkTheme ? 'text-zinc-500' : 'text-muted-foreground'}`}
@@ -248,13 +346,23 @@ export default function AccessControl() {
 
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6 animate-fade-in-up">
-      <div className="flex flex-col gap-4 mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <Shield className="h-8 w-8 text-primary" /> Controle de Acesso
-        </h1>
-        <p className="text-muted-foreground">
-          Gerencie os níveis de acesso e aprovações de novos usuários na plataforma.
-        </p>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <Shield className="h-8 w-8 text-primary" /> Controle de Acesso
+          </h1>
+          <p className="text-muted-foreground">
+            Gerencie os níveis de acesso e aprovações de novos usuários na plataforma.
+          </p>
+        </div>
+
+        <Button
+          onClick={handleExportAccessReport}
+          variant="outline"
+          className="shrink-0 bg-white border-amber-500/30 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:bg-zinc-950 dark:border-amber-500/30 dark:text-amber-500 dark:hover:bg-zinc-900 dark:hover:text-amber-400"
+        >
+          <FileText className="h-4 w-4 mr-2" /> Exportar Relatório de Acessos
+        </Button>
       </div>
 
       <Tabs defaultValue="active" className="w-full">
@@ -279,114 +387,117 @@ export default function AccessControl() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>E-mail</TableHead>
-                  <TableHead>Código</TableHead>
                   <TableHead>Nível de Acesso</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Projetos</TableHead>
+                  <TableHead>Projetos Associados</TableHead>
                   {currentUser?.role === 'Administrador' && (
                     <TableHead className="text-right">Ações</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeUsers.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.name || 'Sem nome'}</TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.codigo}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={u.role || 'Visitante'}
-                        onValueChange={(val) =>
-                          handleUpdateUser(u.id, { role: val }, 'Nível de acesso atualizado.')
-                        }
-                      >
-                        <SelectTrigger className="w-[160px]">
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Administrador">Administrador</SelectItem>
-                          <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
-                          <SelectItem value="Projetista">Projetista</SelectItem>
-                          <SelectItem value="Estagiário">Estagiário</SelectItem>
-                          <SelectItem value="Visitante">Visitante</SelectItem>
-                          <SelectItem value="Cliente">Cliente</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={u.status || 'Ativo'}
-                        onValueChange={(val) =>
-                          handleUpdateUser(u.id, { status: val }, 'Status atualizado.')
-                        }
-                      >
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Ativo">Ativo</SelectItem>
-                          <SelectItem value="Inativo">Inativo</SelectItem>
-                          <SelectItem value="Em Férias">Em Férias</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="max-w-[180px]">
-                      <div className="flex flex-wrap gap-1">
-                        {u.expand?.assigned_projects?.length > 0 ? (
-                          <>
-                            {u.expand.assigned_projects.slice(0, 2).map((p: any) => (
-                              <Badge
-                                key={p.id}
-                                variant="outline"
-                                className="bg-zinc-900 text-amber-500 border-amber-500/30 truncate max-w-[100px]"
-                              >
-                                {p.name}
-                              </Badge>
-                            ))}
-                            {u.expand.assigned_projects.length > 2 && (
-                              <Badge
-                                variant="outline"
-                                className="bg-zinc-800 text-zinc-400 border-zinc-700"
-                              >
-                                +{u.expand.assigned_projects.length - 2}
-                              </Badge>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">Nenhum</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    {currentUser?.role === 'Administrador' && (
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => openEditProjects(u)}
-                            title="Gerenciar Projetos"
-                            className="bg-zinc-900 text-amber-500 border-amber-500/30 hover:bg-zinc-800 hover:text-amber-400"
-                          >
-                            <FolderKanban className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleAdminReset(u)}
-                            title="Enviar link de redefinição de senha"
-                          >
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
+                {activeUsers.map((u) => {
+                  const userAccs = accessRecords.filter((a) => a.user === u.id)
+                  return (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">{u.name || 'Sem nome'}</TableCell>
+                      <TableCell>{u.email}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={u.role || 'Visitante'}
+                          onValueChange={(val) =>
+                            handleUpdateUser(u.id, { role: val }, 'Nível de acesso atualizado.')
+                          }
+                        >
+                          <SelectTrigger className="w-[160px]">
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Administrador">Administrador</SelectItem>
+                            <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                            <SelectItem value="Projetista">Projetista</SelectItem>
+                            <SelectItem value="Estagiário">Estagiário</SelectItem>
+                            <SelectItem value="Visitante">Visitante</SelectItem>
+                            <SelectItem value="Cliente">Cliente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={u.status || 'Ativo'}
+                          onValueChange={(val) =>
+                            handleUpdateUser(u.id, { status: val }, 'Status atualizado.')
+                          }
+                        >
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Ativo">Ativo</SelectItem>
+                            <SelectItem value="Inativo">Inativo</SelectItem>
+                            <SelectItem value="Em Férias">Em Férias</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="max-w-[200px]">
+                        <div className="flex flex-wrap gap-1">
+                          {userAccs.length > 0 ? (
+                            <>
+                              {userAccs.slice(0, 2).map((a: any) => (
+                                <Badge
+                                  key={a.id}
+                                  variant="outline"
+                                  className="bg-zinc-900 text-amber-500 border-amber-500/30 truncate max-w-[120px]"
+                                  title={`${a.expand?.project?.name} - ${a.access_level}`}
+                                >
+                                  {a.expand?.project?.name} (
+                                  {a.access_level === 'Edição' ? 'Ed' : 'Leit'})
+                                </Badge>
+                              ))}
+                              {userAccs.length > 2 && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-zinc-800 text-zinc-400 border-zinc-700"
+                                >
+                                  +{userAccs.length - 2}
+                                </Badge>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">Nenhum</span>
+                          )}
                         </div>
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                      {currentUser?.role === 'Administrador' && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => openEditProjects(u)}
+                              title="Gerenciar Projetos"
+                              className="bg-zinc-900 text-amber-500 border-amber-500/30 hover:bg-zinc-800 hover:text-amber-400"
+                            >
+                              <FolderKanban className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleAdminReset(u)}
+                              title="Enviar link de redefinição de senha"
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  )
+                })}
                 {activeUsers.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={currentUser?.role === 'Administrador' ? 7 : 6}
+                      colSpan={currentUser?.role === 'Administrador' ? 6 : 5}
                       className="text-center py-6 text-muted-foreground"
                     >
                       Nenhum usuário encontrado.
@@ -507,14 +618,13 @@ export default function AccessControl() {
 
       {/* Edit Projects (Glassmorphism Premium) Dialog */}
       <Dialog open={!!editProjectsUser} onOpenChange={(open) => !open && setEditProjectsUser(null)}>
-        <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 shadow-2xl shadow-black/80">
+        <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 shadow-2xl shadow-black/80 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle className="text-amber-500 flex items-center gap-2">
-              <FolderKanban className="h-5 w-5" /> Projetos Associados
+              <FolderKanban className="h-5 w-5" /> Gestão de Projetos
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Gerencie a visibilidade e acesso aos projetos de{' '}
-              <strong>{editProjectsUser?.name}</strong>.
+              Gerencie os acessos do usuário <strong>{editProjectsUser?.name}</strong>.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">

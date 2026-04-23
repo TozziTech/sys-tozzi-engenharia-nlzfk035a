@@ -340,6 +340,39 @@ export default function AccessControl() {
     setIsSubmitting(true)
     try {
       const status = requestActionModal.action === 'Aprovar' ? 'Aprovado' : 'Negado'
+
+      if (status === 'Aprovado') {
+        const existingAccess = accessRecords.find(
+          (a) =>
+            a.user === requestActionModal.req.user && a.project === requestActionModal.req.project,
+        )
+        if (existingAccess) {
+          await pb.collection('user_project_access').update(existingAccess.id, {
+            access_level: requestActionModal.req.requested_level,
+          })
+        } else {
+          await pb.collection('user_project_access').create({
+            user: requestActionModal.req.user,
+            project: requestActionModal.req.project,
+            access_level: requestActionModal.req.requested_level,
+          })
+        }
+
+        const userRec = users.find((u) => u.id === requestActionModal.req.user)
+        if (userRec) {
+          const currentAssigned = Array.isArray(userRec.assigned_projects)
+            ? userRec.assigned_projects
+            : userRec.assigned_projects
+              ? [userRec.assigned_projects]
+              : []
+          if (!currentAssigned.includes(requestActionModal.req.project)) {
+            await pb.collection('users').update(userRec.id, {
+              assigned_projects: [...currentAssigned, requestActionModal.req.project],
+            })
+          }
+        }
+      }
+
       await pb.collection('access_requests').update(requestActionModal.req.id, {
         status,
         admin_notes: adminNotes,

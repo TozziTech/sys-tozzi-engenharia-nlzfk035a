@@ -143,11 +143,9 @@ export function ProjectModuleModal({
             .collection('user_project_access')
             .getFullList({ filter: `user = "${payload.responsible}" && project = "${projectId}"` })
           if (accesses.length === 0) {
-            const requests = await pb
-              .collection('access_requests')
-              .getFullList({
-                filter: `user = "${payload.responsible}" && project = "${projectId}" && status = "Pendente"`,
-              })
+            const requests = await pb.collection('access_requests').getFullList({
+              filter: `user = "${payload.responsible}" && project = "${projectId}" && status = "Pendente"`,
+            })
             if (requests.length === 0) {
               await pb.collection('access_requests').create({
                 user: payload.responsible,

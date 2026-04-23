@@ -71,23 +71,6 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 
-const MOCK_HISTORY = [
-  { id: 'hist1_1a2b', date: '2024-03-01', time: '10:00', action: 'Projeto criado no sistema' },
-  {
-    id: 'hist2_3c4d',
-    date: '2024-03-05',
-    time: '14:30',
-    action: 'Documentação anexada: Planta Baixa.pdf',
-  },
-  {
-    id: 'hist3_5e6f',
-    date: '2024-03-10',
-    time: '09:15',
-    action: 'Status alterado para Em Andamento',
-  },
-  { id: 'hist4_7g8h', date: '2024-03-12', time: '16:45', action: 'Orçamento estimado atualizado' },
-]
-
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -146,6 +129,27 @@ export default function ProjectDetails() {
   const [observationText, setObservationText] = useState('')
   const [pbDocuments, setPbDocuments] = useState<any[]>([])
   const [isUploadingDoc, setIsUploadingDoc] = useState(false)
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+
+  const loadAuditLogs = useCallback(async () => {
+    if (!id) return
+    try {
+      const records = await pb.collection('audit_logs').getFullList({
+        filter: `resource = "user_project_access" && details ~ "${id}"`,
+        sort: '-created',
+        expand: 'user_id',
+      })
+      setAuditLogs(records)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [id])
+
+  useEffect(() => {
+    loadAuditLogs()
+  }, [loadAuditLogs])
+
+  useRealtime('audit_logs', loadAuditLogs)
 
   const loadDocuments = useCallback(async () => {
     if (!id) return
@@ -883,22 +887,60 @@ export default function ProjectDetails() {
             <TabsContent value="history" className="mt-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Histórico de Atividades</CardTitle>
+                  <CardTitle className="text-lg">Histórico de Alterações</CardTitle>
+                  <CardDescription>
+                    Registro de alterações de acesso e atribuições de membros na equipe do projeto.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6">
-                    {MOCK_HISTORY.map((item) => (
-                      <div key={item.id} className="pl-6 relative">
-                        <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 mb-1">
-                          <span className="font-medium">{item.action}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {item.date.split('-').reverse().join('/')} às {item.time}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  {auditLogs.length > 0 ? (
+                    <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6">
+                      {auditLogs.map((log) => {
+                        const targetUser = users.find((u) => u.id === log.details?.target_user)
+                        const actionLabelMap: Record<string, string> = {
+                          access_granted: 'Acesso Concedido',
+                          access_updated: 'Acesso Atualizado',
+                          access_revoked: 'Acesso Revogado',
+                          assignment_added: 'Membro Atribuído',
+                          assignment_removed: 'Membro Removido',
+                        }
+                        const actionLabel = actionLabelMap[log.action] || 'Ação Desconhecida'
+
+                        let message = ''
+                        if (log.action === 'access_granted') {
+                          message = `Acesso de ${log.details?.access_level || 'Leitura'} concedido a ${targetUser?.name || 'Usuário'}`
+                        } else if (log.action === 'access_updated') {
+                          message = `Acesso de ${targetUser?.name || 'Usuário'} alterado para ${log.details?.access_level || 'Leitura'}`
+                        } else if (log.action === 'access_revoked') {
+                          message = `Acesso de ${targetUser?.name || 'Usuário'} revogado`
+                        } else if (log.action === 'assignment_added') {
+                          message = `${targetUser?.name || 'Usuário'} atribuído como ${log.details?.role} na disciplina "${log.details?.module_name}"`
+                        } else if (log.action === 'assignment_removed') {
+                          message = `${targetUser?.name || 'Usuário'} removido da função de ${log.details?.role} na disciplina "${log.details?.module_name}"`
+                        } else {
+                          message = `Ação: ${log.action}`
+                        }
+
+                        return (
+                          <div key={log.id} className="pl-6 relative">
+                            <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
+                            <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 mb-1">
+                              <span className="font-medium text-sm">{actionLabel}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(log.created).toLocaleString('pt-BR')} por{' '}
+                                {log.expand?.user_id?.name || 'Sistema'}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{message}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
+                      Nenhum histórico registrado para a equipe deste projeto.
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

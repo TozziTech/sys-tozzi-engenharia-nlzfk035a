@@ -29,10 +29,15 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   const [newModuleName, setNewModuleName] = useState('')
   const [newModuleStatus, setNewModuleStatus] = useState<ProjectModule['status']>('Pendente')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const [accessLevels, setAccessLevels] = useState<Record<string, string>>({})
   const { toast } = useToast()
   const { user } = useAuth()
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
+
+  const getLevel = (modId: string, field: string) => accessLevels[`${modId}-${field}`] || 'Edição'
+  const setLevel = (modId: string, field: string, level: string) =>
+    setAccessLevels((prev) => ({ ...prev, [`${modId}-${field}`]: level }))
 
   const loadData = async () => {
     try {
@@ -70,10 +75,31 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
     value: string,
   ) => {
     try {
+      const oldModule = modules.find((m) => m.id === moduleId)
+      const oldUserId = oldModule?.[field]
+
       await pb
         .collection('project_modules')
         .update(moduleId, { [field]: value === 'unassigned' ? null : value })
       toast({ title: 'Módulo atualizado com sucesso' })
+
+      if (value !== (oldUserId || 'unassigned')) {
+        try {
+          await pb.collection('audit_logs').create({
+            user_id: user?.id,
+            action: value === 'unassigned' ? 'assignment_removed' : 'assignment_added',
+            resource: 'user_project_access',
+            details: {
+              project_id: projectId,
+              target_user: value === 'unassigned' ? oldUserId : value,
+              role: field === 'responsible' ? 'Responsável' : 'Projetista',
+              module_name: oldModule?.name,
+            },
+          })
+        } catch (auditErr) {
+          console.error('Erro ao salvar log de auditoria', auditErr)
+        }
+      }
 
       if (value !== 'unassigned') {
         const hasAccess = projectAccesses.some((a) => a.user === value)
@@ -83,7 +109,7 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
             await pb.collection('access_requests').create({
               user: value,
               project: projectId,
-              requested_level: 'Edição',
+              requested_level: getLevel(moduleId, field),
               status: 'Pendente',
             })
             const userName = users.find((u) => u.id === value)?.name || 'Usuário'
@@ -264,54 +290,68 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                       Gerente Responsável
                     </label>
                     {canEdit ? (
-                      <Select
-                        value={mod.responsible || 'unassigned'}
-                        onValueChange={(v) => handleUpdate(mod.id, 'responsible', v)}
-                      >
-                        <SelectTrigger className="w-full h-9">
-                          <SelectValue placeholder="Sem responsável" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned" className="text-muted-foreground italic">
-                            Sem responsável
-                          </SelectItem>
-                          {users.map((u) => {
-                            const hasAccess = projectAccesses.some((a) => a.user === u.id)
-                            const hasPending = pendingRequests.some((r) => r.user === u.id)
-                            return (
-                              <SelectItem key={u.id} value={u.id}>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-5 w-5">
-                                    <AvatarImage
-                                      src={
-                                        u.avatar
-                                          ? pb.files.getURL(u, u.avatar)
-                                          : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                      }
-                                    />
-                                    <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                  </Avatar>
-                                  <span className="truncate">{u.name}</span>
-                                  {!hasAccess && (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>
-                                          {hasPending
-                                            ? 'Aguardando aprovação de acesso'
-                                            : 'Sem acesso ao projeto'}
-                                        </p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  )}
-                                </div>
-                              </SelectItem>
-                            )
-                          })}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select
+                          value={mod.responsible || 'unassigned'}
+                          onValueChange={(v) => handleUpdate(mod.id, 'responsible', v)}
+                        >
+                          <SelectTrigger className="w-full h-9">
+                            <SelectValue placeholder="Sem responsável" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned" className="text-muted-foreground italic">
+                              Sem responsável
+                            </SelectItem>
+                            {users.map((u) => {
+                              const hasAccess = projectAccesses.some((a) => a.user === u.id)
+                              const hasPending = pendingRequests.some((r) => r.user === u.id)
+                              return (
+                                <SelectItem key={u.id} value={u.id}>
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarImage
+                                        src={
+                                          u.avatar
+                                            ? pb.files.getURL(u, u.avatar)
+                                            : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                        }
+                                      />
+                                      <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="truncate">{u.name}</span>
+                                    {!hasAccess && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>
+                                            {hasPending
+                                              ? 'Aguardando aprovação de acesso'
+                                              : 'Sem acesso ao projeto'}
+                                          </p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              )
+                            })}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={getLevel(mod.id, 'responsible')}
+                          onValueChange={(v) => setLevel(mod.id, 'responsible', v)}
+                        >
+                          <SelectTrigger className="w-[110px] h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Leitura">Leitura</SelectItem>
+                            <SelectItem value="Edição">Edição</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     ) : (
                       <div className="flex items-center gap-2 h-9 px-3 border rounded-md bg-muted/10">
                         {mod.expand?.responsible ? (
@@ -361,54 +401,68 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                       Projetista (Designer)
                     </label>
                     {canEdit ? (
-                      <Select
-                        value={mod.designer || 'unassigned'}
-                        onValueChange={(v) => handleUpdate(mod.id, 'designer', v)}
-                      >
-                        <SelectTrigger className="w-full h-9">
-                          <SelectValue placeholder="Sem projetista" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned" className="text-muted-foreground italic">
-                            Sem projetista
-                          </SelectItem>
-                          {users.map((u) => {
-                            const hasAccess = projectAccesses.some((a) => a.user === u.id)
-                            const hasPending = pendingRequests.some((r) => r.user === u.id)
-                            return (
-                              <SelectItem key={u.id} value={u.id}>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-5 w-5">
-                                    <AvatarImage
-                                      src={
-                                        u.avatar
-                                          ? pb.files.getURL(u, u.avatar)
-                                          : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                      }
-                                    />
-                                    <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                  </Avatar>
-                                  <span className="truncate">{u.name}</span>
-                                  {!hasAccess && (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>
-                                          {hasPending
-                                            ? 'Aguardando aprovação de acesso'
-                                            : 'Sem acesso ao projeto'}
-                                        </p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  )}
-                                </div>
-                              </SelectItem>
-                            )
-                          })}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select
+                          value={mod.designer || 'unassigned'}
+                          onValueChange={(v) => handleUpdate(mod.id, 'designer', v)}
+                        >
+                          <SelectTrigger className="w-full h-9">
+                            <SelectValue placeholder="Sem projetista" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned" className="text-muted-foreground italic">
+                              Sem projetista
+                            </SelectItem>
+                            {users.map((u) => {
+                              const hasAccess = projectAccesses.some((a) => a.user === u.id)
+                              const hasPending = pendingRequests.some((r) => r.user === u.id)
+                              return (
+                                <SelectItem key={u.id} value={u.id}>
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarImage
+                                        src={
+                                          u.avatar
+                                            ? pb.files.getURL(u, u.avatar)
+                                            : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                        }
+                                      />
+                                      <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="truncate">{u.name}</span>
+                                    {!hasAccess && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>
+                                            {hasPending
+                                              ? 'Aguardando aprovação de acesso'
+                                              : 'Sem acesso ao projeto'}
+                                          </p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              )
+                            })}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={getLevel(mod.id, 'designer')}
+                          onValueChange={(v) => setLevel(mod.id, 'designer', v)}
+                        >
+                          <SelectTrigger className="w-[110px] h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Leitura">Leitura</SelectItem>
+                            <SelectItem value="Edição">Edição</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     ) : (
                       <div className="flex items-center gap-2 h-9 px-3 border rounded-md bg-muted/10">
                         {mod.expand?.designer ? (

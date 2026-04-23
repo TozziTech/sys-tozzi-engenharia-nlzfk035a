@@ -152,8 +152,21 @@ export function exportCalendarCSV(data: any[]) {
 export function exportAuditLogsCSV(data: any[]) {
   genericExport(data, 'historico')
 }
-export function exportTeamCSV(data: any[]) {
-  genericExport(data, 'equipe')
+export function exportTeamCSV(users: any[]) {
+  const headers = ['Nome', 'E-mail', 'Código', 'Cargo', 'Status', 'Telefone']
+  const rows = users.map((u) =>
+    [
+      escapeCSV(u.name),
+      escapeCSV(u.email),
+      escapeCSV(u.codigo),
+      escapeCSV(u.role),
+      escapeCSV(u.status),
+      escapeCSV(u.phone),
+    ].join(';'),
+  )
+
+  const csvContent = [headers.join(';'), ...rows].join('\n')
+  downloadCSV(csvContent, `equipe_${new Date().toISOString().split('T')[0]}.csv`)
 }
 export function exportServicosFinanceirosCSV(data: any[]) {
   genericExport(data, 'servicos_financeiros')

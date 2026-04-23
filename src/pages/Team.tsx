@@ -7,6 +7,13 @@ import { MemberCardSkeleton } from '@/components/team/MemberCardSkeleton'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { exportTeamCSV } from '@/lib/export'
+import { exportTeamPDF } from '@/lib/exportPdf'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Select,
   SelectContent,
@@ -14,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, Users, Download, Plus } from 'lucide-react'
+import { Search, Users, Download, Plus, FileText, FileSpreadsheet, Loader2 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
@@ -38,6 +45,7 @@ export default function Team() {
   const [isLoading, setIsLoading] = useState(true)
   const [isFiltering, setIsFiltering] = useState(false)
   const { toast } = useToast()
+  const [isExporting, setIsExporting] = useState(false)
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -124,6 +132,36 @@ export default function Team() {
     }
   }
 
+  const handleExportCSV = () => {
+    setIsExporting(true)
+    try {
+      exportTeamCSV(filteredMembers)
+      toast({ title: 'Sucesso', description: 'Exportação CSV concluída.' })
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Falha ao exportar CSV.', variant: 'destructive' })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    setIsExporting(true)
+    try {
+      let settings = null
+      try {
+        settings = await pb.collection('company_settings').getFirstListItem('')
+      } catch (e) {
+        // ignore missing settings
+      }
+      exportTeamPDF(filteredMembers, user?.name || 'Usuário', settings)
+      toast({ title: 'Sucesso', description: 'Relatório PDF gerado com sucesso.' })
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Falha ao exportar PDF.', variant: 'destructive' })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-screen-2xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -136,9 +174,30 @@ export default function Team() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" onClick={() => exportTeamCSV(filteredMembers)}>
-            <Download className="mr-2 h-4 w-4" /> Exportar
-          </Button>
+          {user?.role === 'Administrador' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={isExporting}>
+                  {isExporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  Exportar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleExportCSV} className="cursor-pointer">
+                  <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
+                  Exportar como CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPDF} className="cursor-pointer">
+                  <FileText className="mr-2 h-4 w-4 text-rose-600" />
+                  Exportar como PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {user?.role === 'Administrador' && <TeamAuditModal />}
           <Button onClick={() => navigate('/team/new')}>
             <Plus className="mr-2 h-4 w-4" /> Adicionar Membro

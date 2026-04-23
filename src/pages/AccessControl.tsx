@@ -39,6 +39,7 @@ export default function AccessControl() {
   const [approvalUser, setApprovalUser] = useState<any>(null)
   const [selectedRole, setSelectedRole] = useState('Visitante')
   const [codigo, setCodigo] = useState('')
+  const [tempPassword, setTempPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const loadData = async () => {
@@ -69,13 +70,22 @@ export default function AccessControl() {
 
   const openApproval = (user: any) => {
     setApprovalUser(user)
-    setSelectedRole('Visitante')
+    setSelectedRole(user.role || 'Visitante')
     setCodigo(user.codigo?.startsWith('TEMP') ? '' : user.codigo || '')
+    setTempPassword(Math.random().toString(36).slice(-8) + 'A1!')
   }
 
   const submitApproval = async () => {
     if (!codigo.trim()) {
       toast({ title: 'Erro', description: 'Código é obrigatório.', variant: 'destructive' })
+      return
+    }
+    if (!tempPassword || tempPassword.length < 8) {
+      toast({
+        title: 'Erro',
+        description: 'Senha provisória deve ter pelo menos 8 caracteres.',
+        variant: 'destructive',
+      })
       return
     }
     setIsSubmitting(true)
@@ -84,6 +94,9 @@ export default function AccessControl() {
         status: 'Ativo',
         role: selectedRole,
         codigo: codigo.trim(),
+        password: tempPassword,
+        passwordConfirm: tempPassword,
+        must_change_password: true,
       })
       toast({ title: 'Sucesso', description: 'Usuário aprovado e ativado.' })
       setApprovalUser(null)
@@ -197,6 +210,7 @@ export default function AccessControl() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>E-mail</TableHead>
+                  <TableHead>Perfil Solicitado</TableHead>
                   <TableHead>Data da Solicitação</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
@@ -206,6 +220,7 @@ export default function AccessControl() {
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.name || 'Sem nome'}</TableCell>
                     <TableCell>{u.email}</TableCell>
+                    <TableCell>{u.role}</TableCell>
                     <TableCell>{new Date(u.created).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" onClick={() => openApproval(u)}>
@@ -259,6 +274,17 @@ export default function AccessControl() {
                 onChange={(e) => setCodigo(e.target.value)}
                 placeholder="Ex: TZZ-001"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Senha Provisória</Label>
+              <Input
+                value={tempPassword}
+                onChange={(e) => setTempPassword(e.target.value)}
+                placeholder="Senha temporária"
+              />
+              <p className="text-xs text-muted-foreground">
+                O usuário será forçado a alterar esta senha no primeiro login.
+              </p>
             </div>
           </div>
           <DialogFooter>

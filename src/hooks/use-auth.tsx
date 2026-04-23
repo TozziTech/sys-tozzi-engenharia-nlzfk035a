@@ -63,11 +63,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (data: any) => {
     try {
       const tempCodigo = 'TEMP-' + Math.random().toString(36).substring(2, 8).toUpperCase()
+      const dummyPass = Math.random().toString(36).slice(-10) + 'A1@'
       await pb.collection('users').create({
         ...data,
+        password: data.password || dummyPass,
+        passwordConfirm: data.passwordConfirm || dummyPass,
         status: 'Pendente',
-        role: 'Visitante',
+        role: data.role || 'Visitante',
         codigo: data.codigo || tempCodigo,
+        formacao: data.formacao,
+        crea: data.crea,
+        phone: data.phone,
       })
       return { error: null }
     } catch (error) {

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,10 +17,15 @@ import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function SignUp() {
+  const [searchParams] = useSearchParams()
+  const initialRole = searchParams.get('role') || 'Visitante'
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [phone, setPhone] = useState('')
+  const [role, setRole] = useState(initialRole)
+  const [formacao, setFormacao] = useState('')
+  const [crea, setCrea] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
@@ -30,23 +35,15 @@ export default function SignUp() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (password !== passwordConfirm) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro de Validação',
-        description: 'As senhas não conferem.',
-      })
-      return
-    }
-
     setLoading(true)
 
     const { error } = await signUp({
       name,
       email,
-      password,
-      passwordConfirm,
+      phone,
+      role,
+      formacao: role === 'Projetista' ? formacao : undefined,
+      crea: role === 'Projetista' ? crea : undefined,
     })
 
     if (error) {
@@ -116,27 +113,58 @@ export default function SignUp() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
+                <Label htmlFor="phone">Telefone</Label>
                 <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  id="phone"
+                  type="tel"
+                  placeholder="(00) 00000-0000"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   required
-                  minLength={8}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="passwordConfirm">Confirmar Senha</Label>
-                <Input
-                  id="passwordConfirm"
-                  type="password"
-                  value={passwordConfirm}
-                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                <Label htmlFor="role">Perfil Solicitado</Label>
+                <select
+                  id="role"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   required
-                  minLength={8}
-                />
+                >
+                  <option value="Visitante">Visitante</option>
+                  <option value="Cliente">Cliente</option>
+                  <option value="Projetista">Projetista</option>
+                  <option value="Gerente de Projeto">Gerente de Projeto</option>
+                  <option value="Administrador">Administrador</option>
+                </select>
               </div>
+              {role === 'Projetista' && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="formacao">Formação</Label>
+                    <Input
+                      id="formacao"
+                      type="text"
+                      placeholder="Ex: Engenharia Civil"
+                      value={formacao}
+                      onChange={(e) => setFormacao(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="crea">CREA / CAU</Label>
+                    <Input
+                      id="crea"
+                      type="text"
+                      placeholder="Número do registro"
+                      value={crea}
+                      onChange={(e) => setCrea(e.target.value)}
+                      required
+                    />
+                  </div>
+                </>
+              )}
               <Button type="submit" className="w-full mt-6" disabled={loading}>
                 {loading ? 'Criando...' : 'Solicitar Acesso'}
               </Button>

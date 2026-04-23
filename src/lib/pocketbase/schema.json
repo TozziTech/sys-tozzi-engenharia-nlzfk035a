@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-22T20:17:16.300Z",
+  "generatedAt": "2026-04-23T03:50:40.396Z",
   "collections": [
     {
       "name": "users",
@@ -203,6 +203,12 @@
           "required": false,
           "system": false,
           "collectionRef": "projects"
+        },
+        {
+          "name": "must_change_password",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

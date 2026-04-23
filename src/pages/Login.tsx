@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,7 +34,10 @@ export default function Login() {
   }, [])
   const { signIn, user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { toast } = useToast()
+
+  const role = searchParams.get('role') || 'Visitante'
 
   if (user) {
     return <Navigate to="/" replace />
@@ -72,7 +75,9 @@ export default function Login() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Bem-vindo de volta</CardTitle>
-          <CardDescription>Entre com suas credenciais para acessar a plataforma</CardDescription>
+          <CardDescription>
+            Entre com suas credenciais para acessar como <strong>{role}</strong>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -151,7 +156,7 @@ export default function Login() {
             <Button
               variant="link"
               className="p-0 h-auto font-semibold"
-              onClick={() => navigate('/signup')}
+              onClick={() => navigate(`/signup?role=${role}`)}
             >
               Cadastrar-se
             </Button>

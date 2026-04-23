@@ -59,6 +59,8 @@ import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import Welcome from './pages/Welcome'
+import ChangePassword from './pages/ChangePassword'
 
 function HomeRoute() {
   const { user } = useAuth()
@@ -81,9 +83,11 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<SignUp />} />
+              <Route path="/welcome" element={<Welcome />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<RoleGuard />}>
+                <Route path="/change-password" element={<ChangePassword />} />
                 <Route element={<Layout />}>
                   {/* Public authenticated routes */}
                   <Route path="/" element={<HomeRoute />} />

@@ -1,19 +1,21 @@
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { HardHat, User, UserCircle, Briefcase, ShieldAlert, ArrowRight } from 'lucide-react'
+import {
+  HardHat,
+  User,
+  UserCircle,
+  Briefcase,
+  ShieldAlert,
+  ArrowRight,
+  GraduationCap,
+} from 'lucide-react'
 
 const ROLES = [
   {
-    id: 'Cliente',
-    title: 'Cliente',
-    desc: 'Acompanhe o andamento dos seus projetos e finanças.',
-    icon: User,
-  },
-  {
-    id: 'Projetista',
-    title: 'Projetista',
-    desc: 'Acesse suas disciplinas e entregas técnicas.',
-    icon: HardHat,
+    id: 'Administrador',
+    title: 'Administrador',
+    desc: 'Controle total do sistema e aprovações.',
+    icon: ShieldAlert,
   },
   {
     id: 'Gerente de Projeto',
@@ -22,12 +24,29 @@ const ROLES = [
     icon: Briefcase,
   },
   {
-    id: 'Administrador',
-    title: 'Administrador',
-    desc: 'Controle total do sistema e aprovações.',
-    icon: ShieldAlert,
+    id: 'Projetista',
+    title: 'Projetista',
+    desc: 'Acesse suas disciplinas e entregas técnicas.',
+    icon: HardHat,
   },
-  { id: 'Visitante', title: 'Visitante', desc: 'Acesso limitado para consulta.', icon: UserCircle },
+  {
+    id: 'Estagiário',
+    title: 'Estagiário',
+    desc: 'Apoio em projetos e aprendizado contínuo.',
+    icon: GraduationCap,
+  },
+  {
+    id: 'Visitante',
+    title: 'Visitante',
+    desc: 'Acesso limitado para consulta.',
+    icon: UserCircle,
+  },
+  {
+    id: 'Cliente',
+    title: 'Cliente',
+    desc: 'Acompanhe o andamento dos seus projetos e finanças.',
+    icon: User,
+  },
 ]
 
 export default function Welcome() {
@@ -37,11 +56,12 @@ export default function Welcome() {
     <div className="min-h-screen flex flex-col items-center justify-center relative p-4 md:p-8 overflow-hidden bg-slate-950">
       {/* Background elements */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-[url('https://img.usecurling.com/p/1920/1080?q=modern%20architecture%20building&color=black')] opacity-20 bg-cover bg-center" />
+        <div className="absolute inset-0 bg-[url('https://img.usecurling.com/p/1920/1080?q=architectural%20blueprint&color=black')] bg-cover bg-center" />
+        <div className="absolute inset-0 bg-black/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent" />
       </div>
 
-      <div className="z-10 max-w-5xl w-full space-y-12 animate-in fade-in zoom-in-95 duration-500">
+      <div className="z-10 max-w-6xl w-full space-y-12 animate-in fade-in zoom-in-95 duration-500">
         <div className="text-center space-y-6">
           <div className="flex justify-center mb-6">
             <div className="h-20 px-8 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-2xl">
@@ -59,11 +79,11 @@ export default function Welcome() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-wrap justify-center gap-6">
           {ROLES.map((role) => (
             <Card
               key={role.id}
-              className="cursor-pointer group hover:border-primary hover:shadow-primary/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden bg-slate-900/60 backdrop-blur-xl border-slate-800 text-slate-100"
+              className="w-full sm:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)] max-w-sm cursor-pointer group hover:border-primary hover:shadow-primary/20 hover:shadow-2xl transition-all duration-300 relative overflow-hidden bg-slate-900/60 backdrop-blur-xl border-slate-800 text-slate-100"
               onClick={() => navigate(`/login?role=${role.id}`)}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />

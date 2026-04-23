@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card'
 import { useNavigate } from 'react-router-dom'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MemberCard } from '@/components/team/MemberCard'
+import { MemberCardSkeleton } from '@/components/team/MemberCardSkeleton'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { exportTeamCSV } from '@/lib/export'
@@ -34,25 +35,36 @@ export default function Team() {
   const [statusFilter, setStatusFilter] = useState<string>('Ativo')
   const [formacaoFilter, setFormacaoFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isFiltering, setIsFiltering] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
   const navigate = useNavigate()
 
-  const loadUsers = async () => {
+  const loadUsers = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true)
     try {
       const records = await pb.collection('users').getFullList({ sort: '+codigo' })
       setDbUsers(records)
     } catch (error) {
       console.error('Failed to load users', error)
+    } finally {
+      if (showLoading) setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    loadUsers()
+    loadUsers(true)
   }, [])
 
+  useEffect(() => {
+    setIsFiltering(true)
+    const timer = setTimeout(() => setIsFiltering(false), 400)
+    return () => clearTimeout(timer)
+  }, [statusFilter, formacaoFilter, searchQuery])
+
   useRealtime('users', () => {
-    loadUsers()
+    loadUsers(false)
   })
 
   const formacoes = useMemo(() => {
@@ -282,7 +294,13 @@ export default function Team() {
         </div>
       </div>
 
-      {filteredMembers.length > 0 ? (
+      {isLoading || isFiltering ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <MemberCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : filteredMembers.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
           {filteredMembers.map((member) => (
             <MemberCard

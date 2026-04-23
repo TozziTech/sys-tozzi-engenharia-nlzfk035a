@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { ShieldAlert } from 'lucide-react'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function ChangePassword() {
+  const [oldPassword, setOldPassword] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [loading, setLoading] = useState(false)
@@ -18,8 +20,7 @@ export default function ChangePassword() {
   const { toast } = useToast()
 
   if (!user || !user.must_change_password) {
-    navigate('/')
-    return null
+    return <Navigate to="/" replace />
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,10 +44,20 @@ export default function ChangePassword() {
       return
     }
 
+    if (!oldPassword) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'A senha atual é obrigatória.',
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
       await pb.collection('users').update(user.id, {
+        oldPassword,
         password,
         passwordConfirm,
         must_change_password: false,
@@ -65,7 +76,7 @@ export default function ChangePassword() {
       toast({
         variant: 'destructive',
         title: 'Erro ao alterar senha',
-        description: error.message || 'Verifique os dados e tente novamente.',
+        description: getErrorMessage(error) || 'Verifique os dados e tente novamente.',
       })
     } finally {
       setLoading(false)
@@ -89,6 +100,16 @@ export default function ChangePassword() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="oldPassword">Senha Atual</Label>
+              <Input
+                id="oldPassword"
+                type="password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="password">Nova Senha</Label>
               <Input

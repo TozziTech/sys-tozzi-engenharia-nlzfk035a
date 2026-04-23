@@ -84,14 +84,12 @@ export default function AccessControl() {
         pb
           .collection('access_requests')
           .getFullList({ filter: 'status = "Pendente"', expand: 'user,project', sort: '-created' }),
-        pb
-          .collection('audit_logs')
-          .getFullList({
-            filter: 'resource = "user_project_access"',
-            expand: 'user_id',
-            sort: '-created',
-            limit: 100,
-          }),
+        pb.collection('audit_logs').getFullList({
+          filter: 'resource = "user_project_access"',
+          expand: 'user_id',
+          sort: '-created',
+          limit: 100,
+        }),
       ])
       setUsers(usersRes)
       setProjects(projectsRes)
@@ -841,8 +839,8 @@ export default function AccessControl() {
             </DialogTitle>
             <DialogDescription className="text-slate-500 dark:text-zinc-400">
               {requestActionModal?.action === 'Aprovar'
-                ? `Confirmar acesso de ${requestActionModal.req?.requested_level} para ${requestActionModal.req?.expand?.user?.name} no projeto ${requestActionModal.req?.expand?.project?.name}?`
-                : `Você está negando o acesso de ${requestActionModal.req?.expand?.user?.name} ao projeto ${requestActionModal.req?.expand?.project?.name}.`}
+                ? `Confirmar acesso de ${requestActionModal?.req?.requested_level} para ${requestActionModal?.req?.expand?.user?.name} no projeto ${requestActionModal?.req?.expand?.project?.name}?`
+                : `Você está negando o acesso de ${requestActionModal?.req?.expand?.user?.name} ao projeto ${requestActionModal?.req?.expand?.project?.name}.`}
             </DialogDescription>
           </DialogHeader>
           {requestActionModal?.action === 'Negar' && (

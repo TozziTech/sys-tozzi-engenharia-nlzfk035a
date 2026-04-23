@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -9,7 +10,20 @@ import {
   ShieldCheck,
   ChevronRight,
   HardHat,
+  Users,
+  UserCheck,
 } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import { PieChart, Pie } from 'recharts'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from '@/components/ui/chart'
 
 const ROLES = [
   {
@@ -50,13 +64,85 @@ const ROLES = [
   },
 ]
 
+const roleConfig = {
+  value: { label: 'Colaboradores' },
+  Administrador: { label: 'Administrador', color: '#f59e0b' },
+  'Gerente de Projeto': { label: 'Gerente de Projeto', color: '#d97706' },
+  Projetista: { label: 'Projetista', color: '#fbbf24' },
+  Estagiário: { label: 'Estagiário', color: '#fcd34d' },
+  Visitante: { label: 'Visitante', color: '#fef3c7' },
+  Cliente: { label: 'Cliente', color: '#b45309' },
+  'Sem Função': { label: 'Sem Função', color: '#52525b' },
+} satisfies ChartConfig
+
+const statusConfig = {
+  value: { label: 'Colaboradores' },
+  Ativo: { label: 'Ativo', color: '#f59e0b' },
+  Inativo: { label: 'Inativo', color: '#52525b' },
+  'Em Férias': { label: 'Em Férias', color: '#fbbf24' },
+  Pendente: { label: 'Pendente', color: '#fcd34d' },
+  'Sem Status': { label: 'Sem Status', color: '#71717a' },
+} satisfies ChartConfig
+
 export default function Welcome() {
   const navigate = useNavigate()
+  const [users, setUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchUsers = async () => {
+    try {
+      const records = await pb.collection('users').getFullList({ fields: 'id,role,status' })
+      setUsers(records)
+    } catch (err) {
+      console.error('Failed to fetch users for stats:', err)
+      // Gracefully leave empty if unauthorized
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  useRealtime('users', () => {
+    fetchUsers()
+  })
+
+  const roleCount = users.reduce(
+    (acc, user) => {
+      const role = user.role || 'Sem Função'
+      acc[role] = (acc[role] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+
+  const statusCount = users.reduce(
+    (acc, user) => {
+      const status = user.status || 'Sem Status'
+      acc[status] = (acc[status] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+
+  const roleDataWithFill = Object.entries(roleCount).map(([name, value]) => ({
+    name,
+    value,
+    fill: (roleConfig as any)[name]?.color || '#52525b',
+  }))
+
+  const statusDataWithFill = Object.entries(statusCount).map(([name, value]) => ({
+    name,
+    value,
+    fill: (statusConfig as any)[name]?.color || '#71717a',
+  }))
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative p-4 md:p-8 overflow-hidden bg-zinc-950 font-sans selection:bg-amber-500/30">
+    <div className="min-h-screen flex flex-col items-center justify-start relative p-4 py-12 md:p-8 overflow-x-hidden overflow-y-auto bg-zinc-950 font-sans selection:bg-amber-500/30">
       {/* Background elements */}
-      <div className="absolute inset-0 z-0">
+      <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[url('https://img.usecurling.com/p/1920/1080?q=architectural%20blueprint&color=black')] bg-cover bg-center opacity-20 mix-blend-luminosity" />
         <div className="absolute inset-0 bg-gradient-to-br from-zinc-950 via-zinc-900/90 to-zinc-950" />
         <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-amber-500/5 blur-[120px]" />
@@ -64,10 +150,10 @@ export default function Welcome() {
       </div>
 
       <div
-        className="z-10 w-full space-y-12 animate-fade-in-up"
+        className="z-10 w-full space-y-16 animate-fade-in-up max-w-[1200px]"
         style={{ animationDuration: '1s' }}
       >
-        <div className="text-center space-y-6">
+        <div className="text-center space-y-6 mt-8 md:mt-12">
           <div className="flex justify-center mb-8">
             <div className="px-6 py-4 md:px-10 md:py-5 bg-zinc-900/50 backdrop-blur-md rounded-2xl flex items-center justify-center border border-amber-500/20 shadow-[0_0_40px_-10px_rgba(245,158,11,0.15)] relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/10 to-amber-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
@@ -90,7 +176,7 @@ export default function Welcome() {
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-6 md:gap-8 max-w-[1200px] mx-auto relative z-10 px-4">
+        <div className="flex flex-wrap justify-center gap-6 md:gap-8 mx-auto relative z-10 px-4">
           {ROLES.map((role, index) => (
             <Card
               key={role.id}
@@ -123,6 +209,110 @@ export default function Welcome() {
               <div className="absolute bottom-0 left-0 h-1 w-0 bg-gradient-to-r from-amber-400 to-amber-600 group-hover:w-full transition-all duration-700 ease-in-out" />
             </Card>
           ))}
+        </div>
+
+        {/* Statistics Section */}
+        <div
+          className="w-full mx-auto pb-16 z-10 px-4 animate-fade-in-up"
+          style={{ animationDelay: '800ms', animationFillMode: 'both' }}
+        >
+          <div className="flex flex-col items-center mb-8 text-center space-y-2">
+            <div className="flex items-center justify-center gap-3">
+              <Users className="h-7 w-7 text-amber-500" />
+              <h3 className="text-3xl font-bold text-zinc-100 tracking-tight">Resumo da Equipe</h3>
+            </div>
+            <p className="text-zinc-400 text-lg font-light max-w-xl mx-auto">
+              Visão geral em tempo real da distribuição e status dos colaboradores na plataforma.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+            {/* Role Chart Card */}
+            <Card className="bg-zinc-900/80 backdrop-blur-xl border-amber-500/20 shadow-[0_0_30px_-10px_rgba(245,158,11,0.1)] transition-all hover:border-amber-500/40 hover:shadow-[0_0_30px_-5px_rgba(245,158,11,0.2)]">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl text-amber-400 flex items-center gap-2 font-semibold">
+                  <UserCheck className="h-5 w-5" />
+                  Distribuição por Perfil
+                </CardTitle>
+                <CardDescription className="text-zinc-400">
+                  Total de colaboradores por função
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {loading ? (
+                  <div className="h-[280px] flex items-center justify-center text-zinc-500 animate-pulse">
+                    Carregando dados...
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="h-[280px] flex items-center justify-center text-zinc-500 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/30">
+                    Nenhum dado disponível
+                  </div>
+                ) : (
+                  <ChartContainer config={roleConfig} className="h-[280px] w-full">
+                    <PieChart>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Pie
+                        data={roleDataWithFill}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={95}
+                        paddingAngle={3}
+                        stroke="rgba(24, 24, 27, 0.8)"
+                        strokeWidth={2}
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
+                    </PieChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Status Chart Card */}
+            <Card className="bg-zinc-900/80 backdrop-blur-xl border-amber-500/20 shadow-[0_0_30px_-10px_rgba(245,158,11,0.1)] transition-all hover:border-amber-500/40 hover:shadow-[0_0_30px_-5px_rgba(245,158,11,0.2)]">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl text-amber-400 flex items-center gap-2 font-semibold">
+                  <Users className="h-5 w-5" />
+                  Status dos Colaboradores
+                </CardTitle>
+                <CardDescription className="text-zinc-400">
+                  Situação atual da equipe
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {loading ? (
+                  <div className="h-[280px] flex items-center justify-center text-zinc-500 animate-pulse">
+                    Carregando dados...
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="h-[280px] flex items-center justify-center text-zinc-500 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/30">
+                    Nenhum dado disponível
+                  </div>
+                ) : (
+                  <ChartContainer config={statusConfig} className="h-[280px] w-full">
+                    <PieChart>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Pie
+                        data={statusDataWithFill}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={95}
+                        paddingAngle={3}
+                        stroke="rgba(24, 24, 27, 0.8)"
+                        strokeWidth={2}
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
+                    </PieChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

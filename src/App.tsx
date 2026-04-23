@@ -65,6 +65,7 @@ import ChangePassword from './pages/ChangePassword'
 function HomeRoute() {
   const { user } = useAuth()
   if (user?.role === 'Cliente') return <Navigate to="/gestao/painel-cliente" replace />
+  if (user?.role === 'Projetista') return <Navigate to="/designer-panel" replace />
   if (user?.role === 'Administrador' || user?.role === 'Gerente de Projeto')
     return <Navigate to="/dashboard" replace />
   return <Navigate to="/meu-painel" replace />

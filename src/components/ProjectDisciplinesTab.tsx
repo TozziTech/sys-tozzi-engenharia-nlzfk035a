@@ -18,6 +18,17 @@ import { ProjectModule } from '@/types/project_modules'
 import { useAuth } from '@/hooks/use-auth'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -34,6 +45,93 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   const { user } = useAuth()
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
+
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false)
+  const [batchUsers, setBatchUsers] = useState<string[]>([])
+  const [batchModules, setBatchModules] = useState<string[]>([])
+  const [batchRole, setBatchRole] = useState<'responsible' | 'designer'>('responsible')
+  const [batchAccessLevel, setBatchAccessLevel] = useState<'Leitura' | 'Edição'>('Edição')
+  const [isSubmittingBatch, setIsSubmittingBatch] = useState(false)
+
+  const toggleBatchUser = (id: string) => {
+    setBatchUsers((prev) => (prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]))
+  }
+  const toggleBatchModule = (id: string) => {
+    setBatchModules((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]))
+  }
+
+  const handleBatchAssign = async () => {
+    setIsSubmittingBatch(true)
+    let assignments = 0
+    let requestsCount = 0
+
+    try {
+      for (const userId of batchUsers) {
+        for (const moduleId of batchModules) {
+          const mod = modules.find((m) => m.id === moduleId)
+          if (!mod) continue
+
+          const oldUserId = mod[batchRole]
+          if (oldUserId !== userId) {
+            await pb.collection('project_modules').update(moduleId, {
+              [batchRole]: userId === 'unassigned' ? null : userId,
+            })
+            assignments++
+
+            try {
+              await pb.collection('audit_logs').create({
+                user_id: user?.id,
+                action: 'assignment_added',
+                resource: 'user_project_access',
+                details: {
+                  project_id: projectId,
+                  target_user: userId,
+                  role: batchRole === 'responsible' ? 'Responsável' : 'Projetista',
+                  module_name: mod.name,
+                  batch: true,
+                },
+              })
+            } catch (auditErr) {
+              console.error('Erro ao salvar log de auditoria', auditErr)
+            }
+
+            const hasAccess = projectAccesses.some(
+              (a) => a.user === userId && a.project === projectId,
+            )
+            if (!hasAccess) {
+              const hasPending = pendingRequests.some(
+                (r) => r.user === userId && r.project === projectId,
+              )
+              if (!hasPending) {
+                await pb.collection('access_requests').create({
+                  user: userId,
+                  project: projectId,
+                  requested_level: batchAccessLevel,
+                  status: 'Pendente',
+                })
+                requestsCount++
+                setPendingRequests((prev) => [
+                  ...prev,
+                  { user: userId, project: projectId, status: 'Pendente' },
+                ])
+              }
+            }
+          }
+        }
+      }
+      toast({
+        title: 'Atribuição em Lote Concluída',
+        description: `${assignments} atribuições e ${requestsCount} solicitações de acesso geradas.`,
+      })
+      setIsBatchModalOpen(false)
+      setBatchUsers([])
+      setBatchModules([])
+    } catch (e) {
+      toast({ title: 'Erro na atribuição em lote', variant: 'destructive' })
+    } finally {
+      setIsSubmittingBatch(false)
+    }
+  }
 
   const getLevel = (modId: string, field: string) => accessLevels[`${modId}-${field}`] || 'Edição'
   const setLevel = (modId: string, field: string, level: string) =>
@@ -176,15 +274,139 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          Disciplinas e Equipe
-        </CardTitle>
-        <CardDescription>
-          Gerencie as disciplinas do projeto e defina o Responsável (Gerente) e o Projetista
-          (Designer) para cada uma.
-        </CardDescription>
+      <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Disciplinas e Equipe
+          </CardTitle>
+          <CardDescription>
+            Gerencie as disciplinas do projeto e defina o Responsável (Gerente) e o Projetista
+            (Designer) para cada uma.
+          </CardDescription>
+        </div>
+        {canEdit && (
+          <Dialog open={isBatchModalOpen} onOpenChange={setIsBatchModalOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Users className="h-4 w-4" />
+                Atribuição em Lote
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Atribuição em Lote</DialogTitle>
+                <DialogDescription>
+                  Atribua múltiplos usuários a várias disciplinas de uma só vez.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-semibold">1. Selecione os Usuários</Label>
+                    <div className="mt-2 border rounded-md h-[200px] overflow-y-auto p-2 bg-muted/20 space-y-2">
+                      {users.map((u) => (
+                        <div
+                          key={u.id}
+                          className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded"
+                        >
+                          <Checkbox
+                            id={`user-${u.id}`}
+                            checked={batchUsers.includes(u.id)}
+                            onCheckedChange={() => toggleBatchUser(u.id)}
+                          />
+                          <Label
+                            htmlFor={`user-${u.id}`}
+                            className="text-sm cursor-pointer flex-1 truncate"
+                          >
+                            {u.name}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-semibold">2. Selecione as Disciplinas</Label>
+                    <div className="mt-2 border rounded-md h-[200px] overflow-y-auto p-2 bg-muted/20 space-y-2">
+                      {modules.map((m) => (
+                        <div
+                          key={m.id}
+                          className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded"
+                        >
+                          <Checkbox
+                            id={`mod-${m.id}`}
+                            checked={batchModules.includes(m.id)}
+                            onCheckedChange={() => toggleBatchModule(m.id)}
+                          />
+                          <Label
+                            htmlFor={`mod-${m.id}`}
+                            className="text-sm cursor-pointer flex-1 truncate"
+                          >
+                            {m.name}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 border-t pt-4">
+                <Label className="text-base font-semibold">3. Defina as Permissões</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                      Papel
+                    </Label>
+                    <Select value={batchRole} onValueChange={(v: any) => setBatchRole(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="responsible">Responsável</SelectItem>
+                        <SelectItem value="designer">Projetista</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                      Nível de Acesso
+                    </Label>
+                    <Select
+                      value={batchAccessLevel}
+                      onValueChange={(v: any) => setBatchAccessLevel(v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Leitura">Leitura</SelectItem>
+                        <SelectItem value="Edição">Edição</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="mt-6">
+                <Button variant="outline" onClick={() => setIsBatchModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleBatchAssign}
+                  disabled={
+                    batchUsers.length === 0 || batchModules.length === 0 || isSubmittingBatch
+                  }
+                >
+                  {isSubmittingBatch ? 'Processando...' : 'Aplicar Atribuições'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </CardHeader>
       <CardContent className="space-y-6">
         {canEdit && (

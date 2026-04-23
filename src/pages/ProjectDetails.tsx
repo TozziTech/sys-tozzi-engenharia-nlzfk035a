@@ -32,10 +32,11 @@ import {
   PieChart,
   Star,
 } from 'lucide-react'
-import { exportProjectHoursCSV } from '@/lib/export'
-import { exportProjectHoursPDF } from '@/lib/exportPdf'
+import { exportProjectHoursCSV, exportAuditLogsCSV } from '@/lib/export'
+import { exportProjectHoursPDF, exportAuditLogsPDF } from '@/lib/exportPdf'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useAuth } from '@/hooks/use-auth'
 import {
   Select,
   SelectContent,
@@ -117,6 +118,7 @@ export default function ProjectDetails() {
     // Keep projects in sync
   })
 
+  const { user } = useAuth()
   const { projects, deleteProject, timeLogs, users, tasks } = useProjectStore()
 
   const store = useProjectStore() as any
@@ -886,11 +888,36 @@ export default function ProjectDetails() {
 
             <TabsContent value="history" className="mt-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Histórico de Alterações</CardTitle>
-                  <CardDescription>
-                    Registro de alterações de acesso e atribuições de membros na equipe do projeto.
-                  </CardDescription>
+                <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <CardTitle className="text-lg">Histórico de Alterações</CardTitle>
+                    <CardDescription>
+                      Registro de alterações de acesso e atribuições de membros na equipe do
+                      projeto.
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportAuditLogsCSV(auditLogs)}
+                      className="flex-1 sm:flex-none"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      CSV
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        exportAuditLogsPDF(auditLogs, user?.name || user?.email || 'Usuário', null)
+                      }
+                      className="flex-1 sm:flex-none"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      PDF
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {auditLogs.length > 0 ? (

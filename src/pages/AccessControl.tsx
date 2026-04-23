@@ -16,7 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Shield, Clock, CheckCircle, KeyRound, Search, FileText, History } from 'lucide-react'
+import {
+  Shield,
+  Clock,
+  CheckCircle,
+  KeyRound,
+  Search,
+  FileText,
+  History,
+  PieChart,
+} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -307,6 +317,30 @@ export default function AccessControl() {
     [users, currentUser],
   )
 
+  const totalActiveAccesses = accessRecords.length
+  const totalPendingRequests = requests.length
+  const totalEditors = accessRecords.filter((a) => a.access_level === 'Edição').length
+  const totalReaders = accessRecords.filter((a) => a.access_level === 'Leitura').length
+
+  const projectStats = useMemo(() => {
+    return projects
+      .map((p) => {
+        const accesses = accessRecords.filter((a) =>
+          Array.isArray(a.project) ? a.project.includes(p.id) : a.project === p.id,
+        )
+        const editors = accesses.filter((a) => a.access_level === 'Edição').length
+        const readers = accesses.filter((a) => a.access_level === 'Leitura').length
+        const projectReqs = requests.filter((r) =>
+          Array.isArray(r.project) ? r.project.includes(p.id) : r.project === p.id,
+        )
+        const latestReq = projectReqs.sort(
+          (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime(),
+        )[0]
+        return { project: p, editors, readers, latestRequestStatus: latestReq?.status || 'Nenhuma' }
+      })
+      .sort((a, b) => b.editors + b.readers - (a.editors + a.readers))
+  }, [projects, accessRecords, requests])
+
   const handleUpdateUser = async (userId: string, data: any, successMsg: string) => {
     try {
       await pb.collection('users').update(userId, data)
@@ -586,8 +620,11 @@ export default function AccessControl() {
         </Button>
       </div>
 
-      <Tabs defaultValue="active" className="w-full">
+      <Tabs defaultValue="dashboard" className="w-full">
         <TabsList className="mb-6 flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+          <TabsTrigger value="dashboard" className="flex gap-2">
+            <PieChart className="h-4 w-4" /> Visão Geral
+          </TabsTrigger>
           <TabsTrigger value="active" className="flex gap-2">
             <CheckCircle className="h-4 w-4" /> Usuários Ativos
           </TabsTrigger>
@@ -611,6 +648,111 @@ export default function AccessControl() {
             <History className="h-4 w-4" /> Histórico
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard" className="space-y-6 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" /> Acessos Ativos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{totalActiveAccesses}</div>
+                <p className="text-xs text-muted-foreground mt-1">Total de permissões concedidas</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Clock className="h-4 w-4" /> Solicitações Pendentes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{totalPendingRequests}</div>
+                <p className="text-xs text-muted-foreground mt-1">Aguardando aprovação</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Shield className="h-4 w-4" /> Distribuição Global
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="text-2xl font-bold text-blue-600">{totalReaders}</div>
+                    <div className="text-xs text-muted-foreground uppercase">Leitura</div>
+                  </div>
+                  <div className="h-8 w-[1px] bg-border" />
+                  <div className="flex-1">
+                    <div className="text-2xl font-bold text-amber-600">{totalEditors}</div>
+                    <div className="text-xs text-muted-foreground uppercase">Edição</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Segurança por Projeto</CardTitle>
+              <CardDescription>
+                Resumo de permissões e solicitações recentes em projetos ativos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Projeto</TableHead>
+                      <TableHead className="text-center">Usuários c/ Edição</TableHead>
+                      <TableHead className="text-center">Usuários c/ Leitura</TableHead>
+                      <TableHead>Última Solicitação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {projectStats.map((stat) => (
+                      <TableRow key={stat.project.id}>
+                        <TableCell className="font-medium">{stat.project.name}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                          >
+                            {stat.editors}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge
+                            variant="outline"
+                            className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                          >
+                            {stat.readers}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {stat.latestRequestStatus}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {projectStats.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                          Nenhum projeto encontrado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="active" className="mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

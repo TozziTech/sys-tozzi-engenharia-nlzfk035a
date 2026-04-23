@@ -43,6 +43,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { exportAccessReportPDF } from '@/lib/exportPdf'
 
@@ -142,7 +143,7 @@ export default function AccessControl() {
   }
 
   const handleProcessRequest = async () => {
-    if (!requestActionModal) return
+    if (!requestActionModal?.req) return
     setIsSubmitting(true)
     try {
       const status = requestActionModal.action === 'Aprovar' ? 'Aprovado' : 'Negado'
@@ -255,19 +256,6 @@ export default function AccessControl() {
     }
   }
 
-  const submitEditProjects = async () => {
-    setIsSubmitting(true)
-    try {
-      await saveAccesses(editProjectsUser.id)
-      toast({ title: 'Sucesso', description: 'Projetos associados atualizados com sucesso.' })
-      setEditProjectsUser(null)
-    } catch (e) {
-      toast({ title: 'Erro', description: 'Falha ao atualizar projetos.', variant: 'destructive' })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
   const handleExportAccessReport = () => {
     exportAccessReportPDF(
       users,
@@ -278,12 +266,90 @@ export default function AccessControl() {
     )
   }
 
-  const ProjectSelector = ({ isDarkTheme = false }: { isDarkTheme?: boolean }) => {
+  const ProjectSelector = ({
+    isDarkTheme = false,
+    liveUpdateUserId,
+  }: {
+    isDarkTheme?: boolean
+    liveUpdateUserId?: string
+  }) => {
     const filtered = projects.filter(
       (p) =>
         p.name.toLowerCase().includes(projectSearch.toLowerCase()) ||
         p.client?.toLowerCase().includes(projectSearch.toLowerCase()),
     )
+
+    const handleToggle = async (project: any, checked: boolean) => {
+      if (liveUpdateUserId) {
+        try {
+          if (checked) {
+            await pb.collection('user_project_access').create({
+              user: liveUpdateUserId,
+              project: project.id,
+              access_level: 'Leitura',
+            })
+            setSelectedAccesses((prev) => ({ ...prev, [project.id]: 'Leitura' }))
+            toast({
+              title: 'Acesso concedido',
+              description: `Acesso leitura concedido para ${project.name}.`,
+            })
+          } else {
+            const existingRecord = accessRecords.find(
+              (a) => a.user === liveUpdateUserId && a.project === project.id,
+            )
+            if (existingRecord) {
+              await pb.collection('user_project_access').delete(existingRecord.id)
+            }
+            const next = { ...selectedAccesses }
+            delete next[project.id]
+            setSelectedAccesses(next)
+            toast({
+              title: 'Acesso revogado',
+              description: `Acesso removido para ${project.name}.`,
+            })
+          }
+        } catch (e) {
+          toast({
+            title: 'Erro',
+            description: 'Falha ao atualizar acesso.',
+            variant: 'destructive',
+          })
+        }
+      } else {
+        if (checked) {
+          setSelectedAccesses((prev) => ({ ...prev, [project.id]: 'Leitura' }))
+        } else {
+          const next = { ...selectedAccesses }
+          delete next[project.id]
+          setSelectedAccesses(next)
+        }
+      }
+    }
+
+    const handleLevelChange = async (project: any, level: string) => {
+      if (liveUpdateUserId) {
+        try {
+          const existingRecord = accessRecords.find(
+            (a) => a.user === liveUpdateUserId && a.project === project.id,
+          )
+          if (existingRecord) {
+            await pb.collection('user_project_access').update(existingRecord.id, {
+              access_level: level,
+            })
+          }
+          setSelectedAccesses((prev) => ({ ...prev, [project.id]: level }))
+          toast({ title: 'Acesso atualizado', description: `Nível alterado para ${level}.` })
+        } catch (e) {
+          toast({
+            title: 'Erro',
+            description: 'Falha ao atualizar nível de acesso.',
+            variant: 'destructive',
+          })
+        }
+      } else {
+        setSelectedAccesses((prev) => ({ ...prev, [project.id]: level }))
+      }
+    }
 
     return (
       <div className="space-y-3 mt-4">
@@ -299,101 +365,89 @@ export default function AccessControl() {
             className={`pl-9 ${isDarkTheme ? 'bg-zinc-900/50 border-amber-500/20 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-amber-500 hover:border-amber-500/40' : ''}`}
           />
         </div>
-        <div
-          className={`border rounded-lg p-1.5 max-h-64 overflow-y-auto ${isDarkTheme ? 'bg-zinc-900/40 backdrop-blur-md border-amber-500/20 custom-scrollbar' : 'bg-muted/10'}`}
+        <ScrollArea
+          className={`border rounded-lg h-[300px] ${isDarkTheme ? 'bg-zinc-900/40 backdrop-blur-md border-amber-500/20 custom-scrollbar' : 'bg-muted/10'}`}
         >
-          {filtered.map((project) => {
-            const isSelected = !!selectedAccesses[project.id]
-            const accessLevel = selectedAccesses[project.id] || 'Leitura'
-            return (
-              <div
-                key={project.id}
-                className={`flex items-center justify-between p-2.5 rounded-md transition-colors ${isDarkTheme ? 'hover:bg-zinc-800/60 border border-transparent hover:border-amber-500/10' : 'hover:bg-muted/50'}`}
+          <div className="p-1.5 space-y-1">
+            {filtered.map((project) => {
+              const isSelected = !!selectedAccesses[project.id]
+              const accessLevel = selectedAccesses[project.id] || 'Leitura'
+              return (
+                <div
+                  key={project.id}
+                  className={`flex items-center justify-between p-2.5 rounded-md transition-colors ${isDarkTheme ? 'hover:bg-zinc-800/60 border border-transparent hover:border-amber-500/10' : 'hover:bg-muted/50'}`}
+                >
+                  <label className="flex items-center space-x-3 cursor-pointer flex-1">
+                    <Switch
+                      className={isDarkTheme ? 'data-[state=checked]:bg-amber-500' : ''}
+                      checked={isSelected}
+                      onCheckedChange={(checked) => handleToggle(project, checked)}
+                    />
+                    <div className="flex flex-col">
+                      <span
+                        className={`text-sm font-medium leading-none ${isDarkTheme ? 'text-zinc-200' : ''}`}
+                      >
+                        {project.name}
+                      </span>
+                      <span
+                        className={`text-[10px] mt-1 uppercase tracking-wider ${isDarkTheme ? 'text-zinc-500' : 'text-muted-foreground'}`}
+                      >
+                        {project.client} • {project.status}
+                      </span>
+                    </div>
+                  </label>
+                  {isSelected && (
+                    <Select
+                      value={accessLevel}
+                      onValueChange={(val) => handleLevelChange(project, val)}
+                    >
+                      <SelectTrigger
+                        className={`h-8 w-[100px] text-xs ${isDarkTheme ? 'bg-zinc-900/80 border-amber-500/30 text-amber-500 focus:ring-amber-500 hover:border-amber-500' : ''}`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        className={
+                          isDarkTheme
+                            ? 'bg-zinc-900/95 backdrop-blur-xl border-amber-500/20 text-zinc-200'
+                            : ''
+                        }
+                      >
+                        <SelectItem
+                          value="Leitura"
+                          className={
+                            isDarkTheme
+                              ? 'focus:bg-amber-500/20 focus:text-amber-500 cursor-pointer'
+                              : ''
+                          }
+                        >
+                          Leitura
+                        </SelectItem>
+                        <SelectItem
+                          value="Edição"
+                          className={
+                            isDarkTheme
+                              ? 'focus:bg-amber-500/20 focus:text-amber-500 cursor-pointer'
+                              : ''
+                          }
+                        >
+                          Edição
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              )
+            })}
+            {filtered.length === 0 && (
+              <p
+                className={`text-sm p-4 text-center ${isDarkTheme ? 'text-zinc-500' : 'text-muted-foreground'}`}
               >
-                <label className="flex items-center space-x-3 cursor-pointer flex-1">
-                  <Checkbox
-                    className={
-                      isDarkTheme
-                        ? 'border-amber-500/30 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:text-zinc-950'
-                        : ''
-                    }
-                    checked={isSelected}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedAccesses((prev) => ({ ...prev, [project.id]: 'Leitura' }))
-                      } else {
-                        const next = { ...selectedAccesses }
-                        delete next[project.id]
-                        setSelectedAccesses(next)
-                      }
-                    }}
-                  />
-                  <div className="flex flex-col">
-                    <span
-                      className={`text-sm font-medium leading-none ${isDarkTheme ? 'text-zinc-200' : ''}`}
-                    >
-                      {project.name}
-                    </span>
-                    <span
-                      className={`text-[10px] mt-1 uppercase tracking-wider ${isDarkTheme ? 'text-zinc-500' : 'text-muted-foreground'}`}
-                    >
-                      {project.client} • {project.status}
-                    </span>
-                  </div>
-                </label>
-                {isSelected && (
-                  <Select
-                    value={accessLevel}
-                    onValueChange={(val) =>
-                      setSelectedAccesses((prev) => ({ ...prev, [project.id]: val }))
-                    }
-                  >
-                    <SelectTrigger
-                      className={`h-8 w-[100px] text-xs ${isDarkTheme ? 'bg-zinc-900/80 border-amber-500/30 text-amber-500 focus:ring-amber-500 hover:border-amber-500' : ''}`}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent
-                      className={
-                        isDarkTheme
-                          ? 'bg-zinc-900/95 backdrop-blur-xl border-amber-500/20 text-zinc-200'
-                          : ''
-                      }
-                    >
-                      <SelectItem
-                        value="Leitura"
-                        className={
-                          isDarkTheme
-                            ? 'focus:bg-amber-500/20 focus:text-amber-500 cursor-pointer'
-                            : ''
-                        }
-                      >
-                        Leitura
-                      </SelectItem>
-                      <SelectItem
-                        value="Edição"
-                        className={
-                          isDarkTheme
-                            ? 'focus:bg-amber-500/20 focus:text-amber-500 cursor-pointer'
-                            : ''
-                        }
-                      >
-                        Edição
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            )
-          })}
-          {filtered.length === 0 && (
-            <p
-              className={`text-sm p-4 text-center ${isDarkTheme ? 'text-zinc-500' : 'text-muted-foreground'}`}
-            >
-              Nenhum projeto encontrado.
-            </p>
-          )}
-        </div>
+                Nenhum projeto encontrado.
+              </p>
+            )}
+          </div>
+        </ScrollArea>
       </div>
     )
   }
@@ -402,8 +456,8 @@ export default function AccessControl() {
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6 animate-fade-in-up">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Shield className="h-8 w-8 text-primary" /> Controle de Acesso
+          <h1 className="text-3xl font-bold tracking-tight text-amber-500 flex items-center gap-2">
+            <Shield className="h-8 w-8 text-amber-500" /> Controle de Acesso
           </h1>
           <p className="text-muted-foreground">
             Gerencie acessos, aprovações e auditoria na plataforma.
@@ -797,26 +851,19 @@ export default function AccessControl() {
               <FolderKanban className="h-5 w-5" /> Gestão de Projetos
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Gerencie os acessos do usuário <strong>{editProjectsUser?.name}</strong>.
+              Gerencie os acessos do usuário <strong>{editProjectsUser?.name}</strong>. As
+              alterações são salvas automaticamente.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
-            <ProjectSelector isDarkTheme={true} />
+            <ProjectSelector isDarkTheme={true} liveUpdateUserId={editProjectsUser?.id} />
           </div>
           <DialogFooter className="border-t border-amber-500/20 pt-4 mt-2">
             <Button
-              variant="ghost"
-              className="text-zinc-300 hover:text-white hover:bg-zinc-800/50"
+              className="bg-amber-500 text-zinc-950 hover:bg-amber-600 font-semibold border border-transparent hover:border-amber-400 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]"
               onClick={() => setEditProjectsUser(null)}
             >
-              Cancelar
-            </Button>
-            <Button
-              className="bg-amber-500 text-zinc-950 hover:bg-amber-600 font-semibold border border-transparent hover:border-amber-400 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-              onClick={submitEditProjects}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+              Concluído
             </Button>
           </DialogFooter>
         </DialogContent>

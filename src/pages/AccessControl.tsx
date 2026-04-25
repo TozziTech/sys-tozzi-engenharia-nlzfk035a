@@ -25,6 +25,8 @@ import {
   FileText,
   History,
   PieChart,
+  FileStack,
+  Settings,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
@@ -273,6 +275,7 @@ export default function AccessControl() {
   const [requests, setRequests] = useState<any[]>([])
   const [auditLogs, setAuditLogs] = useState<any[]>([])
   const [settings, setSettings] = useState<any>(null)
+  const [moduleVisibility, setModuleVisibility] = useState<any>({})
 
   const { toast } = useToast()
   const { user: currentUser } = useAuth()
@@ -313,7 +316,10 @@ export default function AccessControl() {
       setUsers(usersRes)
       setProjects(projectsRes)
       setAccessRecords(accessRes)
-      if (settingsRes.length > 0) setSettings(settingsRes[0])
+      if (settingsRes.length > 0) {
+        setSettings(settingsRes[0])
+        setModuleVisibility(settingsRes[0].module_visibility || {})
+      }
       setRequests(reqsRes)
       setAuditLogs(auditRes)
     } catch (e) {
@@ -358,6 +364,43 @@ export default function AccessControl() {
       })
       .sort((a, b) => b.editors + b.readers - (a.editors + a.readers))
   }, [projects, accessRecords, requests])
+
+  const handleModuleToggle = async (
+    moduleId: string,
+    checked: boolean,
+    isParent: boolean = false,
+    childrenIds: string[] = [],
+  ) => {
+    const newVisibility = { ...moduleVisibility, [moduleId]: checked }
+    if (isParent && !checked) {
+      childrenIds.forEach((id) => {
+        newVisibility[id] = false
+      })
+    } else if (!isParent && checked) {
+      if (
+        ['biblioteca', 'pops', 'projetos_base', 'documentos_modelos', 'cursos'].includes(moduleId)
+      ) {
+        newVisibility['gestao_arq_doc'] = true
+      }
+    }
+
+    setModuleVisibility(newVisibility)
+
+    if (settings) {
+      try {
+        await pb.collection('company_settings').update(settings.id, {
+          module_visibility: newVisibility,
+        })
+        toast({ title: 'Sucesso', description: 'Visibilidade de módulo atualizada.' })
+      } catch (e) {
+        toast({
+          title: 'Erro',
+          description: 'Erro ao salvar configuração.',
+          variant: 'destructive',
+        })
+      }
+    }
+  }
 
   const handleUpdateUser = async (userId: string, data: any, successMsg: string) => {
     try {
@@ -662,6 +705,9 @@ export default function AccessControl() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="modules" className="flex gap-2">
+            <Settings className="h-4 w-4" /> Módulos
+          </TabsTrigger>
           <TabsTrigger value="history" className="flex gap-2">
             <History className="h-4 w-4" /> Histórico
           </TabsTrigger>
@@ -890,6 +936,134 @@ export default function AccessControl() {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="modules" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileStack className="h-5 w-5 text-amber-500" />
+                Gerenciamento de Módulos
+              </CardTitle>
+              <CardDescription>
+                Ative ou desative módulos globalmente. Desativar um módulo principal ocultará todos
+                os seus submódulos para todos os usuários.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6 max-w-2xl">
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="bg-muted/50 p-4 border-b flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold flex items-center gap-2">GESTÃO ARQ/DOC</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Gerenciamento de documentos, biblioteca e padrões
+                      </p>
+                    </div>
+                    <Switch
+                      checked={moduleVisibility['gestao_arq_doc'] !== false}
+                      onCheckedChange={(c) =>
+                        handleModuleToggle('gestao_arq_doc', c, true, [
+                          'biblioteca',
+                          'pops',
+                          'projetos_base',
+                          'documentos_modelos',
+                          'cursos',
+                        ])
+                      }
+                    />
+                  </div>
+
+                  <div className="p-4 space-y-4 pl-8 bg-card">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                          <div className="w-1 h-1 rounded-full bg-amber-500" />
+                          Biblioteca
+                        </span>
+                        <span className="text-xs text-muted-foreground pl-3">
+                          Acesso a livros e normas técnicas
+                        </span>
+                      </div>
+                      <Switch
+                        checked={moduleVisibility['biblioteca'] !== false}
+                        disabled={moduleVisibility['gestao_arq_doc'] === false}
+                        onCheckedChange={(c) => handleModuleToggle('biblioteca', c)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                          <div className="w-1 h-1 rounded-full bg-amber-500" />
+                          POPs
+                        </span>
+                        <span className="text-xs text-muted-foreground pl-3">
+                          Procedimentos Operacionais Padrão
+                        </span>
+                      </div>
+                      <Switch
+                        checked={moduleVisibility['pops'] !== false}
+                        disabled={moduleVisibility['gestao_arq_doc'] === false}
+                        onCheckedChange={(c) => handleModuleToggle('pops', c)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                          <div className="w-1 h-1 rounded-full bg-amber-500" />
+                          Projetos Base
+                        </span>
+                        <span className="text-xs text-muted-foreground pl-3">
+                          Templates e arquivos base para projetos
+                        </span>
+                      </div>
+                      <Switch
+                        checked={moduleVisibility['projetos_base'] !== false}
+                        disabled={moduleVisibility['gestao_arq_doc'] === false}
+                        onCheckedChange={(c) => handleModuleToggle('projetos_base', c)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                          <div className="w-1 h-1 rounded-full bg-amber-500" />
+                          Documentos Modelos
+                        </span>
+                        <span className="text-xs text-muted-foreground pl-3">
+                          Modelos de ofícios e requerimentos
+                        </span>
+                      </div>
+                      <Switch
+                        checked={moduleVisibility['documentos_modelos'] !== false}
+                        disabled={moduleVisibility['gestao_arq_doc'] === false}
+                        onCheckedChange={(c) => handleModuleToggle('documentos_modelos', c)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                          <div className="w-1 h-1 rounded-full bg-amber-500" />
+                          Cursos
+                        </span>
+                        <span className="text-xs text-muted-foreground pl-3">
+                          Treinamentos e capacitações
+                        </span>
+                      </div>
+                      <Switch
+                        checked={moduleVisibility['cursos'] !== false}
+                        disabled={moduleVisibility['gestao_arq_doc'] === false}
+                        onCheckedChange={(c) => handleModuleToggle('cursos', c)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="history">

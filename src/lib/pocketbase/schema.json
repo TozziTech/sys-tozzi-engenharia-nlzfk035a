@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-25T03:34:38.419Z",
+  "generatedAt": "2026-04-25T05:01:53.153Z",
   "collections": [
     {
       "name": "users",
@@ -866,6 +866,12 @@
         {
           "name": "contact_alert_days",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "module_visibility",
+          "type": "json",
           "required": false,
           "system": false
         }

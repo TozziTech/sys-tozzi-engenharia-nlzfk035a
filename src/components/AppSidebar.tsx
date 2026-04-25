@@ -46,7 +46,7 @@ import { Label } from '@/components/ui/label'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuth } from '@/hooks/use-auth'
 
-const getNavigationGroups = (user: any) => [
+const getNavigationGroups = (user: any, moduleVisibility: any) => [
   {
     label: 'Gestão Projetista',
     items: [
@@ -102,27 +102,31 @@ const getNavigationGroups = (user: any) => [
   },
   {
     label: 'GESTÃO ARQ/DOC',
+    id: 'gestao_arq_doc',
     items: [
-      { name: 'Biblioteca', href: '/files/library', icon: BookOpen },
+      { name: 'Biblioteca', id: 'biblioteca', href: '/files/library', icon: BookOpen },
       {
         name: 'POPs',
+        id: 'pops',
         href: '/files/pops',
         icon: FileCheck,
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
       },
       {
         name: 'Projetos Base',
+        id: 'projetos_base',
         href: '/files/base-projects',
         icon: FileStack,
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
       },
       {
         name: 'Documentos Modelos',
+        id: 'documentos_modelos',
         href: '/files/templates',
         icon: FileSpreadsheet,
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista', 'Estagiário'],
       },
-      { name: 'Cursos', href: '/files/courses', icon: GraduationCap },
+      { name: 'Cursos', id: 'cursos', href: '/files/courses', icon: GraduationCap },
     ],
   },
   {
@@ -151,13 +155,17 @@ export function AppSidebar() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
+  const { moduleVisibility } = useSettingsStore()
 
   const handleLogout = () => {
     signOut()
     navigate('/login')
   }
 
-  const groups = getNavigationGroups(user)
+  const groups = getNavigationGroups(user, moduleVisibility).filter((g) => {
+    if ((g as any).id && moduleVisibility[(g as any).id] === false) return false
+    return true
+  })
 
   return (
     <Sidebar className="border-r border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
@@ -184,6 +192,7 @@ export function AppSidebar() {
               (!user?.role || !(item as any).allowedRoles.includes(user.role))
             )
               return false
+            if ((item as any).id && moduleVisibility[(item as any).id] === false) return false
             return true
           })
 

@@ -8,8 +8,28 @@ import { format } from 'date-fns'
 
 export function RealtimeSync() {
   const { projects, updateProject } = useProjectStore()
-  const { realtimeEnabled } = useSettingsStore()
+  const { realtimeEnabled, setModuleVisibility } = useSettingsStore()
   const { toast } = useToast()
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const records = await pb.collection('company_settings').getFullList()
+        if (records.length > 0) {
+          setModuleVisibility(records[0].module_visibility || {})
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    fetchSettings()
+  }, [setModuleVisibility])
+
+  useRealtime('company_settings', (e) => {
+    if (e.action === 'update' || e.action === 'create') {
+      setModuleVisibility(e.record.module_visibility || {})
+    }
+  })
 
   useRealtime('audit_logs', async (e) => {
     if (e.action === 'create' && e.record.action === 'Task Rescheduled') {

@@ -45,8 +45,9 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 
-const getNavigationGroups = (user: any, moduleVisibility: any) => [
+const getNavigationGroups = () => [
   {
     label: 'Gestão Projetista',
     items: [
@@ -156,14 +157,18 @@ export function AppSidebar() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { moduleVisibility } = useSettingsStore()
+  const { canAccess } = usePermissions()
 
   const handleLogout = () => {
     signOut()
     navigate('/login')
   }
 
-  const groups = getNavigationGroups(user, moduleVisibility).filter((g) => {
+  const groups = getNavigationGroups().filter((g) => {
     if ((g as any).id && moduleVisibility[(g as any).id] === false) return false
+    if (g.allowedRoles && (!user?.role || !g.allowedRoles.includes(user.role))) {
+      return false
+    }
     return true
   })
 
@@ -181,18 +186,19 @@ export function AppSidebar() {
       <SidebarSeparator className="bg-zinc-800" />
       <SidebarContent className="scrollbar-hide py-2">
         {groups.map((group, i) => {
-          if (group.allowedRoles && (!user?.role || !group.allowedRoles.includes(user.role))) {
-            return null
-          }
-
           const visibleItems = group.items.filter((item) => {
             if ((item as any).adminOnly && user?.role !== 'Administrador') return false
-            if (
-              (item as any).allowedRoles &&
-              (!user?.role || !(item as any).allowedRoles.includes(user.role))
-            )
-              return false
-            if ((item as any).id && moduleVisibility[(item as any).id] === false) return false
+
+            if ((item as any).id) {
+              if (!canAccess((item as any).id)) return false
+            } else {
+              if (
+                (item as any).allowedRoles &&
+                (!user?.role || !(item as any).allowedRoles.includes(user.role))
+              )
+                return false
+            }
+
             return true
           })
 

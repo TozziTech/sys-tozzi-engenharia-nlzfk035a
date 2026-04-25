@@ -10,11 +10,19 @@ export interface ModuleVisibility {
   [key: string]: boolean | undefined
 }
 
+export interface RolePermissions {
+  [role: string]: {
+    [moduleId: string]: 'Ativo' | 'Leitura' | 'Inativo'
+  }
+}
+
 interface SettingsStore {
   realtimeEnabled: boolean
   toggleRealtime: (enabled: boolean) => void
   moduleVisibility: ModuleVisibility
   setModuleVisibility: (visibility: ModuleVisibility) => void
+  role_permissions: RolePermissions
+  setRolePermissions: (permissions: RolePermissions) => void
 }
 
 export const useSettingsStore = create<SettingsStore>((set) => ({
@@ -22,4 +30,6 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   toggleRealtime: (enabled) => set({ realtimeEnabled: enabled }),
   moduleVisibility: {},
   setModuleVisibility: (visibility) => set({ moduleVisibility: visibility }),
+  role_permissions: {},
+  setRolePermissions: (permissions) => set({ role_permissions: permissions }),
 }))

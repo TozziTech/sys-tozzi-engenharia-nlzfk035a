@@ -276,6 +276,7 @@ export default function AccessControl() {
   const [auditLogs, setAuditLogs] = useState<any[]>([])
   const [settings, setSettings] = useState<any>(null)
   const [moduleVisibility, setModuleVisibility] = useState<any>({})
+  const [rolePermissions, setRolePermissions] = useState<any>({})
 
   const { toast } = useToast()
   const { user: currentUser } = useAuth()
@@ -319,6 +320,7 @@ export default function AccessControl() {
       if (settingsRes.length > 0) {
         setSettings(settingsRes[0])
         setModuleVisibility(settingsRes[0].module_visibility || {})
+        setRolePermissions(settingsRes[0].role_permissions || {})
       }
       setRequests(reqsRes)
       setAuditLogs(auditRes)
@@ -364,6 +366,28 @@ export default function AccessControl() {
       })
       .sort((a, b) => b.editors + b.readers - (a.editors + a.readers))
   }, [projects, accessRecords, requests])
+
+  const handleRolePermissionChange = async (role: string, moduleId: string, value: string) => {
+    const newPerms = { ...rolePermissions }
+    if (!newPerms[role]) newPerms[role] = {}
+    newPerms[role][moduleId] = value
+    setRolePermissions(newPerms)
+
+    if (settings) {
+      try {
+        await pb.collection('company_settings').update(settings.id, {
+          role_permissions: newPerms,
+        })
+        toast({ title: 'Sucesso', description: 'Permissão de perfil atualizada.' })
+      } catch (e) {
+        toast({
+          title: 'Erro',
+          description: 'Erro ao salvar permissão.',
+          variant: 'destructive',
+        })
+      }
+    }
+  }
 
   const handleModuleToggle = async (
     moduleId: string,
@@ -974,91 +998,94 @@ export default function AccessControl() {
                     />
                   </div>
 
-                  <div className="p-4 space-y-4 pl-8 bg-card">
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                          <div className="w-1 h-1 rounded-full bg-amber-500" />
-                          Biblioteca
-                        </span>
-                        <span className="text-xs text-muted-foreground pl-3">
-                          Acesso a livros e normas técnicas
-                        </span>
-                      </div>
-                      <Switch
-                        checked={moduleVisibility['biblioteca'] !== false}
-                        disabled={moduleVisibility['gestao_arq_doc'] === false}
-                        onCheckedChange={(c) => handleModuleToggle('biblioteca', c)}
-                      />
+                  <div className="p-4 bg-card border-t">
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium mb-1">Permissões por Perfil (Matriz)</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Configure se o módulo está visível e se o perfil tem permissão de escrita.
+                      </p>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                          <div className="w-1 h-1 rounded-full bg-amber-500" />
-                          POPs
-                        </span>
-                        <span className="text-xs text-muted-foreground pl-3">
-                          Procedimentos Operacionais Padrão
-                        </span>
-                      </div>
-                      <Switch
-                        checked={moduleVisibility['pops'] !== false}
-                        disabled={moduleVisibility['gestao_arq_doc'] === false}
-                        onCheckedChange={(c) => handleModuleToggle('pops', c)}
-                      />
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader className="bg-muted/50">
+                          <TableRow>
+                            <TableHead className="w-[200px]">Módulo / Global</TableHead>
+                            {['Projetista', 'Estagiário', 'Visitante', 'Cliente'].map((role) => (
+                              <TableHead key={role} className="text-center font-semibold text-xs">
+                                {role}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {[
+                            { id: 'biblioteca', name: 'Biblioteca', desc: 'Livros e normas' },
+                            { id: 'pops', name: 'POPs', desc: 'Procedimentos Padrão' },
+                            { id: 'projetos_base', name: 'Projetos Base', desc: 'Templates' },
+                            {
+                              id: 'documentos_modelos',
+                              name: 'Documentos Modelos',
+                              desc: 'Ofícios',
+                            },
+                            { id: 'cursos', name: 'Cursos', desc: 'Treinamentos' },
+                          ].map((mod) => (
+                            <TableRow key={mod.id}>
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col gap-2">
+                                  <div>
+                                    <span className="text-sm block">{mod.name}</span>
+                                    <span className="text-[10px] text-muted-foreground block">
+                                      {mod.desc}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={moduleVisibility[mod.id] !== false}
+                                      disabled={moduleVisibility['gestao_arq_doc'] === false}
+                                      onCheckedChange={(c) => handleModuleToggle(mod.id, c)}
+                                      className="scale-75 origin-left"
+                                    />
+                                    <span className="text-xs text-muted-foreground">
+                                      Global Ativo
+                                    </span>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              {['Projetista', 'Estagiário', 'Visitante', 'Cliente'].map((role) => {
+                                const val = rolePermissions[role]?.[mod.id] || 'Ativo'
+                                return (
+                                  <TableCell key={role} className="text-center p-2 align-top pt-4">
+                                    <Select
+                                      value={val}
+                                      disabled={
+                                        moduleVisibility[mod.id] === false ||
+                                        moduleVisibility['gestao_arq_doc'] === false
+                                      }
+                                      onValueChange={(v) =>
+                                        handleRolePermissionChange(role, mod.id, v)
+                                      }
+                                    >
+                                      <SelectTrigger className="h-8 text-xs w-[95px] mx-auto">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Ativo">Ativo</SelectItem>
+                                        <SelectItem value="Leitura">Leitura</SelectItem>
+                                        <SelectItem value="Inativo">Inativo</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                )
+                              })}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                          <div className="w-1 h-1 rounded-full bg-amber-500" />
-                          Projetos Base
-                        </span>
-                        <span className="text-xs text-muted-foreground pl-3">
-                          Templates e arquivos base para projetos
-                        </span>
-                      </div>
-                      <Switch
-                        checked={moduleVisibility['projetos_base'] !== false}
-                        disabled={moduleVisibility['gestao_arq_doc'] === false}
-                        onCheckedChange={(c) => handleModuleToggle('projetos_base', c)}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                          <div className="w-1 h-1 rounded-full bg-amber-500" />
-                          Documentos Modelos
-                        </span>
-                        <span className="text-xs text-muted-foreground pl-3">
-                          Modelos de ofícios e requerimentos
-                        </span>
-                      </div>
-                      <Switch
-                        checked={moduleVisibility['documentos_modelos'] !== false}
-                        disabled={moduleVisibility['gestao_arq_doc'] === false}
-                        onCheckedChange={(c) => handleModuleToggle('documentos_modelos', c)}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                          <div className="w-1 h-1 rounded-full bg-amber-500" />
-                          Cursos
-                        </span>
-                        <span className="text-xs text-muted-foreground pl-3">
-                          Treinamentos e capacitações
-                        </span>
-                      </div>
-                      <Switch
-                        checked={moduleVisibility['cursos'] !== false}
-                        disabled={moduleVisibility['gestao_arq_doc'] === false}
-                        onCheckedChange={(c) => handleModuleToggle('cursos', c)}
-                      />
-                    </div>
+                    <p className="text-xs text-muted-foreground italic mt-3">
+                      Nota: Administradores e Gerentes de Projeto possuem acesso "Ativo" por padrão
+                      em todos os módulos habilitados.
+                    </p>
                   </div>
                 </div>
               </div>

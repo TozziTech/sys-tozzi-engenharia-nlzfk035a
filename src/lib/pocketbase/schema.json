@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-25T05:01:53.153Z",
+  "generatedAt": "2026-04-25T05:10:28.343Z",
   "collections": [
     {
       "name": "users",
@@ -871,6 +871,12 @@
         },
         {
           "name": "module_visibility",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "role_permissions",
           "type": "json",
           "required": false,
           "system": false

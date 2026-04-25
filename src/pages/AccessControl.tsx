@@ -51,6 +51,7 @@ const UserAccessCard = ({
   user,
   projects,
   accessRecords,
+  setAccessRecords,
   handleUpdateUser,
   handleAdminReset,
 }: any) => {
@@ -75,11 +76,16 @@ const UserAccessCard = ({
     )
     try {
       if (checked && !existing) {
-        await pb.collection('user_project_access').create({
+        const newAccess = await pb.collection('user_project_access').create({
           user: user.id,
           project: project.id,
           access_level: 'Leitura',
         })
+
+        if (setAccessRecords) {
+          setAccessRecords((prev: any[]) => [...prev, newAccess])
+        }
+
         const uRec = await pb.collection('users').getOne(user.id)
         const currentAssigned = Array.isArray(uRec.assigned_projects)
           ? uRec.assigned_projects
@@ -94,6 +100,11 @@ const UserAccessCard = ({
         toast({ title: 'Acesso concedido', description: `Acesso concedido para ${project.name}.` })
       } else if (!checked && existing) {
         await pb.collection('user_project_access').delete(existing.id)
+
+        if (setAccessRecords) {
+          setAccessRecords((prev: any[]) => prev.filter((a) => a.id !== existing.id))
+        }
+
         const uRec = await pb.collection('users').getOne(user.id)
         const currentAssigned = Array.isArray(uRec.assigned_projects)
           ? uRec.assigned_projects
@@ -121,6 +132,13 @@ const UserAccessCard = ({
     if (existing) {
       try {
         await pb.collection('user_project_access').update(existing.id, { access_level: level })
+
+        if (setAccessRecords) {
+          setAccessRecords((prev: any[]) =>
+            prev.map((a) => (a.id === existing.id ? { ...a, access_level: level } : a)),
+          )
+        }
+
         toast({ title: 'Nível atualizado', description: `Acesso alterado para ${level}.` })
       } catch (e) {
         toast({ title: 'Erro', description: 'Falha ao atualizar nível.', variant: 'destructive' })
@@ -762,6 +780,7 @@ export default function AccessControl() {
                 user={u}
                 projects={projects}
                 accessRecords={accessRecords}
+                setAccessRecords={setAccessRecords}
                 handleUpdateUser={handleUpdateUser}
                 handleAdminReset={handleAdminReset}
               />

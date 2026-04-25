@@ -1,7 +1,15 @@
 onRecordAfterUpdateSuccess((e) => {
-  const userId = e.record.getString('user')
-  const projectId = e.record.getString('project')
+  let userId = e.record.get('user')
+  if (Array.isArray(userId)) userId = userId[0]
+
+  let projectId = e.record.get('project')
+  if (Array.isArray(projectId)) projectId = projectId[0]
+
   const accessLevel = e.record.getString('access_level')
+
+  if (!projectId || !userId) {
+    return e.next()
+  }
 
   const project = $app.findRecordById('projects', projectId)
 
@@ -17,8 +25,16 @@ onRecordAfterUpdateSuccess((e) => {
   notif.set('link', `/projects/${projectId}`)
   $app.save(notif)
 
-  const authRecord = e.requestInfo().auth
-  const adminId = authRecord ? authRecord.id : userId
+  let adminId = userId
+  try {
+    const authRecord = e.requestInfo().auth
+    if (authRecord) {
+      adminId = authRecord.id
+    }
+  } catch (err) {
+    // e.requestInfo() might throw outside of active request hooks context
+  }
+
   const audit = new Record($app.findCollectionByNameOrId('audit_logs'))
   audit.set('user_id', adminId)
   audit.set('action', 'access_updated')

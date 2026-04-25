@@ -284,18 +284,24 @@ export function ProjectModuleModal({
                         <SelectItem value="none">Nenhum</SelectItem>
                         {users.filter(
                           (u) =>
-                            u.status !== 'Inativo' &&
-                            (u.role === 'Projetista' || u.id === module?.responsible),
+                            (u.status === 'Ativo' &&
+                              ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(
+                                u.role,
+                              )) ||
+                            u.id === module?.responsible,
                         ).length === 0 && (
                           <SelectItem value="none_disabled" disabled>
-                            Nenhum projetista disponível
+                            Nenhum responsável disponível
                           </SelectItem>
                         )}
                         {users
                           .filter(
                             (u) =>
-                              u.status !== 'Inativo' &&
-                              (u.role === 'Projetista' || u.id === module?.responsible),
+                              (u.status === 'Ativo' &&
+                                ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(
+                                  u.role,
+                                )) ||
+                              u.id === module?.responsible,
                           )
                           .map((u) => (
                             <SelectItem key={u.id} value={u.id}>

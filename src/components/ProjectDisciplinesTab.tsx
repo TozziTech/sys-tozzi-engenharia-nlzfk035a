@@ -307,7 +307,15 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                     <Label className="text-base font-semibold">1. Selecione os Usuários</Label>
                     <div className="mt-2 border rounded-md h-[200px] overflow-y-auto p-2 bg-muted/20 space-y-2">
                       {users
-                        .filter((u) => u.role === 'Projetista')
+                        .filter(
+                          (u) =>
+                            u.status === 'Ativo' &&
+                            (batchRole === 'designer'
+                              ? u.role === 'Projetista'
+                              : ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(
+                                  u.role,
+                                )),
+                        )
                         .map((u) => (
                           <div
                             key={u.id}
@@ -326,9 +334,17 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                             </Label>
                           </div>
                         ))}
-                      {users.filter((u) => u.role === 'Projetista').length === 0 && (
+                      {users.filter(
+                        (u) =>
+                          u.status === 'Ativo' &&
+                          (batchRole === 'designer'
+                            ? u.role === 'Projetista'
+                            : ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(
+                                u.role,
+                              )),
+                      ).length === 0 && (
                         <div className="p-2 text-sm text-muted-foreground text-center">
-                          Nenhum projetista disponível
+                          Nenhum usuário disponível
                         </div>
                       )}
                     </div>
@@ -368,7 +384,13 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                       Papel
                     </Label>
-                    <Select value={batchRole} onValueChange={(v: any) => setBatchRole(v)}>
+                    <Select
+                      value={batchRole}
+                      onValueChange={(v: any) => {
+                        setBatchRole(v)
+                        setBatchUsers([])
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -532,14 +554,26 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                               Sem responsável
                             </SelectItem>
                             {users.filter(
-                              (u) => u.role === 'Projetista' || u.id === mod.responsible,
+                              (u) =>
+                                (u.status === 'Ativo' &&
+                                  ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(
+                                    u.role,
+                                  )) ||
+                                u.id === mod.responsible,
                             ).length === 0 && (
                               <SelectItem value="none_disabled" disabled>
-                                Nenhum projetista disponível
+                                Nenhum responsável disponível
                               </SelectItem>
                             )}
                             {users
-                              .filter((u) => u.role === 'Projetista' || u.id === mod.responsible)
+                              .filter(
+                                (u) =>
+                                  (u.status === 'Ativo' &&
+                                    ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(
+                                      u.role,
+                                    )) ||
+                                  u.id === mod.responsible,
+                              )
                               .map((u) => {
                                 const hasAccess = projectAccesses.some((a) => a.user === u.id)
                                 const hasPending = pendingRequests.some((r) => r.user === u.id)

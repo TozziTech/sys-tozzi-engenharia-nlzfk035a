@@ -628,13 +628,18 @@ export default function AccessControl() {
     }
     setIsSubmitting(true)
     try {
-      await pb.collection('users').update(approvalUser.id, {
-        status: activateNow ? 'Ativo' : 'Pendente',
-        role: selectedRole,
-        codigo: codigo.trim(),
-        password: tempPassword,
-        passwordConfirm: tempPassword,
-        must_change_password: true,
+      await pb.send('/backend/v1/admin/update-user', {
+        method: 'POST',
+        body: JSON.stringify({
+          id: approvalUser.id,
+          status: activateNow ? 'Ativo' : 'Pendente',
+          role: selectedRole,
+          codigo: codigo.trim(),
+          password: tempPassword,
+          passwordConfirm: tempPassword,
+          must_change_password: true,
+        }),
+        headers: { 'Content-Type': 'application/json' },
       })
       await saveAccesses(approvalUser.id)
       toast({ title: 'Sucesso', description: 'Usuário aprovado e ativado com projetos definidos.' })

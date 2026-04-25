@@ -282,8 +282,21 @@ export function ProjectModuleModal({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="none">Nenhum</SelectItem>
+                        {users.filter(
+                          (u) =>
+                            u.status !== 'Inativo' &&
+                            (u.role === 'Projetista' || u.id === module?.responsible),
+                        ).length === 0 && (
+                          <SelectItem value="none_disabled" disabled>
+                            Nenhum projetista disponível
+                          </SelectItem>
+                        )}
                         {users
-                          .filter((u) => u.status !== 'Inativo')
+                          .filter(
+                            (u) =>
+                              u.status !== 'Inativo' &&
+                              (u.role === 'Projetista' || u.id === module?.responsible),
+                          )
                           .map((u) => (
                             <SelectItem key={u.id} value={u.id}>
                               {u.name || u.codigo || 'Usuário sem nome'}

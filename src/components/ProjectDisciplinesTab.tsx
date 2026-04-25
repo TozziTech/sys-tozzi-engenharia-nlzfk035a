@@ -306,24 +306,31 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                   <div>
                     <Label className="text-base font-semibold">1. Selecione os Usuários</Label>
                     <div className="mt-2 border rounded-md h-[200px] overflow-y-auto p-2 bg-muted/20 space-y-2">
-                      {users.map((u) => (
-                        <div
-                          key={u.id}
-                          className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded"
-                        >
-                          <Checkbox
-                            id={`user-${u.id}`}
-                            checked={batchUsers.includes(u.id)}
-                            onCheckedChange={() => toggleBatchUser(u.id)}
-                          />
-                          <Label
-                            htmlFor={`user-${u.id}`}
-                            className="text-sm cursor-pointer flex-1 truncate"
+                      {users
+                        .filter((u) => u.role === 'Projetista')
+                        .map((u) => (
+                          <div
+                            key={u.id}
+                            className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded"
                           >
-                            {u.name}
-                          </Label>
+                            <Checkbox
+                              id={`user-${u.id}`}
+                              checked={batchUsers.includes(u.id)}
+                              onCheckedChange={() => toggleBatchUser(u.id)}
+                            />
+                            <Label
+                              htmlFor={`user-${u.id}`}
+                              className="text-sm cursor-pointer flex-1 truncate"
+                            >
+                              {u.name}
+                            </Label>
+                          </div>
+                        ))}
+                      {users.filter((u) => u.role === 'Projetista').length === 0 && (
+                        <div className="p-2 text-sm text-muted-foreground text-center">
+                          Nenhum projetista disponível
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 </div>
@@ -524,41 +531,50 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                             <SelectItem value="unassigned" className="text-muted-foreground italic">
                               Sem responsável
                             </SelectItem>
-                            {users.map((u) => {
-                              const hasAccess = projectAccesses.some((a) => a.user === u.id)
-                              const hasPending = pendingRequests.some((r) => r.user === u.id)
-                              return (
-                                <SelectItem key={u.id} value={u.id}>
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-5 w-5">
-                                      <AvatarImage
-                                        src={
-                                          u.avatar
-                                            ? pb.files.getURL(u, u.avatar)
-                                            : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                        }
-                                      />
-                                      <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="truncate">{u.name}</span>
-                                    {!hasAccess && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>
-                                            {hasPending
-                                              ? 'Aguardando aprovação de acesso'
-                                              : 'Sem acesso ao projeto'}
-                                          </p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              )
-                            })}
+                            {users.filter(
+                              (u) => u.role === 'Projetista' || u.id === mod.responsible,
+                            ).length === 0 && (
+                              <SelectItem value="none_disabled" disabled>
+                                Nenhum projetista disponível
+                              </SelectItem>
+                            )}
+                            {users
+                              .filter((u) => u.role === 'Projetista' || u.id === mod.responsible)
+                              .map((u) => {
+                                const hasAccess = projectAccesses.some((a) => a.user === u.id)
+                                const hasPending = pendingRequests.some((r) => r.user === u.id)
+                                return (
+                                  <SelectItem key={u.id} value={u.id}>
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-5 w-5">
+                                        <AvatarImage
+                                          src={
+                                            u.avatar
+                                              ? pb.files.getURL(u, u.avatar)
+                                              : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                          }
+                                        />
+                                        <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                      </Avatar>
+                                      <span className="truncate">{u.name}</span>
+                                      {!hasAccess && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>
+                                              {hasPending
+                                                ? 'Aguardando aprovação de acesso'
+                                                : 'Sem acesso ao projeto'}
+                                            </p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                )
+                              })}
                           </SelectContent>
                         </Select>
                         <Select
@@ -635,41 +651,49 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                             <SelectItem value="unassigned" className="text-muted-foreground italic">
                               Sem projetista
                             </SelectItem>
-                            {users.map((u) => {
-                              const hasAccess = projectAccesses.some((a) => a.user === u.id)
-                              const hasPending = pendingRequests.some((r) => r.user === u.id)
-                              return (
-                                <SelectItem key={u.id} value={u.id}>
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-5 w-5">
-                                      <AvatarImage
-                                        src={
-                                          u.avatar
-                                            ? pb.files.getURL(u, u.avatar)
-                                            : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
-                                        }
-                                      />
-                                      <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="truncate">{u.name}</span>
-                                    {!hasAccess && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>
-                                            {hasPending
-                                              ? 'Aguardando aprovação de acesso'
-                                              : 'Sem acesso ao projeto'}
-                                          </p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              )
-                            })}
+                            {users.filter((u) => u.role === 'Projetista' || u.id === mod.designer)
+                              .length === 0 && (
+                              <SelectItem value="none_disabled" disabled>
+                                Nenhum projetista disponível
+                              </SelectItem>
+                            )}
+                            {users
+                              .filter((u) => u.role === 'Projetista' || u.id === mod.designer)
+                              .map((u) => {
+                                const hasAccess = projectAccesses.some((a) => a.user === u.id)
+                                const hasPending = pendingRequests.some((r) => r.user === u.id)
+                                return (
+                                  <SelectItem key={u.id} value={u.id}>
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-5 w-5">
+                                        <AvatarImage
+                                          src={
+                                            u.avatar
+                                              ? pb.files.getURL(u, u.avatar)
+                                              : `https://img.usecurling.com/ppl/thumbnail?seed=${u.id}`
+                                          }
+                                        />
+                                        <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
+                                      </Avatar>
+                                      <span className="truncate">{u.name}</span>
+                                      {!hasAccess && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>
+                                              {hasPending
+                                                ? 'Aguardando aprovação de acesso'
+                                                : 'Sem acesso ao projeto'}
+                                            </p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                )
+                              })}
                           </SelectContent>
                         </Select>
                         <Select

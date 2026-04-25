@@ -120,6 +120,7 @@ const UserAccessCard = ({
   handleAdminReset,
 }: any) => {
   const [search, setSearch] = useState('')
+  const [loadingProjects, setLoadingProjects] = useState<Record<string, boolean>>({})
   const { toast } = useToast()
 
   const filteredProjects = useMemo(
@@ -133,80 +134,142 @@ const UserAccessCard = ({
   )
 
   const handleToggle = async (project: any, checked: boolean) => {
+    if (loadingProjects[project.id]) return
+    setLoadingProjects((prev) => ({ ...prev, [project.id]: true }))
+
     const existing = accessRecords.find(
       (a: any) =>
         (Array.isArray(a.user) ? a.user.includes(user.id) : a.user === user.id) &&
         (Array.isArray(a.project) ? a.project.includes(project.id) : a.project === project.id),
     )
+
     try {
       if (checked && !existing) {
-        const newAccess = await pb.collection('user_project_access').create({
-          user: user.id,
-          project: project.id,
-          access_level: 'Leitura',
-        })
-
-        if (setAccessRecords) {
-          setAccessRecords((prev: any[]) => [...prev, newAccess])
-        }
-
-        const uRec = await pb.collection('users').getOne(user.id)
-        const currentAssigned = Array.isArray(uRec.assigned_projects)
-          ? uRec.assigned_projects
-          : uRec.assigned_projects
-            ? [uRec.assigned_projects]
-            : []
-        if (!currentAssigned.includes(project.id)) {
-          await pb
-            .collection('users')
-            .update(user.id, { assigned_projects: [...currentAssigned, project.id] })
-        }
-        toast({ title: 'Acesso concedido', description: `Acesso concedido para ${project.name}.` })
-      } else if (!checked && existing) {
-        await pb.collection('user_project_access').delete(existing.id)
-
-        if (setAccessRecords) {
-          setAccessRecords((prev: any[]) => prev.filter((a) => a.id !== existing.id))
-        }
-
-        const uRec = await pb.collection('users').getOne(user.id)
-        const currentAssigned = Array.isArray(uRec.assigned_projects)
-          ? uRec.assigned_projects
-          : uRec.assigned_projects
-            ? [uRec.assigned_projects]
-            : []
-        if (currentAssigned.includes(project.id)) {
-          await pb.collection('users').update(user.id, {
-            assigned_projects: currentAssigned.filter((id: string) => id !== project.id),
+        try {
+          const newAccess = await pb.collection('user_project_access').create({
+            user: user.id,
+            project: project.id,
+            access_level: 'Leitura',
           })
+
+          if (setAccessRecords) {
+            setAccessRecords((prev: any[]) => [...prev, newAccess])
+          }
+
+          const uRec = await pb.collection('users').getOne(user.id)
+          const currentAssigned = Array.isArray(uRec.assigned_projects)
+            ? uRec.assigned_projects
+            : uRec.assigned_projects
+              ? [uRec.assigned_projects]
+              : []
+          if (!currentAssigned.includes(project.id)) {
+            await pb
+              .collection('users')
+              .update(user.id, { assigned_projects: [...currentAssigned, project.id] })
+          }
+          toast({
+            title: 'Acesso concedido',
+            description: `Acesso concedido para ${project.name}.`,
+          })
+        } catch (err: any) {
+          if (err.status === 400) {
+            const existingRecord = await pb
+              .collection('user_project_access')
+              .getFirstListItem(`user="${user.id}" && project="${project.id}"`)
+              .catch(() => null)
+            if (existingRecord && setAccessRecords) {
+              setAccessRecords((prev: any[]) => {
+                if (!prev.find((p) => p.id === existingRecord.id)) return [...prev, existingRecord]
+                return prev
+              })
+            }
+          } else {
+            throw err
+          }
         }
-        toast({ title: 'Acesso revogado', description: `Acesso removido para ${project.name}.` })
+      } else if (!checked && existing) {
+        try {
+          await pb.collection('user_project_access').delete(existing.id)
+
+          if (setAccessRecords) {
+            setAccessRecords((prev: any[]) => prev.filter((a) => a.id !== existing.id))
+          }
+
+          const uRec = await pb.collection('users').getOne(user.id)
+          const currentAssigned = Array.isArray(uRec.assigned_projects)
+            ? uRec.assigned_projects
+            : uRec.assigned_projects
+              ? [uRec.assigned_projects]
+              : []
+          if (currentAssigned.includes(project.id)) {
+            await pb.collection('users').update(user.id, {
+              assigned_projects: currentAssigned.filter((id: string) => id !== project.id),
+            })
+          }
+          toast({ title: 'Acesso revogado', description: `Acesso removido para ${project.name}.` })
+        } catch (err: any) {
+          if (err.status === 404) {
+            if (setAccessRecords) {
+              setAccessRecords((prev: any[]) => prev.filter((a) => a.id !== existing.id))
+            }
+          } else {
+            throw err
+          }
+        }
       }
     } catch (e) {
       toast({ title: 'Erro', description: 'Falha ao atualizar acesso.', variant: 'destructive' })
+    } finally {
+      setLoadingProjects((prev) => ({ ...prev, [project.id]: false }))
     }
   }
 
   const handleLevelChange = async (project: any, level: string) => {
+    if (loadingProjects[project.id]) return
+    setLoadingProjects((prev) => ({ ...prev, [project.id]: true }))
+
     const existing = accessRecords.find(
       (a: any) =>
         (Array.isArray(a.user) ? a.user.includes(user.id) : a.user === user.id) &&
         (Array.isArray(a.project) ? a.project.includes(project.id) : a.project === project.id),
     )
-    if (existing) {
-      try {
-        await pb.collection('user_project_access').update(existing.id, { access_level: level })
 
-        if (setAccessRecords) {
-          setAccessRecords((prev: any[]) =>
-            prev.map((a) => (a.id === existing.id ? { ...a, access_level: level } : a)),
-          )
+    try {
+      if (existing) {
+        try {
+          await pb.collection('user_project_access').update(existing.id, { access_level: level })
+
+          if (setAccessRecords) {
+            setAccessRecords((prev: any[]) =>
+              prev.map((a) => (a.id === existing.id ? { ...a, access_level: level } : a)),
+            )
+          }
+
+          toast({ title: 'Nível atualizado', description: `Acesso alterado para ${level}.` })
+        } catch (err: any) {
+          if (err.status === 404) {
+            if (setAccessRecords) {
+              setAccessRecords((prev: any[]) => prev.filter((a) => a.id !== existing.id))
+            }
+          } else {
+            throw err
+          }
         }
-
+      } else {
+        const newAccess = await pb.collection('user_project_access').create({
+          user: user.id,
+          project: project.id,
+          access_level: level,
+        })
+        if (setAccessRecords) {
+          setAccessRecords((prev: any[]) => [...prev, newAccess])
+        }
         toast({ title: 'Nível atualizado', description: `Acesso alterado para ${level}.` })
-      } catch (e) {
-        toast({ title: 'Erro', description: 'Falha ao atualizar nível.', variant: 'destructive' })
       }
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Falha ao atualizar nível.', variant: 'destructive' })
+    } finally {
+      setLoadingProjects((prev) => ({ ...prev, [project.id]: false }))
     }
   }
 
@@ -287,9 +350,12 @@ const UserAccessCard = ({
                   key={project.id}
                   className="flex items-center justify-between p-2 rounded-md hover:bg-muted/80 transition-colors"
                 >
-                  <label className="flex items-center space-x-3 cursor-pointer flex-1 overflow-hidden">
+                  <label
+                    className={`flex items-center space-x-3 flex-1 overflow-hidden ${loadingProjects[project.id] ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
                     <Switch
                       checked={isSelected}
+                      disabled={loadingProjects[project.id]}
                       onCheckedChange={(checked) => handleToggle(project, checked)}
                     />
                     <div className="flex flex-col truncate">
@@ -305,6 +371,7 @@ const UserAccessCard = ({
                     <Select
                       value={accessLevel}
                       onValueChange={(val) => handleLevelChange(project, val)}
+                      disabled={loadingProjects[project.id]}
                     >
                       <SelectTrigger className="h-7 w-[85px] text-xs ml-2 flex-shrink-0">
                         <SelectValue />
@@ -522,18 +589,43 @@ export default function AccessControl() {
       if (status === 'Aprovado') {
         const existingAccess = accessRecords.find(
           (a) =>
-            a.user === requestActionModal.req.user && a.project === requestActionModal.req.project,
+            (Array.isArray(a.user)
+              ? a.user.includes(requestActionModal.req.user)
+              : a.user === requestActionModal.req.user) &&
+            (Array.isArray(a.project)
+              ? a.project.includes(requestActionModal.req.project)
+              : a.project === requestActionModal.req.project),
         )
-        if (existingAccess) {
-          await pb.collection('user_project_access').update(existingAccess.id, {
-            access_level: requestActionModal.req.requested_level,
-          })
-        } else {
-          await pb.collection('user_project_access').create({
-            user: requestActionModal.req.user,
-            project: requestActionModal.req.project,
-            access_level: requestActionModal.req.requested_level,
-          })
+
+        try {
+          if (existingAccess) {
+            await pb.collection('user_project_access').update(existingAccess.id, {
+              access_level: requestActionModal.req.requested_level,
+            })
+          } else {
+            await pb.collection('user_project_access').create({
+              user: requestActionModal.req.user,
+              project: requestActionModal.req.project,
+              access_level: requestActionModal.req.requested_level,
+            })
+          }
+        } catch (err: any) {
+          if (err.status === 400) {
+            // Already exists constraint violation
+            const existRec = await pb
+              .collection('user_project_access')
+              .getFirstListItem(
+                `user="${requestActionModal.req.user}" && project="${requestActionModal.req.project}"`,
+              )
+              .catch(() => null)
+            if (existRec) {
+              await pb.collection('user_project_access').update(existRec.id, {
+                access_level: requestActionModal.req.requested_level,
+              })
+            }
+          } else {
+            throw err
+          }
         }
 
         const userRec = users.find((u) => u.id === requestActionModal.req.user)
@@ -584,29 +676,63 @@ export default function AccessControl() {
   }
 
   const saveAccesses = async (userId: string) => {
-    const existing = accessRecords.filter((a) => a.user === userId)
-    const toDelete = existing.filter((e) => !selectedAccesses[e.project])
+    const existing = accessRecords.filter((a) =>
+      Array.isArray(a.user) ? a.user.includes(userId) : a.user === userId,
+    )
+
+    const getProjectFromAcc = (a: any) => (Array.isArray(a.project) ? a.project[0] : a.project)
+
+    const toDelete = existing.filter((e) => !selectedAccesses[getProjectFromAcc(e)])
     const toUpdate = existing.filter(
-      (e) => selectedAccesses[e.project] && e.access_level !== selectedAccesses[e.project],
+      (e) =>
+        selectedAccesses[getProjectFromAcc(e)] &&
+        e.access_level !== selectedAccesses[getProjectFromAcc(e)],
     )
     const toCreateKeys = Object.keys(selectedAccesses).filter(
-      (pid) => !existing.some((e) => e.project === pid),
+      (pid) => !existing.some((e) => getProjectFromAcc(e) === pid),
     )
 
     for (const del of toDelete) {
-      await pb.collection('user_project_access').delete(del.id)
+      try {
+        await pb.collection('user_project_access').delete(del.id)
+      } catch (err: any) {
+        if (err.status !== 404) console.error(err)
+      }
     }
     for (const upd of toUpdate) {
-      await pb
-        .collection('user_project_access')
-        .update(upd.id, { access_level: selectedAccesses[upd.project] })
+      try {
+        await pb
+          .collection('user_project_access')
+          .update(upd.id, { access_level: selectedAccesses[getProjectFromAcc(upd)] })
+      } catch (err: any) {
+        if (err.status !== 404) console.error(err)
+      }
     }
     for (const pid of toCreateKeys) {
-      await pb.collection('user_project_access').create({
-        user: userId,
-        project: pid,
-        access_level: selectedAccesses[pid],
-      })
+      try {
+        await pb.collection('user_project_access').create({
+          user: userId,
+          project: pid,
+          access_level: selectedAccesses[pid],
+        })
+      } catch (err: any) {
+        if (err.status === 400) {
+          try {
+            const existRec = await pb
+              .collection('user_project_access')
+              .getFirstListItem(`user="${userId}" && project="${pid}"`)
+            if (existRec && existRec.access_level !== selectedAccesses[pid]) {
+              await pb
+                .collection('user_project_access')
+                .update(existRec.id, { access_level: selectedAccesses[pid] })
+            }
+          } catch (e) {
+            console.error(e)
+          }
+        } else {
+          console.error(err)
+        }
+      }
     }
     await pb
       .collection('users')

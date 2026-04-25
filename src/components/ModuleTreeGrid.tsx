@@ -49,6 +49,7 @@ const pbDateToBR = (dateStr?: string) => {
 }
 
 import { CreateTaskDialog } from './CreateTaskDialog'
+import { PermissionGuard } from './auth/PermissionGuard'
 import {
   Select,
   SelectContent,
@@ -489,13 +490,25 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                       className="flex items-center gap-2"
                       style={{ paddingLeft: `${depth * 24}px` }}
                     >
-                      <Checkbox
-                        checked={task.status === 'Concluído'}
-                        onCheckedChange={(checked) => {
-                          handleStatusChange(task.id, checked ? 'Concluído' : 'Pendente')
-                        }}
-                        className="data-[state=checked]:bg-primary"
-                      />
+                      <PermissionGuard
+                        module="projetos"
+                        action="write"
+                        fallback={
+                          <Checkbox
+                            checked={task.status === 'Concluído'}
+                            disabled
+                            className="data-[state=checked]:bg-primary opacity-50"
+                          />
+                        }
+                      >
+                        <Checkbox
+                          checked={task.status === 'Concluído'}
+                          onCheckedChange={(checked) => {
+                            handleStatusChange(task.id, checked ? 'Concluído' : 'Pendente')
+                          }}
+                          className="data-[state=checked]:bg-primary"
+                        />
+                      </PermissionGuard>
                       <div className="w-5 h-5 flex items-center justify-center shrink-0">
                         {task.children && task.children.length > 0 ? (
                           <button
@@ -511,39 +524,61 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                         ) : null}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <TextMaskedInput
-                          value={task.title}
-                          onBlur={(val) => {
-                            if (val !== task.title) handleTitleChange(task.id, val)
-                          }}
-                          className={`h-7 px-1 py-0 -ml-1 w-full text-sm border-transparent hover:border-input focus:border-input bg-transparent ${depth === 0 ? 'font-semibold' : depth === 1 ? 'font-medium' : 'text-muted-foreground'}`}
-                        />
+                        <PermissionGuard
+                          module="projetos"
+                          action="write"
+                          fallback={
+                            <div
+                              className={`h-7 px-1 py-0.5 -ml-1 w-full text-sm truncate ${depth === 0 ? 'font-semibold' : depth === 1 ? 'font-medium' : 'text-muted-foreground'}`}
+                            >
+                              {task.title}
+                            </div>
+                          }
+                        >
+                          <TextMaskedInput
+                            value={task.title}
+                            onBlur={(val) => {
+                              if (val !== task.title) handleTitleChange(task.id, val)
+                            }}
+                            className={`h-7 px-1 py-0 -ml-1 w-full text-sm border-transparent hover:border-input focus:border-input bg-transparent ${depth === 0 ? 'font-semibold' : depth === 1 ? 'font-medium' : 'text-muted-foreground'}`}
+                          />
+                        </PermissionGuard>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="border-r border-b p-2.5">
-                    <Select
-                      value={task.status}
-                      onValueChange={(val) => handleStatusChange(task.id, val)}
+                    <PermissionGuard
+                      module="projetos"
+                      action="write"
+                      fallback={
+                        <div className="px-2 py-1">
+                          <StatusBadge status={task.status} />
+                        </div>
+                      }
                     >
-                      <SelectTrigger className="h-8 border-none bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 w-full focus:ring-0 px-2 [&>span]:w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Pendente">
-                          <StatusBadge status="Pendente" />
-                        </SelectItem>
-                        <SelectItem value="Em Andamento">
-                          <StatusBadge status="Em Andamento" />
-                        </SelectItem>
-                        <SelectItem value="Pausado">
-                          <StatusBadge status="Pausado" />
-                        </SelectItem>
-                        <SelectItem value="Concluído">
-                          <StatusBadge status="Concluído" />
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <Select
+                        value={task.status}
+                        onValueChange={(val) => handleStatusChange(task.id, val)}
+                      >
+                        <SelectTrigger className="h-8 border-none bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 w-full focus:ring-0 px-2 [&>span]:w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Pendente">
+                            <StatusBadge status="Pendente" />
+                          </SelectItem>
+                          <SelectItem value="Em Andamento">
+                            <StatusBadge status="Em Andamento" />
+                          </SelectItem>
+                          <SelectItem value="Pausado">
+                            <StatusBadge status="Pausado" />
+                          </SelectItem>
+                          <SelectItem value="Concluído">
+                            <StatusBadge status="Concluído" />
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </PermissionGuard>
                   </TableCell>
                   <TableCell className="border-r border-b p-2.5">
                     <div className="flex items-center justify-between">
@@ -618,17 +653,19 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                                           >
                                             <Download className="w-3 h-3" />
                                           </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                            onClick={() =>
-                                              handleDeleteAttachment(task.id, filename)
-                                            }
-                                            title="Remover"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </Button>
+                                          <PermissionGuard module="projetos" action="write">
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                              onClick={() =>
+                                                handleDeleteAttachment(task.id, filename)
+                                              }
+                                              title="Remover"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                          </PermissionGuard>
                                         </div>
                                       </div>
                                     )
@@ -644,59 +681,73 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
                         )}
                       </div>
 
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="relative">
-                            <input
-                              type="file"
-                              id={`file-${task.id}`}
-                              className="hidden"
-                              multiple
-                              onChange={(e) => handleFileUpload(task.id, e.target.files)}
-                              accept=".pdf,image/jpeg,image/png,image/gif,image/webp,.xlsx,.xls,.docx,.doc,.zip"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 hover:bg-slate-100 dark:hover:bg-slate-800 text-muted-foreground hover:text-foreground shrink-0"
-                              onClick={() => document.getElementById(`file-${task.id}`)?.click()}
-                              disabled={uploadingTaskId === task.id}
-                            >
-                              {uploadingTaskId === task.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                              ) : (
-                                <Plus className="w-3.5 h-3.5" />
-                              )}
-                            </Button>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>Anexar arquivo</TooltipContent>
-                      </Tooltip>
+                      <PermissionGuard module="projetos" action="write">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="relative">
+                              <input
+                                type="file"
+                                id={`file-${task.id}`}
+                                className="hidden"
+                                multiple
+                                onChange={(e) => handleFileUpload(task.id, e.target.files)}
+                                accept=".pdf,image/jpeg,image/png,image/gif,image/webp,.xlsx,.xls,.docx,.doc,.zip"
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 hover:bg-slate-100 dark:hover:bg-slate-800 text-muted-foreground hover:text-foreground shrink-0"
+                                onClick={() => document.getElementById(`file-${task.id}`)?.click()}
+                                disabled={uploadingTaskId === task.id}
+                              >
+                                {uploadingTaskId === task.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                                ) : (
+                                  <Plus className="w-3.5 h-3.5" />
+                                )}
+                              </Button>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>Anexar arquivo</TooltipContent>
+                        </Tooltip>
+                      </PermissionGuard>
                     </div>
                   </TableCell>
                   <TableCell className="border-r border-b p-1">
                     <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400 pl-1 pr-0.5">
                       <Calendar className="w-3.5 h-3.5 shrink-0 ml-1 text-muted-foreground" />
-                      <DateMaskedInput
-                        value={pbDateToBR(task.due_date)}
-                        onBlur={(val) => handleDateChange(task.id, val)}
-                        className="h-8 text-xs font-medium border-transparent hover:border-input focus:border-input bg-transparent w-full text-left"
-                      />
+                      <PermissionGuard
+                        module="projetos"
+                        action="write"
+                        fallback={
+                          <span className="text-xs font-medium pl-1">
+                            {pbDateToBR(task.due_date)}
+                          </span>
+                        }
+                      >
+                        <DateMaskedInput
+                          value={pbDateToBR(task.due_date)}
+                          onBlur={(val) => handleDateChange(task.id, val)}
+                          className="h-8 text-xs font-medium border-transparent hover:border-input focus:border-input bg-transparent w-full text-left"
+                        />
+                      </PermissionGuard>
                     </div>
                   </TableCell>
                   <TableCell className="border-b p-2.5 text-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => {
-                        setInlineCreateParentId(task.id)
-                        setExpandedIds((prev) => new Set(prev).add(task.id))
-                      }}
-                      title="Adicionar Subtarefa"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                    <PermissionGuard module="projetos" action="write">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => {
+                          setInlineCreateParentId(task.id)
+                          setExpandedIds((prev) => new Set(prev).add(task.id))
+                        }}
+                        title="Adicionar Subtarefa"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </PermissionGuard>
                   </TableCell>
                 </TableRow>,
               )
@@ -759,17 +810,19 @@ export function ModuleTreeGrid({ moduleId }: { moduleId: string }) {
           </TableBody>
         </Table>
       </div>
-      <div className="p-3 border-t bg-slate-50 dark:bg-slate-900/50 flex items-center shrink-0">
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={() => setIsCreateTaskOpen(true)}
-        >
-          <PlusCircle className="w-4 h-4 text-primary" />
-          Adicionar Tarefa Raiz
-        </Button>
-      </div>
+      <PermissionGuard module="projetos" action="write">
+        <div className="p-3 border-t bg-slate-50 dark:bg-slate-900/50 flex items-center shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setIsCreateTaskOpen(true)}
+          >
+            <PlusCircle className="w-4 h-4 text-primary" />
+            Adicionar Tarefa Raiz
+          </Button>
+        </div>
+      </PermissionGuard>
 
       <CreateTaskDialog
         open={isCreateTaskOpen}

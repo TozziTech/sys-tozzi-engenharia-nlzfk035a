@@ -49,6 +49,68 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { exportAccessReportPDF } from '@/lib/exportPdf'
 
+const moduleGroups = [
+  {
+    id: 'gestao_projetos',
+    name: 'GESTÃO DE PROJETOS',
+    desc: 'Projetos, Cronogramas e Calendários',
+    children: [
+      { id: 'projetos', name: 'Projetos', desc: 'Gerenciamento de projetos' },
+      { id: 'cronograma', name: 'Cronograma', desc: 'Gráfico de Gantt e prazos' },
+      { id: 'calendario', name: 'Calendário', desc: 'Visão mensal de tarefas' },
+    ],
+  },
+  {
+    id: 'gestao_financeira',
+    name: 'GESTÃO FINANCEIRA',
+    desc: 'Financeiro, Orçamentos e Contratos',
+    children: [
+      {
+        id: 'lancamentos_financeiros',
+        name: 'Lançamentos Financeiros',
+        desc: 'Receitas e despesas',
+      },
+      { id: 'orcamentos', name: 'Orçamentos', desc: 'Propostas comerciais' },
+      { id: 'contratos', name: 'Contratos', desc: 'Gerador de contratos' },
+      { id: 'contas_bancarias', name: 'Contas Bancárias', desc: 'Gestão de contas' },
+    ],
+  },
+  {
+    id: 'cadastro',
+    name: 'CADASTRO',
+    desc: 'Equipe, Clientes e Equipamentos',
+    children: [
+      { id: 'projetistas', name: 'Projetistas', desc: 'Membros da equipe' },
+      { id: 'clientes', name: 'Clientes', desc: 'Base de clientes' },
+      { id: 'contatos', name: 'Contatos', desc: 'Lista de contatos' },
+      { id: 'equipamentos', name: 'Equipamentos', desc: 'Controle de ativos' },
+    ],
+  },
+  {
+    id: 'gestao_arq_doc',
+    name: 'GESTÃO ARQ/DOC',
+    desc: 'Gerenciamento de documentos, biblioteca e padrões',
+    children: [
+      { id: 'biblioteca', name: 'Biblioteca', desc: 'Livros e normas' },
+      { id: 'pops', name: 'POPs', desc: 'Procedimentos Padrão' },
+      { id: 'projetos_base', name: 'Projetos Base', desc: 'Templates' },
+      { id: 'documentos_modelos', name: 'Documentos Modelos', desc: 'Ofícios' },
+      { id: 'cursos', name: 'Cursos', desc: 'Treinamentos' },
+    ],
+  },
+  {
+    id: 'governanca',
+    name: 'GOVERNANÇA E ADMIN',
+    desc: 'Configurações de sistema e auditoria',
+    children: [
+      { id: 'controle_acesso', name: 'Controle de Acesso', desc: 'Gestão de permissões' },
+      { id: 'visao_carteira', name: 'Visão Geral da Carteira', desc: 'Analytics global' },
+      { id: 'configuracoes', name: 'Configurações', desc: 'Ajustes do sistema' },
+      { id: 'auditoria', name: 'Auditoria Executiva', desc: 'Logs do sistema' },
+    ],
+  },
+]
+
 const UserAccessCard = ({
   user,
   projects,
@@ -394,18 +456,15 @@ export default function AccessControl() {
     checked: boolean,
     isParent: boolean = false,
     childrenIds: string[] = [],
+    parentId?: string,
   ) => {
     const newVisibility = { ...moduleVisibility, [moduleId]: checked }
     if (isParent && !checked) {
       childrenIds.forEach((id) => {
         newVisibility[id] = false
       })
-    } else if (!isParent && checked) {
-      if (
-        ['biblioteca', 'pops', 'projetos_base', 'documentos_modelos', 'cursos'].includes(moduleId)
-      ) {
-        newVisibility['gestao_arq_doc'] = true
-      }
+    } else if (!isParent && checked && parentId) {
+      newVisibility[parentId] = true
     }
 
     setModuleVisibility(newVisibility)
@@ -976,117 +1035,114 @@ export default function AccessControl() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6 max-w-2xl">
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="bg-muted/50 p-4 border-b flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold flex items-center gap-2">GESTÃO ARQ/DOC</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Gerenciamento de documentos, biblioteca e padrões
-                      </p>
-                    </div>
-                    <Switch
-                      checked={moduleVisibility['gestao_arq_doc'] !== false}
-                      onCheckedChange={(c) =>
-                        handleModuleToggle('gestao_arq_doc', c, true, [
-                          'biblioteca',
-                          'pops',
-                          'projetos_base',
-                          'documentos_modelos',
-                          'cursos',
-                        ])
-                      }
-                    />
-                  </div>
+                <div className="space-y-6">
+                  {moduleGroups.map((group) => (
+                    <div key={group.id} className="border rounded-lg overflow-hidden">
+                      <div className="bg-muted/50 p-4 border-b flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold flex items-center gap-2">{group.name}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">{group.desc}</p>
+                        </div>
+                        <Switch
+                          checked={moduleVisibility[group.id] !== false}
+                          onCheckedChange={(c) =>
+                            handleModuleToggle(
+                              group.id,
+                              c,
+                              true,
+                              group.children.map((ch) => ch.id),
+                            )
+                          }
+                        />
+                      </div>
 
-                  <div className="p-4 bg-card border-t">
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium mb-1">Permissões por Perfil (Matriz)</h4>
-                      <p className="text-xs text-muted-foreground">
-                        Configure se o módulo está visível e se o perfil tem permissão de escrita.
-                      </p>
-                    </div>
-                    <div className="rounded-md border overflow-x-auto">
-                      <Table>
-                        <TableHeader className="bg-muted/50">
-                          <TableRow>
-                            <TableHead className="w-[200px]">Módulo / Global</TableHead>
-                            {['Projetista', 'Estagiário', 'Visitante', 'Cliente'].map((role) => (
-                              <TableHead key={role} className="text-center font-semibold text-xs">
-                                {role}
-                              </TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {[
-                            { id: 'biblioteca', name: 'Biblioteca', desc: 'Livros e normas' },
-                            { id: 'pops', name: 'POPs', desc: 'Procedimentos Padrão' },
-                            { id: 'projetos_base', name: 'Projetos Base', desc: 'Templates' },
-                            {
-                              id: 'documentos_modelos',
-                              name: 'Documentos Modelos',
-                              desc: 'Ofícios',
-                            },
-                            { id: 'cursos', name: 'Cursos', desc: 'Treinamentos' },
-                          ].map((mod) => (
-                            <TableRow key={mod.id}>
-                              <TableCell className="font-medium">
-                                <div className="flex flex-col gap-2">
-                                  <div>
-                                    <span className="text-sm block">{mod.name}</span>
-                                    <span className="text-[10px] text-muted-foreground block">
-                                      {mod.desc}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Switch
-                                      checked={moduleVisibility[mod.id] !== false}
-                                      disabled={moduleVisibility['gestao_arq_doc'] === false}
-                                      onCheckedChange={(c) => handleModuleToggle(mod.id, c)}
-                                      className="scale-75 origin-left"
-                                    />
-                                    <span className="text-xs text-muted-foreground">
-                                      Global Ativo
-                                    </span>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              {['Projetista', 'Estagiário', 'Visitante', 'Cliente'].map((role) => {
-                                const val = rolePermissions[role]?.[mod.id] || 'Ativo'
-                                return (
-                                  <TableCell key={role} className="text-center p-2 align-top pt-4">
-                                    <Select
-                                      value={val}
-                                      disabled={
-                                        moduleVisibility[mod.id] === false ||
-                                        moduleVisibility['gestao_arq_doc'] === false
-                                      }
-                                      onValueChange={(v) =>
-                                        handleRolePermissionChange(role, mod.id, v)
-                                      }
+                      <div className="p-4 bg-card border-t">
+                        <div className="rounded-md border overflow-x-auto">
+                          <Table>
+                            <TableHeader className="bg-muted/50">
+                              <TableRow>
+                                <TableHead className="w-[200px]">Módulo / Global</TableHead>
+                                {['Projetista', 'Estagiário', 'Visitante', 'Cliente'].map(
+                                  (role) => (
+                                    <TableHead
+                                      key={role}
+                                      className="text-center font-semibold text-xs"
                                     >
-                                      <SelectTrigger className="h-8 text-xs w-[95px] mx-auto">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="Ativo">Ativo</SelectItem>
-                                        <SelectItem value="Leitura">Leitura</SelectItem>
-                                        <SelectItem value="Inativo">Inativo</SelectItem>
-                                      </SelectContent>
-                                    </Select>
+                                      {role}
+                                    </TableHead>
+                                  ),
+                                )}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {group.children.map((mod) => (
+                                <TableRow key={mod.id}>
+                                  <TableCell className="font-medium">
+                                    <div className="flex flex-col gap-2">
+                                      <div>
+                                        <span className="text-sm block">{mod.name}</span>
+                                        <span className="text-[10px] text-muted-foreground block">
+                                          {mod.desc}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Switch
+                                          checked={moduleVisibility[mod.id] !== false}
+                                          disabled={moduleVisibility[group.id] === false}
+                                          onCheckedChange={(c) =>
+                                            handleModuleToggle(mod.id, c, false, [], group.id)
+                                          }
+                                          className="scale-75 origin-left"
+                                        />
+                                        <span className="text-xs text-muted-foreground">
+                                          Global Ativo
+                                        </span>
+                                      </div>
+                                    </div>
                                   </TableCell>
-                                )
-                              })}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                                  {['Projetista', 'Estagiário', 'Visitante', 'Cliente'].map(
+                                    (role) => {
+                                      const val = rolePermissions[role]?.[mod.id] || 'Ativo'
+                                      return (
+                                        <TableCell
+                                          key={role}
+                                          className="text-center p-2 align-top pt-4"
+                                        >
+                                          <Select
+                                            value={val}
+                                            disabled={
+                                              moduleVisibility[mod.id] === false ||
+                                              moduleVisibility[group.id] === false
+                                            }
+                                            onValueChange={(v) =>
+                                              handleRolePermissionChange(role, mod.id, v)
+                                            }
+                                          >
+                                            <SelectTrigger className="h-8 text-xs w-[95px] mx-auto">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="Ativo">Ativo</SelectItem>
+                                              <SelectItem value="Leitura">Leitura</SelectItem>
+                                              <SelectItem value="Inativo">Inativo</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </TableCell>
+                                      )
+                                    },
+                                  )}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground italic mt-3">
-                      Nota: Administradores e Gerentes de Projeto possuem acesso "Ativo" por padrão
-                      em todos os módulos habilitados.
-                    </p>
-                  </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground italic mt-3 px-2">
+                    Nota: Administradores e Gerentes de Projeto possuem acesso "Ativo" por padrão em
+                    todos os módulos habilitados.
+                  </p>
                 </div>
               </div>
             </CardContent>

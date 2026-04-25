@@ -7,6 +7,25 @@ export interface ModuleVisibility {
   projetos_base?: boolean
   documentos_modelos?: boolean
   cursos?: boolean
+  gestao_projetos?: boolean
+  projetos?: boolean
+  cronograma?: boolean
+  calendario?: boolean
+  gestao_financeira?: boolean
+  lancamentos_financeiros?: boolean
+  orcamentos?: boolean
+  contratos?: boolean
+  contas_bancarias?: boolean
+  cadastro?: boolean
+  projetistas?: boolean
+  clientes?: boolean
+  contatos?: boolean
+  equipamentos?: boolean
+  governanca?: boolean
+  controle_acesso?: boolean
+  visao_carteira?: boolean
+  configuracoes?: boolean
+  auditoria?: boolean
   [key: string]: boolean | undefined
 }
 

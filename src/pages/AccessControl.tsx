@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, Fragment } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
@@ -27,6 +27,10 @@ import {
   PieChart,
   FileStack,
   Settings,
+  ClipboardList,
+  Check,
+  X,
+  Eye,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
@@ -922,6 +926,9 @@ export default function AccessControl() {
           <TabsTrigger value="modules" className="flex gap-2">
             <Settings className="h-4 w-4" /> Módulos
           </TabsTrigger>
+          <TabsTrigger value="audit_report" className="flex gap-2">
+            <ClipboardList className="h-4 w-4" /> Relatório de Auditoria
+          </TabsTrigger>
           <TabsTrigger value="history" className="flex gap-2">
             <History className="h-4 w-4" /> Histórico
           </TabsTrigger>
@@ -1280,7 +1287,142 @@ export default function AccessControl() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="audit_report" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-amber-500" />
+                Relatório de Auditoria de Acessos
+              </CardTitle>
+              <CardDescription>
+                Visão consolidada das permissões de acesso por perfil e módulo do sistema.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-hidden bg-card overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead className="w-[250px] font-semibold">Módulo / Submódulo</TableHead>
+                      {[
+                        'Administrador',
+                        'Gerente de Projeto',
+                        'Projetista',
+                        'Estagiário',
+                        'Visitante',
+                        'Cliente',
+                      ].map((role) => (
+                        <TableHead
+                          key={role}
+                          className="text-center font-semibold text-xs whitespace-nowrap"
+                        >
+                          {role}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {moduleGroups.map((group) => {
+                      const isGroupDisabled = moduleVisibility[group.id] === false
+                      return (
+                        <Fragment key={group.id}>
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell
+                              colSpan={7}
+                              className="font-bold text-xs uppercase tracking-wider text-muted-foreground py-2"
+                            >
+                              {group.name}{' '}
+                              {isGroupDisabled && (
+                                <span className="text-red-500 normal-case tracking-normal ml-2 font-normal text-[10px]">
+                                  (Oculto Globalmente)
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          {group.children.map((mod) => {
+                            const isModDisabled =
+                              isGroupDisabled || moduleVisibility[mod.id] === false
+
+                            return (
+                              <TableRow key={mod.id}>
+                                <TableCell className="pl-6 font-medium text-sm">
+                                  {mod.name}
+                                </TableCell>
+                                {[
+                                  'Administrador',
+                                  'Gerente de Projeto',
+                                  'Projetista',
+                                  'Estagiário',
+                                  'Visitante',
+                                  'Cliente',
+                                ].map((role) => {
+                                  let status = 'Ativo'
+
+                                  if (role === 'Administrador') {
+                                    status = 'Total'
+                                  } else if (isModDisabled) {
+                                    status = 'Oculto'
+                                  } else if (role === 'Gerente de Projeto') {
+                                    status = 'Ativo'
+                                  } else {
+                                    status = rolePermissions[role]?.[mod.id] || 'Ativo'
+                                  }
+
+                                  return (
+                                    <TableCell
+                                      key={`${mod.id}-${role}`}
+                                      className="text-center py-2"
+                                    >
+                                      {status === 'Total' && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 whitespace-nowrap"
+                                        >
+                                          <Check className="h-3 w-3 mr-1" /> Total
+                                        </Badge>
+                                      )}
+                                      {status === 'Ativo' && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 whitespace-nowrap"
+                                        >
+                                          <Check className="h-3 w-3 mr-1" /> Ativo
+                                        </Badge>
+                                      )}
+                                      {status === 'Leitura' && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 whitespace-nowrap"
+                                        >
+                                          <Eye className="h-3 w-3 mr-1" /> Leitura
+                                        </Badge>
+                                      )}
+                                      {(status === 'Inativo' || status === 'Oculto') && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 whitespace-nowrap"
+                                        >
+                                          <X className="h-3 w-3 mr-1" /> {status}
+                                        </Badge>
+                                      )}
+                                    </TableCell>
+                                  )
+                                })}
+                              </TableRow>
+                            )
+                          })}
+                        </Fragment>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="history">
+          {' '}
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
             <Table>
               <TableHeader>

@@ -140,7 +140,8 @@ export default function Profile() {
         }
       })
       if (avatarFile) data.append('avatar', avatarFile)
-      await pb.collection('users').update(user.id, data)      toast({ title: 'Perfil atualizado com sucesso!' })
+      await pb.collection('users').update(user.id, data)
+      toast({ title: 'Perfil atualizado com sucesso!' })
     } catch (e: any) {
       toast({ title: 'Erro ao atualizar perfil', description: e.message, variant: 'destructive' })
     } finally {

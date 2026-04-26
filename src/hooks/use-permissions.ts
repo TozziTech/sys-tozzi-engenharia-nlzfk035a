@@ -32,10 +32,12 @@ export function usePermissions() {
   })
 
   const getPermission = (moduleId: string) => {
+    if (user?.role === 'Administrador') return 'Ativo'
+
     if (moduleVisibility[moduleId] === false) return 'Inativo'
 
     if (!user) return 'Inativo'
-    if (user.role === 'Administrador' || user.role === 'Gerente de Projeto') return 'Ativo'
+    if (user.role === 'Gerente de Projeto') return 'Ativo'
 
     const rolePerms = role_permissions?.[user.role]
     if (rolePerms && rolePerms[moduleId]) {

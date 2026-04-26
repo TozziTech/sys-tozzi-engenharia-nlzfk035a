@@ -192,6 +192,7 @@ export function AppSidebar() {
   }
 
   const groups = getNavigationGroups().filter((g) => {
+    if (user?.role === 'Administrador') return true
     if ((g as any).id && moduleVisibility[(g as any).id] === false) return false
     if ((g as any).allowedRoles && (!user?.role || !(g as any).allowedRoles.includes(user.role))) {
       return false
@@ -214,6 +215,8 @@ export function AppSidebar() {
       <SidebarContent className="scrollbar-hide py-2">
         {groups.map((group, i) => {
           const visibleItems = group.items.filter((item) => {
+            if (user?.role === 'Administrador') return true
+
             if ((item as any).adminOnly && user?.role !== 'Administrador') return false
 
             if ((item as any).id) {

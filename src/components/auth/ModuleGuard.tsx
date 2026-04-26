@@ -88,6 +88,10 @@ export function ModuleGuard() {
   }
 
   if (moduleId) {
+    if (user?.role === 'Administrador') {
+      return <Outlet />
+    }
+
     const parentId = parentMap[moduleId]
     if (parentId && moduleVisibility[parentId] === false) {
       return <Navigate to={defaultRedirect} replace />

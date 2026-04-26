@@ -410,6 +410,10 @@ export default function AccessControl() {
   const [settings, setSettings] = useState<any>(null)
   const [moduleVisibility, setModuleVisibility] = useState<any>({})
   const [rolePermissions, setRolePermissions] = useState<any>({})
+  const [customRoles, setCustomRoles] = useState<any[]>([])
+  const [roleModalOpen, setRoleModalOpen] = useState(false)
+  const [editingRole, setEditingRole] = useState<any>(null)
+  const [newRoleName, setNewRoleName] = useState('')
 
   const { toast } = useToast()
   const { user: currentUser } = useAuth()
@@ -432,21 +436,27 @@ export default function AccessControl() {
 
   const loadData = async () => {
     try {
-      const [usersRes, projectsRes, accessRes, settingsRes, reqsRes, auditRes] = await Promise.all([
-        pb.collection('users').getFullList({ sort: '-created' }),
-        pb.collection('projects').getFullList({ sort: 'name', filter: 'status != "Concluído"' }),
-        pb.collection('user_project_access').getFullList({ expand: 'project' }),
-        pb.collection('company_settings').getFullList(),
-        pb
-          .collection('access_requests')
-          .getFullList({ filter: 'status = "Pendente"', expand: 'user,project', sort: '-created' }),
-        pb.collection('audit_logs').getFullList({
-          filter: 'resource = "user_project_access"',
-          expand: 'user_id',
-          sort: '-created',
-          limit: 100,
-        }),
-      ])
+      const [usersRes, projectsRes, accessRes, settingsRes, reqsRes, auditRes, customRolesRes] =
+        await Promise.all([
+          pb.collection('users').getFullList({ sort: '-created' }),
+          pb.collection('projects').getFullList({ sort: 'name', filter: 'status != "Concluído"' }),
+          pb.collection('user_project_access').getFullList({ expand: 'project' }),
+          pb.collection('company_settings').getFullList(),
+          pb
+            .collection('access_requests')
+            .getFullList({
+              filter: 'status = "Pendente"',
+              expand: 'user,project',
+              sort: '-created',
+            }),
+          pb.collection('audit_logs').getFullList({
+            filter: 'resource = "user_project_access"',
+            expand: 'user_id',
+            sort: '-created',
+            limit: 100,
+          }),
+          pb.collection('custom_roles').getFullList({ sort: 'name' }),
+        ])
       setUsers(usersRes)
       setProjects(projectsRes)
       setAccessRecords(accessRes)
@@ -457,6 +467,7 @@ export default function AccessControl() {
       }
       setRequests(reqsRes)
       setAuditLogs(auditRes)
+      setCustomRoles(customRolesRes)
     } catch (e) {
       console.error(e)
     }
@@ -469,6 +480,52 @@ export default function AccessControl() {
   useRealtime('user_project_access', () => loadData())
   useRealtime('access_requests', () => loadData())
   useRealtime('audit_logs', () => loadData())
+  useRealtime('custom_roles', () => loadData())
+
+  const handleSaveCustomRole = async () => {
+    if (!newRoleName.trim()) return
+    try {
+      if (editingRole) {
+        await pb.collection('custom_roles').update(editingRole.id, { name: newRoleName })
+        toast({ title: 'Sucesso', description: 'Perfil atualizado.' })
+      } else {
+        await pb.collection('custom_roles').create({ name: newRoleName, permissions: {} })
+        toast({ title: 'Sucesso', description: 'Perfil criado com sucesso.' })
+      }
+      setRoleModalOpen(false)
+      setEditingRole(null)
+      setNewRoleName('')
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Erro ao salvar perfil.', variant: 'destructive' })
+    }
+  }
+
+  const handleDeleteCustomRole = async (id: string) => {
+    if (!confirm('Deseja realmente excluir este perfil?')) return
+    try {
+      await pb.collection('custom_roles').delete(id)
+      toast({ title: 'Sucesso', description: 'Perfil excluído.' })
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Erro ao excluir perfil.', variant: 'destructive' })
+    }
+  }
+
+  const handleCustomRolePermissionChange = async (
+    roleId: string,
+    moduleId: string,
+    value: string,
+  ) => {
+    const role = customRoles.find((r) => r.id === roleId)
+    if (!role) return
+    const newPerms = { ...(role.permissions || {}) }
+    newPerms[moduleId] = value
+    try {
+      await pb.collection('custom_roles').update(roleId, { permissions: newPerms })
+      toast({ title: 'Sucesso', description: 'Permissão atualizada.' })
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Erro ao atualizar permissão.', variant: 'destructive' })
+    }
+  }
 
   const pendingUsers = useMemo(() => users.filter((u) => u.status === 'Pendente'), [users])
   const activeUsers = useMemo(
@@ -904,6 +961,9 @@ export default function AccessControl() {
           <TabsTrigger value="dashboard" className="flex gap-2">
             <PieChart className="h-4 w-4" /> Visão Geral
           </TabsTrigger>
+          <TabsTrigger value="custom_roles" className="flex gap-2">
+            <Shield className="h-4 w-4" /> Perfis Customizados
+          </TabsTrigger>
           <TabsTrigger value="active" className="flex gap-2">
             <CheckCircle className="h-4 w-4" /> Usuários Ativos
           </TabsTrigger>
@@ -1159,6 +1219,79 @@ export default function AccessControl() {
           </div>
         </TabsContent>
 
+        <TabsContent value="custom_roles" className="mt-4">
+          <Card>
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-amber-500" />
+                  Perfis Customizados
+                </CardTitle>
+                <CardDescription>
+                  Crie níveis de acesso personalizados. Vá até a aba "Módulos" para configurar as
+                  permissões de cada perfil.
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => {
+                  setEditingRole(null)
+                  setNewRoleName('')
+                  setRoleModalOpen(true)
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" /> Criar Perfil
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome do Perfil</TableHead>
+                      <TableHead className="w-[150px] text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customRoles.map((cr) => (
+                      <TableRow key={cr.id}>
+                        <TableCell className="font-medium">{cr.name}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingRole(cr)
+                              setNewRoleName(cr.name)
+                              setRoleModalOpen(true)
+                            }}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => handleDeleteCustomRole(cr.id)}
+                          >
+                            Excluir
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {customRoles.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center py-6 text-muted-foreground">
+                          Nenhum perfil customizado encontrado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="modules" className="mt-4">
           <Card>
             <CardHeader>
@@ -1212,6 +1345,14 @@ export default function AccessControl() {
                                     className="text-center font-semibold text-xs whitespace-nowrap px-2"
                                   >
                                     {role}
+                                  </TableHead>
+                                ))}
+                                {customRoles.map((cr) => (
+                                  <TableHead
+                                    key={cr.id}
+                                    className="text-center font-semibold text-xs whitespace-nowrap px-2 text-amber-600 dark:text-amber-500 bg-amber-50/50 dark:bg-amber-950/20"
+                                  >
+                                    {cr.name}
                                   </TableHead>
                                 ))}
                               </TableRow>
@@ -1277,6 +1418,38 @@ export default function AccessControl() {
                                       </TableCell>
                                     )
                                   })}
+                                  {customRoles.map((cr) => {
+                                    const val =
+                                      cr.permissions && cr.permissions[mod.id]
+                                        ? cr.permissions[mod.id]
+                                        : 'Ativo'
+                                    return (
+                                      <TableCell
+                                        key={cr.id}
+                                        className="text-center p-2 align-top pt-4 bg-amber-50/30 dark:bg-amber-950/10"
+                                      >
+                                        <Select
+                                          value={val}
+                                          disabled={
+                                            moduleVisibility[mod.id] === false ||
+                                            moduleVisibility[group.id] === false
+                                          }
+                                          onValueChange={(v) =>
+                                            handleCustomRolePermissionChange(cr.id, mod.id, v)
+                                          }
+                                        >
+                                          <SelectTrigger className="h-8 text-xs w-[95px] mx-auto border-amber-200 dark:border-amber-800">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="Ativo">Ativo</SelectItem>
+                                            <SelectItem value="Leitura">Leitura</SelectItem>
+                                            <SelectItem value="Inativo">Inativo</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                    )
+                                  })}
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -1325,6 +1498,14 @@ export default function AccessControl() {
                           className="text-center font-semibold text-xs whitespace-nowrap"
                         >
                           {role}
+                        </TableHead>
+                      ))}
+                      {customRoles.map((cr) => (
+                        <TableHead
+                          key={cr.id}
+                          className="text-center font-semibold text-xs whitespace-nowrap text-amber-600 px-2"
+                        >
+                          {cr.name}
                         </TableHead>
                       ))}
                     </TableRow>
@@ -1387,6 +1568,48 @@ export default function AccessControl() {
                                           <Check className="h-3 w-3 mr-1" /> Total
                                         </Badge>
                                       )}
+                                      {status === 'Ativo' && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 whitespace-nowrap"
+                                        >
+                                          <Check className="h-3 w-3 mr-1" /> Ativo
+                                        </Badge>
+                                      )}
+                                      {status === 'Leitura' && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 whitespace-nowrap"
+                                        >
+                                          <Eye className="h-3 w-3 mr-1" /> Leitura
+                                        </Badge>
+                                      )}
+                                      {(status === 'Inativo' || status === 'Oculto') && (
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 whitespace-nowrap"
+                                        >
+                                          <X className="h-3 w-3 mr-1" /> {status}
+                                        </Badge>
+                                      )}
+                                    </TableCell>
+                                  )
+                                })}
+                                {customRoles.map((cr) => {
+                                  let status = 'Ativo'
+                                  if (isModDisabled) {
+                                    status = 'Oculto'
+                                  } else {
+                                    status =
+                                      cr.permissions && cr.permissions[mod.id]
+                                        ? cr.permissions[mod.id]
+                                        : 'Ativo'
+                                  }
+                                  return (
+                                    <TableCell
+                                      key={`${mod.id}-${cr.id}`}
+                                      className="text-center py-2 bg-amber-50/20 dark:bg-amber-950/10"
+                                    >
                                       {status === 'Ativo' && (
                                         <Badge
                                           variant="outline"
@@ -1599,6 +1822,38 @@ export default function AccessControl() {
               }
             >
               {isSubmitting ? 'Processando...' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={roleModalOpen} onOpenChange={setRoleModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingRole ? 'Editar Perfil' : 'Criar Novo Perfil Customizado'}
+            </DialogTitle>
+            <DialogDescription>
+              Defina o nome do perfil customizado. As permissões de acesso por módulo devem ser
+              configuradas na aba "Módulos".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Nome do Perfil</Label>
+              <Input
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                placeholder="Ex: Analista Financeiro"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRoleModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveCustomRole} disabled={!newRoleName.trim()}>
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>

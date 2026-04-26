@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { MemberFormValues } from '@/lib/schemas/member'
+import { useEffect, useState } from 'react'
 
 const FormacaoCustomField = ({ form }: { form: UseFormReturn<any> }) => {
   const formacao = useWatch({ control: form.control, name: 'formacaoSelect' })
@@ -42,42 +43,81 @@ const FormacaoCustomField = ({ form }: { form: UseFormReturn<any> }) => {
 export function MemberProfessionalFields({ form }: { form: UseFormReturn<any> }) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'Administrador'
+  const [customRoles, setCustomRoles] = useState<any[]>([])
+
+  useEffect(() => {
+    if (isAdmin) {
+      import('@/lib/pocketbase/client').then(({ default: pb }) => {
+        pb.collection('custom_roles')
+          .getFullList({ sort: 'name' })
+          .then(setCustomRoles)
+          .catch(() => {})
+      })
+    }
+  }, [isAdmin])
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {isAdmin && (
         <>
-          <FormField
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nível de Acesso *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {[
-                      'Administrador',
-                      'Gerente de Projeto',
-                      'Projetista',
-                      'Estagiário',
-                      'Visitante',
-                      'Cliente',
-                    ].map((f) => (
-                      <SelectItem key={f} value={f}>
-                        {f}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-2 gap-4 col-span-1 md:col-span-2">
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nível de Acesso *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {[
+                        'Administrador',
+                        'Gerente de Projeto',
+                        'Projetista',
+                        'Estagiário',
+                        'Visitante',
+                        'Cliente',
+                      ].map((f) => (
+                        <SelectItem key={f} value={f}>
+                          {f}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="custom_role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Perfil Customizado (Sobrescreve o Sistema)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                    <FormControl>
+                      <SelectTrigger className="border-amber-200 focus:ring-amber-500">
+                        <SelectValue placeholder="Nenhum" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {customRoles.map((cr) => (
+                        <SelectItem key={cr.id} value={cr.id}>
+                          {cr.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <FormField
             control={form.control}
             name="status"

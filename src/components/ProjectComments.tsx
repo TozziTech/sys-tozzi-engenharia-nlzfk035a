@@ -174,8 +174,8 @@ export function ProjectComments({
     })
   }
 
-  const getAvatarUrl = (u: any) => (u && u.avatar ? pb.files.getURL(u, u.avatar) : '')
-  const getAnexoUrl = (c: any, filename: string) => pb.files.getURL(c, filename)
+  const getAvatarUrl = (u: any) => (u && u.avatar ? pb.files.getUrl(u, u.avatar) : '')
+  const getAnexoUrl = (c: any, filename: string) => pb.files.getUrl(c, filename)
 
   return (
     <Card className="flex flex-col h-[600px] border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-zinc-950 w-full rounded-xl overflow-hidden">

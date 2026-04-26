@@ -8,8 +8,13 @@ export interface ModuleVisibility {
   documentos_modelos?: boolean
   cursos?: boolean
   gestao_projetos?: boolean
+  dashboard_geral?: boolean
   projetos?: boolean
+  painel_cliente?: boolean
+  diagnostico?: boolean
+  performance?: boolean
   cronograma?: boolean
+  auditoria_prazos?: boolean
   calendario?: boolean
   gestao_financeira?: boolean
   lancamentos_financeiros?: boolean

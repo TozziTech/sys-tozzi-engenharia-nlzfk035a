@@ -60,8 +60,13 @@ const moduleGroups = [
     name: 'GESTÃO DE PROJETOS',
     desc: 'Projetos, Cronogramas e Calendários',
     children: [
+      { id: 'dashboard_geral', name: 'Dashboard geral', desc: 'Visão geral de projetos' },
       { id: 'projetos', name: 'Projetos', desc: 'Gerenciamento de projetos' },
+      { id: 'painel_cliente', name: 'Painel do cliente', desc: 'Visão do cliente' },
+      { id: 'diagnostico', name: 'Diagnóstico', desc: 'Análise de gargalos' },
+      { id: 'performance', name: 'Performance', desc: 'Desempenho de projetos' },
       { id: 'cronograma', name: 'Cronograma', desc: 'Gráfico de Gantt e prazos' },
+      { id: 'auditoria_prazos', name: 'Auditoria de Prazos', desc: 'Controle de atrasos' },
       { id: 'calendario', name: 'Calendário', desc: 'Visão mensal de tarefas' },
     ],
   },

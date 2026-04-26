@@ -6,15 +6,15 @@ import { useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 
 const routeModuleMap: Record<string, string> = {
-  '/dashboard': 'projetos',
+  '/dashboard': 'dashboard_geral',
   '/projects': 'projetos',
-  '/gestao/painel-cliente': 'projetos',
-  '/diagnostics': 'projetos',
-  '/bottlenecks': 'projetos',
-  '/performance': 'projetos',
+  '/gestao/painel-cliente': 'painel_cliente',
+  '/diagnostics': 'diagnostico',
+  '/bottlenecks': 'diagnostico',
+  '/performance': 'performance',
   '/schedule': 'cronograma',
   '/gantt': 'cronograma',
-  '/deadline-audit': 'cronograma',
+  '/deadline-audit': 'auditoria_prazos',
   '/calendar': 'calendario',
   '/financial-dashboard': 'lancamentos_financeiros',
   '/financial': 'lancamentos_financeiros',
@@ -57,8 +57,13 @@ const parentMap: Record<string, string> = {
   projetos_base: 'gestao_arq_doc',
   documentos_modelos: 'gestao_arq_doc',
   cursos: 'gestao_arq_doc',
+  dashboard_geral: 'gestao_projetos',
   projetos: 'gestao_projetos',
+  painel_cliente: 'gestao_projetos',
+  diagnostico: 'gestao_projetos',
+  performance: 'gestao_projetos',
   cronograma: 'gestao_projetos',
+  auditoria_prazos: 'gestao_projetos',
   calendario: 'gestao_projetos',
   lancamentos_financeiros: 'gestao_financeira',
   orcamentos: 'gestao_financeira',
@@ -99,7 +104,7 @@ export function ModuleGuard() {
     else if (location.pathname.startsWith('/team/')) moduleId = 'projetistas'
     else if (location.pathname.startsWith('/files/')) {
       if (location.pathname !== '/files/favorites') moduleId = 'gestao_arq_doc' // fallback for other files
-    } else if (location.pathname.startsWith('/gestao/painel-cliente/')) moduleId = 'projetos'
+    } else if (location.pathname.startsWith('/gestao/painel-cliente/')) moduleId = 'painel_cliente'
   }
 
   if (moduleId) {

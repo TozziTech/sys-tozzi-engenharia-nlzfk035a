@@ -53,10 +53,9 @@ import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
 import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
 import { AuthProvider, useAuth } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
-import { AdminGuard } from './components/auth/AdminGuard'
-import { ManagerGuard } from './components/auth/ManagerGuard'
 import { ThemeColorInjector } from './components/ThemeColorInjector'
 import { ModuleGuard } from './components/auth/ModuleGuard'
+import { usePermissions } from './hooks/use-permissions'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import ForgotPassword from './pages/ForgotPassword'
@@ -66,11 +65,10 @@ import ChangePassword from './pages/ChangePassword'
 
 function HomeRoute() {
   const { user } = useAuth()
+  const { canAccess } = usePermissions()
   if (user?.must_change_password) return <Navigate to="/change-password" replace />
   if (user?.role === 'Cliente') return <Navigate to="/gestao/painel-cliente" replace />
-  if (user?.role === 'Projetista') return <Navigate to="/designer-panel" replace />
-  if (user?.role === 'Administrador' || user?.role === 'Gerente de Projeto')
-    return <Navigate to="/dashboard" replace />
+  if (canAccess('projetos')) return <Navigate to="/dashboard" replace />
   return <Navigate to="/meu-painel" replace />
 }
 
@@ -137,54 +135,45 @@ const App = () => (
                     />
                     <Route path="/files/favorites" element={<FavoriteDocumentsPage />} />
 
-                    {/* Restricted to Admins and Project Managers */}
-                    <Route element={<ManagerGuard />}>
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/projects" element={<Projects />} />
-                      <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
-                      <Route path="/financial-dashboard" element={<FinancialDashboard />} />
-                      <Route path="/diagnostics" element={<Bottlenecks />} />
-                      <Route path="/bottlenecks" element={<Bottlenecks />} />
-                      <Route path="/performance" element={<Performance />} />
-                      <Route path="/deadline-audit" element={<DeadlineAudit />} />
-                      <Route path="/management/bank-accounts" element={<BankAccounts />} />
-                      <Route path="/financial" element={<Financial />} />
-                      <Route path="/financeiro" element={<Finance />} />
-                      <Route path="/schedule" element={<Gantt />} />
-                      <Route path="/gantt" element={<Gantt />} />
-                      <Route path="/calendar" element={<ProjectCalendar />} />
-                      <Route path="/quotes" element={<Quotes />} />
-                      <Route
-                        path="/operations/contract-generator"
-                        element={<ContractGenerator />}
-                      />
-                      <Route path="/team" element={<Team />} />
-                      <Route path="/team/new" element={<TeamNew />} />
-                      <Route path="/team/:id/edit" element={<TeamEdit />} />
-                      <Route path="/clients" element={<Clients />} />
-                      <Route path="/contacts" element={<Contacts />} />
-                      <Route path="/equipments" element={<Equipments />} />
-                      <Route path="/equipment" element={<Equipments />} />
-                      <Route path="/settings" element={<Settings />} />
-                      <Route path="/reports" element={<Reports />} />
-                      <Route path="/timesheet" element={<Timesheet />} />
-                      <Route path="/history" element={<History />} />
-                      <Route path="/activities" element={<Activities />} />
-                      <Route path="/pending-report" element={<PendingReport />} />
-                      <Route path="/gestao-central" element={<GestaoCentral />} />
-                      <Route path="/audit" element={<Audit />} />
-                    </Route>
-
-                    {/* Admin Only Routes */}
-                    <Route element={<AdminGuard />}>
-                      <Route path="/admin/access-control" element={<AccessControl />} />
-                      <Route path="/audit-logs" element={<Audit />} />
-                      <Route path="/admin/audit-log" element={<Audit />} />
-                      <Route path="/admin/audit-logs" element={<Audit />} />
-                      <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
-                      <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
-                      <Route path="/admin/users" element={<AdminUsers />} />
-                    </Route>
+                    {/* Module-Guarded Routes (Settings, Admin, Managers, etc) */}
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/projects" element={<Projects />} />
+                    <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
+                    <Route path="/financial-dashboard" element={<FinancialDashboard />} />
+                    <Route path="/diagnostics" element={<Bottlenecks />} />
+                    <Route path="/bottlenecks" element={<Bottlenecks />} />
+                    <Route path="/performance" element={<Performance />} />
+                    <Route path="/deadline-audit" element={<DeadlineAudit />} />
+                    <Route path="/management/bank-accounts" element={<BankAccounts />} />
+                    <Route path="/financial" element={<Financial />} />
+                    <Route path="/financeiro" element={<Finance />} />
+                    <Route path="/schedule" element={<Gantt />} />
+                    <Route path="/gantt" element={<Gantt />} />
+                    <Route path="/calendar" element={<ProjectCalendar />} />
+                    <Route path="/quotes" element={<Quotes />} />
+                    <Route path="/operations/contract-generator" element={<ContractGenerator />} />
+                    <Route path="/team" element={<Team />} />
+                    <Route path="/team/new" element={<TeamNew />} />
+                    <Route path="/team/:id/edit" element={<TeamEdit />} />
+                    <Route path="/clients" element={<Clients />} />
+                    <Route path="/contacts" element={<Contacts />} />
+                    <Route path="/equipments" element={<Equipments />} />
+                    <Route path="/equipment" element={<Equipments />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/timesheet" element={<Timesheet />} />
+                    <Route path="/history" element={<History />} />
+                    <Route path="/activities" element={<Activities />} />
+                    <Route path="/pending-report" element={<PendingReport />} />
+                    <Route path="/gestao-central" element={<GestaoCentral />} />
+                    <Route path="/audit" element={<Audit />} />
+                    <Route path="/admin/access-control" element={<AccessControl />} />
+                    <Route path="/audit-logs" element={<Audit />} />
+                    <Route path="/admin/audit-log" element={<Audit />} />
+                    <Route path="/admin/audit-logs" element={<Audit />} />
+                    <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
+                    <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
+                    <Route path="/admin/users" element={<AdminUsers />} />
                   </Route>
                 </Route>
               </Route>

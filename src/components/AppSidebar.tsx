@@ -130,21 +130,18 @@ const getNavigationGroups = () => [
         id: 'pops',
         href: '/files/pops',
         icon: FileCheck,
-        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
       },
       {
         name: 'Projetos Base',
         id: 'projetos_base',
         href: '/files/base-projects',
         icon: FileStack,
-        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
       },
       {
         name: 'Documentos Modelos',
         id: 'documentos_modelos',
         href: '/files/templates',
         icon: FileSpreadsheet,
-        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista', 'Estagiário'],
       },
       { name: 'Cursos', id: 'cursos', href: '/files/courses', icon: GraduationCap },
     ],
@@ -158,14 +155,12 @@ const getNavigationGroups = () => [
         id: 'controle_acesso',
         href: '/admin/access-control',
         icon: Shield,
-        adminOnly: true,
       },
       {
         name: 'Visão Geral da Carteira',
         id: 'visao_carteira',
         href: '/admin/analytics',
         icon: LineChart,
-        adminOnly: true,
       },
       { name: 'Configurações', id: 'configuracoes', href: '/settings', icon: Settings },
       {
@@ -173,7 +168,6 @@ const getNavigationGroups = () => [
         id: 'auditoria',
         href: '/admin/audit-log',
         icon: History,
-        adminOnly: true,
       },
     ],
   },
@@ -216,8 +210,6 @@ export function AppSidebar() {
         {groups.map((group, i) => {
           const visibleItems = group.items.filter((item) => {
             if (user?.role === 'Administrador') return true
-
-            if ((item as any).adminOnly && user?.role !== 'Administrador') return false
 
             if ((item as any).id) {
               if (!canAccess((item as any).id)) return false

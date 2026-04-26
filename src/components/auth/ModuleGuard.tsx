@@ -6,33 +6,49 @@ import { useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 
 const routeModuleMap: Record<string, string> = {
-  '/files/library': 'biblioteca',
-  '/files/pops': 'pops',
-  '/files/base-projects': 'projetos_base',
-  '/files/templates': 'documentos_modelos',
-  '/files/courses': 'cursos',
+  '/dashboard': 'projetos',
   '/projects': 'projetos',
+  '/gestao/painel-cliente': 'projetos',
+  '/diagnostics': 'projetos',
+  '/bottlenecks': 'projetos',
+  '/performance': 'projetos',
   '/schedule': 'cronograma',
   '/gantt': 'cronograma',
   '/deadline-audit': 'cronograma',
   '/calendar': 'calendario',
+  '/financial-dashboard': 'lancamentos_financeiros',
   '/financial': 'lancamentos_financeiros',
   '/financeiro': 'lancamentos_financeiros',
   '/quotes': 'orcamentos',
   '/operations/contract-generator': 'contratos',
   '/management/bank-accounts': 'contas_bancarias',
   '/team': 'projetistas',
+  '/team/new': 'projetistas',
   '/clients': 'clientes',
   '/contacts': 'contatos',
-  '/equipment': 'equipamentos',
   '/equipments': 'equipamentos',
+  '/equipment': 'equipamentos',
+  '/settings': 'configuracoes',
+  '/reports': 'projetos',
+  '/timesheet': 'projetistas',
+  '/history': 'auditoria',
+  '/activities': 'projetos',
+  '/pending-report': 'projetos',
+  '/gestao-central': 'projetos',
+  '/audit': 'auditoria',
   '/admin/access-control': 'controle_acesso',
+  '/audit-logs': 'auditoria',
+  '/admin/audit-log': 'auditoria',
+  '/admin/audit-logs': 'auditoria',
+  '/gestao/admin/documentos': 'gestao_arq_doc',
   '/admin/analytics': 'visao_carteira',
   '/executive-dashboard': 'visao_carteira',
-  '/settings': 'configuracoes',
-  '/admin/audit-log': 'auditoria',
-  '/audit-logs': 'auditoria',
-  '/audit': 'auditoria',
+  '/admin/users': 'controle_acesso',
+  '/files/library': 'biblioteca',
+  '/files/pops': 'pops',
+  '/files/base-projects': 'projetos_base',
+  '/files/templates': 'documentos_modelos',
+  '/files/courses': 'cursos',
 }
 
 const parentMap: Record<string, string> = {
@@ -72,10 +88,9 @@ export function ModuleGuard() {
   const { user } = useAuth()
   const { canAccess } = usePermissions()
 
-  const defaultRedirect =
-    user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
-      ? '/dashboard'
-      : '/meu-painel'
+  let defaultRedirect = '/meu-painel'
+  if (user?.role === 'Cliente') defaultRedirect = '/gestao/painel-cliente'
+  else if (canAccess('projetos')) defaultRedirect = '/dashboard'
 
   let moduleId = routeModuleMap[location.pathname]
 
@@ -84,7 +99,7 @@ export function ModuleGuard() {
     else if (location.pathname.startsWith('/team/')) moduleId = 'projetistas'
     else if (location.pathname.startsWith('/files/')) {
       if (location.pathname !== '/files/favorites') moduleId = 'gestao_arq_doc' // fallback for other files
-    }
+    } else if (location.pathname.startsWith('/gestao/painel-cliente/')) moduleId = 'projetos'
   }
 
   if (moduleId) {

@@ -152,6 +152,32 @@ export function exportCalendarCSV(data: any[]) {
 export function exportAuditLogsCSV(data: any[]) {
   genericExport(data, 'historico')
 }
+export function exportCommentsCSV(comments: any[], projectName: string) {
+  const headers = ['Data', 'Autor', 'Mensagem', 'É Resposta', 'Reações']
+
+  const rows = comments.map((c) => {
+    const date = new Date(c.created)
+    const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+    return [
+      escapeCSV(formattedDate),
+      escapeCSV(c.expand?.autor?.name || 'Desconhecido'),
+      escapeCSV(c.mensagem),
+      escapeCSV(c.parent_id ? 'Sim' : 'Não'),
+      escapeCSV(
+        c.reactions
+          ? Object.entries(c.reactions)
+              .map(([k, v]: any) => `${k}(${v.length})`)
+              .join(', ')
+          : '',
+      ),
+    ].join(';')
+  })
+
+  const csvContent = [headers.join(';'), ...rows].join('\n')
+  const safeName = projectName.replace(/[^a-z0-9]/gi, '-').toLowerCase()
+  downloadCSV(csvContent, `discussao-${safeName}-${new Date().toISOString().split('T')[0]}.csv`)
+}
+
 export function exportTeamCSV(users: any[]) {
   const headers = ['Nome', 'E-mail', 'Código', 'Cargo', 'Status', 'Telefone']
   const rows = users.map((u) =>

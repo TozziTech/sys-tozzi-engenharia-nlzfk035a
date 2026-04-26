@@ -1536,6 +1536,95 @@ export function exportWeeklyDocsReportPDF(
   setTimeout(() => printWindow.print(), 250)
 }
 
+export function exportCommentsPDF(
+  comments: any[],
+  projectName: string,
+  currentUser: string,
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const topLevel = comments.filter((c) => !c.parent_id)
+
+  const renderComment = (c: any, isReply = false) => {
+    const authorName = c.expand?.autor?.name || 'Desconhecido'
+    const date = new Date(c.created).toLocaleString('pt-BR')
+    const margin = isReply
+      ? 'margin-left: 40px; border-left: 2px solid #e5e7eb; padding-left: 15px;'
+      : 'margin-bottom: 20px;'
+
+    return `
+      <div style="${margin} margin-top: 10px; background: ${isReply ? '#f9fafb' : '#ffffff'}; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+        <div style="margin-bottom: 8px; font-size: 12px; color: #6b7280;">
+          <strong style="color: #111827; font-size: 14px;">${authorName}</strong> &bull; ${date}
+        </div>
+        <div style="font-size: 14px; color: #374151; white-space: pre-wrap;">
+          ${c.mensagem}
+        </div>
+      </div>
+    `
+  }
+
+  let commentsHtml = ''
+  topLevel.forEach((c) => {
+    commentsHtml += renderComment(c)
+    const replies = comments.filter((r) => r.parent_id === c.id)
+    replies.forEach((r) => {
+      commentsHtml += renderComment(r, true)
+    })
+  })
+
+  if (comments.length === 0) {
+    commentsHtml =
+      '<p style="text-align: center; color: #6b7280;">Nenhum comentário encontrado.</p>'
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Discussão - ${projectName}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; max-width: 800px; margin: 0 auto; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <div class="header">
+          <div>
+            ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; margin-bottom: 10px;" />` : ''}
+            <h2 style="margin: 0; color: ${primaryColor};">Histórico de Discussão</h2>
+            <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;">Projeto: ${projectName}</p>
+          </div>
+          <div style="text-align: right; color: #6b7280; font-size: 14px;">
+            Gerado por: ${currentUser}<br/>
+            Data: ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+          </div>
+        </div>
+        
+        <div>
+          ${commentsHtml}
+        </div>
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportUserPDF(
   user: any,
   projects: Project[],

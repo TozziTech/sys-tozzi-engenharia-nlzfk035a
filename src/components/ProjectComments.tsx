@@ -4,7 +4,18 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Paperclip, Send, File as FileIcon, X, Loader2, Pencil, Trash2, Check } from 'lucide-react'
+import {
+  Paperclip,
+  Send,
+  File as FileIcon,
+  X,
+  Loader2,
+  Pencil,
+  Trash2,
+  Check,
+  MessageSquareReply,
+  Download,
+} from 'lucide-react'
 import { formatDistanceToNow, format, isWithinInterval, startOfDay, endOfDay } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -30,6 +41,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { exportCommentsCSV } from '@/lib/export'
+import { exportCommentsPDF } from '@/lib/exportPdf'
+import useProjectStore from '@/stores/useProjectStore'
 
 export function ProjectComments({
   projectId,
@@ -40,6 +54,7 @@ export function ProjectComments({
 }) {
   const { user } = useAuth()
   const { toast } = useToast()
+  const { projects } = useProjectStore()
 
   const [comments, setComments] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
@@ -58,10 +73,16 @@ export function ProjectComments({
   const [searchQuery, setSearchQuery] = useState('')
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
 
+  const [replyingTo, setReplyingTo] = useState<any>(null)
+  const [typingUsers, setTypingUsers] = useState<any[]>([])
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const filterField = projectType === 'projects' ? 'projeto_interno_id' : 'projeto_id'
+  const project = projects.find((p) => p.id === projectId)
+  const projectName = project?.name || 'Projeto'
 
   const loadData = async () => {
     try {
@@ -81,15 +102,29 @@ export function ProjectComments({
     }
   }
 
+  const fetchTyping = async () => {
+    try {
+      const records = await pb.collection('project_presence').getFullList({
+        filter: `project="${projectId}" && is_typing=true && user!="${user?.id}"`,
+        expand: 'user',
+      })
+      setTypingUsers(records.map((r) => r.expand?.user).filter(Boolean))
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
   useEffect(() => {
-    if (projectId) loadData()
+    if (projectId) {
+      loadData()
+      fetchTyping()
+    }
   }, [projectId])
 
   useRealtime('comentarios_projeto', (e) => {
     if (e.record[filterField] === projectId) {
       loadData()
       if (e.action === 'create' && e.record.autor !== user?.id) {
-        // Look up author name from current state or user list
         const authorId = e.record.autor
         pb.collection('users')
           .getOne(authorId)
@@ -106,6 +141,40 @@ export function ProjectComments({
       }
     }
   })
+
+  useRealtime('project_presence', (e) => {
+    if (e.record.project === projectId && e.record.user !== user?.id) {
+      if (e.action === 'update' || e.action === 'create') {
+        if (e.record.is_typing) {
+          setTypingUsers((prev) => {
+            if (prev.find((u) => u.id === e.record.user)) return prev
+            const u = users.find((usr) => usr.id === e.record.user) || e.record.expand?.user
+            return u ? [...prev, u] : prev
+          })
+        } else {
+          setTypingUsers((prev) => prev.filter((u) => u.id !== e.record.user))
+        }
+      } else if (e.action === 'delete') {
+        setTypingUsers((prev) => prev.filter((u) => u.id !== e.record.user))
+      }
+    }
+  })
+
+  const updateTypingStatus = async (isTyping: boolean) => {
+    if (!user) return
+    try {
+      const presenceList = await pb.collection('project_presence').getFullList({
+        filter: `user="${user.id}" && project="${projectId}"`,
+      })
+      if (presenceList.length > 0) {
+        await pb
+          .collection('project_presence')
+          .update(presenceList[0].id, { is_typing: isTyping }, { requestKey: null })
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
 
   const handleEdit = (comment: any) => {
     setEditingId(comment.id)
@@ -164,6 +233,14 @@ export function ProjectComments({
     }
   }
 
+  const handleReply = (comment: any) => {
+    const rootComment = comment.parent_id
+      ? comments.find((c) => c.id === comment.parent_id) || comment
+      : comment
+    setReplyingTo(rootComment)
+    textareaRef.current?.focus()
+  }
+
   const filteredComments = useMemo(() => {
     return comments.filter((c) => {
       let matchesSearch = true
@@ -191,6 +268,11 @@ export function ProjectComments({
     })
   }, [comments, searchQuery, dateRange])
 
+  const topLevelComments = useMemo(
+    () => filteredComments.filter((c) => !c.parent_id),
+    [filteredComments],
+  )
+
   const filteredUsers = useMemo(() => {
     if (!mentionQuery) return users
     return users.filter((u) => (u.name || '').toLowerCase().includes(mentionQuery.toLowerCase()))
@@ -199,6 +281,17 @@ export function ProjectComments({
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setContent(val)
+
+    if (!typingTimeoutRef.current) {
+      updateTypingStatus(true)
+    } else {
+      clearTimeout(typingTimeoutRef.current)
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      updateTypingStatus(false)
+      typingTimeoutRef.current = null
+    }, 3000)
 
     const cursorPos = e.target.selectionStart
     const textBeforeCursor = val.slice(0, cursorPos)
@@ -253,6 +346,10 @@ export function ProjectComments({
       formData.append('autor', user.id)
       formData.append('mensagem', content.trim())
 
+      if (replyingTo) {
+        formData.append('parent_id', replyingTo.id)
+      }
+
       attachments.forEach((file) => {
         formData.append('anexos', file)
       })
@@ -262,7 +359,14 @@ export function ProjectComments({
       setContent('')
       setAttachments([])
       setShowMentions(false)
+      setReplyingTo(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+        typingTimeoutRef.current = null
+      }
+      updateTypingStatus(false)
     } catch (error: any) {
       toast({
         title: 'Erro ao enviar',
@@ -302,8 +406,211 @@ export function ProjectComments({
   const getAvatarUrl = (u: any) => (u && u.avatar ? pb.files.getUrl(u, u.avatar) : '')
   const getAnexoUrl = (c: any, filename: string) => pb.files.getUrl(c, filename)
 
+  const handleExportCSV = () => exportCommentsCSV(comments, projectName)
+  const handleExportPDF = () => exportCommentsPDF(comments, projectName, user?.name || 'Usuário')
+
+  const CommentItem = ({ comment, isReply = false }: { comment: any; isReply?: boolean }) => {
+    const isAuthor = comment.autor === user?.id
+    const isAdmin = user?.role === 'Administrador'
+    const canEditDelete = isAuthor || isAdmin
+
+    return (
+      <div
+        className={cn(
+          'flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300 group',
+          isReply && 'mt-4',
+        )}
+      >
+        <Avatar
+          className={cn(
+            'shrink-0 border border-slate-200 dark:border-zinc-800 mt-1',
+            isReply ? 'h-8 w-8' : 'h-10 w-10',
+          )}
+        >
+          <AvatarImage src={getAvatarUrl(comment.expand?.autor)} />
+          <AvatarFallback className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-medium">
+            {(comment.expand?.autor?.name || 'U').substring(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
+                {comment.expand?.autor?.name || 'Usuário Desconhecido'}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(comment.created), {
+                  addSuffix: true,
+                  locale: ptBR,
+                })}
+                {comment.updated !== comment.created && ' (editado)'}
+              </span>
+            </div>
+            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-slate-400 hover:text-indigo-600"
+                onClick={() => handleReply(comment)}
+                title="Responder"
+              >
+                <MessageSquareReply className="h-3.5 w-3.5" />
+              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-slate-400 hover:text-indigo-600"
+                  >
+                    <SmilePlus className="h-3.5 w-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-fit p-1 flex gap-1 shadow-lg" side="top">
+                  {['👍', '❤️', '🚀', '✅', '💡'].map((emoji) => {
+                    const hasReacted = comment.reactions?.[emoji]?.includes(user?.id)
+                    return (
+                      <Button
+                        key={emoji}
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          'h-8 w-8 text-lg',
+                          hasReacted
+                            ? 'bg-slate-100 dark:bg-zinc-800'
+                            : 'hover:bg-slate-100 dark:hover:bg-zinc-800',
+                        )}
+                        onClick={() => toggleReaction(comment, emoji)}
+                      >
+                        {emoji}
+                      </Button>
+                    )
+                  })}
+                </PopoverContent>
+              </Popover>
+
+              {canEditDelete && (
+                <>
+                  {isAuthor && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-slate-400 hover:text-indigo-600"
+                      onClick={() => handleEdit(comment)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-slate-400 hover:text-rose-600"
+                    onClick={() => setDeletingId(comment.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {editingId === comment.id ? (
+            <div className="space-y-2 mt-2">
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="min-h-[60px] text-sm resize-none bg-white dark:bg-zinc-950 focus-visible:ring-indigo-500/20"
+                autoFocus
+              />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingId(null)}
+                  className="h-7 text-xs"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={saveEdit}
+                  className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700"
+                >
+                  <Check className="h-3.5 w-3.5 mr-1" /> Salvar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
+              {renderContentWithMentions(comment.mensagem)}
+            </div>
+          )}
+
+          {comment.anexos && comment.anexos.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {comment.anexos.map((filename: string, i: number) => (
+                <a
+                  key={i}
+                  href={getAnexoUrl(comment, filename)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-colors group"
+                >
+                  <div className="bg-indigo-100 dark:bg-indigo-900/30 p-1.5 rounded-md group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/50 transition-colors">
+                    <FileIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-700 dark:text-zinc-300 max-w-[150px] truncate">
+                      {filename}
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+
+          {comment.reactions && Object.keys(comment.reactions).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <TooltipProvider delayDuration={300}>
+                {Object.entries(comment.reactions).map(([emoji, userIds]: [string, any]) => {
+                  if (!userIds || userIds.length === 0) return null
+                  const hasReacted = user?.id && userIds.includes(user.id)
+                  const reactorNames = userIds
+                    .map((id: string) => users.find((u) => u.id === id)?.name || 'Usuário')
+                    .join(', ')
+
+                  return (
+                    <Tooltip key={emoji}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => toggleReaction(comment, emoji)}
+                          className={cn(
+                            'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border',
+                            hasReacted
+                              ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-300'
+                              : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800',
+                          )}
+                        >
+                          <span>{emoji}</span>
+                          <span>{userIds.length}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">{reactorNames}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )
+                })}
+              </TooltipProvider>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <Card className="flex flex-col h-[600px] border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-zinc-950 w-full rounded-xl overflow-hidden">
+    <Card className="flex flex-col h-[600px] border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-zinc-950 w-full rounded-xl overflow-hidden relative">
       <CardHeader className="py-4 border-b bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col gap-4">
         <div className="flex flex-row items-center justify-between w-full gap-4">
           <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-zinc-100">
@@ -312,10 +619,43 @@ export function ProjectComments({
               variant="secondary"
               className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/80 transition-colors ml-1"
             >
-              {filteredComments.length}
+              {comments.length}
             </Badge>
           </CardTitle>
-          {projectType === 'projects' && <ProjectPresence projectId={projectId} />}
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-2"
+                  disabled={comments.length === 0}
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Exportar</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-1" align="end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-xs"
+                  onClick={handleExportCSV}
+                >
+                  Exportar para CSV
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-xs"
+                  onClick={handleExportPDF}
+                >
+                  Exportar para PDF
+                </Button>
+              </PopoverContent>
+            </Popover>
+            {projectType === 'projects' && <ProjectPresence projectId={projectId} />}
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 w-full">
@@ -380,7 +720,7 @@ export function ProjectComments({
       </CardHeader>
 
       <CardContent className="flex-1 p-0 flex flex-col overflow-hidden relative">
-        <ScrollArea className="flex-1 p-4 md:p-6">
+        <ScrollArea className="flex-1 p-4 md:p-6 pb-12">
           <div className="space-y-6">
             {loading ? (
               <div className="flex justify-center items-center py-12">
@@ -401,191 +741,18 @@ export function ProjectComments({
                 <p>Nenhum comentário encontrado para os filtros aplicados.</p>
               </div>
             ) : (
-              filteredComments.map((comment) => {
-                const isAuthor = comment.autor === user?.id
-                const isAdmin = user?.role === 'Administrador'
-                const canEditDelete = isAuthor || isAdmin
-
+              topLevelComments.map((comment) => {
+                const replies = filteredComments.filter((c) => c.parent_id === comment.id)
                 return (
-                  <div
-                    key={comment.id}
-                    className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300 group"
-                  >
-                    <Avatar className="h-10 w-10 shrink-0 border border-slate-200 dark:border-zinc-800 mt-1">
-                      <AvatarImage src={getAvatarUrl(comment.expand?.autor)} />
-                      <AvatarFallback className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-medium">
-                        {(comment.expand?.autor?.name || 'U').substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2 justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
-                            {comment.expand?.autor?.name || 'Usuário Desconhecido'}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(comment.created), {
-                              addSuffix: true,
-                              locale: ptBR,
-                            })}
-                            {comment.updated !== comment.created && ' (editado)'}
-                          </span>
-                        </div>
-                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-slate-400 hover:text-indigo-600"
-                              >
-                                <SmilePlus className="h-3.5 w-3.5" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-fit p-1 flex gap-1 shadow-lg" side="top">
-                              {['👍', '❤️', '🚀', '✅', '💡'].map((emoji) => {
-                                const hasReacted = comment.reactions?.[emoji]?.includes(user?.id)
-                                return (
-                                  <Button
-                                    key={emoji}
-                                    variant="ghost"
-                                    size="icon"
-                                    className={cn(
-                                      'h-8 w-8 text-lg',
-                                      hasReacted
-                                        ? 'bg-slate-100 dark:bg-zinc-800'
-                                        : 'hover:bg-slate-100 dark:hover:bg-zinc-800',
-                                    )}
-                                    onClick={() => toggleReaction(comment, emoji)}
-                                  >
-                                    {emoji}
-                                  </Button>
-                                )
-                              })}
-                            </PopoverContent>
-                          </Popover>
-
-                          {canEditDelete && (
-                            <>
-                              {isAuthor && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 text-slate-400 hover:text-indigo-600"
-                                  onClick={() => handleEdit(comment)}
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-slate-400 hover:text-rose-600"
-                                onClick={() => setDeletingId(comment.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                  <div key={comment.id}>
+                    <CommentItem comment={comment} />
+                    {replies.length > 0 && (
+                      <div className="pl-12 space-y-4 border-l-2 border-slate-100 dark:border-zinc-800 ml-5 mt-4">
+                        {replies.map((reply) => (
+                          <CommentItem key={reply.id} comment={reply} isReply />
+                        ))}
                       </div>
-
-                      {editingId === comment.id ? (
-                        <div className="space-y-2 mt-2">
-                          <Textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            className="min-h-[60px] text-sm resize-none bg-white dark:bg-zinc-950 focus-visible:ring-indigo-500/20"
-                            autoFocus
-                          />
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingId(null)}
-                              className="h-7 text-xs"
-                            >
-                              Cancelar
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={saveEdit}
-                              className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700"
-                            >
-                              <Check className="h-3.5 w-3.5 mr-1" /> Salvar
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                          {renderContentWithMentions(comment.mensagem)}
-                        </div>
-                      )}
-
-                      {comment.anexos && comment.anexos.length > 0 && (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {comment.anexos.map((filename: string, i: number) => (
-                            <a
-                              key={i}
-                              href={getAnexoUrl(comment, filename)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-colors group"
-                            >
-                              <div className="bg-indigo-100 dark:bg-indigo-900/30 p-1.5 rounded-md group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/50 transition-colors">
-                                <FileIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="font-medium text-slate-700 dark:text-zinc-300 max-w-[150px] truncate">
-                                  {filename}
-                                </span>
-                              </div>
-                            </a>
-                          ))}
-                        </div>
-                      )}
-
-                      {comment.reactions && Object.keys(comment.reactions).length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          <TooltipProvider delayDuration={300}>
-                            {Object.entries(comment.reactions).map(
-                              ([emoji, userIds]: [string, any]) => {
-                                if (!userIds || userIds.length === 0) return null
-                                const hasReacted = user?.id && userIds.includes(user.id)
-                                const reactorNames = userIds
-                                  .map(
-                                    (id: string) =>
-                                      users.find((u) => u.id === id)?.name || 'Usuário',
-                                  )
-                                  .join(', ')
-
-                                return (
-                                  <Tooltip key={emoji}>
-                                    <TooltipTrigger asChild>
-                                      <button
-                                        onClick={() => toggleReaction(comment, emoji)}
-                                        className={cn(
-                                          'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border',
-                                          hasReacted
-                                            ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-300'
-                                            : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800',
-                                        )}
-                                      >
-                                        <span>{emoji}</span>
-                                        <span>{userIds.length}</span>
-                                      </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="text-xs">{reactorNames}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )
-                              },
-                            )}
-                          </TooltipProvider>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 )
               })
@@ -593,7 +760,29 @@ export function ProjectComments({
           </div>
         </ScrollArea>
 
-        <div className="p-4 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/80 relative backdrop-blur-sm">
+        <div className="p-4 border-t border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/80 relative backdrop-blur-sm z-10">
+          {typingUsers.length > 0 && (
+            <div className="absolute -top-7 left-4 text-xs text-muted-foreground flex items-center gap-1.5 animate-in fade-in duration-200 z-0 px-2 py-1 bg-white/80 dark:bg-zinc-900/80 rounded-t-md backdrop-blur-sm">
+              <div className="flex gap-0.5 mt-0.5">
+                <span
+                  className="w-1 h-1 rounded-full bg-slate-400 animate-bounce"
+                  style={{ animationDelay: '0ms' }}
+                />
+                <span
+                  className="w-1 h-1 rounded-full bg-slate-400 animate-bounce"
+                  style={{ animationDelay: '150ms' }}
+                />
+                <span
+                  className="w-1 h-1 rounded-full bg-slate-400 animate-bounce"
+                  style={{ animationDelay: '300ms' }}
+                />
+              </div>
+              {typingUsers.length === 1
+                ? `${typingUsers[0].name} está digitando...`
+                : `${typingUsers.length} pessoas estão digitando...`}
+            </div>
+          )}
+
           {showMentions && filteredUsers.length > 0 && (
             <div className="absolute bottom-[calc(100%+8px)] left-4 w-64 bg-background dark:bg-zinc-950 border dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-bottom-2">
               <div className="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900 border-b dark:border-zinc-800">
@@ -643,54 +832,86 @@ export function ProjectComments({
             </div>
           )}
 
-          <div className="relative flex flex-col gap-2 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 dark:focus-within:border-indigo-500 transition-all shadow-sm">
-            <Textarea
-              ref={textareaRef}
-              value={content}
-              onChange={handleInput}
-              placeholder="Adicione um comentário... (Use @ para mencionar)"
-              className="min-h-[80px] max-h-[200px] resize-none border-0 focus-visible:ring-0 shadow-none p-2 bg-transparent text-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 dark:text-zinc-100"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSubmit()
+          <div
+            className={cn(
+              'relative flex flex-col gap-0 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 dark:focus-within:border-indigo-500 transition-all shadow-sm',
+              replyingTo ? 'rounded-b-xl rounded-t-md' : 'rounded-xl',
+            )}
+          >
+            {replyingTo && (
+              <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900/50 px-3 py-1.5 border-b border-slate-100 dark:border-zinc-800 rounded-t-md">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <MessageSquareReply className="h-3.5 w-3.5" />
+                  <span>
+                    Respondendo a{' '}
+                    <span className="font-semibold text-foreground">
+                      {replyingTo.expand?.autor?.name || 'Usuário'}
+                    </span>
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={() => setReplyingTo(null)}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+            <div className="p-2 flex flex-col gap-2">
+              <Textarea
+                ref={textareaRef}
+                value={content}
+                onChange={handleInput}
+                placeholder={
+                  replyingTo
+                    ? 'Escreva sua resposta...'
+                    : 'Adicione um comentário... (Use @ para mencionar)'
                 }
-              }}
-            />
-            <div className="flex items-center justify-between mt-1 px-1">
-              <input
-                type="file"
-                multiple
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleFileChange}
+                className="min-h-[80px] max-h-[200px] resize-none border-0 focus-visible:ring-0 shadow-none p-2 bg-transparent text-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 dark:text-zinc-100"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSubmit()
+                  }
+                }}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-slate-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 gap-2 h-8 px-3 rounded-md transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={submitting}
-              >
-                <Paperclip className="h-4 w-4" />
-                <span className="text-xs font-medium hidden sm:inline">Anexar</span>
-              </Button>
-              <Button
-                size="sm"
-                className="gap-2 h-8 px-4 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-transform active:scale-95 disabled:opacity-50"
-                onClick={handleSubmit}
-                disabled={(!content.trim() && attachments.length === 0) || submitting}
-              >
-                {submitting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <>
-                    <span className="text-xs font-medium hidden sm:inline">Enviar</span>
-                    <Send className="h-3.5 w-3.5" />
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center justify-between mt-1 px-1">
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 gap-2 h-8 px-3 rounded-md transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={submitting}
+                >
+                  <Paperclip className="h-4 w-4" />
+                  <span className="text-xs font-medium hidden sm:inline">Anexar</span>
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-2 h-8 px-4 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-transform active:scale-95 disabled:opacity-50"
+                  onClick={handleSubmit}
+                  disabled={(!content.trim() && attachments.length === 0) || submitting}
+                >
+                  {submitting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <span className="text-xs font-medium hidden sm:inline">Enviar</span>
+                      <Send className="h-3.5 w-3.5" />
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

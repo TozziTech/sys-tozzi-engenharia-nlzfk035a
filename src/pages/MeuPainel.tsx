@@ -42,6 +42,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
 import { HistoricoLancamentos } from '@/components/meu-painel/HistoricoLancamentos'
+import { NotificationsTab } from '@/components/meu-painel/NotificationsTab'
 import { NoteCard } from '@/components/NoteCard'
 import { MyTasksList } from '@/components/meu-painel/MyTasksList'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -90,6 +91,7 @@ export default function MeuPainel() {
   const [timeLogs, setTimeLogs] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const [isHoursDialogOpen, setIsHoursDialogOpen] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
@@ -103,6 +105,11 @@ export default function MeuPainel() {
     if (!user) return
     setIsLoading(true)
     try {
+      const notifRes = await pb.collection('notifications').getList(1, 1, {
+        filter: `user = "${user.id}" && read = false`,
+      })
+      setUnreadCount(notifRes.totalItems)
+
       const firstDay = format(startOfMonth(new Date()), 'yyyy-MM-dd')
       const lastDay = format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
@@ -182,6 +189,18 @@ export default function MeuPainel() {
   useRealtime('project_modules', loadData)
   useRealtime('time_logs', loadData)
   useRealtime('tarefas_hierarquicas', loadData)
+  useRealtime(
+    'notifications',
+    () => {
+      pb.collection('notifications')
+        .getList(1, 1, {
+          filter: `user = "${user?.id}" && read = false`,
+        })
+        .then((res) => setUnreadCount(res.totalItems))
+        .catch(() => {})
+    },
+    !!user,
+  )
 
   const activeProjectsCount = projects.filter((p) => p.status !== 'Concluído').length
   const pendingTasksCount = tasks.length
@@ -224,9 +243,17 @@ export default function MeuPainel() {
               ativas.
             </p>
           </div>
-          <TabsList className="w-full sm:w-auto flex flex-col sm:flex-row h-auto gap-2 p-1 sm:gap-0 sm:p-1 bg-transparent sm:bg-muted">
+          <TabsList className="w-full sm:w-auto flex flex-col sm:flex-row h-auto gap-2 p-1 sm:gap-0 sm:p-1 bg-transparent sm:bg-muted overflow-x-auto">
             <TabsTrigger value="dashboard" className="w-full sm:w-auto">
               Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="notificacoes" className="w-full sm:w-auto flex items-center gap-2">
+              Notificações
+              {unreadCount > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="financeiro" className="w-full sm:w-auto">
               Planilha Financeira
@@ -465,6 +492,10 @@ export default function MeuPainel() {
 
         <TabsContent value="historico" className="space-y-6">
           <HistoricoLancamentos />
+        </TabsContent>
+
+        <TabsContent value="notificacoes" className="space-y-6">
+          <NotificationsTab />
         </TabsContent>
       </Tabs>
     </div>

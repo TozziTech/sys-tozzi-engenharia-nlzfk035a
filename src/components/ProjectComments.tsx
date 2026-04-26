@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Paperclip, Send, File as FileIcon, X, Loader2 } from 'lucide-react'
+import { Paperclip, Send, File as FileIcon, X, Loader2, Pencil, Trash2, Check } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -13,6 +13,17 @@ import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { ProjectPresence } from '@/components/ProjectPresence'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export function ProjectComments({
   projectId,
@@ -33,6 +44,11 @@ export function ProjectComments({
   const [attachments, setAttachments] = useState<File[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -63,8 +79,47 @@ export function ProjectComments({
   useRealtime('comentarios_projeto', (e) => {
     if (e.record[filterField] === projectId) {
       loadData()
+      if (e.action === 'create' && e.record.autor !== user?.id) {
+        // Look up author name from current state or user list
+        const authorId = e.record.autor;
+        pb.collection('users').getOne(authorId).then(author => {
+          toast({
+            title: `Novo comentário de ${author.name || 'Usuário'}`,
+            description: e.record.mensagem.length > 50 ? e.record.mensagem.substring(0, 50) + '...' : e.record.mensagem,
+          })
+        }).catch(console.error)
+      }
     }
   })
+  
+  const handleEdit = (comment: any) => {
+    setEditingId(comment.id)
+    setEditContent(comment.mensagem)
+  }
+
+  const saveEdit = async () => {
+    if (!editingId || !editContent.trim()) return
+    try {
+      await pb.collection('comentarios_projeto').update(editingId, { mensagem: editContent.trim() })
+      setEditingId(null)
+      setEditContent('')
+      toast({ title: 'Comentário atualizado' })
+    } catch (error: any) {
+      toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deletingId) return
+    try {
+      await pb.collection('comentarios_projeto').delete(deletingId)
+      toast({ title: 'Comentário removido' })
+    } catch (error: any) {
+      toast({ title: 'Erro ao remover', variant: 'destructive' })
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const filteredUsers = useMemo(() => {
     if (!mentionQuery) return users
@@ -179,16 +234,17 @@ export function ProjectComments({
 
   return (
     <Card className="flex flex-col h-[600px] border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-zinc-950 w-full rounded-xl overflow-hidden">
-      <CardHeader className="py-4 border-b bg-slate-50/50 dark:bg-zinc-900/50">
+      <CardHeader className="py-4 border-b bg-slate-50/50 dark:bg-zinc-900/50 flex flex-row items-center justify-between gap-4">
         <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-zinc-100">
-          Discussão do Projeto
+          Discussão
           <Badge
             variant="secondary"
-            className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/80 transition-colors ml-2"
+            className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/80 transition-colors ml-1"
           >
-            {comments.length} {comments.length === 1 ? 'comentário' : 'comentários'}
+            {comments.length}
           </Badge>
         </CardTitle>
+        {projectType === 'projects' && <ProjectPresence projectId={projectId} />}
       </CardHeader>
 
       <CardContent className="flex-1 p-0 flex flex-col overflow-hidden relative">
@@ -206,32 +262,72 @@ export function ProjectComments({
                 <p>Nenhum comentário ainda. Inicie a discussão!</p>
               </div>
             ) : (
-              comments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300"
-                >
-                  <Avatar className="h-10 w-10 shrink-0 border border-slate-200 dark:border-zinc-800">
-                    <AvatarImage src={getAvatarUrl(comment.expand?.autor)} />
-                    <AvatarFallback className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-medium">
-                      {(comment.expand?.autor?.name || 'U').substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
-                        {comment.expand?.autor?.name || 'Usuário Desconhecido'}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(comment.created), {
-                          addSuffix: true,
-                          locale: ptBR,
-                        })}
-                      </span>
-                    </div>
-                    <div className="text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                      {renderContentWithMentions(comment.mensagem)}
-                    </div>
+              comments.map((comment) => {
+                const isAuthor = comment.autor === user?.id
+                const isAdmin = user?.role === 'Administrador'
+                const canEditDelete = isAuthor || isAdmin
+
+                return (
+                  <div
+                    key={comment.id}
+                    className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300 group"
+                  >
+                    <Avatar className="h-10 w-10 shrink-0 border border-slate-200 dark:border-zinc-800 mt-1">
+                      <AvatarImage src={getAvatarUrl(comment.expand?.autor)} />
+                      <AvatarFallback className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-medium">
+                        {(comment.expand?.autor?.name || 'U').substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2 justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
+                            {comment.expand?.autor?.name || 'Usuário Desconhecido'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(comment.created), {
+                              addSuffix: true,
+                              locale: ptBR,
+                            })}
+                            {comment.updated !== comment.created && ' (editado)'}
+                          </span>
+                        </div>
+                        {canEditDelete && (
+                          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                            {isAuthor && (
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-indigo-600" onClick={() => handleEdit(comment)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-rose-600" onClick={() => setDeletingId(comment.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {editingId === comment.id ? (
+                        <div className="space-y-2 mt-2">
+                          <Textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            className="min-h-[60px] text-sm resize-none bg-white dark:bg-zinc-950 focus-visible:ring-indigo-500/20"
+                            autoFocus
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <Button variant="outline" size="sm" onClick={() => setEditingId(null)} className="h-7 text-xs">
+                              Cancelar
+                            </Button>
+                            <Button size="sm" onClick={saveEdit} className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700">
+                              <Check className="h-3.5 w-3.5 mr-1" /> Salvar
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                          {renderContentWithMentions(comment.mensagem)}
+                        </div>
+                      )}
 
                     {comment.anexos && comment.anexos.length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-1">
@@ -364,6 +460,23 @@ export function ProjectComments({
           </div>
         </div>
       </CardContent>
+
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir comentário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este comentário? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-26T21:17:49.581Z",
+  "generatedAt": "2026-04-26T21:23:24.723Z",
   "collections": [
     {
       "name": "users",
@@ -3217,6 +3217,57 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "project_presence",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != '' && user = @request.auth.id",
+        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "delete": "@request.auth.id != '' && user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "project",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "projects"
+        },
+        {
+          "name": "last_active",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_project_presence_user_project ON project_presence (user, project)",
+        "CREATE INDEX idx_project_presence_project_active ON project_presence (project, last_active)"
+      ]
     }
   ]
 }

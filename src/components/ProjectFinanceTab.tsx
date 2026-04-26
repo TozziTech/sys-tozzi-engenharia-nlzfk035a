@@ -51,6 +51,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
 
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   const canViewFinance =
     effectiveRole === 'Administrador' ||
@@ -80,6 +81,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
       const data = await pb.collection('financial_records').getFullList({
         filter: filterStr,
         sort: '-date',
+        expand: 'responsible',
       })
 
       let mappedData = data.map((d) => ({
@@ -90,6 +92,8 @@ export function ProjectFinanceTab({ project }: { project: any }) {
         value: d.amount,
         categoryId: d.category,
         date: d.date,
+        status: d.status || 'Pago',
+        responsible: d.expand?.responsible?.name || '-',
       }))
 
       if (mappedData.length === 0) {
@@ -106,6 +110,8 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               value: 5000,
               categoryId: '',
               date: now.toISOString(),
+              status: 'Pago',
+              responsible: '-',
             },
             {
               id: 'm2',
@@ -115,6 +121,8 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               value: 1200,
               categoryId: '',
               date: now.toISOString(),
+              status: 'Pago',
+              responsible: '-',
             },
             {
               id: 'm3',
@@ -124,6 +132,8 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               value: 800,
               categoryId: '',
               date: subDays(now, 15).toISOString(),
+              status: 'Pago',
+              responsible: '-',
             },
             {
               id: 'm4',
@@ -133,6 +143,8 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               value: 3000,
               categoryId: '',
               date: subDays(now, 40).toISOString(),
+              status: 'Pago',
+              responsible: '-',
             },
             {
               id: 'm5',
@@ -142,6 +154,8 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               value: 500,
               categoryId: '',
               date: subDays(now, 100).toISOString(),
+              status: 'Pago',
+              responsible: '-',
             },
           ]
           mappedData = mocks.filter((m) => {
@@ -230,13 +244,28 @@ export function ProjectFinanceTab({ project }: { project: any }) {
   })()
 
   const handleExportCSV = () => {
-    const headers = ['Data', 'Descrição', 'Tipo', 'Valor']
-    const rows = records.map((t) => [
-      new Date(t.date).toLocaleDateString('pt-BR'),
-      `"${t.description.replace(/"/g, '""')}"`,
-      t.type,
-      t.value,
-    ])
+    if (records.length === 0) {
+      toast({
+        title: 'Nenhum dado',
+        description: 'Não há registros financeiros para o período selecionado.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const headers = ['Descrição', 'Valor', 'Tipo', 'Categoria', 'Data', 'Status', 'Responsável']
+    const rows = records.map((t) => {
+      const cat = categories.find((c) => c.id === t.categoryId)
+      return [
+        `"${t.description.replace(/"/g, '""')}"`,
+        (t.value || 0).toString().replace('.', ','),
+        `"${t.type || ''}"`,
+        `"${(cat?.name || t.categoryId || '-').replace(/"/g, '""')}"`,
+        new Date(t.date).toLocaleDateString('pt-BR'),
+        `"${t.status || ''}"`,
+        `"${(t.responsible || '-').replace(/"/g, '""')}"`,
+      ]
+    })
 
     const summary = [
       ['Resumo Financeiro'],
@@ -247,16 +276,19 @@ export function ProjectFinanceTab({ project }: { project: any }) {
       headers,
     ]
 
-    const csvContent = [...summary.map((r) => r.join(',')), ...rows.map((r) => r.join(','))].join(
+    const csvContent = [...summary.map((r) => r.join(';')), ...rows.map((r) => r.join(';'))].join(
       '\n',
     )
-    const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csvContent], {
+    const blob = new Blob(['\uFEFF' + csvContent], {
       type: 'text/csv;charset=utf-8;',
     })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
+
+    const today = new Date().toISOString().split('T')[0]
+    a.download = `financeiro-${project.name.replace(/\s+/g, '-').toLowerCase()}-${today}.csv`
+
     a.href = url
-    a.download = `Financeiro_${project.name.replace(/\s+/g, '_')}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -434,10 +466,17 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               para reatribuir.
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={handleExportCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Exportar Relatório
-          </Button>
+          {(effectiveRole === 'Administrador' || effectiveRole === 'Gerente de Projeto') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              disabled={records.length === 0}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Exportar para CSV
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="pb-2 border-b mb-4">
           <div

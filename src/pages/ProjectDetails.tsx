@@ -71,6 +71,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
+import { usePreferencesStore } from '@/stores/usePreferencesStore'
 
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
@@ -287,8 +288,13 @@ export default function ProjectDetails() {
       ? Math.round(modules.reduce((sum, m) => sum + (m.progress || 0), 0) / totalModules)
       : 0
 
+  const { density } = usePreferencesStore()
+  const pClass = density === 'compact' ? 'p-3 md:p-4' : 'p-4 md:p-6'
+  const gapClass = density === 'compact' ? 'space-y-4' : 'space-y-6'
+  const gridGapClass = density === 'compact' ? 'gap-4' : 'gap-6'
+
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-[95%] xl:max-w-screen-2xl space-y-6">
+    <div className={`container mx-auto ${pClass} max-w-[95%] xl:max-w-screen-2xl ${gapClass}`}>
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="gap-2">
           <Link to="/projects">
@@ -382,9 +388,9 @@ export default function ProjectDetails() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass}`}>
         {/* Main Info */}
-        <div className="md:col-span-2 space-y-6">
+        <div className={`md:col-span-2 ${gapClass}`}>
           <Card>
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -591,8 +597,8 @@ export default function ProjectDetails() {
             <NoteCard projectId={project.id} />
           </div>
 
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className={gapClass}>
+            <div className={`grid grid-cols-1 md:grid-cols-2 ${gridGapClass}`}>
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Controle de Horas (Performance)</CardTitle>

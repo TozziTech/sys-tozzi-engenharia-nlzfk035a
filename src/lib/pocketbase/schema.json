@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-26T15:02:10.285Z",
+  "generatedAt": "2026-04-26T15:08:29.696Z",
   "collections": [
     {
       "name": "users",
@@ -228,6 +228,12 @@
           "required": false,
           "system": false,
           "collectionRef": "custom_roles"
+        },
+        {
+          "name": "ui_preferences",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

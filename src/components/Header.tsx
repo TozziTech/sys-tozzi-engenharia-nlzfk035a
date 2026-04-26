@@ -43,6 +43,7 @@ import {
 import { useState, useEffect } from 'react'
 import useProjectStore from '@/stores/useProjectStore'
 import { ThemeToggle } from './ThemeToggle'
+import { DensityToggle } from './DensityToggle'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -389,6 +390,7 @@ export function Header() {
               <span>Performance</span>
             </Button>
           </Link>
+          <DensityToggle />
           <ThemeToggle />
           <Popover>
             <PopoverTrigger asChild>

@@ -12,6 +12,10 @@ import {
   TrendingDown,
   Users,
   Star,
+  ChevronLeft,
+  ChevronRight,
+  Settings2,
+  GripVertical,
 } from 'lucide-react'
 import {
   Bar,
@@ -56,10 +60,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { usePreferencesStore } from '@/stores/usePreferencesStore'
 
 const Dashboard = () => {
   const { user } = useAuth()
   const { toast } = useToast()
+  const { density, dashboardLayout, setDashboardLayout } = usePreferencesStore()
+
   const [projects, setProjects] = useState<any[]>([])
   const [financials, setFinancials] = useState<any[]>([])
   const [companySettings, setCompanySettings] = useState<any>(null)
@@ -68,6 +75,11 @@ const Dashboard = () => {
   const [tasks, setTasks] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [perfFilter, setPerfFilter] = useState({ period: 'all', status: 'all' })
+  const [isEditMode, setIsEditMode] = useState(false)
+
+  const pClass = density === 'compact' ? 'p-3 md:p-4 pt-4' : 'p-4 md:p-8 pt-6'
+  const gapClass = density === 'compact' ? 'gap-3' : 'gap-4'
+  const spaceYClass = density === 'compact' ? 'space-y-3' : 'space-y-4'
 
   const loadData = async () => {
     try {
@@ -199,7 +211,7 @@ const Dashboard = () => {
     return Object.keys(monthly)
       .sort()
       .map((k) => monthly[k])
-      .slice(-6) // Last 6 active months
+      .slice(-6)
   }, [financials])
 
   const chartConfig = {
@@ -349,6 +361,290 @@ const Dashboard = () => {
     }, 100)
   }
 
+  // Layout Drag & Drop Handlers
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData('widgetId', id)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    const sourceId = e.dataTransfer.getData('widgetId')
+    if (sourceId === targetId) return
+
+    const newLayout = [...dashboardLayout]
+    const sourceIdx = newLayout.findIndex((w) => w.id === sourceId)
+    const targetIdx = newLayout.findIndex((w) => w.id === targetId)
+
+    if (sourceIdx !== -1 && targetIdx !== -1) {
+      const [moved] = newLayout.splice(sourceIdx, 1)
+      newLayout.splice(targetIdx, 0, moved)
+
+      newLayout.forEach((w, i) => (w.order = i))
+      setDashboardLayout(newLayout, user?.id)
+    }
+  }
+
+  const handleResize = (id: string, delta: number) => {
+    const newLayout = dashboardLayout.map((w) => {
+      if (w.id === id) {
+        const newSpan = Math.max(2, Math.min(7, w.colSpan + delta))
+        return { ...w, colSpan: newSpan }
+      }
+      return w
+    })
+    setDashboardLayout(newLayout, user?.id)
+  }
+
+  const renderWidgetContent = (id: string) => {
+    switch (id) {
+      case 'metrics':
+        return (
+          <div className={`grid ${gapClass} md:grid-cols-2 lg:grid-cols-4 h-full`}>
+            <Card className="shadow-sm border-muted/60 h-full flex flex-col justify-center">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
+                <div className="p-2 bg-primary/10 rounded-full">
+                  <Briefcase className="h-4 w-4 text-primary" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{loading ? '-' : activeProjectsCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">Em andamento ou planejamento</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border-muted/60 h-full flex flex-col justify-center">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Alertas de Diagnóstico</CardTitle>
+                <div className="p-2 bg-destructive/10 rounded-full">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-destructive">
+                  {loading ? '-' : bottlenecks.length}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Atrasos ou orçamento estourado</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border-muted/60 h-full flex flex-col justify-center">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Projetos Concluídos</CardTitle>
+                <div className="p-2 bg-green-500/10 rounded-full">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{loading ? '-' : completedProjectsCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">Entregas finalizadas</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border-muted/60 h-full flex flex-col justify-center">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Equipe Ativa</CardTitle>
+                <div className="p-2 bg-blue-500/10 rounded-full">
+                  <Users className="h-4 w-4 text-blue-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">8</div>
+                <p className="text-xs text-muted-foreground mt-1">2 online no momento</p>
+              </CardContent>
+            </Card>
+          </div>
+        )
+      case 'financial':
+        return (
+          <Card className="shadow-sm h-full flex flex-col">
+            <CardHeader>
+              <CardTitle>Métricas Financeiras</CardTitle>
+              <CardDescription>Análise mensal de Receitas vs Despesas registradas.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-[250px]">
+              {chartData.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Nenhum dado financeiro disponível.
+                </div>
+              ) : (
+                <ChartContainer config={chartConfig} className="h-full w-full">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={10} />
+                    <YAxis
+                      tickFormatter={(v) => `R$ ${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="receita"
+                      fill="var(--color-receita)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={50}
+                    />
+                    <Bar
+                      dataKey="despesa"
+                      fill="var(--color-despesa)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={50}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+        )
+      case 'bottlenecks':
+        return (
+          <Card className="shadow-sm border-destructive/30 h-full flex flex-col">
+            <CardHeader>
+              <CardTitle className="flex items-center text-destructive">
+                <AlertTriangle className="w-5 h-5 mr-2" />
+                Diagnóstico e Alertas
+              </CardTitle>
+              <CardDescription>Projetos exigindo atenção imediata.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden flex flex-col">
+              {loading ? (
+                <div className="text-center text-muted-foreground py-8">Analisando projetos...</div>
+              ) : bottlenecks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full py-8 text-center text-muted-foreground">
+                  <CheckCircle2 className="w-12 h-12 mb-3 text-green-500/50" />
+                  <p>Nenhum problema detectado no diagnóstico!</p>
+                  <p className="text-sm">Todos os projetos estão dentro do prazo e orçamento.</p>
+                </div>
+              ) : (
+                <div className="space-y-4 overflow-y-auto pr-2 flex-1 max-h-[300px]">
+                  {bottlenecks.map((b, i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-1 p-3 rounded-md bg-muted/50 border border-muted"
+                    >
+                      <Link
+                        to={`/projects/${b.project.id}`}
+                        className="font-semibold text-sm hover:text-primary transition-colors"
+                      >
+                        {b.project.name}
+                      </Link>
+                      <div className="flex items-center text-sm">
+                        {b.type === 'budget' ? (
+                          <TrendingDown className="w-4 h-4 mr-1.5 text-destructive shrink-0" />
+                        ) : b.type === 'deadline' ? (
+                          <Clock className="w-4 h-4 mr-1.5 text-destructive shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 mr-1.5 text-amber-500 shrink-0" />
+                        )}
+                        <span
+                          className={
+                            b.type === 'budget' || b.type === 'deadline'
+                              ? 'text-destructive font-medium'
+                              : 'text-amber-600 font-medium'
+                          }
+                        >
+                          {b.message}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+      case 'progress':
+        return (
+          <Card className="shadow-sm h-full flex flex-col">
+            <CardHeader>
+              <CardTitle>Progresso dos Projetos</CardTitle>
+              <CardDescription>Acompanhamento detalhado do desenvolvimento.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-auto max-h-[350px]">
+              <div className="space-y-6">
+                {projects.slice(0, 5).map((p, i) => (
+                  <div
+                    key={p.id || i}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-muted/40 pb-4 last:border-0 last:pb-0 gap-4 sm:gap-0"
+                  >
+                    <div className="space-y-1 flex-1 pr-4">
+                      <Link
+                        to={`/projects/${p.id}`}
+                        className="text-sm font-semibold leading-none hover:underline"
+                      >
+                        {p.name}
+                      </Link>
+                      <p className="text-sm text-muted-foreground">{p.client || 'Sem cliente'}</p>
+                    </div>
+                    <div className="flex flex-col sm:items-end w-32 shrink-0">
+                      <div className="flex items-center gap-2 w-full">
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${p.progress < 50 ? (p.progress < 35 ? 'bg-destructive' : 'bg-orange-500') : 'bg-primary'}`}
+                            style={{ width: `${p.progress || 0}%` }}
+                          />
+                        </div>
+                        <p className="text-sm font-medium w-9 text-right">{p.progress || 0}%</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{p.status}</p>
+                    </div>
+                  </div>
+                ))}
+                {!loading && projects.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhum projeto encontrado.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      case 'activity':
+        return (
+          <Card className="shadow-sm h-full flex flex-col">
+            <CardHeader>
+              <CardTitle>Atividade Recente</CardTitle>
+              <CardDescription>Últimas atualizações da equipe de projetos.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-auto max-h-[350px]">
+              <div className="space-y-6">
+                {[
+                  {
+                    user: 'João Silva',
+                    action: 'finalizou a tarefa no',
+                    target: 'Design System',
+                    time: 'Há 2 horas',
+                  },
+                  {
+                    user: 'Maria Santos',
+                    action: 'adicionou um comentário em',
+                    target: 'App de Entregas',
+                    time: 'Há 4 horas',
+                  },
+                  {
+                    user: 'Pedro Costa',
+                    action: 'criou o projeto',
+                    target: 'Landing Page B2B',
+                    time: 'Ontem às 16:30',
+                  },
+                ].map((a, i) => (
+                  <div key={i} className="flex items-start">
+                    <div className="bg-muted/50 p-2 rounded-full mr-4 mt-0.5 border border-muted">
+                      <Activity className="h-4 w-4 text-foreground/70" />
+                    </div>
+                    <div className="space-y-1 flex-1">
+                      <p className="text-sm leading-snug">
+                        <span className="font-semibold">{a.user}</span> {a.action}{' '}
+                        <span className="font-semibold text-primary">{a.target}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">{a.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      default:
+        return null
+    }
+  }
+
   if (!loading && !isAdmin && projects.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center h-full min-h-[80vh] animate-fade-in-up">
@@ -373,8 +669,8 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 pb-4">
+    <div className={`flex-1 flex flex-col h-full ${pClass} ${spaceYClass}`}>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 pb-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard Geral</h2>
           <p className="text-muted-foreground mt-1">
@@ -423,12 +719,12 @@ const Dashboard = () => {
       />
 
       {projects.filter((p) => p.is_priority && p.status !== 'Concluído').length > 0 && (
-        <div className="mt-6 mb-8 animate-fade-in-down">
+        <div className={`mt-2 mb-4 animate-fade-in-down`}>
           <div className="flex items-center gap-2 mb-4">
             <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
             <h3 className="text-xl font-bold">Projetos Prioritários</h3>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-3`}>
             {projects
               .filter((p) => p.is_priority && p.status !== 'Concluído')
               .map((p) => (
@@ -477,261 +773,98 @@ const Dashboard = () => {
         </div>
       )}
 
-      <Tabs defaultValue="overview" className="w-full mt-4">
+      <Tabs defaultValue="overview" className="w-full mt-2">
         <div className="flex items-center justify-between mb-4">
           <TabsList>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="kpis">KPIs & Produtividade</TabsTrigger>
             <TabsTrigger value="performance">Performance de Equipe</TabsTrigger>
           </TabsList>
+          <TabsContent value="overview" asChild>
+            <Button
+              variant={isEditMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setIsEditMode(!isEditMode)}
+              className="ml-auto hidden md:flex h-8 shadow-sm transition-all"
+            >
+              <Settings2 className="w-4 h-4 mr-2" />
+              {isEditMode ? 'Concluir Edição' : 'Personalizar Layout'}
+            </Button>
+          </TabsContent>
         </div>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 pt-2">
-            <Card className="shadow-sm border-muted/60">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
-                <div className="p-2 bg-primary/10 rounded-full">
-                  <Briefcase className="h-4 w-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{loading ? '-' : activeProjectsCount}</div>
-                <p className="text-xs text-muted-foreground mt-1">Em andamento ou planejamento</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-muted/60">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Alertas de Diagnóstico</CardTitle>
-                <div className="p-2 bg-destructive/10 rounded-full">
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-destructive">
-                  {loading ? '-' : bottlenecks.length}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Atrasos ou orçamento estourado</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-muted/60">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Projetos Concluídos</CardTitle>
-                <div className="p-2 bg-green-500/10 rounded-full">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{loading ? '-' : completedProjectsCount}</div>
-                <p className="text-xs text-muted-foreground mt-1">Entregas finalizadas</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-muted/60">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Equipe Ativa</CardTitle>
-                <div className="p-2 bg-blue-500/10 rounded-full">
-                  <Users className="h-4 w-4 text-blue-500" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">8</div>
-                <p className="text-xs text-muted-foreground mt-1">2 online no momento</p>
-              </CardContent>
-            </Card>
+        <TabsContent value="overview" className={spaceYClass}>
+          <div className="flex justify-end md:hidden mb-2">
+            <Button
+              variant={isEditMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setIsEditMode(!isEditMode)}
+              className="shadow-sm w-full transition-all"
+            >
+              <Settings2 className="w-4 h-4 mr-2" />
+              {isEditMode ? 'Concluir Edição' : 'Personalizar Layout'}
+            </Button>
           </div>
 
-          <div className="grid gap-4 grid-cols-1 lg:grid-cols-7 mt-4">
-            {/* Financial Metrics Chart */}
-            <Card className="col-span-1 lg:col-span-4 shadow-sm">
-              <CardHeader>
-                <CardTitle>Métricas Financeiras</CardTitle>
-                <CardDescription>
-                  Análise mensal de Receitas vs Despesas registradas.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {chartData.length === 0 ? (
-                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                    Nenhum dado financeiro disponível.
-                  </div>
-                ) : (
-                  <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                      <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={10} />
-                      <YAxis
-                        tickFormatter={(v) => `R$ ${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey="receita"
-                        fill="var(--color-receita)"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={50}
-                      />
-                      <Bar
-                        dataKey="despesa"
-                        fill="var(--color-despesa)"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={50}
-                      />
-                    </BarChart>
-                  </ChartContainer>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Bottleneck Alerts System */}
-            <Card className="col-span-1 lg:col-span-3 shadow-sm border-destructive/30">
-              <CardHeader>
-                <CardTitle className="flex items-center text-destructive">
-                  <AlertTriangle className="w-5 h-5 mr-2" />
-                  Diagnóstico e Alertas
-                </CardTitle>
-                <CardDescription>Projetos exigindo atenção imediata.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    Analisando projetos...
-                  </div>
-                ) : bottlenecks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-                    <CheckCircle2 className="w-12 h-12 mb-3 text-green-500/50" />
-                    <p>Nenhum problema detectado no diagnóstico!</p>
-                    <p className="text-sm">Todos os projetos estão dentro do prazo e orçamento.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-                    {bottlenecks.map((b, i) => (
-                      <div
-                        key={i}
-                        className="flex flex-col gap-1 p-3 rounded-md bg-muted/50 border border-muted"
-                      >
-                        <Link
-                          to={`/projects/${b.project.id}`}
-                          className="font-semibold text-sm hover:text-primary transition-colors"
+          <div className={`grid grid-cols-1 lg:grid-cols-7 ${gapClass}`}>
+            {dashboardLayout
+              .sort((a, b) => a.order - b.order)
+              .map((widget) => {
+                const colSpanMap: Record<number, string> = {
+                  1: 'lg:col-span-1',
+                  2: 'lg:col-span-2',
+                  3: 'lg:col-span-3',
+                  4: 'lg:col-span-4',
+                  5: 'lg:col-span-5',
+                  6: 'lg:col-span-6',
+                  7: 'lg:col-span-7',
+                }
+                return (
+                  <div
+                    key={widget.id}
+                    draggable={isEditMode}
+                    onDragStart={(e) => handleDragStart(e, widget.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleDrop(e, widget.id)}
+                    className={`relative transition-all duration-200 ${colSpanMap[widget.colSpan] || 'lg:col-span-3'} ${
+                      isEditMode
+                        ? 'ring-2 ring-primary border-dashed border-2 p-1.5 rounded-xl cursor-move bg-muted/10'
+                        : ''
+                    }`}
+                  >
+                    {isEditMode && (
+                      <div className="absolute -top-3 -right-3 z-20 flex items-center gap-1 bg-background shadow-md border rounded-lg p-1">
+                        <GripVertical className="h-4 w-4 text-muted-foreground cursor-move mr-1" />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={() => handleResize(widget.id, -1)}
+                          disabled={widget.colSpan <= 2}
                         >
-                          {b.project.name}
-                        </Link>
-                        <div className="flex items-center text-sm">
-                          {b.type === 'budget' ? (
-                            <TrendingDown className="w-4 h-4 mr-1.5 text-destructive shrink-0" />
-                          ) : b.type === 'deadline' ? (
-                            <Clock className="w-4 h-4 mr-1.5 text-destructive shrink-0" />
-                          ) : (
-                            <AlertTriangle className="w-4 h-4 mr-1.5 text-amber-500 shrink-0" />
-                          )}
-                          <span
-                            className={
-                              b.type === 'budget' || b.type === 'deadline'
-                                ? 'text-destructive font-medium'
-                                : 'text-amber-600 font-medium'
-                            }
-                          >
-                            {b.message}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7 mt-4">
-            <Card className="col-span-1 md:col-span-2 lg:col-span-4 shadow-sm">
-              <CardHeader>
-                <CardTitle>Progresso dos Projetos</CardTitle>
-                <CardDescription>Acompanhamento detalhado do desenvolvimento.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {projects.slice(0, 5).map((p, i) => (
-                    <div
-                      key={p.id || i}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-muted/40 pb-4 last:border-0 last:pb-0 gap-4 sm:gap-0"
-                    >
-                      <div className="space-y-1 flex-1 pr-4">
-                        <Link
-                          to={`/projects/${p.id}`}
-                          className="text-sm font-semibold leading-none hover:underline"
+                          <ChevronLeft className="h-3 w-3" />
+                        </Button>
+                        <span className="text-xs font-mono w-4 text-center">{widget.colSpan}</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={() => handleResize(widget.id, 1)}
+                          disabled={widget.colSpan >= 7}
                         >
-                          {p.name}
-                        </Link>
-                        <p className="text-sm text-muted-foreground">{p.client || 'Sem cliente'}</p>
+                          <ChevronRight className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <div className="flex flex-col sm:items-end w-32 shrink-0">
-                        <div className="flex items-center gap-2 w-full">
-                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className={`h-full ${p.progress < 50 ? (p.progress < 35 ? 'bg-destructive' : 'bg-orange-500') : 'bg-primary'}`}
-                              style={{ width: `${p.progress || 0}%` }}
-                            />
-                          </div>
-                          <p className="text-sm font-medium w-9 text-right">{p.progress || 0}%</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">{p.status}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {!loading && projects.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Nenhum projeto encontrado.</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="col-span-1 md:col-span-2 lg:col-span-3 shadow-sm">
-              <CardHeader>
-                <CardTitle>Atividade Recente</CardTitle>
-                <CardDescription>Últimas atualizações da equipe de projetos.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {[
-                    {
-                      user: 'João Silva',
-                      action: 'finalizou a tarefa no',
-                      target: 'Design System',
-                      time: 'Há 2 horas',
-                    },
-                    {
-                      user: 'Maria Santos',
-                      action: 'adicionou um comentário em',
-                      target: 'App de Entregas',
-                      time: 'Há 4 horas',
-                    },
-                    {
-                      user: 'Pedro Costa',
-                      action: 'criou o projeto',
-                      target: 'Landing Page B2B',
-                      time: 'Ontem às 16:30',
-                    },
-                  ].map((a, i) => (
-                    <div key={i} className="flex items-start">
-                      <div className="bg-muted/50 p-2 rounded-full mr-4 mt-0.5 border border-muted">
-                        <Activity className="h-4 w-4 text-foreground/70" />
-                      </div>
-                      <div className="space-y-1 flex-1">
-                        <p className="text-sm leading-snug">
-                          <span className="font-semibold">{a.user}</span> {a.action}{' '}
-                          <span className="font-semibold text-primary">{a.target}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">{a.time}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    )}
+                    {renderWidgetContent(widget.id)}
+                  </div>
+                )
+              })}
           </div>
         </TabsContent>
 
-        <TabsContent value="kpis" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <TabsContent value="kpis" className={spaceYClass}>
+          <div className={`grid ${gapClass} md:grid-cols-2 lg:grid-cols-4`}>
             <Card className="shadow-sm border-muted/60">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Concluídas no Prazo</CardTitle>
@@ -786,7 +919,7 @@ const Dashboard = () => {
             </Card>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={`grid ${gapClass} md:grid-cols-2`}>
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle>Qualidade das Entregas (Tarefas Concluídas)</CardTitle>
@@ -887,7 +1020,7 @@ const Dashboard = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="performance" className="space-y-4">
+        <TabsContent value="performance" className={spaceYClass}>
           <div className="flex flex-col sm:flex-row items-center gap-4 bg-muted/30 p-4 rounded-lg border">
             <div className="flex flex-col gap-1 w-full sm:w-auto">
               <span className="text-sm font-medium">Filtro de Produtividade</span>
@@ -922,7 +1055,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={`grid ${gapClass} md:grid-cols-2`}>
             <Card className="col-span-1 shadow-sm">
               <CardHeader>
                 <CardTitle>Distribuição de Tarefas por Membro</CardTitle>

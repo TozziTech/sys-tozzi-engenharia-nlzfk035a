@@ -134,10 +134,13 @@ export default function Profile() {
         return
       }
       const data = new FormData()
-      Object.entries(formData).forEach(([k, v]) => data.append(k, String(v)))
+      Object.entries(formData).forEach(([k, v]) => {
+        if (k !== 'email') {
+          data.append(k, String(v))
+        }
+      })
       if (avatarFile) data.append('avatar', avatarFile)
-      await pb.collection('users').update(user.id, data)
-      toast({ title: 'Perfil atualizado com sucesso!' })
+      await pb.collection('users').update(user.id, data)      toast({ title: 'Perfil atualizado com sucesso!' })
     } catch (e: any) {
       toast({ title: 'Erro ao atualizar perfil', description: e.message, variant: 'destructive' })
     } finally {
@@ -212,6 +215,7 @@ export default function Profile() {
                 type="email"
                 value={formData.email}
                 onChange={(v: string) => handleChange('email', v)}
+                disabled
               />
               <Field
                 label="Data de Nascimento"

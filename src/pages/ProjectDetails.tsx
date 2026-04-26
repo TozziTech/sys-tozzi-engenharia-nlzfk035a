@@ -266,6 +266,11 @@ export default function ProjectDetails() {
     exportProjectHoursPDF(projectTimeLogs, project, 'Usuário Logado')
   }, [project, projectTimeLogs])
 
+  const { density } = usePreferencesStore()
+  const pClass = density === 'compact' ? 'p-3 md:p-4' : 'p-4 md:p-6'
+  const gapClass = density === 'compact' ? 'space-y-4' : 'space-y-6'
+  const gridGapClass = density === 'compact' ? 'gap-4' : 'gap-6'
+
   if (!project) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8">
@@ -287,11 +292,6 @@ export default function ProjectDetails() {
     totalModules > 0
       ? Math.round(modules.reduce((sum, m) => sum + (m.progress || 0), 0) / totalModules)
       : 0
-
-  const { density } = usePreferencesStore()
-  const pClass = density === 'compact' ? 'p-3 md:p-4' : 'p-4 md:p-6'
-  const gapClass = density === 'compact' ? 'space-y-4' : 'space-y-6'
-  const gridGapClass = density === 'compact' ? 'gap-4' : 'gap-6'
 
   return (
     <div className={`container mx-auto ${pClass} max-w-[95%] xl:max-w-screen-2xl ${gapClass}`}>

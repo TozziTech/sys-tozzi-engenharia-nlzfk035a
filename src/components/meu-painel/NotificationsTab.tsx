@@ -7,9 +7,19 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Bell, Clock, AlertTriangle, CheckCircle2, AlertCircle, Calendar } from 'lucide-react'
+import {
+  Bell,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  AlertCircle,
+  Calendar,
+  Download,
+} from 'lucide-react'
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { exportNotificationsCSV } from '@/lib/export'
+import { toast } from 'sonner'
 
 export function NotificationsTab() {
   const { user } = useAuth()
@@ -45,6 +55,16 @@ export function NotificationsTab() {
         unread.map((n) => pb.collection('notifications').update(n.id, { read: true })),
       )
     } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleExportCSV = () => {
+    try {
+      exportNotificationsCSV(filtered)
+      toast.success('Notificações exportadas com sucesso!')
+    } catch (e) {
+      toast.error('Erro ao exportar notificações.')
       console.error(e)
     }
   }
@@ -164,8 +184,12 @@ export function NotificationsTab() {
             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
         </div>
-        <div className="w-full md:w-auto pt-4 md:pt-0">
-          <Button onClick={handleMarkAllAsRead} variant="outline" className="w-full md:w-auto">
+        <div className="w-full md:w-auto pt-4 md:pt-0 flex flex-col sm:flex-row gap-2">
+          <Button onClick={handleExportCSV} variant="outline" className="w-full sm:w-auto">
+            <Download className="w-4 h-4 mr-2" />
+            Exportar CSV
+          </Button>
+          <Button onClick={handleMarkAllAsRead} variant="outline" className="w-full sm:w-auto">
             <CheckCircle2 className="w-4 h-4 mr-2" />
             Marcar todas como lidas
           </Button>

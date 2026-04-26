@@ -175,6 +175,25 @@ export function exportDistributionCSV(data: any[]) {
   genericExport(data, 'distribuicao')
 }
 
+export function exportNotificationsCSV(notifications: any[]) {
+  const headers = ['Data/Hora', 'Título', 'Mensagem', 'Status', 'Importância']
+
+  const rows = notifications.map((n) => {
+    const date = new Date(n.created)
+    const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+    return [
+      escapeCSV(formattedDate),
+      escapeCSV(n.title),
+      escapeCSV(n.message),
+      escapeCSV(n.read ? 'Lida' : 'Não Lida'),
+      escapeCSV(n.is_important ? 'Alta' : 'Normal'),
+    ].join(';')
+  })
+
+  const csvContent = [headers.join(';'), ...rows].join('\n')
+  downloadCSV(csvContent, `notificacoes_${new Date().toISOString().split('T')[0]}.csv`)
+}
+
 export function exportWord(content: string, filename: string) {
   const blob = new Blob(['\uFEFF' + content], { type: 'application/msword' })
   const url = URL.createObjectURL(blob)

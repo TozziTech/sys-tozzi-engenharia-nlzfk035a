@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { format, differenceInDays, startOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Star,
   RotateCcw,
+  GripHorizontal,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,8 +31,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import useProjectStore from '@/stores/useProjectStore'
+import { usePreferencesStore } from '@/stores/usePreferencesStore'
+import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 
 interface ProjectCardListProps {
   projects: Project[]
@@ -42,7 +46,68 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const { deleteProject, restoreProject } = useProjectStore()
+  const { projectOrder, setProjectOrder } = usePreferencesStore()
+  const { user } = useAuth()
   const { toast } = useToast()
+
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  const sortedProjects = useMemo(() => {
+    if (isTrashView || !projectOrder || projectOrder.length === 0) return projects
+    return [...projects].sort((a, b) => {
+      const indexA = projectOrder.indexOf(a.id)
+      const indexB = projectOrder.indexOf(b.id)
+      if (indexA === -1 && indexB === -1) return 0
+      if (indexA === -1) return 1
+      if (indexB === -1) return -1
+      return indexA - indexB
+    })
+  }, [projects, projectOrder, isTrashView])
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    if (isTrashView) return
+    setDraggedId(id)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', id)
+  }
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    if (isTrashView) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (id !== draggedId) {
+      setDragOverId(id)
+    }
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOverId(null)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    if (isTrashView) return
+    e.preventDefault()
+    setDragOverId(null)
+
+    if (draggedId && draggedId !== targetId) {
+      const currentOrder = projectOrder.length > 0 ? projectOrder : projects.map((p) => p.id)
+      const missing = projects.map((p) => p.id).filter((id) => !currentOrder.includes(id))
+      const fullOrder = [...currentOrder, ...missing]
+
+      const oldIndex = fullOrder.indexOf(draggedId)
+      const newIndex = fullOrder.indexOf(targetId)
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = [...fullOrder]
+        newOrder.splice(oldIndex, 1)
+        newOrder.splice(newIndex, 0, draggedId)
+        setProjectOrder(newOrder, user?.id)
+      }
+    }
+    setDraggedId(null)
+  }
 
   const isCritical = (project: Project) => {
     if (project.status === 'Concluído' || project.deletedAt) return false
@@ -64,20 +129,37 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:hidden animate-fade-in-up">
-      {projects.map((project) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in-up">
+      {sortedProjects.map((project) => (
         <Card
           key={project.id}
-          className={`overflow-hidden shadow-sm relative transition-colors ${
+          draggable={!isTrashView}
+          onDragStart={(e) => handleDragStart(e, project.id)}
+          onDragOver={(e) => handleDragOver(e, project.id)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, project.id)}
+          onDragEnd={() => {
+            setDraggedId(null)
+            setDragOverId(null)
+          }}
+          className={cn(
+            'overflow-hidden shadow-sm relative transition-all duration-200',
             isTrashView
               ? 'border-slate-200 opacity-80'
               : isCritical(project)
                 ? 'border-red-300 bg-red-50/10 hover:border-red-400'
-                : 'border-slate-200 hover:border-slate-300'
-          }`}
+                : 'border-slate-200 hover:border-slate-300 hover:shadow-md cursor-grab active:cursor-grabbing',
+            draggedId === project.id && 'opacity-50 scale-95 z-50 ring-2 ring-primary/50',
+            dragOverId === project.id &&
+              'ring-2 ring-primary ring-offset-2 scale-105 bg-slate-50/80 dark:bg-slate-800/80',
+          )}
         >
           {!isTrashView && (
-            <Link to={`/projects/${project.id}`} className="absolute inset-0 z-10">
+            <Link
+              to={`/projects/${project.id}`}
+              className="absolute inset-0 z-10"
+              draggable={false}
+            >
               <span className="sr-only">Ver detalhes do projeto {project.name}</span>
             </Link>
           )}
@@ -85,8 +167,16 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
             className={`pb-3 ${isCritical(project) && !isTrashView ? 'bg-red-50/50' : 'bg-slate-50/50'}`}
           >
             <div className="flex justify-between items-start gap-4">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-1 w-full">
+                <div className="flex items-center gap-2 w-full">
+                  {!isTrashView && (
+                    <div
+                      className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 transition-colors z-20"
+                      title="Arraste para reordenar"
+                    >
+                      <GripHorizontal className="h-4 w-4" />
+                    </div>
+                  )}
                   {!isTrashView && (
                     <button
                       onClick={(e) => {
@@ -105,7 +195,7 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                       <Star className={`h-5 w-5 ${project.is_priority ? 'fill-current' : ''}`} />
                     </button>
                   )}
-                  <CardTitle className="text-lg font-bold text-slate-900 leading-tight z-20 relative">
+                  <CardTitle className="text-lg font-bold text-slate-900 leading-tight z-20 relative flex-1 line-clamp-1">
                     {isTrashView ? (
                       project.name
                     ) : (
@@ -114,17 +204,18 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                       </Link>
                     )}
                   </CardTitle>
-                  {isCritical(project) && !isTrashView && (
-                    <Badge
-                      variant="destructive"
-                      className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-red-500 hover:bg-red-600"
-                    >
-                      <AlertCircle className="w-3 h-3 mr-1" />
-                      Crítico
-                    </Badge>
-                  )}
+                  {!isTrashView && <StatusBadge status={project.status} />}
                 </div>
-                <div className="flex gap-2 relative z-20 mt-1">
+                {isCritical(project) && !isTrashView && (
+                  <Badge
+                    variant="destructive"
+                    className="w-fit h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-red-500 hover:bg-red-600 mt-1 z-20 relative"
+                  >
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Crítico
+                  </Badge>
+                )}
+                <div className="flex gap-2 relative z-20 mt-2">
                   {isTrashView ? (
                     <Button
                       variant="outline"
@@ -160,6 +251,7 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                         className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
                         onClick={(e) => {
                           e.preventDefault()
+                          e.stopPropagation()
                           setProjectToDelete(project)
                         }}
                       >
@@ -169,7 +261,6 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                   )}
                 </div>
               </div>
-              {!isTrashView && <StatusBadge status={project.status} />}
             </div>
           </CardHeader>
           <CardContent className="pt-4 grid gap-4">

@@ -10,8 +10,12 @@ export interface WidgetLayout {
 interface PreferencesStore {
   density: 'compact' | 'spaced'
   dashboardLayout: WidgetLayout[]
+  projectOrder: string[]
+  viewMode: 'table' | 'grid'
   setDensity: (density: 'compact' | 'spaced', userId?: string) => void
   setDashboardLayout: (layout: WidgetLayout[], userId?: string) => void
+  setProjectOrder: (order: string[], userId?: string) => void
+  setViewMode: (mode: 'table' | 'grid', userId?: string) => void
   loadPreferences: (user: any) => void
 }
 
@@ -26,6 +30,8 @@ const defaultLayout: WidgetLayout[] = [
 export const usePreferencesStore = create<PreferencesStore>((set, get) => ({
   density: 'spaced',
   dashboardLayout: defaultLayout,
+  projectOrder: [],
+  viewMode: 'grid',
   setDensity: async (density, userId) => {
     set({ density })
     if (userId) {
@@ -45,10 +51,51 @@ export const usePreferencesStore = create<PreferencesStore>((set, get) => ({
       const current = get()
       try {
         await pb.collection('users').update(userId, {
-          ui_preferences: { density: current.density, dashboardLayout: layout },
+          ui_preferences: {
+            density: current.density,
+            dashboardLayout: layout,
+            projectOrder: current.projectOrder,
+            viewMode: current.viewMode,
+          },
         })
       } catch (e) {
         console.error('Failed to save layout', e)
+      }
+    }
+  },
+  setProjectOrder: async (order, userId) => {
+    set({ projectOrder: order })
+    if (userId) {
+      const current = get()
+      try {
+        await pb.collection('users').update(userId, {
+          ui_preferences: {
+            density: current.density,
+            dashboardLayout: current.dashboardLayout,
+            projectOrder: order,
+            viewMode: current.viewMode,
+          },
+        })
+      } catch (e) {
+        console.error('Failed to save project order', e)
+      }
+    }
+  },
+  setViewMode: async (mode, userId) => {
+    set({ viewMode: mode })
+    if (userId) {
+      const current = get()
+      try {
+        await pb.collection('users').update(userId, {
+          ui_preferences: {
+            density: current.density,
+            dashboardLayout: current.dashboardLayout,
+            projectOrder: current.projectOrder,
+            viewMode: mode,
+          },
+        })
+      } catch (e) {
+        console.error('Failed to save view mode', e)
       }
     }
   },
@@ -58,6 +105,8 @@ export const usePreferencesStore = create<PreferencesStore>((set, get) => ({
       set({
         density: prefs.density || 'spaced',
         dashboardLayout: prefs.dashboardLayout || defaultLayout,
+        projectOrder: prefs.projectOrder || [],
+        viewMode: prefs.viewMode || 'grid',
       })
     }
   },

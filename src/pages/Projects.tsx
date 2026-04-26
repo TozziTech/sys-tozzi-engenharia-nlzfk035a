@@ -10,8 +10,11 @@ import {
   Activity,
   CheckCircle,
   Search,
+  LayoutGrid,
+  List as ListIcon,
 } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
+import { usePreferencesStore } from '@/stores/usePreferencesStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
@@ -28,6 +31,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   Dialog,
   DialogContent,
@@ -56,6 +60,7 @@ const months = [
 
 export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: boolean }) {
   const { projects, globalSearch, setNewProjectModalOpen } = useProjectStore()
+  const { viewMode, setViewMode } = usePreferencesStore()
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -74,6 +79,9 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
   const [requestLevel, setRequestLevel] = useState('Leitura')
 
   useEffect(() => {
+    if (user) {
+      usePreferencesStore.getState().loadPreferences(user)
+    }
     if (!user || user.role === 'Administrador') return
     const load = async () => {
       try {
@@ -285,6 +293,19 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
               </Button>
             )}
           </div>
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(v) => v && setViewMode(v as 'grid' | 'table', user?.id)}
+            className="border rounded-md hidden md:flex shrink-0 bg-white dark:bg-zinc-900"
+          >
+            <ToggleGroupItem value="table" aria-label="Ver em Tabela">
+              <ListIcon className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="grid" aria-label="Ver em Cards">
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
           <Button
             variant={showTrash ? 'default' : 'outline'}
             onClick={() => setShowTrash(!showTrash)}
@@ -486,8 +507,12 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         </div>
       ) : user?.role === 'Administrador' || filterOnlyMine ? (
         <>
-          <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />
-          <ProjectCardList projects={projectsWithAccess} isTrashView={showTrash} />
+          <div className={viewMode === 'grid' ? 'hidden md:hidden' : 'hidden md:block'}>
+            <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />
+          </div>
+          <div className={viewMode === 'table' ? 'block md:hidden' : 'block'}>
+            <ProjectCardList projects={projectsWithAccess} isTrashView={showTrash} />
+          </div>
         </>
       ) : (
         <Tabs defaultValue="with-access" className="w-full">
@@ -506,8 +531,12 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
               </p>
             ) : (
               <>
-                <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />
-                <ProjectCardList projects={projectsWithAccess} isTrashView={showTrash} />
+                <div className={viewMode === 'grid' ? 'hidden md:hidden' : 'hidden md:block'}>
+                  <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />
+                </div>
+                <div className={viewMode === 'table' ? 'block md:hidden' : 'block'}>
+                  <ProjectCardList projects={projectsWithAccess} isTrashView={showTrash} />
+                </div>
               </>
             )}
           </TabsContent>

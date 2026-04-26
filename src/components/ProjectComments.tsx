@@ -44,7 +44,7 @@ export function ProjectComments({
   const [attachments, setAttachments] = useState<File[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  
+
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -81,17 +81,23 @@ export function ProjectComments({
       loadData()
       if (e.action === 'create' && e.record.autor !== user?.id) {
         // Look up author name from current state or user list
-        const authorId = e.record.autor;
-        pb.collection('users').getOne(authorId).then(author => {
-          toast({
-            title: `Novo comentário de ${author.name || 'Usuário'}`,
-            description: e.record.mensagem.length > 50 ? e.record.mensagem.substring(0, 50) + '...' : e.record.mensagem,
+        const authorId = e.record.autor
+        pb.collection('users')
+          .getOne(authorId)
+          .then((author) => {
+            toast({
+              title: `Novo comentário de ${author.name || 'Usuário'}`,
+              description:
+                e.record.mensagem.length > 50
+                  ? e.record.mensagem.substring(0, 50) + '...'
+                  : e.record.mensagem,
+            })
           })
-        }).catch(console.error)
+          .catch(console.error)
       }
     }
   })
-  
+
   const handleEdit = (comment: any) => {
     setEditingId(comment.id)
     setEditContent(comment.mensagem)
@@ -295,17 +301,27 @@ export function ProjectComments({
                         {canEditDelete && (
                           <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
                             {isAuthor && (
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-indigo-600" onClick={() => handleEdit(comment)}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-slate-400 hover:text-indigo-600"
+                                onClick={() => handleEdit(comment)}
+                              >
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
                             )}
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-rose-600" onClick={() => setDeletingId(comment.id)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-slate-400 hover:text-rose-600"
+                              onClick={() => setDeletingId(comment.id)}
+                            >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         )}
                       </div>
-                      
+
                       {editingId === comment.id ? (
                         <div className="space-y-2 mt-2">
                           <Textarea
@@ -315,10 +331,19 @@ export function ProjectComments({
                             autoFocus
                           />
                           <div className="flex gap-2 justify-end">
-                            <Button variant="outline" size="sm" onClick={() => setEditingId(null)} className="h-7 text-xs">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingId(null)}
+                              className="h-7 text-xs"
+                            >
                               Cancelar
                             </Button>
-                            <Button size="sm" onClick={saveEdit} className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700">
+                            <Button
+                              size="sm"
+                              onClick={saveEdit}
+                              className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700"
+                            >
                               <Check className="h-3.5 w-3.5 mr-1" /> Salvar
                             </Button>
                           </div>
@@ -329,31 +354,32 @@ export function ProjectComments({
                         </div>
                       )}
 
-                    {comment.anexos && comment.anexos.length > 0 && (
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {comment.anexos.map((filename: string, i: number) => (
-                          <a
-                            key={i}
-                            href={getAnexoUrl(comment, filename)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-colors group"
-                          >
-                            <div className="bg-indigo-100 dark:bg-indigo-900/30 p-1.5 rounded-md group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/50 transition-colors">
-                              <FileIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="font-medium text-slate-700 dark:text-zinc-300 max-w-[150px] truncate">
-                                {filename}
-                              </span>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                    )}
+                      {comment.anexos && comment.anexos.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {comment.anexos.map((filename: string, i: number) => (
+                            <a
+                              key={i}
+                              href={getAnexoUrl(comment, filename)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-colors group"
+                            >
+                              <div className="bg-indigo-100 dark:bg-indigo-900/30 p-1.5 rounded-md group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/50 transition-colors">
+                                <FileIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-medium text-slate-700 dark:text-zinc-300 max-w-[150px] truncate">
+                                  {filename}
+                                </span>
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </ScrollArea>
@@ -471,7 +497,10 @@ export function ProjectComments({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

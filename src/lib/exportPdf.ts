@@ -1454,6 +1454,88 @@ export function exportAccessReportPDF(
   setTimeout(() => printWindow.print(), 250)
 }
 
+export function exportWeeklyDocsReportPDF(
+  documents: any[],
+  currentUser: string,
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório Semanal de Documentos</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+          th { background-color: ${primaryColor}; color: #ffffff; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 20px; }
+          .badge-urgent { background-color: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+          .badge-normal { background-color: #f3f4f6; color: #374151; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <div class="header">
+          <div>
+            ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; margin-bottom: 10px;" />` : ''}
+            <h2 style="margin: 0; color: ${primaryColor};">Relatório Semanal de Documentos e Feedbacks</h2>
+          </div>
+          <div style="text-align: right; color: #6b7280; font-size: 14px;">
+            Gerado por: ${currentUser}<br/>
+            Data: ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Projeto</th>
+              <th>Documento</th>
+              <th>Tipo</th>
+              <th>Prioridade</th>
+              <th>Feedback</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${documents.length === 0 ? '<tr><td colspan="6" style="text-align: center; color: #6b7280;">Nenhum documento encontrado nos últimos 7 dias.</td></tr>' : ''}
+            ${documents
+              .map(
+                (doc) => `
+              <tr>
+                <td style="white-space: nowrap;">${format(new Date(doc.created), 'dd/MM/yyyy')}</td>
+                <td>${doc.expand?.project?.name || '-'}</td>
+                <td>${doc.name}</td>
+                <td>${doc.type || '-'}</td>
+                <td><span class="${doc.is_urgent ? 'badge-urgent' : 'badge-normal'}">${doc.is_urgent ? 'Urgente' : 'Normal'}</span></td>
+                <td>${doc.feedback || '-'}</td>
+              </tr>
+            `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportUserPDF(
   user: any,
   projects: Project[],

@@ -86,6 +86,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { PrintWeeklyReport } from '@/components/PrintWeeklyReport'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { exportWeeklyDocsReportPDF } from '@/lib/exportPdf'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -157,6 +158,36 @@ export default function DesignerPanel() {
   const [loadingDocs, setLoadingDocs] = useState(false)
   const [feedbackEdits, setFeedbackEdits] = useState<Record<string, string>>({})
   const [savingFeedback, setSavingFeedback] = useState<string | null>(null)
+  const [exportingDocs, setExportingDocs] = useState(false)
+
+  const handleExportWeeklyDocs = async () => {
+    setExportingDocs(true)
+    try {
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      const filterDate = sevenDaysAgo.toISOString().replace('T', ' ')
+
+      const docs = await pb.collection('project_documents').getFullList({
+        filter: `created >= "${filterDate}"`,
+        expand: 'project',
+        sort: '-created',
+      })
+
+      exportWeeklyDocsReportPDF(docs, user?.name || 'Usuário')
+      toast({
+        title: 'Sucesso',
+        description: 'Relatório gerado com sucesso.',
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao gerar relatório',
+        description: err.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setExportingDocs(false)
+    }
+  }
 
   const handlePrintWeeklyReport = () => {
     setPrintMode('weekly')
@@ -492,14 +523,31 @@ export default function DesignerPanel() {
             Olá, {user?.name}. Acompanhe o progresso dos seus projetos, disciplinas e prazos.
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
-          onClick={handlePrintWeeklyReport}
-        >
-          <Printer className="w-4 h-4 mr-2" />
-          Relatório Semanal
-        </Button>
+        <div className="flex gap-2 flex-wrap md:flex-nowrap">
+          {(user?.role === 'Administrador' || user?.role === 'Gerente de Projeto') && (
+            <Button
+              variant="outline"
+              className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+              onClick={handleExportWeeklyDocs}
+              disabled={exportingDocs}
+            >
+              {exportingDocs ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
+              Exportar Relatório Semanal
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+            onClick={handlePrintWeeklyReport}
+          >
+            <Printer className="w-4 h-4 mr-2" />
+            Relatório Semanal
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-zinc-900/50 backdrop-blur-md p-4 rounded-xl border border-zinc-800 shadow-sm">

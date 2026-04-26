@@ -121,6 +121,7 @@ export function TransactionModal() {
           : null,
       recurrence_group_id: formData.is_recurring ? crypto.randomUUID() : '',
       status: formData.status,
+      is_approved: false,
     }
 
     const submitData = new FormData()

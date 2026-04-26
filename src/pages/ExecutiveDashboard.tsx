@@ -6,9 +6,26 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { Progress } from '@/components/ui/progress'
 import { FolderKanban, Layers, CheckCircle2, Activity } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
 
 export default function ExecutiveDashboard() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { toast } = useToast()
+
+  useEffect(() => {
+    if (user && user.role !== 'Administrador') {
+      toast({
+        title: 'Acesso Negado',
+        description: 'Você não tem permissão para acessar o Dashboard Executivo.',
+        variant: 'destructive',
+      })
+      navigate('/dashboard', { replace: true })
+    }
+  }, [user, navigate, toast])
+
   const [projects, setProjects] = useState<any[]>([])
   const [modules, setModules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -82,6 +99,8 @@ export default function ExecutiveDashboard() {
     Pausado: { label: 'Pausado', color: '#f59e0b' },
     value: { label: 'Módulos' },
   }
+
+  if (!user || user.role !== 'Administrador') return null
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 animate-fade-in-up">

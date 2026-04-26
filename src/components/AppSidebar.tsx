@@ -164,6 +164,13 @@ const getNavigationGroups = () => [
       },
       { name: 'Configurações', id: 'configuracoes', href: '/settings', icon: Settings },
       {
+        name: 'Dashboard Executivo',
+        id: 'dashboard_executivo',
+        href: '/executive-dashboard',
+        icon: LayoutDashboard,
+        allowedRoles: ['Administrador'],
+      },
+      {
         name: 'Auditoria Executiva',
         id: 'auditoria',
         href: '/admin/audit-log',

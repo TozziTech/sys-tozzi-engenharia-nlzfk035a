@@ -174,6 +174,9 @@ export function TransactionTable({
                 Status
               </TableHead>
               <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+                Aprovação
+              </TableHead>
+              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
                 Valor
               </TableHead>
               <TableHead className="w-[60px] text-center font-semibold text-zinc-700 dark:text-zinc-300">
@@ -320,6 +323,50 @@ export function TransactionTable({
                         <Badge variant="secondary" className="dark:bg-zinc-800 dark:text-zinc-300">
                           Cancelado
                         </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {tx.type === 'Saída' ? (
+                        tx.is_approved ? (
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800"
+                          >
+                            Aprovado
+                          </Badge>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1">
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800"
+                            >
+                              Pendente
+                            </Badge>
+                            {/* Assumes we have Admin/Manager check here or rely on backend rules, simple button for demonstration */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-[10px]"
+                              onClick={async (e) => {
+                                e.stopPropagation()
+                                try {
+                                  await pb
+                                    .collection('financial_records')
+                                    .update(tx.id, {
+                                      is_approved: true,
+                                      approved_by: pb.authStore.record?.id,
+                                    })
+                                } catch (err) {
+                                  console.error(err)
+                                }
+                              }}
+                            >
+                              Aprovar
+                            </Button>
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </TableCell>
                     <TableCell className="text-center font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">

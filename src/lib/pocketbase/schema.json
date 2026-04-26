@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-26T16:13:51.223Z",
+  "generatedAt": "2026-04-26T16:36:53.567Z",
   "collections": [
     {
       "name": "users",
@@ -805,6 +805,19 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "is_approved",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX `idx_financial_records_code` ON `financial_records` (code)"]

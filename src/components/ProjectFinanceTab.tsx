@@ -203,7 +203,11 @@ export function ProjectFinanceTab({ project }: { project: any }) {
   const totalOut = records
     .filter((t) => t.type === 'Saída')
     .reduce((acc, curr) => acc + curr.value, 0)
-  const profit = totalIn - totalOut
+  const approvedOut = records
+    .filter((t) => t.type === 'Saída' && t.isApproved)
+    .reduce((acc, curr) => acc + curr.value, 0)
+  const pendingOut = totalOut - approvedOut
+  const profit = totalIn - approvedOut
 
   const expensesByMonth = (() => {
     const data: Record<string, number> = {}
@@ -294,13 +298,26 @@ export function ProjectFinanceTab({ project }: { project: any }) {
   }
 
   const budgetPct =
-    project.budget && project.budget > 0 ? Math.round((totalOut / project.budget) * 100) : 0
+    project.budget && project.budget > 0 ? Math.round((approvedOut / project.budget) * 100) : 0
   const progressColorClass =
-    budgetPct > 90
+    budgetPct > 100
       ? '[&>div]:bg-red-500 bg-red-100'
-      : budgetPct >= 70
-        ? '[&>div]:bg-yellow-500 bg-yellow-100'
-        : '[&>div]:bg-blue-500 bg-blue-100'
+      : budgetPct >= 80
+        ? '[&>div]:bg-amber-500 bg-amber-100'
+        : '[&>div]:bg-emerald-500 bg-emerald-100'
+
+  const handleApprove = async (id: string) => {
+    try {
+      await pb.collection('financial_records').update(id, {
+        is_approved: true,
+        approved_by: pb.authStore.record?.id,
+      })
+      toast({ title: 'Despesa aprovada com sucesso!' })
+    } catch (err) {
+      console.error(err)
+      toast({ title: 'Erro ao aprovar', variant: 'destructive' })
+    }
+  }
 
   return (
     <div
@@ -435,11 +452,14 @@ export function ProjectFinanceTab({ project }: { project: any }) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Custo Real</CardTitle>
+            <CardTitle className="text-sm font-medium">Custo Aprovado</CardTitle>
             <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalOut)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(approvedOut)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              + {formatCurrency(pendingOut)} aguardando
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -534,6 +554,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
                     <TableHead>Categoria</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Aprovação</TableHead>
                     <TableHead>Responsável</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                   </TableRow>
@@ -614,6 +635,43 @@ export function ProjectFinanceTab({ project }: { project: any }) {
                             >
                               Cancelado
                             </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {transaction.type === 'Saída' ? (
+                            transaction.isApproved ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800"
+                              >
+                                Aprovado
+                              </Badge>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800"
+                                >
+                                  Pendente
+                                </Badge>
+                                {(effectiveRole === 'Administrador' ||
+                                  effectiveRole === 'Gerente de Projeto') && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleApprove(transaction.id)
+                                    }}
+                                  >
+                                    Aprovar
+                                  </Button>
+                                )}
+                              </div>
+                            )
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
                           )}
                         </TableCell>
                         <TableCell className="text-zinc-600 dark:text-zinc-400 text-sm">

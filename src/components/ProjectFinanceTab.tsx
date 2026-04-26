@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { subDays, isAfter } from 'date-fns'
-import useProjectStore from '@/stores/useProjectStore'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useFinancialCategories } from '@/hooks/use-financial-categories'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import { cn } from '@/lib/utils'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
@@ -23,7 +25,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DollarSign, TrendingDown, TrendingUp, Download } from 'lucide-react'
+import { DollarSign, TrendingDown, TrendingUp, Download, Loader2 } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts'
 import {
   ChartContainer,
@@ -39,7 +41,6 @@ const formatCurrency = (value?: number) => {
 }
 
 export function ProjectFinanceTab({ project }: { project: any }) {
-  const { transactions, updateTransaction } = useProjectStore()
   const { categories } = useFinancialCategories()
   const { effectiveRole } = useAuth()
   const { can, canAccess } = usePermissions()
@@ -48,10 +49,128 @@ export function ProjectFinanceTab({ project }: { project: any }) {
   const [draggedTx, setDraggedTx] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
+  const [records, setRecords] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
   const canViewFinance =
     effectiveRole === 'Administrador' ||
     effectiveRole === 'Cliente' ||
     (canAccess('financeiro') && can('view', 'financeiro'))
+
+  const loadRecords = useCallback(async () => {
+    if (!project?.id) return
+    setLoading(true)
+    try {
+      let filterStr = `project_id = "${project.id}"`
+      const now = new Date()
+
+      const getPBDateString = (d: Date) => {
+        const pad = (n: number) => n.toString().padStart(2, '0')
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00.000Z`
+      }
+
+      if (periodFilter === '30d') {
+        filterStr += ` && date >= "${getPBDateString(subDays(now, 30))}"`
+      } else if (periodFilter === 'month') {
+        filterStr += ` && date >= "${getPBDateString(new Date(now.getFullYear(), now.getMonth(), 1))}"`
+      } else if (periodFilter === 'year') {
+        filterStr += ` && date >= "${getPBDateString(new Date(now.getFullYear(), 0, 1))}"`
+      }
+
+      const data = await pb.collection('financial_records').getFullList({
+        filter: filterStr,
+        sort: '-date',
+      })
+
+      let mappedData = data.map((d) => ({
+        id: d.id,
+        projectId: d.project_id,
+        description: d.description,
+        type: d.type,
+        value: d.amount,
+        categoryId: d.category,
+        date: d.date,
+      }))
+
+      if (mappedData.length === 0) {
+        const totalCount = await pb.collection('financial_records').getList(1, 1, {
+          filter: `project_id = "${project.id}"`,
+        })
+        if (totalCount.totalItems === 0) {
+          const mocks = [
+            {
+              id: 'm1',
+              projectId: project.id,
+              description: 'Initial Payment',
+              type: 'Entrada',
+              value: 5000,
+              categoryId: '',
+              date: now.toISOString(),
+            },
+            {
+              id: 'm2',
+              projectId: project.id,
+              description: 'Material Purchase',
+              type: 'Saída',
+              value: 1200,
+              categoryId: '',
+              date: now.toISOString(),
+            },
+            {
+              id: 'm3',
+              projectId: project.id,
+              description: 'Consultant Fee',
+              type: 'Saída',
+              value: 800,
+              categoryId: '',
+              date: subDays(now, 15).toISOString(),
+            },
+            {
+              id: 'm4',
+              projectId: project.id,
+              description: 'Milestone 1',
+              type: 'Entrada',
+              value: 3000,
+              categoryId: '',
+              date: subDays(now, 40).toISOString(),
+            },
+            {
+              id: 'm5',
+              projectId: project.id,
+              description: 'Software Licenses',
+              type: 'Saída',
+              value: 500,
+              categoryId: '',
+              date: subDays(now, 100).toISOString(),
+            },
+          ]
+          mappedData = mocks.filter((m) => {
+            if (periodFilter === 'all') return true
+            const mDate = new Date(m.date)
+            if (periodFilter === '30d') return isAfter(mDate, subDays(now, 30))
+            if (periodFilter === 'month')
+              return isAfter(mDate, new Date(now.getFullYear(), now.getMonth(), 1))
+            if (periodFilter === 'year') return isAfter(mDate, new Date(now.getFullYear(), 0, 1))
+            return true
+          })
+        }
+      }
+
+      setRecords(mappedData)
+    } catch (err) {
+      console.error('Error fetching financial records:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [project?.id, periodFilter])
+
+  useEffect(() => {
+    loadRecords()
+  }, [loadRecords])
+
+  useRealtime('financial_records', () => {
+    loadRecords()
+  })
 
   if (!canViewFinance) {
     return (
@@ -64,78 +183,17 @@ export function ProjectFinanceTab({ project }: { project: any }) {
     )
   }
 
-  const now = new Date()
-  let limitDate: Date | null = null
-  if (periodFilter === '30d') limitDate = subDays(now, 30)
-  else if (periodFilter === 'quarter') limitDate = subDays(now, 90)
-  else if (periodFilter === 'year') limitDate = new Date(now.getFullYear(), 0, 1)
-
-  const storeTransactions = transactions.filter((t) => t.projectId === project.id)
-  const mockTransactions =
-    storeTransactions.length === 0
-      ? [
-          {
-            id: 'm1',
-            projectId: project.id,
-            description: 'Initial Payment',
-            type: 'Entrada' as const,
-            value: 5000,
-            date: new Date().toISOString(),
-          },
-          {
-            id: 'm2',
-            projectId: project.id,
-            description: 'Material Purchase',
-            type: 'Saída' as const,
-            value: 1200,
-            date: new Date().toISOString(),
-          },
-          {
-            id: 'm3',
-            projectId: project.id,
-            description: 'Consultant Fee',
-            type: 'Saída' as const,
-            value: 800,
-            date: new Date().toISOString(),
-          },
-          {
-            id: 'm4',
-            projectId: project.id,
-            description: 'Milestone 1',
-            type: 'Entrada' as const,
-            value: 3000,
-            date: new Date().toISOString(),
-          },
-          {
-            id: 'm5',
-            projectId: project.id,
-            description: 'Software Licenses',
-            type: 'Saída' as const,
-            value: 500,
-            date: new Date().toISOString(),
-          },
-        ]
-      : []
-
-  const projectTransactions = [...storeTransactions, ...mockTransactions].filter((t) => {
-    if (limitDate) {
-      const txDate = new Date(t.date)
-      if (!isAfter(txDate, limitDate)) return false
-    }
-    return true
-  })
-
-  const totalIn = projectTransactions
+  const totalIn = records
     .filter((t) => t.type === 'Entrada')
     .reduce((acc, curr) => acc + curr.value, 0)
-  const totalOut = projectTransactions
+  const totalOut = records
     .filter((t) => t.type === 'Saída')
     .reduce((acc, curr) => acc + curr.value, 0)
   const profit = totalIn - totalOut
 
   const expensesByMonth = (() => {
     const data: Record<string, number> = {}
-    projectTransactions.forEach((tx) => {
+    records.forEach((tx) => {
       if (tx.type === 'Saída') {
         const month = tx.date.substring(0, 7)
         data[month] = (data[month] || 0) + tx.value
@@ -148,7 +206,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
 
   const expensesByCategory = (() => {
     const data: Record<string, number> = {}
-    projectTransactions.forEach((tx) => {
+    records.forEach((tx) => {
       if (tx.type === 'Saída' && tx.categoryId) {
         data[tx.categoryId] = (data[tx.categoryId] || 0) + tx.value
       }
@@ -173,7 +231,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
 
   const handleExportCSV = () => {
     const headers = ['Data', 'Descrição', 'Tipo', 'Valor']
-    const rows = projectTransactions.map((t) => [
+    const rows = records.map((t) => [
       new Date(t.date).toLocaleDateString('pt-BR'),
       `"${t.description.replace(/"/g, '""')}"`,
       t.type,
@@ -213,17 +271,25 @@ export function ProjectFinanceTab({ project }: { project: any }) {
         : '[&>div]:bg-blue-500 bg-blue-100'
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-end mb-4">
+    <div
+      className={cn(
+        'space-y-6 transition-opacity duration-200',
+        loading ? 'opacity-60 pointer-events-none' : 'opacity-100',
+      )}
+    >
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        </div>
         <Select value={periodFilter} onValueChange={setPeriodFilter}>
           <SelectTrigger className="w-[200px] bg-white dark:bg-slate-950">
             <SelectValue placeholder="Período" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todo Período</SelectItem>
+            <SelectItem value="all">Tudo</SelectItem>
             <SelectItem value="30d">Últimos 30 dias</SelectItem>
-            <SelectItem value="quarter">Trimestre</SelectItem>
-            <SelectItem value="year">Este Ano</SelectItem>
+            <SelectItem value="month">Mensal</SelectItem>
+            <SelectItem value="year">Anual</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -282,7 +348,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               </ChartContainer>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md">
-                Nenhum dado disponível
+                Nenhum dado disponível para este período
               </div>
             )}
           </CardContent>
@@ -318,7 +384,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               </ChartContainer>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md">
-                Nenhum dado disponível
+                Nenhum dado disponível para este período
               </div>
             )}
           </CardContent>
@@ -388,14 +454,25 @@ export function ProjectFinanceTab({ project }: { project: any }) {
                   className="cursor-pointer py-1.5"
                   style={{ borderColor: c.color, color: c.color }}
                   onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
+                  onDrop={async (e) => {
                     e.preventDefault()
                     if (draggedTx) {
-                      updateTransaction(draggedTx, {
-                        category: c.id,
-                        categoryId: c.id,
-                        type: 'Saída',
-                      })
+                      if (draggedTx.startsWith('m')) {
+                        setRecords((prev) =>
+                          prev.map((r) =>
+                            r.id === draggedTx ? { ...r, categoryId: c.id, type: 'Saída' } : r,
+                          ),
+                        )
+                      } else {
+                        try {
+                          await pb.collection('financial_records').update(draggedTx, {
+                            category: c.id,
+                            type: 'Saída',
+                          })
+                        } catch (err) {
+                          console.error(err)
+                        }
+                      }
                       setDraggedTx(null)
                       setIsDragging(false)
                     }
@@ -408,7 +485,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
           </div>
         </CardContent>
         <CardContent>
-          {projectTransactions.length > 0 ? (
+          {records.length > 0 ? (
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -421,7 +498,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {projectTransactions.map((transaction) => {
+                  {records.map((transaction) => {
                     const cat = categories.find((c) => c.id === transaction.categoryId)
                     return (
                       <TableRow
@@ -488,7 +565,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
-              Nenhuma transação registrada para este projeto.
+              Nenhuma transação registrada para este projeto neste período.
             </div>
           )}
         </CardContent>

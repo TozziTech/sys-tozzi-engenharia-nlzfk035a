@@ -129,6 +129,18 @@ export interface AccessRequest {
   created: string
 }
 
+export interface ProjectDocument {
+  id: string
+  project: string
+  name: string
+  type: string
+  file: string
+  is_urgent?: boolean
+  feedback?: string
+  created: string
+  updated: string
+}
+
 export interface Project {
   id: string
   name: string

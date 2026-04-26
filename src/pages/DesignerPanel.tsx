@@ -71,6 +71,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar } from '@/components/ui/calendar'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -144,6 +146,14 @@ export default function DesignerPanel() {
   const [uploadProject, setUploadProject] = useState<any>(null)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadIsUrgent, setUploadIsUrgent] = useState(false)
+  const [uploadFeedback, setUploadFeedback] = useState('')
+
+  const [docsProject, setDocsProject] = useState<any>(null)
+  const [projectDocsList, setProjectDocsList] = useState<any[]>([])
+  const [loadingDocs, setLoadingDocs] = useState(false)
+  const [feedbackEdits, setFeedbackEdits] = useState<Record<string, string>>({})
+  const [savingFeedback, setSavingFeedback] = useState<string | null>(null)
 
   const handlePrintWeeklyReport = () => {
     setPrintMode('weekly')
@@ -273,14 +283,18 @@ export default function DesignerPanel() {
       formData.append('name', uploadFile.name)
       formData.append('type', 'Other')
       formData.append('file', uploadFile)
+      formData.append('is_urgent', String(uploadIsUrgent))
+      formData.append('feedback', uploadFeedback)
 
       await pb.collection('project_documents').create(formData)
       toast({
         title: 'Upload concluído',
-        description: 'Documento de campo anexado com sucesso ao projeto.',
+        description: 'Documento anexado com sucesso ao projeto.',
       })
       setUploadProject(null)
       setUploadFile(null)
+      setUploadIsUrgent(false)
+      setUploadFeedback('')
     } catch (error: any) {
       toast({
         title: 'Erro no upload',
@@ -335,6 +349,46 @@ export default function DesignerPanel() {
       },
     ]
   }, [weeklyProjects])
+
+  const loadProjectDocs = async (project: any) => {
+    setDocsProject(project)
+    setLoadingDocs(true)
+    try {
+      const docs = await pb.collection('project_documents').getFullList({
+        filter: `project = "${project.id}"`,
+        sort: '-created',
+      })
+      setProjectDocsList(docs)
+      const edits: Record<string, string> = {}
+      docs.forEach((d) => {
+        edits[d.id] = d.feedback || ''
+      })
+      setFeedbackEdits(edits)
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar documentos',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingDocs(false)
+    }
+  }
+
+  const handleSaveFeedback = async (docId: string) => {
+    setSavingFeedback(docId)
+    try {
+      await pb.collection('project_documents').update(docId, { feedback: feedbackEdits[docId] })
+      toast({ title: 'Feedback salvo com sucesso' })
+      setProjectDocsList((prev) =>
+        prev.map((d) => (d.id === docId ? { ...d, feedback: feedbackEdits[docId] } : d)),
+      )
+    } catch (err) {
+      toast({ title: 'Erro ao salvar feedback', variant: 'destructive' })
+    } finally {
+      setSavingFeedback(null)
+    }
+  }
 
   const filteredProjects = useMemo(() => {
     const s = search.toLowerCase()
@@ -661,15 +715,26 @@ export default function DesignerPanel() {
                           <div className="flex-1" />
                         )}
 
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
-                          onClick={() => setUploadProject(project)}
-                        >
-                          <UploadCloud className="w-3.5 h-3.5 mr-1.5" />
-                          Upload Rápido
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                            onClick={() => loadProjectDocs(project)}
+                          >
+                            <FileText className="w-3.5 h-3.5 mr-1.5" />
+                            Docs
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                            onClick={() => setUploadProject(project)}
+                          >
+                            <UploadCloud className="w-3.5 h-3.5 mr-1.5" />
+                            Upload
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -1119,6 +1184,25 @@ export default function DesignerPanel() {
                 disabled={uploading}
               />
             </div>
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox
+                id="urgent-upload"
+                checked={uploadIsUrgent}
+                onCheckedChange={(c) => setUploadIsUrgent(!!c)}
+              />
+              <Label htmlFor="urgent-upload" className="text-rose-500 font-bold cursor-pointer">
+                Marcar como Urgente
+              </Label>
+            </div>
+            <div className="space-y-2 pt-2">
+              <Label>Comentários / Feedback Inicial</Label>
+              <Textarea
+                placeholder="Instruções ou observações sobre o arquivo..."
+                className="h-20 resize-none bg-zinc-950"
+                value={uploadFeedback}
+                onChange={(e) => setUploadFeedback(e.target.value)}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setUploadProject(null)} disabled={uploading}>
@@ -1133,6 +1217,96 @@ export default function DesignerPanel() {
               {uploading ? 'Enviando...' : 'Enviar Documento'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!docsProject} onOpenChange={(o) => !o && setDocsProject(null)}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Documentos: {docsProject?.name}</DialogTitle>
+            <DialogDescription>
+              Visualize e gerencie os documentos e feedbacks deste projeto.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden min-h-0 py-2">
+            {loadingDocs ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              </div>
+            ) : projectDocsList.length === 0 ? (
+              <p className="text-sm text-zinc-500 text-center py-8">Nenhum documento encontrado.</p>
+            ) : (
+              <ScrollArea className="h-[500px] pr-4">
+                <div className="space-y-4">
+                  {projectDocsList.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="font-medium text-zinc-200 text-sm truncate max-w-[300px]">
+                          {doc.name}
+                        </div>
+                        <div className="flex gap-2 items-center shrink-0">
+                          {doc.is_urgent && (
+                            <Badge
+                              variant="destructive"
+                              className="bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20 text-[10px] py-0 h-5"
+                            >
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Urgente
+                            </Badge>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" asChild>
+                            <a
+                              href={pb.files.getURL(doc, doc.file)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-zinc-400">Feedback / Comentários</Label>
+                        <Textarea
+                          className="text-sm min-h-[60px] resize-none bg-zinc-900 border-zinc-800"
+                          value={feedbackEdits[doc.id] ?? ''}
+                          onChange={(e) =>
+                            setFeedbackEdits((prev) => ({ ...prev, [doc.id]: e.target.value }))
+                          }
+                          readOnly={user?.role === 'Projetista' || user?.role === 'Estagiário'}
+                        />
+                        {(user?.role === 'Administrador' ||
+                          user?.role === 'Gerente de Projeto') && (
+                          <div className="flex justify-end mt-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 text-xs bg-zinc-800 hover:bg-zinc-700"
+                              disabled={
+                                savingFeedback === doc.id ||
+                                feedbackEdits[doc.id] === (doc.feedback || '')
+                              }
+                              onClick={() => handleSaveFeedback(doc.id)}
+                            >
+                              {savingFeedback === doc.id ? (
+                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              ) : (
+                                <Save className="w-3 h-3 mr-1" />
+                              )}
+                              Salvar Feedback
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

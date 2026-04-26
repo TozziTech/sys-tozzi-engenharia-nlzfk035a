@@ -44,20 +44,30 @@ onRecordAfterCreateSuccess(
           )
           const uploaderId = e.auth?.id
 
+          const isUrgent = record.getBool('is_urgent')
+
           for (let i = 0; i < managers.length; i++) {
             const mgr = managers[i]
             if (mgr.id === uploaderId) continue
 
             const notif = new Record($app.findCollectionByNameOrId('notifications'))
             notif.set('user', mgr.id)
-            notif.set('title', 'Novo Arquivo Carregado')
+            notif.set(
+              'title',
+              isUrgent ? '🚨 URGENTE: Novo Arquivo Carregado' : 'Novo Arquivo Carregado',
+            )
             notif.set(
               'message',
-              'O arquivo ' + docName + ' foi carregado no projeto ' + projectName + '.',
+              'O arquivo ' +
+                docName +
+                ' foi carregado no projeto ' +
+                projectName +
+                '.' +
+                (isUrgent ? ' Este documento foi marcado como URGENTE.' : ''),
             )
             notif.set('link', '/projects/' + internalProjectId)
             notif.set('read', false)
-            notif.set('is_important', false)
+            notif.set('is_important', isUrgent)
             $app.save(notif)
           }
         } catch (err) {

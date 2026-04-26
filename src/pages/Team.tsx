@@ -205,7 +205,7 @@ export default function Team() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-screen-2xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full mx-auto p-4 md:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">

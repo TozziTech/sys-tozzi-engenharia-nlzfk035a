@@ -77,7 +77,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6 space-y-8">
+    <div className="w-full mx-auto py-8 px-4 md:px-8 space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
@@ -112,7 +112,7 @@ export default function Reports() {
       <style>{`
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .container { max-width: 100% !important; padding: 0 !important; }
+          .w-full { max-width: 100% !important; padding: 0 !important; }
         }
       `}</style>
     </div>

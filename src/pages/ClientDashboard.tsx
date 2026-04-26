@@ -82,7 +82,7 @@ export default function ClientDashboard() {
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full animate-fade-in pb-20">
+    <div className="w-full p-4 md:p-6 lg:p-8 space-y-8 mx-auto animate-fade-in pb-20">
       <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary/90 via-primary to-blue-600 text-primary-foreground shadow-elevation">
         <div className="absolute inset-0 bg-[url('https://img.usecurling.com/p/800/400?q=architecture&color=blue')] opacity-20 bg-cover bg-center mix-blend-overlay" />
         <div className="relative p-8 md:p-12 backdrop-blur-sm">

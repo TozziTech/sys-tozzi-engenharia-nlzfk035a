@@ -113,14 +113,14 @@ export default function Index() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4 flex items-center justify-center h-[50vh]">
+      <div className="w-full mx-auto py-8 px-4 md:px-8 flex items-center justify-center h-[50vh]">
         <p className="text-muted-foreground animate-pulse">Carregando dashboard...</p>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl space-y-8">
+    <div className="w-full mx-auto py-8 px-4 md:px-8 space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-2">

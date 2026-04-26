@@ -282,7 +282,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               </ChartContainer>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md">
-                Sem despesas registradas
+                Nenhum dado disponível
               </div>
             )}
           </CardContent>
@@ -318,7 +318,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
               </ChartContainer>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md">
-                Sem categorias registradas
+                Nenhum dado disponível
               </div>
             )}
           </CardContent>
@@ -392,6 +392,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
                     e.preventDefault()
                     if (draggedTx) {
                       updateTransaction(draggedTx, {
+                        category: c.id,
                         categoryId: c.id,
                         type: 'Saída',
                       })
@@ -442,13 +443,19 @@ export function ProjectFinanceTab({ project }: { project: any }) {
                         </TableCell>
                         <TableCell>{transaction.description}</TableCell>
                         <TableCell>
-                          {transaction.type === 'Saída' && cat ? (
-                            <Badge
-                              variant="outline"
-                              style={{ borderColor: cat.color, color: cat.color }}
-                            >
-                              {cat.name}
-                            </Badge>
+                          {transaction.type === 'Saída' ? (
+                            cat ? (
+                              <Badge
+                                variant="outline"
+                                style={{ borderColor: cat.color, color: cat.color }}
+                              >
+                                {cat.name}
+                              </Badge>
+                            ) : transaction.categoryId ? (
+                              <Badge variant="outline">{transaction.categoryId}</Badge>
+                            ) : (
+                              '-'
+                            )
                           ) : (
                             '-'
                           )}

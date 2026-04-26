@@ -31,6 +31,7 @@ import {
   Check,
   X,
   Eye,
+  Plus,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
@@ -442,13 +443,11 @@ export default function AccessControl() {
           pb.collection('projects').getFullList({ sort: 'name', filter: 'status != "Concluído"' }),
           pb.collection('user_project_access').getFullList({ expand: 'project' }),
           pb.collection('company_settings').getFullList(),
-          pb
-            .collection('access_requests')
-            .getFullList({
-              filter: 'status = "Pendente"',
-              expand: 'user,project',
-              sort: '-created',
-            }),
+          pb.collection('access_requests').getFullList({
+            filter: 'status = "Pendente"',
+            expand: 'user,project',
+            sort: '-created',
+          }),
           pb.collection('audit_logs').getFullList({
             filter: 'resource = "user_project_access"',
             expand: 'user_id',

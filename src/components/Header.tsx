@@ -239,6 +239,16 @@ export function Header() {
       }
     }
 
+    if (notif.is_important || title.includes('urgente')) {
+      return {
+        Icon: AlertTriangle,
+        colorText: 'text-red-600 dark:text-red-500',
+        bgUnread: 'bg-red-50 hover:bg-red-100/80 dark:bg-red-950/20 dark:hover:bg-red-950/30',
+        borderClass: 'border-l-4 border-l-red-600',
+        indicator: 'bg-red-600 animate-pulse',
+      }
+    }
+
     if (title.includes('novo arquivo') || title.includes('documento')) {
       return {
         Icon: FileText,
@@ -250,7 +260,7 @@ export function Header() {
     }
 
     return {
-      Icon: notif.is_important ? AlertTriangle : Bell,
+      Icon: Bell,
       colorText: 'text-primary',
       bgUnread: 'bg-primary/5 hover:bg-primary/10',
       borderClass: 'border-l-4 border-l-primary/40',

@@ -19,6 +19,9 @@ import {
   Printer,
   UploadCloud,
   TrendingUp,
+  FileText,
+  Download,
+  Save,
 } from 'lucide-react'
 import {
   format,
@@ -1241,7 +1244,10 @@ export default function DesignerPanel() {
                   {projectDocsList.map((doc) => (
                     <div
                       key={doc.id}
-                      className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3"
+                      className={cn(
+                        'p-3 bg-zinc-950 border rounded-lg space-y-3',
+                        doc.is_urgent ? 'border-rose-500/50' : 'border-zinc-800',
+                      )}
                     >
                       <div className="flex items-start justify-between">
                         <div className="font-medium text-zinc-200 text-sm truncate max-w-[300px]">
@@ -1254,7 +1260,7 @@ export default function DesignerPanel() {
                               className="bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20 text-[10px] py-0 h-5"
                             >
                               <AlertCircle className="w-3 h-3 mr-1" />
-                              Urgente
+                              ⚠️ URGENTE
                             </Badge>
                           )}
                           <Button size="sm" variant="ghost" className="h-6 w-6 p-0" asChild>

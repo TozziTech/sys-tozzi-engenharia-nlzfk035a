@@ -44,6 +44,14 @@ import {
 import { exportCommentsCSV } from '@/lib/export'
 import { exportCommentsPDF } from '@/lib/exportPdf'
 import useProjectStore from '@/stores/useProjectStore'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { FilePreviewModal, type PreviewFile } from '@/components/FilePreviewModal'
 
 export function ProjectComments({
   projectId,
@@ -71,10 +79,12 @@ export function ProjectComments({
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [authorFilter, setAuthorFilter] = useState('all')
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
 
   const [replyingTo, setReplyingTo] = useState<any>(null)
   const [typingUsers, setTypingUsers] = useState<any[]>([])
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -264,9 +274,14 @@ export function ProjectComments({
         }
       }
 
-      return matchesSearch && matchesDate
+      let matchesAuthor = true
+      if (authorFilter !== 'all') {
+        matchesAuthor = c.autor === authorFilter
+      }
+
+      return matchesSearch && matchesDate && matchesAuthor
     })
-  }, [comments, searchQuery, dateRange])
+  }, [comments, searchQuery, dateRange, authorFilter])
 
   const topLevelComments = useMemo(
     () => filteredComments.filter((c) => !c.parent_id),
@@ -340,11 +355,13 @@ export function ProjectComments({
     if ((!content.trim() && attachments.length === 0) || !user) return
 
     setSubmitting(true)
+    const commentContent = content.trim()
+
     try {
       const formData = new FormData()
       formData.append(filterField, projectId)
       formData.append('autor', user.id)
-      formData.append('mensagem', content.trim())
+      formData.append('mensagem', commentContent)
 
       if (replyingTo) {
         formData.append('parent_id', replyingTo.id)
@@ -355,6 +372,39 @@ export function ProjectComments({
       })
 
       await pb.collection('comentarios_projeto').create(formData)
+
+      // Create mention notifications
+      try {
+        const sortedUsers = [...users]
+          .filter((u) => u.name)
+          .sort((a, b) => b.name.length - a.name.length)
+        if (sortedUsers.length > 0) {
+          const mentionRegex = new RegExp(
+            `(@(?:${sortedUsers.map((u) => u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))`,
+            'g',
+          )
+          const mentions = commentContent.match(mentionRegex)
+          if (mentions) {
+            const uniqueMentions = [...new Set(mentions)]
+            for (const mention of uniqueMentions) {
+              const name = mention.substring(1)
+              const mentionedUser = users.find((u) => u.name === name)
+              if (mentionedUser && mentionedUser.id !== user.id) {
+                await pb.collection('notifications').create({
+                  user: mentionedUser.id,
+                  title: `Menção em Comentário`,
+                  message: `${user.name} mencionou você no projeto ${projectName}.`,
+                  link: `/projects/${projectId}`,
+                  action_type: 'mention',
+                  read: false,
+                })
+              }
+            }
+          }
+        }
+      } catch (notifErr) {
+        console.error('Erro ao notificar menções:', notifErr)
+      }
 
       setContent('')
       setAttachments([])
@@ -432,7 +482,7 @@ export function ProjectComments({
             {(comment.expand?.autor?.name || 'U').substring(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 space-y-2 overflow-hidden">
           <div className="flex items-center gap-2 justify-between">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
@@ -541,31 +591,53 @@ export function ProjectComments({
               </div>
             </div>
           ) : (
-            <div className="text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
+            <div className="text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed break-words">
               {renderContentWithMentions(comment.mensagem)}
             </div>
           )}
 
           {comment.anexos && comment.anexos.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
-              {comment.anexos.map((filename: string, i: number) => (
-                <a
-                  key={i}
-                  href={getAnexoUrl(comment, filename)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-colors group"
-                >
-                  <div className="bg-indigo-100 dark:bg-indigo-900/30 p-1.5 rounded-md group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/50 transition-colors">
-                    <FileIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-medium text-slate-700 dark:text-zinc-300 max-w-[150px] truncate">
+              {comment.anexos.map((filename: string, i: number) => {
+                const url = getAnexoUrl(comment, filename)
+                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(filename)
+                const isPdf = filename.toLowerCase().endsWith('.pdf')
+
+                if (isImage) {
+                  return (
+                    <div
+                      key={i}
+                      className="relative group cursor-pointer border border-slate-200 dark:border-zinc-800 rounded-md overflow-hidden h-16 w-24 bg-slate-100 dark:bg-zinc-900 shadow-sm shrink-0"
+                      onClick={() => setPreviewFile({ url, name: filename, type: 'image' })}
+                    >
+                      <img
+                        src={url}
+                        alt={filename}
+                        className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  )
+                }
+
+                return (
+                  <button
+                    key={i}
+                    onClick={() =>
+                      isPdf
+                        ? setPreviewFile({ url, name: filename, type: 'pdf' })
+                        : window.open(url, '_blank')
+                    }
+                    className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-900/50 p-2 rounded-lg border border-slate-200 dark:border-zinc-800 text-xs hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-colors group text-left max-w-[200px]"
+                  >
+                    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-1.5 rounded-md group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/50 transition-colors shrink-0">
+                      <FileIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <span className="font-medium text-slate-700 dark:text-zinc-300 truncate">
                       {filename}
                     </span>
-                  </div>
-                </a>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           )}
 
@@ -668,13 +740,32 @@ export function ProjectComments({
               className="pl-8 h-9 text-sm bg-white dark:bg-zinc-950"
             />
           </div>
+
+          <Select value={authorFilter} onValueChange={setAuthorFilter}>
+            <SelectTrigger className="h-9 w-full sm:w-[150px] bg-white dark:bg-zinc-950">
+              <SelectValue placeholder="Autor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Autores</SelectItem>
+              {Array.from(new Set(comments.map((c) => c.autor))).map((authorId) => {
+                const u = users.find((usr) => usr.id === authorId)
+                if (!u) return null
+                return (
+                  <SelectItem key={authorId} value={authorId}>
+                    {u.name}
+                  </SelectItem>
+                )
+              })}
+            </SelectContent>
+          </Select>
+
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
                 className={cn(
-                  'h-9 justify-start text-left font-normal sm:w-[240px] bg-white dark:bg-zinc-950',
+                  'h-9 justify-start text-left font-normal w-full sm:w-[240px] bg-white dark:bg-zinc-950',
                   !dateRange?.from && 'text-muted-foreground',
                 )}
               >
@@ -936,6 +1027,8 @@ export function ProjectComments({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
     </Card>
   )
 }

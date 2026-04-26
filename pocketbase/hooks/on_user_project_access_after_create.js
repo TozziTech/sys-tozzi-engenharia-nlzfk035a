@@ -5,17 +5,40 @@ onRecordAfterCreateSuccess((e) => {
 
   const project = $app.findRecordById('projects', projectId)
 
-  const notif = new Record($app.findCollectionByNameOrId('notifications'))
-  notif.set('user', userId)
-  notif.set('title', 'Acesso Concedido')
-  notif.set(
-    'message',
-    `Você recebeu acesso de ${accessLevel} ao projeto ${project.getString('name')}.`,
-  )
-  notif.set('is_important', true)
-  notif.set('action_type', 'access_granted')
-  notif.set('link', `/projects/${projectId}`)
-  $app.save(notif)
+  let recentlyNotified = false
+  try {
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60000).toISOString().replace('T', ' ')
+    const recent = $app.findFirstRecordByFilter(
+      'notifications',
+      `user = "${userId}" && action_type = 'access_granted' && link = '/projects/${projectId}' && created >= "${fiveMinsAgo}"`,
+    )
+    if (recent) recentlyNotified = true
+  } catch (_) {}
+
+  if (!recentlyNotified) {
+    const notif = new Record($app.findCollectionByNameOrId('notifications'))
+    notif.set('user', userId)
+
+    if (accessLevel === 'Edição') {
+      notif.set('title', 'Novo Projeto Atribuído')
+      notif.set(
+        'message',
+        `Você foi designado para o projeto ${project.getString('name')} com permissão de edição.`,
+      )
+    } else {
+      notif.set('title', 'Acesso Concedido')
+      notif.set(
+        'message',
+        `Você recebeu acesso de ${accessLevel} ao projeto ${project.getString('name')}.`,
+      )
+    }
+
+    notif.set('is_important', true)
+    notif.set('read', false)
+    notif.set('action_type', 'access_granted')
+    notif.set('link', `/projects/${projectId}`)
+    $app.saveNoValidate(notif)
+  }
 
   const authRecord = e.requestInfo().auth
   const adminId = authRecord ? authRecord.id : userId

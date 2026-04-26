@@ -1200,16 +1200,20 @@ export default function AccessControl() {
                             <TableHeader className="bg-muted/50">
                               <TableRow>
                                 <TableHead className="w-[200px]">Módulo / Global</TableHead>
-                                {['Projetista', 'Estagiário', 'Visitante', 'Cliente'].map(
-                                  (role) => (
-                                    <TableHead
-                                      key={role}
-                                      className="text-center font-semibold text-xs"
-                                    >
-                                      {role}
-                                    </TableHead>
-                                  ),
-                                )}
+                                {[
+                                  'Gerente de Projeto',
+                                  'Projetista',
+                                  'Estagiário',
+                                  'Visitante',
+                                  'Cliente',
+                                ].map((role) => (
+                                  <TableHead
+                                    key={role}
+                                    className="text-center font-semibold text-xs whitespace-nowrap px-2"
+                                  >
+                                    {role}
+                                  </TableHead>
+                                ))}
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1238,37 +1242,41 @@ export default function AccessControl() {
                                       </div>
                                     </div>
                                   </TableCell>
-                                  {['Projetista', 'Estagiário', 'Visitante', 'Cliente'].map(
-                                    (role) => {
-                                      const val = rolePermissions[role]?.[mod.id] || 'Ativo'
-                                      return (
-                                        <TableCell
-                                          key={role}
-                                          className="text-center p-2 align-top pt-4"
+                                  {[
+                                    'Gerente de Projeto',
+                                    'Projetista',
+                                    'Estagiário',
+                                    'Visitante',
+                                    'Cliente',
+                                  ].map((role) => {
+                                    const val = rolePermissions[role]?.[mod.id] || 'Ativo'
+                                    return (
+                                      <TableCell
+                                        key={role}
+                                        className="text-center p-2 align-top pt-4"
+                                      >
+                                        <Select
+                                          value={val}
+                                          disabled={
+                                            moduleVisibility[mod.id] === false ||
+                                            moduleVisibility[group.id] === false
+                                          }
+                                          onValueChange={(v) =>
+                                            handleRolePermissionChange(role, mod.id, v)
+                                          }
                                         >
-                                          <Select
-                                            value={val}
-                                            disabled={
-                                              moduleVisibility[mod.id] === false ||
-                                              moduleVisibility[group.id] === false
-                                            }
-                                            onValueChange={(v) =>
-                                              handleRolePermissionChange(role, mod.id, v)
-                                            }
-                                          >
-                                            <SelectTrigger className="h-8 text-xs w-[95px] mx-auto">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="Ativo">Ativo</SelectItem>
-                                              <SelectItem value="Leitura">Leitura</SelectItem>
-                                              <SelectItem value="Inativo">Inativo</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        </TableCell>
-                                      )
-                                    },
-                                  )}
+                                          <SelectTrigger className="h-8 text-xs w-[95px] mx-auto">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="Ativo">Ativo</SelectItem>
+                                            <SelectItem value="Leitura">Leitura</SelectItem>
+                                            <SelectItem value="Inativo">Inativo</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                    )
+                                  })}
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -1278,8 +1286,8 @@ export default function AccessControl() {
                     </div>
                   ))}
                   <p className="text-xs text-muted-foreground italic mt-3 px-2">
-                    Nota: Administradores e Gerentes de Projeto possuem acesso "Ativo" por padrão em
-                    todos os módulos habilitados.
+                    Nota: Administradores possuem acesso "Total" por padrão em todos os módulos do
+                    sistema.
                   </p>
                 </div>
               </div>
@@ -1362,8 +1370,6 @@ export default function AccessControl() {
                                     status = 'Total'
                                   } else if (isModDisabled) {
                                     status = 'Oculto'
-                                  } else if (role === 'Gerente de Projeto') {
-                                    status = 'Ativo'
                                   } else {
                                     status = rolePermissions[role]?.[mod.id] || 'Ativo'
                                   }

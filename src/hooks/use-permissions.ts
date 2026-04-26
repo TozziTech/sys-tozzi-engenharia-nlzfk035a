@@ -37,7 +37,6 @@ export function usePermissions() {
     if (moduleVisibility[moduleId] === false) return 'Inativo'
 
     if (!user) return 'Inativo'
-    if (user.role === 'Gerente de Projeto') return 'Ativo'
 
     const rolePerms = role_permissions?.[user.role]
     if (rolePerms && rolePerms[moduleId]) {

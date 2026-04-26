@@ -68,13 +68,17 @@ const getNavigationGroups = () => [
   {
     label: 'Gestão de Projetos',
     id: 'gestao_projetos',
-    allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
-      { name: 'Dashboard Geral', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Dashboard Geral', id: 'projetos', href: '/dashboard', icon: LayoutDashboard },
       { name: 'Projetos', id: 'projetos', href: '/projects', icon: FolderKanban },
-      { name: 'Painel do Cliente', href: '/gestao/painel-cliente', icon: LayoutDashboard },
-      { name: 'Diagnóstico', href: '/diagnostics', icon: AlertTriangle },
-      { name: 'Performance', href: '/performance', icon: Activity },
+      {
+        name: 'Painel do Cliente',
+        id: 'projetos',
+        href: '/gestao/painel-cliente',
+        icon: LayoutDashboard,
+      },
+      { name: 'Diagnóstico', id: 'projetos', href: '/diagnostics', icon: AlertTriangle },
+      { name: 'Performance', id: 'projetos', href: '/performance', icon: Activity },
       { name: 'Cronograma', id: 'cronograma', href: '/schedule', icon: CalendarDays },
       { name: 'Auditoria de Prazos', id: 'cronograma', href: '/deadline-audit', icon: Clock },
       { name: 'Calendário', id: 'calendario', href: '/calendar', icon: CalendarIcon },
@@ -83,9 +87,13 @@ const getNavigationGroups = () => [
   {
     label: 'Gestão Financeira',
     id: 'gestao_financeira',
-    allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
-      { name: 'Dashboard Financeiro', href: '/financial-dashboard', icon: LineChart },
+      {
+        name: 'Dashboard Financeiro',
+        id: 'lancamentos_financeiros',
+        href: '/financial-dashboard',
+        icon: LineChart,
+      },
       { name: 'Lançamentos', id: 'lancamentos_financeiros', href: '/financial', icon: DollarSign },
       { name: 'Orçamentos', id: 'orcamentos', href: '/quotes', icon: FileText },
       {
@@ -105,7 +113,6 @@ const getNavigationGroups = () => [
   {
     label: 'Cadastro',
     id: 'cadastro',
-    allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
       { name: 'Projetistas', id: 'projetistas', href: '/team', icon: Users },
       { name: 'Clientes', id: 'clientes', href: '/clients', icon: Briefcase },
@@ -145,7 +152,6 @@ const getNavigationGroups = () => [
   {
     label: 'Governança e Admin',
     id: 'governanca',
-    allowedRoles: ['Administrador', 'Gerente de Projeto'],
     items: [
       {
         name: 'Controle de Acesso',
@@ -187,7 +193,7 @@ export function AppSidebar() {
 
   const groups = getNavigationGroups().filter((g) => {
     if ((g as any).id && moduleVisibility[(g as any).id] === false) return false
-    if (g.allowedRoles && (!user?.role || !g.allowedRoles.includes(user.role))) {
+    if ((g as any).allowedRoles && (!user?.role || !(g as any).allowedRoles.includes(user.role))) {
       return false
     }
     return true

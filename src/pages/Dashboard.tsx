@@ -13,7 +13,17 @@ import {
   Users,
   Star,
 } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from 'recharts'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Badge } from '@/components/ui/badge'
 import pb from '@/lib/pocketbase/client'
@@ -203,6 +213,62 @@ const Dashboard = () => {
     },
   }
 
+  const kpiData = useMemo(() => {
+    let completedOnTime = 0
+    let completedOverdue = 0
+    let pendingOnTime = 0
+    let pendingOverdue = 0
+    let deliveryTimes: number[] = []
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    tasks.forEach((t) => {
+      const isCompleted = t.status === 'Concluído' || t.status === 'Concluida'
+      const hasDueDate = !!t.due_date
+      const isOverdue = hasDueDate && new Date(t.due_date) < today
+
+      if (isCompleted) {
+        const finishDate = t.completed_at ? new Date(t.completed_at) : new Date(t.updated)
+        finishDate.setHours(0, 0, 0, 0)
+
+        if (hasDueDate && finishDate > new Date(t.due_date)) {
+          completedOverdue++
+        } else {
+          completedOnTime++
+        }
+      } else {
+        if (isOverdue) pendingOverdue++
+        else pendingOnTime++
+      }
+    })
+
+    projects
+      .filter((p) => p.status === 'Concluído' && p.start_date && p.end_date)
+      .forEach((p) => {
+        const start = new Date(p.start_date).getTime()
+        const end = new Date(p.end_date).getTime()
+        if (end > start) {
+          deliveryTimes.push((end - start) / (1000 * 60 * 60 * 24))
+        }
+      })
+
+    const avgDeliveryTime =
+      deliveryTimes.length > 0
+        ? Math.round(deliveryTimes.reduce((a, b) => a + b, 0) / deliveryTimes.length)
+        : 0
+
+    return {
+      completedOnTime,
+      completedOverdue,
+      pendingOnTime,
+      pendingOverdue,
+      avgDeliveryTime,
+      totalCompleted: completedOnTime + completedOverdue,
+      totalPending: pendingOnTime + pendingOverdue,
+    }
+  }, [tasks, projects])
+
   const performanceData = useMemo(() => {
     let filteredTasks = tasks
 
@@ -234,9 +300,21 @@ const Dashboard = () => {
     return users
       .map((u) => {
         const userTasks = filteredTasks.filter((t) => t.responsible === u.id)
-        const completed = userTasks.filter(
-          (t) => t.status === 'Concluído' || t.status === 'Concluida',
-        )
+
+        let completedOnTime = 0
+        let completedOverdue = 0
+
+        const completed = userTasks.filter((t) => {
+          const isComp = t.status === 'Concluído' || t.status === 'Concluida'
+          if (isComp) {
+            const finishDate = t.completed_at ? new Date(t.completed_at) : new Date(t.updated)
+            finishDate.setHours(0, 0, 0, 0)
+            if (t.due_date && finishDate > new Date(t.due_date)) completedOverdue++
+            else completedOnTime++
+          }
+          return isComp
+        })
+
         const pending = userTasks.filter(
           (t) => t.status !== 'Concluído' && t.status !== 'Concluida',
         )
@@ -246,8 +324,12 @@ const Dashboard = () => {
           user: u.name || u.email,
           total: userTasks.length,
           completed: completed.length,
+          completedOnTime,
+          completedOverdue,
           pending: pending.length,
           overdue: overdue.length,
+          efficiency:
+            completed.length > 0 ? Math.round((completedOnTime / completed.length) * 100) : 0,
         }
       })
       .filter((d) => d.total > 0)
@@ -399,6 +481,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-between mb-4">
           <TabsList>
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="kpis">KPIs & Produtividade</TabsTrigger>
             <TabsTrigger value="performance">Performance de Equipe</TabsTrigger>
           </TabsList>
         </div>
@@ -647,6 +730,163 @@ const Dashboard = () => {
           </div>
         </TabsContent>
 
+        <TabsContent value="kpis" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="shadow-sm border-muted/60">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Concluídas no Prazo</CardTitle>
+                <div className="p-2 bg-green-500/10 rounded-full">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{loading ? '-' : kpiData.completedOnTime}</div>
+                <p className="text-xs text-muted-foreground mt-1">Tarefas entregues em dia</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border-muted/60">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Concluídas c/ Atraso</CardTitle>
+                <div className="p-2 bg-amber-500/10 rounded-full">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{loading ? '-' : kpiData.completedOverdue}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Tarefas entregues fora do prazo
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border-muted/60">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tarefas Atrasadas</CardTitle>
+                <div className="p-2 bg-destructive/10 rounded-full">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-destructive">
+                  {loading ? '-' : kpiData.pendingOverdue}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Pendentes e fora do prazo</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border-muted/60">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">TMA de Projetos</CardTitle>
+                <div className="p-2 bg-blue-500/10 rounded-full">
+                  <Activity className="h-4 w-4 text-blue-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{loading ? '-' : kpiData.avgDeliveryTime}d</div>
+                <p className="text-xs text-muted-foreground mt-1">Tempo Médio de Atendimento</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Qualidade das Entregas (Tarefas Concluídas)</CardTitle>
+                <CardDescription>
+                  Distribuição de tarefas concluídas no prazo vs com atraso.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center pb-6">
+                {kpiData.totalCompleted === 0 ? (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                    Sem dados de tarefas concluídas
+                  </div>
+                ) : (
+                  <ChartContainer
+                    config={{
+                      onTime: { label: 'No Prazo', color: '#10b981' },
+                      overdue: { label: 'Com Atraso', color: '#f59e0b' },
+                    }}
+                    className="h-[250px] w-full max-w-[300px]"
+                  >
+                    <PieChart>
+                      <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                      <Pie
+                        data={[
+                          {
+                            name: 'No Prazo',
+                            value: kpiData.completedOnTime,
+                            fill: 'var(--color-onTime)',
+                          },
+                          {
+                            name: 'Com Atraso',
+                            value: kpiData.completedOverdue,
+                            fill: 'var(--color-overdue)',
+                          },
+                        ]}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        strokeWidth={5}
+                        paddingAngle={5}
+                      >
+                        <Cell key="cell-0" fill="var(--color-onTime)" />
+                        <Cell key="cell-1" fill="var(--color-overdue)" />
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Status Atual das Tarefas Pendentes</CardTitle>
+                <CardDescription>Visão geral de tarefas em andamento e atrasadas.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center pb-6">
+                {kpiData.totalPending === 0 ? (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                    Sem tarefas pendentes
+                  </div>
+                ) : (
+                  <ChartContainer
+                    config={{
+                      pending: { label: 'No Prazo (Pendentes)', color: '#3b82f6' },
+                      overdue: { label: 'Atrasadas', color: '#ef4444' },
+                    }}
+                    className="h-[250px] w-full max-w-[300px]"
+                  >
+                    <PieChart>
+                      <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                      <Pie
+                        data={[
+                          {
+                            name: 'No Prazo',
+                            value: kpiData.pendingOnTime,
+                            fill: 'var(--color-pending)',
+                          },
+                          {
+                            name: 'Atrasadas',
+                            value: kpiData.pendingOverdue,
+                            fill: 'var(--color-overdue)',
+                          },
+                        ]}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        strokeWidth={5}
+                        paddingAngle={5}
+                      >
+                        <Cell key="cell-0" fill="var(--color-pending)" />
+                        <Cell key="cell-1" fill="var(--color-overdue)" />
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="performance" className="space-y-4">
           <div className="flex flex-col sm:flex-row items-center gap-4 bg-muted/30 p-4 rounded-lg border">
             <div className="flex flex-col gap-1 w-full sm:w-auto">
@@ -749,6 +989,7 @@ const Dashboard = () => {
                         <TableHead>Membro</TableHead>
                         <TableHead className="text-center">Total</TableHead>
                         <TableHead className="text-center">Concluídas</TableHead>
+                        <TableHead className="text-center">Eficiência</TableHead>
                         <TableHead className="text-center">Pendentes</TableHead>
                         <TableHead className="text-center">Atrasadas</TableHead>
                       </TableRow>
@@ -756,7 +997,7 @@ const Dashboard = () => {
                     <TableBody>
                       {performanceData.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                          <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
                             Nenhum dado encontrado para os filtros selecionados.
                           </TableCell>
                         </TableRow>
@@ -766,7 +1007,24 @@ const Dashboard = () => {
                             <TableCell className="font-medium">{d.user}</TableCell>
                             <TableCell className="text-center">{d.total}</TableCell>
                             <TableCell className="text-center text-green-600 font-medium">
-                              {d.completed}
+                              {d.completed}{' '}
+                              <span className="text-xs text-muted-foreground">
+                                ({d.completedOnTime} no prazo)
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  d.efficiency >= 80
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : d.efficiency >= 50
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : 'bg-red-50 text-red-700 border-red-200'
+                                }
+                              >
+                                {d.efficiency}%
+                              </Badge>
                             </TableCell>
                             <TableCell className="text-center text-amber-600 font-medium">
                               {d.pending}

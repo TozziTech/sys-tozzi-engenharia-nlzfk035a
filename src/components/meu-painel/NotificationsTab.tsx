@@ -28,6 +28,24 @@ export function NotificationsTab() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [disciplineFilter, setDisciplineFilter] = useState('all')
+
+  const disciplines = [
+    'Estrutural',
+    'Hidrossanitário',
+    'Elétrico',
+    'Prevenção a Incêndio',
+    'AVAC',
+    'Gás',
+    'Infraestrutura',
+    'Arquitetura',
+    'Geotecnia',
+    'Ambiental',
+    'Telecomunicações',
+    'Design de Interiores',
+    'Luminotécnica',
+  ]
 
   const loadNotifications = async () => {
     if (!user) return
@@ -93,9 +111,24 @@ export function NotificationsTab() {
         const e = endDate ? endOfDay(parseISO(endDate)) : new Date(8640000000000000)
         if (!isWithinInterval(nDate, { start: s, end: e })) return false
       }
+
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        const matchesTitle = n.title?.toLowerCase().includes(query)
+        const matchesMessage = n.message?.toLowerCase().includes(query)
+        if (!matchesTitle && !matchesMessage) return false
+      }
+
+      if (disciplineFilter !== 'all') {
+        const disciplineLower = disciplineFilter.toLowerCase()
+        const matchesTitle = n.title?.toLowerCase().includes(disciplineLower)
+        const matchesMessage = n.message?.toLowerCase().includes(disciplineLower)
+        if (!matchesTitle && !matchesMessage) return false
+      }
+
       return true
     })
-  }, [notifications, filterStatus, startDate, endDate])
+  }, [notifications, filterStatus, startDate, endDate, searchQuery, disciplineFilter])
 
   const getNotificationVisuals = (notif: any) => {
     const type = notif.action_type || ''
@@ -174,7 +207,31 @@ export function NotificationsTab() {
             <ToggleGroupItem value="read">Lidas</ToggleGroupItem>
           </ToggleGroup>
         </div>
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto flex-wrap">
+          <div className="space-y-2 flex-1 sm:flex-none min-w-[200px]">
+            <Label>Buscar Notificação</Label>
+            <Input
+              placeholder="Buscar por projeto ou conteúdo..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2 flex-1 sm:flex-none min-w-[180px]">
+            <Label>Disciplina</Label>
+            <select
+              value={disciplineFilter}
+              onChange={(e) => setDisciplineFilter(e.target.value)}
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="all">Todas as Disciplinas</option>
+              {disciplines.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-2 flex-1 sm:flex-none">
             <Label>Data Inicial</Label>
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -184,7 +241,8 @@ export function NotificationsTab() {
             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
         </div>
-        <div className="w-full md:w-auto pt-4 md:pt-0 flex flex-col sm:flex-row gap-2">
+
+        <div className="w-full md:w-auto pt-4 md:pt-0 flex flex-col sm:flex-row gap-2 mt-2 md:mt-0">
           <Button onClick={handleExportCSV} variant="outline" className="w-full sm:w-auto">
             <Download className="w-4 h-4 mr-2" />
             Exportar CSV

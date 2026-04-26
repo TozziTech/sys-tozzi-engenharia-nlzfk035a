@@ -22,6 +22,7 @@ import {
   FileText,
   Download,
   Save,
+  MessageSquare,
 } from 'lucide-react'
 import {
   format,
@@ -84,6 +85,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PrintWeeklyReport } from '@/components/PrintWeeklyReport'
+import { ProjectComments } from '@/components/ProjectComments'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { exportWeeklyDocsReportPDF } from '@/lib/exportPdf'
@@ -159,6 +161,7 @@ export default function DesignerPanel() {
   const [feedbackEdits, setFeedbackEdits] = useState<Record<string, string>>({})
   const [savingFeedback, setSavingFeedback] = useState<string | null>(null)
   const [exportingDocs, setExportingDocs] = useState(false)
+  const [discussionProject, setDiscussionProject] = useState<any>(null)
 
   const handleExportWeeklyDocs = async () => {
     setExportingDocs(true)
@@ -771,6 +774,15 @@ export default function DesignerPanel() {
                             size="sm"
                             variant="outline"
                             className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                            onClick={() => setDiscussionProject(project)}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                            Discussão
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
                             onClick={() => loadProjectDocs(project)}
                           >
                             <FileText className="w-3.5 h-3.5 mr-1.5" />
@@ -1361,6 +1373,15 @@ export default function DesignerPanel() {
               </ScrollArea>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!discussionProject} onOpenChange={(o) => !o && setDiscussionProject(null)}>
+        <DialogContent className="sm:max-w-[700px] p-0 border-0 bg-transparent shadow-none">
+          <DialogTitle className="sr-only">Discussão do Projeto</DialogTitle>
+          {discussionProject && (
+            <ProjectComments projectId={discussionProject.id} projectType="projects" />
+          )}
         </DialogContent>
       </Dialog>
 

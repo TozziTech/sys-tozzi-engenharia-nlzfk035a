@@ -52,6 +52,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FilePreviewModal, type PreviewFile } from '@/components/FilePreviewModal'
+import { ImageMarkupEditor } from '@/components/ImageMarkupEditor'
 
 export function ProjectComments({
   projectId,
@@ -74,6 +75,7 @@ export function ProjectComments({
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
+  const [markupFileIndex, setMarkupFileIndex] = useState<number | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -459,6 +461,18 @@ export function ProjectComments({
   const handleExportCSV = () => exportCommentsCSV(comments, projectName)
   const handleExportPDF = () => exportCommentsPDF(comments, projectName, user?.name || 'Usuário')
 
+  const isCommentLocked = (comment: any) => {
+    const hasAttachments = comment.anexos && comment.anexos.length > 0
+    if (!hasAttachments) return false
+
+    const isConcluido =
+      project?.status === 'Concluído' || (project as any)?.status_geral === 'Concluído'
+    const isOlderThan24h =
+      new Date().getTime() - new Date(comment.created).getTime() > 24 * 60 * 60 * 1000
+
+    return isConcluido || isOlderThan24h
+  }
+
   const CommentItem = ({ comment, isReply = false }: { comment: any; isReply?: boolean }) => {
     const isAuthor = comment.autor === user?.id
     const isAdmin = user?.role === 'Administrador'
@@ -551,14 +565,29 @@ export function ProjectComments({
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-slate-400 hover:text-rose-600"
-                    onClick={() => setDeletingId(comment.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  {!isCommentLocked(comment) ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-slate-400 hover:text-rose-600"
+                      onClick={() => setDeletingId(comment.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="h-6 w-6 inline-flex items-center justify-center text-slate-300 cursor-not-allowed">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Bloqueado: Projeto concluído ou comentário &gt; 24h com anexos.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </>
               )}
             </div>
@@ -901,25 +930,39 @@ export function ProjectComments({
 
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
-              {attachments.map((file, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 bg-white dark:bg-zinc-800 border dark:border-zinc-700 rounded-full pl-3 pr-1.5 py-1.5 text-xs shadow-sm animate-in zoom-in-95 duration-200"
-                >
-                  <FileIcon className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
-                  <span className="truncate max-w-[150px] font-medium dark:text-zinc-200">
-                    {file.name}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 rounded-full hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-900/50 dark:hover:text-rose-400"
-                    onClick={() => removeAttachment(i)}
+              {attachments.map((file, i) => {
+                const isImage = file.type.startsWith('image/')
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 bg-white dark:bg-zinc-800 border dark:border-zinc-700 rounded-full pl-3 pr-1.5 py-1.5 text-xs shadow-sm animate-in zoom-in-95 duration-200"
                   >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
+                    <FileIcon className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
+                    <span className="truncate max-w-[150px] font-medium dark:text-zinc-200">
+                      {file.name}
+                    </span>
+                    {isImage && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 rounded-full hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-700"
+                        onClick={() => setMarkupFileIndex(i)}
+                        title="Editar Imagem"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 rounded-full hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-900/50 dark:hover:text-rose-400"
+                      onClick={() => removeAttachment(i)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )
+              })}
             </div>
           )}
 
@@ -1029,6 +1072,18 @@ export function ProjectComments({
       </AlertDialog>
 
       <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
+
+      {markupFileIndex !== null && attachments[markupFileIndex] && (
+        <ImageMarkupEditor
+          file={attachments[markupFileIndex]}
+          open={true}
+          onClose={() => setMarkupFileIndex(null)}
+          onSave={(editedFile) => {
+            setAttachments((prev) => prev.map((f, i) => (i === markupFileIndex ? editedFile : f)))
+            setMarkupFileIndex(null)
+          }}
+        />
+      )}
     </Card>
   )
 }

@@ -9,9 +9,11 @@ import {
   Briefcase,
   Activity,
   CheckCircle,
+  Search,
 } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -65,6 +67,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
   const [filterYear, setFilterYear] = useState<string>('all')
   const [showTrash, setShowTrash] = useState(false)
 
+  const [clients, setClients] = useState<any[]>([])
   const [myAccesses, setMyAccesses] = useState<Record<string, string>>({})
   const [pendingReqs, setPendingReqs] = useState<string[]>([])
   const [requestModalProject, setRequestModalProject] = useState<any>(null)
@@ -74,12 +77,14 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
     if (!user || user.role === 'Administrador') return
     const load = async () => {
       try {
-        const [accs, reqs] = await Promise.all([
+        const [accs, reqs, clientsRes] = await Promise.all([
           pb.collection('user_project_access').getFullList({ filter: `user = '${user.id}'` }),
           pb
             .collection('access_requests')
             .getFullList({ filter: `user = '${user.id}' && status = 'Pendente'` }),
+          pb.collection('clients').getFullList(),
         ])
+        setClients(clientsRes)
         const map: Record<string, string> = {}
         accs.forEach((a) => (map[a.project] = a.access_level))
         setMyAccesses(map)
@@ -107,10 +112,20 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
   )
 
   const filteredProjects = useMemo(() => {
+    const s = globalSearch.toLowerCase()
+    const matchedClients = clients
+      .filter(
+        (c) => (c.name || '').toLowerCase().includes(s) || (c.code || '').toLowerCase().includes(s),
+      )
+      .map((c) => c.name)
+
     return projects.filter((p) => {
       const matchSearch =
-        p.name.toLowerCase().includes(globalSearch.toLowerCase()) ||
-        p.client.toLowerCase().includes(globalSearch.toLowerCase())
+        !s ||
+        (p.name || '').toLowerCase().includes(s) ||
+        (p.client || '').toLowerCase().includes(s) ||
+        matchedClients.includes(p.client)
+
       const matchDisc = discipline === 'all' || p.discipline === discipline
       const matchStatus = status === 'all' || p.status === status
       const matchClient = client === 'all' || p.client === client
@@ -142,6 +157,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
   }, [
     projects,
     globalSearch,
+    clients,
     discipline,
     status,
     client,
@@ -249,7 +265,26 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
               : 'Pesquise, filtre e gerencie os detalhes dos projetos.'}
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <div className="relative w-full sm:w-64 md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Input
+              placeholder="Buscar projeto, cliente ou código..."
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              className="pl-9 bg-white dark:bg-zinc-900"
+            />
+            {globalSearch && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-slate-500"
+                onClick={() => setGlobalSearch('')}
+              >
+                <XCircle className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           <Button
             variant={showTrash ? 'default' : 'outline'}
             onClick={() => setShowTrash(!showTrash)}

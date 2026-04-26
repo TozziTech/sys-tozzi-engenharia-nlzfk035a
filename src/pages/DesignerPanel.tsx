@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search,
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   AlertCircle,
   CheckCircle2,
@@ -13,8 +13,25 @@ import {
   FolderKanban,
   CheckSquare,
   LayoutDashboard,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
-import { format, isAfter, isBefore, addDays } from 'date-fns'
+import {
+  format,
+  isAfter,
+  isBefore,
+  addDays,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  startOfMonth,
+  endOfMonth,
+  isSameMonth,
+  isToday,
+  addMonths,
+  subMonths,
+} from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 import {
@@ -44,14 +61,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Calendar } from '@/components/ui/calendar'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { usePermissions } from '@/hooks/use-permissions'
+import { cn } from '@/lib/utils'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -90,6 +110,7 @@ export default function DesignerPanel() {
   const [modules, setModules] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [myProjects, setMyProjects] = useState<any[]>([])
+  const [clients, setClients] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const [hoursLog, setHoursLog] = useState({
@@ -101,28 +122,35 @@ export default function DesignerPanel() {
   const [isHoursDialogOpen, setIsHoursDialogOpen] = useState(false)
   const [selectedProjectForHours, setSelectedProjectForHours] = useState<any>(null)
 
+  const [calendarMonth, setCalendarMonth] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+
   const loadData = async () => {
     if (!user) return
     try {
       setLoading(true)
-      const modulesRecords = await pb.collection('project_modules').getFullList({
-        filter: `responsible = "${user.id}" || designer = "${user.id}"`,
-        expand: 'project',
-        sort: '-created',
-      })
-      setModules(modulesRecords)
+      const [modulesRecords, tasksRecords, upaRes, clientsRes] = await Promise.all([
+        pb.collection('project_modules').getFullList({
+          filter: `responsible = "${user.id}" || designer = "${user.id}"`,
+          expand: 'project',
+          sort: '-created',
+        }),
+        pb.collection('tasks').getFullList({
+          filter: `responsible = "${user.id}" && status != "Concluído"`,
+          expand: 'project,module',
+          sort: 'due_date',
+        }),
+        pb.collection('user_project_access').getFullList({
+          filter: `user = "${user.id}"`,
+        }),
+        pb.collection('clients').getFullList(),
+      ])
 
-      const tasksRecords = await pb.collection('tasks').getFullList({
-        filter: `responsible = "${user.id}" && status != "Concluído"`,
-        expand: 'project,module',
-        sort: 'due_date',
-      })
+      setModules(modulesRecords)
       setTasks(tasksRecords)
+      setClients(clientsRes)
 
       let assignedProjectIds = user.assigned_projects || []
-      const upaRes = await pb.collection('user_project_access').getFullList({
-        filter: `user = "${user.id}"`,
-      })
       const accessProjectIds = upaRes.map((u) => u.project)
       const allProjectIds = Array.from(new Set([...assignedProjectIds, ...accessProjectIds]))
 
@@ -154,6 +182,7 @@ export default function DesignerPanel() {
   useRealtime('project_modules', loadData)
   useRealtime('tasks', loadData)
   useRealtime('projects', loadData)
+  useRealtime('clients', loadData)
 
   const handleLogHours = async () => {
     if (!hoursLog.date || !hoursLog.startTime || !hoursLog.endTime || !hoursLog.description) {
@@ -207,13 +236,33 @@ export default function DesignerPanel() {
     }
   }
 
+  const filteredProjects = useMemo(() => {
+    const s = search.toLowerCase()
+    const matchedClients = clients
+      .filter(
+        (c) => (c.name || '').toLowerCase().includes(s) || (c.code || '').toLowerCase().includes(s),
+      )
+      .map((c) => c.name)
+
+    return myProjects.filter((p) => {
+      const matchSearch =
+        !s ||
+        (p.name || '').toLowerCase().includes(s) ||
+        (p.client || '').toLowerCase().includes(s) ||
+        matchedClients.includes(p.client)
+
+      return matchSearch
+    })
+  }, [myProjects, search, clients])
+
   const filteredModules = useMemo(() => {
+    const s = search.toLowerCase()
     const today = new Date()
     return modules.filter((m) => {
       const projectName = m.expand?.project?.name || ''
       const matchesSearch =
-        projectName.toLowerCase().includes(search.toLowerCase()) ||
-        (m.name || '').toLowerCase().includes(search.toLowerCase())
+        !s || projectName.toLowerCase().includes(s) || (m.name || '').toLowerCase().includes(s)
+
       const matchesStatus = statusFilter === 'Todos' || m.status === statusFilter
 
       let matchesDate = true
@@ -230,6 +279,36 @@ export default function DesignerPanel() {
       return matchesSearch && matchesStatus && matchesDate
     })
   }, [modules, search, statusFilter, dateFilter])
+
+  const calendarDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(calendarMonth), { weekStartsOn: 0 })
+    const end = endOfWeek(endOfMonth(calendarMonth), { weekStartsOn: 0 })
+    return eachDayOfInterval({ start, end })
+  }, [calendarMonth])
+
+  const projectsByDate = useMemo(() => {
+    const map: Record<string, any[]> = {}
+    filteredProjects.forEach((p) => {
+      if (!p.start_date || !p.end_date) return
+      const start = new Date(p.start_date)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(p.end_date)
+      end.setHours(23, 59, 59, 999)
+
+      const interval = eachDayOfInterval({ start, end })
+      interval.forEach((d) => {
+        const key = format(d, 'yyyy-MM-dd')
+        if (!map[key]) map[key] = []
+        map[key].push(p)
+      })
+    })
+    return map
+  }, [filteredProjects])
+
+  const selectedDateProjects = useMemo(() => {
+    if (!selectedDate) return []
+    return projectsByDate[format(selectedDate, 'yyyy-MM-dd')] || []
+  }, [selectedDate, projectsByDate])
 
   const hasFinanceAccess = canAccess('lancamentos_financeiros') || user.role === 'Administrador'
 
@@ -249,6 +328,28 @@ export default function DesignerPanel() {
         </div>
       </div>
 
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-zinc-900/50 backdrop-blur-md p-4 rounded-xl border border-zinc-800 shadow-sm">
+        <div className="relative flex-1 max-w-md w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+          <Input
+            placeholder="Buscar projeto, cliente, disciplina..."
+            className="pl-9 bg-zinc-950/50 w-full"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-zinc-500"
+              onClick={() => setSearch('')}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
       <Tabs defaultValue="overview" className="w-full space-y-6">
         <TabsList className="bg-zinc-900/50 p-1 w-full justify-start overflow-x-auto h-auto flex-wrap border border-zinc-800">
           <TabsTrigger
@@ -263,6 +364,12 @@ export default function DesignerPanel() {
           >
             Minhas Disciplinas ({modules.length})
           </TabsTrigger>
+          <TabsTrigger
+            value="cronograma"
+            className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-500"
+          >
+            Cronograma
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 outline-none m-0">
@@ -276,12 +383,12 @@ export default function DesignerPanel() {
                 <CardDescription>Acompanhamento dos projetos que você faz parte</CardDescription>
               </CardHeader>
               <CardContent className="py-4 space-y-4">
-                {myProjects.length === 0 && (
+                {filteredProjects.length === 0 && (
                   <p className="text-sm text-zinc-500 text-center py-4">
-                    Nenhum projeto vinculado a você.
+                    Nenhum projeto vinculado a você com este filtro.
                   </p>
                 )}
-                {myProjects.map((project) => (
+                {filteredProjects.map((project) => (
                   <div
                     key={project.id}
                     className="p-4 rounded-lg bg-zinc-900 border border-zinc-800"
@@ -366,40 +473,29 @@ export default function DesignerPanel() {
         </TabsContent>
 
         <TabsContent value="modules" className="space-y-6 outline-none m-0">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center bg-zinc-900/50 backdrop-blur-md p-4 rounded-xl border border-zinc-800 shadow-sm">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-              <Input
-                placeholder="Buscar disciplina..."
-                className="pl-9 bg-zinc-950/50"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-4 w-full md:w-auto">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-[150px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos Status</SelectItem>
-                  <SelectItem value="Pendente">Pendente</SelectItem>
-                  <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                  <SelectItem value="Concluído">Concluído</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="w-full md:w-[150px]">
-                  <SelectValue placeholder="Prazo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todos">Todos Prazos</SelectItem>
-                  <SelectItem value="Atrasados">Atrasados</SelectItem>
-                  <SelectItem value="Proximos7">Próx. 7 dias</SelectItem>
-                  <SelectItem value="Proximos30">Próx. 30 dias</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex justify-end gap-4 w-full mb-4">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full md:w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos Status</SelectItem>
+                <SelectItem value="Pendente">Pendente</SelectItem>
+                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                <SelectItem value="Concluído">Concluído</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-full md:w-[150px]">
+                <SelectValue placeholder="Prazo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos Prazos</SelectItem>
+                <SelectItem value="Atrasados">Atrasados</SelectItem>
+                <SelectItem value="Proximos7">Próx. 7 dias</SelectItem>
+                <SelectItem value="Proximos30">Próx. 30 dias</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {loading ? (
@@ -433,7 +529,7 @@ export default function DesignerPanel() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-zinc-400 flex items-center gap-1.5">
-                          <Calendar className="h-4 w-4" /> Prazo
+                          <CalendarIcon className="h-4 w-4" /> Prazo
                         </span>
                         <span
                           className={
@@ -499,6 +595,192 @@ export default function DesignerPanel() {
                 </div>
               )}
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="cronograma" className="space-y-6 outline-none m-0">
+          <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
+            <h3 className="text-lg font-medium text-zinc-100 flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5 text-amber-500" />
+              Cronograma de Projetos
+            </h3>
+            <div className="flex items-center gap-2 hidden md:flex">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium w-32 text-center capitalize">
+                {format(calendarMonth, 'MMMM yyyy', { locale: ptBR })}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {filteredProjects.length === 0 ? (
+            <div className="text-center py-16 bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
+              <CalendarIcon className="h-8 w-8 text-zinc-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-zinc-100 mb-2">
+                Nenhum projeto ativo no cronograma
+              </h3>
+              <p className="text-sm text-zinc-400">
+                Você não tem projetos associados ou eles não possuem datas definidas.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop Grid */}
+              <div className="hidden md:block rounded-xl border border-zinc-800 overflow-hidden bg-zinc-950/50">
+                <div className="grid grid-cols-7 bg-zinc-900/80 border-b border-zinc-800">
+                  {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+                    <div key={d} className="p-3 text-center text-sm font-medium text-zinc-400">
+                      {d}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-px bg-zinc-800 auto-rows-fr">
+                  {calendarDays.map((day, i) => {
+                    const key = format(day, 'yyyy-MM-dd')
+                    const dayProjects = projectsByDate[key] || []
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          'min-h-[120px] p-2 bg-zinc-950 transition-colors flex flex-col gap-1',
+                          !isSameMonth(day, calendarMonth) && 'bg-zinc-900/50 opacity-60',
+                        )}
+                      >
+                        <div className="flex justify-end mb-1">
+                          <span
+                            className={cn(
+                              'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
+                              isToday(day)
+                                ? 'bg-amber-500 text-zinc-950 shadow-sm'
+                                : 'text-zinc-400',
+                            )}
+                          >
+                            {format(day, 'd')}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5 flex-1 overflow-y-auto max-h-[150px] pr-1 scrollbar-thin">
+                          {dayProjects.map((p) => (
+                            <Popover key={p.id}>
+                              <PopoverTrigger asChild>
+                                <div
+                                  className={cn(
+                                    'text-[10px] leading-tight p-1.5 rounded-md border transition-all hover:brightness-110 cursor-pointer truncate',
+                                    p.status === 'Concluído'
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                      : p.is_priority
+                                        ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 font-medium'
+                                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+                                  )}
+                                >
+                                  {p.name}
+                                </div>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-64 bg-zinc-950 border-zinc-800">
+                                <div className="space-y-3">
+                                  <div>
+                                    <h4 className="font-semibold text-sm text-zinc-100">
+                                      {p.name}
+                                    </h4>
+                                    <p className="text-xs text-zinc-400 mt-0.5">
+                                      Cliente: {p.client || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs font-medium">
+                                    <span className="text-zinc-400">Progresso</span>
+                                    <span className="text-amber-500">{p.progress || 0}%</span>
+                                  </div>
+                                  <Progress value={p.progress || 0} className="h-1.5" />
+                                  <div className="pt-2 flex justify-end">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      asChild
+                                      className="h-7 text-xs"
+                                    >
+                                      <Link to={`/projects/${p.id}`}>Ver Detalhes</Link>
+                                    </Button>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Mobile View */}
+              <div className="flex flex-col md:hidden items-center gap-6">
+                <Card className="border-zinc-800 bg-zinc-950 p-2 w-full flex justify-center shadow-md">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    className="rounded-md"
+                    modifiers={{
+                      active: (d) => !!projectsByDate[format(d, 'yyyy-MM-dd')],
+                    }}
+                    modifiersClassNames={{
+                      active: 'font-bold text-amber-500 bg-amber-500/10',
+                    }}
+                  />
+                </Card>
+                <div className="w-full space-y-3">
+                  <h4 className="font-medium text-sm text-zinc-400">
+                    Projetos em {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : ''}
+                  </h4>
+                  {selectedDateProjects.length === 0 ? (
+                    <p className="text-sm text-zinc-500 text-center py-4 bg-zinc-900/30 rounded-lg border border-zinc-800 border-dashed">
+                      Nenhum projeto ativo nesta data.
+                    </p>
+                  ) : (
+                    selectedDateProjects.map((p) => (
+                      <Card key={p.id} className="border-zinc-800 bg-zinc-950/50">
+                        <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between space-y-0">
+                          <div className="font-medium text-sm truncate flex-1 pr-2">{p.name}</div>
+                          <Badge
+                            variant="outline"
+                            className={p.is_priority ? 'text-amber-500 border-amber-500/20' : ''}
+                          >
+                            {p.status}
+                          </Badge>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0">
+                          <p className="text-xs text-zinc-400 mb-2">Cliente: {p.client || 'N/A'}</p>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span>Progresso</span>
+                            <span>{p.progress || 0}%</span>
+                          </div>
+                          <Progress value={p.progress || 0} className="h-1 mb-3" />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                            className="w-full h-8 text-xs"
+                          >
+                            <Link to={`/projects/${p.id}`}>Ver Detalhes</Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </TabsContent>
       </Tabs>

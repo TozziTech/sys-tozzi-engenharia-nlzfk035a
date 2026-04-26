@@ -45,6 +45,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
+import { Search, XCircle } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -67,7 +69,9 @@ const Dashboard = () => {
   const { toast } = useToast()
   const { density, dashboardLayout, setDashboardLayout } = usePreferencesStore()
 
-  const [projects, setProjects] = useState<any[]>([])
+  const [allProjects, setAllProjects] = useState<any[]>([])
+  const [clients, setClients] = useState<any[]>([])
+  const [search, setSearch] = useState('')
   const [financials, setFinancials] = useState<any[]>([])
   const [companySettings, setCompanySettings] = useState<any>(null)
   const [printMode, setPrintMode] = useState<'dashboard' | 'executive' | null>(null)
@@ -83,13 +87,14 @@ const Dashboard = () => {
 
   const loadData = async () => {
     try {
-      const [projs, fins, settings, tasksRes, usersRes, accesses] = await Promise.all([
+      const [projs, fins, settings, tasksRes, usersRes, accesses, clientsRes] = await Promise.all([
         pb.collection('projects').getFullList(),
         pb.collection('financial_records').getFullList({ sort: 'date' }),
         pb.collection('company_settings').getFullList(),
         pb.collection('tasks').getFullList(),
         pb.collection('users').getFullList(),
         pb.collection('user_project_access').getFullList(),
+        pb.collection('clients').getFullList(),
       ])
 
       const isAdmin = user?.role === 'Administrador'
@@ -112,7 +117,8 @@ const Dashboard = () => {
         )
       }
 
-      setProjects(filteredProjects)
+      setAllProjects(filteredProjects)
+      setClients(clientsRes)
       setFinancials(filteredFinancials)
       if (settings.length > 0) setCompanySettings(settings[0])
       setTasks(filteredTasks)
@@ -133,6 +139,7 @@ const Dashboard = () => {
   useRealtime('projects', () => loadData())
   useRealtime('financial_records', () => loadData())
   useRealtime('tasks', () => loadData())
+  useRealtime('clients', () => loadData())
   useRealtime('audit_logs', (e) => {
     if (e.action === 'create' && e.record.action === 'CRITICAL_BOTTLENECK') {
       toast({
@@ -142,6 +149,23 @@ const Dashboard = () => {
       })
     }
   })
+
+  const projects = useMemo(() => {
+    const s = search.toLowerCase()
+    const matchedClients = clients
+      .filter(
+        (c) => (c.name || '').toLowerCase().includes(s) || (c.code || '').toLowerCase().includes(s),
+      )
+      .map((c) => c.name)
+    return allProjects.filter((p) => {
+      if (!s) return true
+      return (
+        (p.name || '').toLowerCase().includes(s) ||
+        (p.client || '').toLowerCase().includes(s) ||
+        matchedClients.includes(p.client)
+      )
+    })
+  }, [allProjects, search, clients])
 
   // Calculate bottlenecks
   const bottlenecks = useMemo(() => {
@@ -677,7 +701,26 @@ const Dashboard = () => {
             Visão geral financeira, status dos projetos e alertas importantes.
           </p>
         </div>
-        <div className="flex items-center space-x-2 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-2 w-full md:w-auto">
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar projeto, cliente..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+            {search && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                onClick={() => setSearch('')}
+              >
+                <XCircle className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           <QuoteGeneratorModal>
             <Button className="w-full md:w-auto shadow-sm">
               <FileText className="mr-2 h-4 w-4" />

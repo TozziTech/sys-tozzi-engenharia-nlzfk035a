@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -11,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useState, useEffect } from 'react'
+import { Textarea } from '@/components/ui/textarea'
 import useProjectStore from '@/stores/useProjectStore'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
@@ -19,16 +21,16 @@ import { useTheme } from 'next-themes'
 import { useThemeColor } from '@/components/ThemeProvider'
 import { Sun, Moon, Monitor } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function Settings() {
+  const { user } = useAuth()
   const { slackWebhookUrl, setSlackWebhookUrl } = useProjectStore()
   const [webhookInput, setWebhookInput] = useState(slackWebhookUrl)
   const { toast } = useToast()
-
   const { theme, setTheme } = useTheme()
   const { themeColor, setThemeColor } = useThemeColor()
 
-  // Company Settings State
   const [companyForm, setCompanyForm] = useState({
     id: '',
     company_name: '',
@@ -41,12 +43,13 @@ export default function Settings() {
     background_preset: '',
     contact_alert_days: 30,
   })
+  const [jsonConfigs, setJsonConfigs] = useState({
+    module_visibility: '{}',
+    role_permissions: '{}',
+  })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState('')
   const [savingCompany, setSavingCompany] = useState(false)
-  const [formErrors, setFormErrors] = useState<{ contact_alert_days?: string }>({})
-
-  // Scheduled Reports State
   const [scheduleForm, setScheduleForm] = useState({
     id: '',
     recipients: '',
@@ -64,62 +67,6 @@ export default function Settings() {
     { name: 'Gold', value: 'gold', colorClass: 'bg-[#D4AF37]' },
   ] as const
 
-  const PREDEFINED_PALETTES = [
-    { name: 'Gold / Dourado', color: '#D4AF37' },
-    { name: 'Corporate Blue', color: '#1e3a8a' },
-    { name: 'Industrial Gray', color: '#475569' },
-    { name: 'Construction Orange', color: '#ea580c' },
-    { name: 'Forest Green', color: '#166534' },
-    { name: 'Deep Red', color: '#991b1b' },
-  ]
-
-  const BG_PRESETS = [
-    { name: 'Slate', color: '#0f172a' },
-    { name: 'Zinc', color: '#18181b' },
-    { name: 'Neutral', color: '#171717' },
-    { name: 'Deep Navy', color: '#0a192f' },
-  ]
-
-  const handleQuickPalette = async (color: string) => {
-    setCompanyForm((prev) => ({ ...prev, primary_color: color }))
-    try {
-      if (companyForm.id) {
-        await pb.collection('company_settings').update(companyForm.id, { primary_color: color })
-      } else {
-        const formData = new FormData()
-        formData.append('primary_color', color)
-        if (companyForm.company_name) formData.append('company_name', companyForm.company_name)
-        const res = await pb.collection('company_settings').create(formData)
-        setCompanyForm((prev) => ({ ...prev, id: res.id }))
-      }
-      toast({ title: 'Cor primária atualizada com sucesso!' })
-    } catch (e) {
-      toast({ title: 'Erro ao atualizar cor', variant: 'destructive' })
-    }
-  }
-
-  const handleApplyBg = async (color: string, presetName: string) => {
-    setCompanyForm((prev) => ({ ...prev, background_color: color, background_preset: presetName }))
-    try {
-      if (companyForm.id) {
-        await pb.collection('company_settings').update(companyForm.id, {
-          background_color: color,
-          background_preset: presetName,
-        })
-      } else {
-        const formData = new FormData()
-        formData.append('background_color', color)
-        formData.append('background_preset', presetName)
-        if (companyForm.company_name) formData.append('company_name', companyForm.company_name)
-        const res = await pb.collection('company_settings').create(formData)
-        setCompanyForm((prev) => ({ ...prev, id: res.id }))
-      }
-      toast({ title: 'Cor de fundo atualizada com sucesso!' })
-    } catch (e) {
-      toast({ title: 'Erro ao atualizar cor de fundo', variant: 'destructive' })
-    }
-  }
-
   useEffect(() => {
     pb.collection('company_settings')
       .getFirstListItem('')
@@ -136,13 +83,16 @@ export default function Settings() {
           background_preset: record.background_preset || '',
           contact_alert_days: record.contact_alert_days || 30,
         })
-        if (record.logo) {
+        setJsonConfigs({
+          module_visibility: JSON.stringify(record.module_visibility || {}, null, 2),
+          role_permissions: JSON.stringify(record.role_permissions || {}, null, 2),
+        })
+        if (record.logo)
           setLogoPreview(
             `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${record.id}/${record.logo}`,
           )
-        }
       })
-      .catch(() => {}) // Ignore if no settings exist yet
+      .catch(() => {})
 
     pb.collection('report_schedules')
       .getFirstListItem('')
@@ -157,30 +107,9 @@ export default function Settings() {
       .catch(() => {})
   }, [])
 
-  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '')
-    if (value.length > 14) value = value.slice(0, 14)
-    value = value.replace(/^(\d{2})(\d)/, '$1.$2')
-    value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    value = value.replace(/\.(\d{3})(\d)/, '.$1/$2')
-    value = value.replace(/(\d{4})(\d)/, '$1-$2')
-    setCompanyForm({ ...companyForm, cnpj: value })
-  }
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '')
-    if (value.length > 11) value = value.slice(0, 11)
-    value = value.replace(/^(\d{2})(\d)/g, '($1) $2')
-    value = value.replace(/(\d)(\d{4})$/, '$1-$2')
-    setCompanyForm({ ...companyForm, phone: value })
-  }
+  if (user?.role !== 'Administrador') return <Navigate to="/" replace />
 
   const handleSaveCompany = async () => {
-    if (companyForm.contact_alert_days < 1) {
-      setFormErrors({ contact_alert_days: 'O valor deve ser maior ou igual a 1.' })
-      return
-    }
-    setFormErrors({})
     setSavingCompany(true)
     try {
       const formData = new FormData()
@@ -194,31 +123,32 @@ export default function Settings() {
       formData.append('contact_alert_days', companyForm.contact_alert_days.toString())
       if (logoFile) formData.append('logo', logoFile)
 
-      if (companyForm.id) {
-        await pb.collection('company_settings').update(companyForm.id, formData)
-      } else {
+      try {
+        formData.append(
+          'module_visibility',
+          JSON.stringify(JSON.parse(jsonConfigs.module_visibility)),
+        )
+        formData.append(
+          'role_permissions',
+          JSON.stringify(JSON.parse(jsonConfigs.role_permissions)),
+        )
+      } catch (e) {
+        toast({ title: 'JSON Inválido. Verifique a formatação.', variant: 'destructive' })
+        setSavingCompany(false)
+        return
+      }
+
+      if (companyForm.id) await pb.collection('company_settings').update(companyForm.id, formData)
+      else {
         const res = await pb.collection('company_settings').create(formData)
         setCompanyForm((prev) => ({ ...prev, id: res.id }))
       }
-      toast({ title: 'Dados da empresa salvos com sucesso!' })
-      try {
-        await pb.send('/backend/v1/trigger-contact-alerts', { method: 'POST' })
-      } catch (e) {
-        console.error('Failed to trigger contact alerts', e)
-      }
+      toast({ title: 'Configurações salvas com sucesso!' })
     } catch (e) {
-      toast({ title: 'Erro ao salvar os dados da empresa', variant: 'destructive' })
+      toast({ title: 'Erro ao salvar', variant: 'destructive' })
     } finally {
       setSavingCompany(false)
     }
-  }
-
-  const handleSaveSlack = () => {
-    setSlackWebhookUrl(webhookInput)
-    toast({
-      title: 'Integração atualizada',
-      description: 'A configuração do Webhook do Slack foi salva.',
-    })
   }
 
   const handleSaveSchedule = async () => {
@@ -229,13 +159,12 @@ export default function Settings() {
         frequency: scheduleForm.frequency,
         active: scheduleForm.active,
       }
-      if (scheduleForm.id) {
-        await pb.collection('report_schedules').update(scheduleForm.id, data)
-      } else {
+      if (scheduleForm.id) await pb.collection('report_schedules').update(scheduleForm.id, data)
+      else {
         const res = await pb.collection('report_schedules').create(data)
         setScheduleForm((prev) => ({ ...prev, id: res.id }))
       }
-      toast({ title: 'Agendamento salvo com sucesso!' })
+      toast({ title: 'Agendamento salvo!' })
     } catch (e) {
       toast({ title: 'Erro ao salvar agendamento', variant: 'destructive' })
     } finally {
@@ -244,112 +173,82 @@ export default function Settings() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4 md:px-6 animate-fade-in-up">
+    <div className="container max-w-5xl mx-auto py-8 px-4 animate-fade-in-up">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mb-2">
-          Configurações
+          Configurações do Sistema
         </h1>
-        <p className="text-muted-foreground">Gerencie as preferências da sua conta e do sistema.</p>
+        <p className="text-muted-foreground">
+          Gerencie as configurações globais da empresa, integrações e parâmetros da plataforma.
+        </p>
       </div>
 
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Dados da Empresa</CardTitle>
+            <CardTitle>Identidade e Contato da Empresa</CardTitle>
             <CardDescription>
-              Gerencie as informações corporativas e o logotipo para os relatórios e exportações.
+              Informações globais utilizadas em relatórios e no sistema.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label htmlFor="company_name">Razão Social / Nome Fantasia</Label>
+                <Label>Razão Social</Label>
                 <Input
-                  id="company_name"
                   value={companyForm.company_name}
                   onChange={(e) => setCompanyForm({ ...companyForm, company_name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cnpj">CNPJ</Label>
+                <Label>CNPJ</Label>
                 <Input
-                  id="cnpj"
                   value={companyForm.cnpj}
-                  onChange={handleCnpjChange}
+                  onChange={(e) => setCompanyForm({ ...companyForm, cnpj: e.target.value })}
                   placeholder="00.000.000/0000-00"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address">Endereço Completo</Label>
+                <Label>Endereço</Label>
                 <Input
-                  id="address"
                   value={companyForm.address}
                   onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Telefone</Label>
+                <Label>Telefone</Label>
                 <Input
-                  id="phone"
                   value={companyForm.phone}
-                  onChange={handlePhoneChange}
-                  placeholder="(00) 00000-0000"
+                  onChange={(e) => setCompanyForm({ ...companyForm, phone: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="contact_alert_days">Limite de Alerta de Retorno (Dias)</Label>
-                <Input
-                  id="contact_alert_days"
-                  type="number"
-                  min="1"
-                  value={companyForm.contact_alert_days}
-                  onChange={(e) =>
-                    setCompanyForm({ ...companyForm, contact_alert_days: Number(e.target.value) })
-                  }
-                />
-                {formErrors.contact_alert_days && (
-                  <p className="text-xs text-destructive">{formErrors.contact_alert_days}</p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Dias sem interação para contatos favoritos gerarem notificação.
-                </p>
-              </div>
-              <div className="space-y-2 md:col-span-2 pt-2 border-t mt-2">
-                <Label htmlFor="logo">Logotipo (PNG, JPG, SVG)</Label>
+              <div className="space-y-2 col-span-2">
+                <Label>Logotipo</Label>
                 <div className="flex items-center gap-4 mt-1">
                   {logoPreview ? (
-                    <div className="relative h-16 w-32 border rounded-md overflow-hidden bg-white/50 dark:bg-white/10 flex items-center justify-center">
-                      <img
-                        src={logoPreview}
-                        alt="Logo"
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    </div>
+                    <img
+                      src={logoPreview}
+                      alt="Logo"
+                      className="h-16 object-contain border rounded p-1 bg-white/10"
+                    />
                   ) : (
-                    <div className="h-16 w-32 border rounded-md border-dashed flex items-center justify-center text-xs text-muted-foreground bg-muted/20">
+                    <div className="h-16 w-32 border border-dashed rounded flex items-center justify-center text-xs">
                       Sem logo
                     </div>
                   )}
                   <Input
-                    id="logo"
                     type="file"
-                    accept="image/png, image/jpeg, image/svg+xml"
-                    className="flex-1"
+                    accept="image/*"
                     onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        setLogoFile(file)
-                        setLogoPreview(URL.createObjectURL(file))
+                      const f = e.target.files?.[0]
+                      if (f) {
+                        setLogoFile(f)
+                        setLogoPreview(URL.createObjectURL(f))
                       }
                     }}
                   />
                 </div>
               </div>
-            </div>
-            <div className="pt-2 flex justify-end">
-              <Button onClick={handleSaveCompany} disabled={savingCompany}>
-                {savingCompany ? 'Salvando...' : 'Salvar Empresa'}
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -357,261 +256,42 @@ export default function Settings() {
         <Card>
           <CardHeader>
             <CardTitle>Aparência</CardTitle>
-            <CardDescription>Personalize o tema e as cores da interface.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <Label className="text-base">Modo de Exibição</Label>
-                <RadioGroup
-                  defaultValue={theme}
-                  value={theme}
-                  onValueChange={(val) => setTheme(val)}
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-                >
-                  <div>
-                    <RadioGroupItem value="light" id="light" className="peer sr-only" />
-                    <Label
-                      htmlFor="light"
-                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
-                    >
-                      <Sun className="mb-3 h-6 w-6" />
-                      Claro
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
-                    <Label
-                      htmlFor="dark"
-                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
-                    >
-                      <Moon className="mb-3 h-6 w-6" />
-                      Escuro
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem value="system" id="system" className="peer sr-only" />
-                    <Label
-                      htmlFor="system"
-                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
-                    >
-                      <Monitor className="mb-3 h-6 w-6" />
-                      Sistema
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="space-y-3 pt-4 border-t">
-                <Label className="text-base">Cor Primária (Tema)</Label>
-                <div className="flex flex-wrap gap-3">
-                  {colors.map((c) => (
-                    <button
-                      key={c.value}
-                      onClick={() => setThemeColor(c.value)}
-                      className={cn(
-                        'flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all',
-                        themeColor === c.value
-                          ? 'border-primary scale-110 shadow-sm'
-                          : 'border-transparent hover:scale-105',
-                      )}
-                      aria-label={`Selecionar cor ${c.name}`}
-                    >
-                      <div
-                        className={cn(
-                          'h-10 w-10 rounded-full border border-black/10 dark:border-white/10',
-                          c.colorClass,
-                        )}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-4 border-t">
-                <Label className="text-base">Cor Primária (Identidade Visual / Relatórios)</Label>
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-3">
-                    <Input
-                      type="color"
-                      value={companyForm.primary_color || '#D4AF37'}
-                      onChange={(e) =>
-                        setCompanyForm({ ...companyForm, primary_color: e.target.value })
-                      }
-                      className="w-16 h-10 p-1 cursor-pointer rounded-md"
-                    />
-                    <Input
-                      type="text"
-                      value={companyForm.primary_color || '#D4AF37'}
-                      onChange={(e) =>
-                        setCompanyForm({ ...companyForm, primary_color: e.target.value })
-                      }
-                      placeholder="#000000"
-                      className="w-32 uppercase"
-                      maxLength={7}
-                    />
-                    <Button
-                      variant="secondary"
-                      onClick={() => handleQuickPalette(companyForm.primary_color)}
-                    >
-                      Aplicar Cor
-                    </Button>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground mb-2 block">
-                      Paletas Rápidas (Aplica e salva imediatamente)
-                    </Label>
-                    <div className="flex flex-wrap gap-3">
-                      {PREDEFINED_PALETTES.map((palette) => (
-                        <button
-                          key={palette.color}
-                          type="button"
-                          onClick={() => handleQuickPalette(palette.color)}
-                          className={cn(
-                            'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all',
-                            companyForm.primary_color === palette.color
-                              ? 'border-slate-900 dark:border-slate-100 scale-110 shadow-sm'
-                              : 'border-transparent hover:scale-105',
-                          )}
-                          style={{ backgroundColor: palette.color }}
-                          title={palette.name}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-4 border-t">
-                <Label className="text-base">Cor de Fundo (Background)</Label>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Personalize a cor de fundo do sistema. O texto e os cartões serão ajustados
-                  automaticamente para garantir o contraste.
-                </p>
-                <div className="flex flex-wrap gap-3 mb-4">
-                  {BG_PRESETS.map((p) => (
-                    <Button
-                      key={p.name}
-                      type="button"
-                      variant={companyForm.background_preset === p.name ? 'default' : 'outline'}
-                      onClick={() => handleApplyBg(p.color, p.name)}
-                      className="flex items-center gap-2 transition-transform active:scale-95"
-                    >
-                      <div
-                        className="w-4 h-4 rounded-full border shadow-sm"
-                        style={{ backgroundColor: p.color }}
-                      />
-                      {p.name}
-                    </Button>
-                  ))}
-                  <Button
-                    type="button"
-                    variant={!companyForm.background_color ? 'default' : 'outline'}
-                    onClick={() => handleApplyBg('', '')}
-                  >
-                    Padrão do Tema
-                  </Button>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Label className="text-sm text-muted-foreground">
-                    Ou escolha uma cor personalizada:
-                  </Label>
-                  <div className="flex items-center gap-3">
-                    <Input
-                      type="color"
-                      value={companyForm.background_color || '#ffffff'}
-                      onChange={(e) =>
-                        setCompanyForm({
-                          ...companyForm,
-                          background_color: e.target.value,
-                          background_preset: 'Custom',
-                        })
-                      }
-                      className="w-16 h-10 p-1 cursor-pointer rounded-md"
-                    />
-                    <Input
-                      type="text"
-                      value={companyForm.background_color || ''}
-                      onChange={(e) =>
-                        setCompanyForm({
-                          ...companyForm,
-                          background_color: e.target.value,
-                          background_preset: 'Custom',
-                        })
-                      }
-                      placeholder="#000000"
-                      className="w-32 uppercase"
-                      maxLength={7}
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleApplyBg(companyForm.background_color, 'Custom')}
-                    >
-                      Aplicar Cor
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Perfil do Usuário</CardTitle>
-            <CardDescription>Atualize suas informações pessoais e de contato.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome Completo</Label>
-                <Input id="name" defaultValue="Eduardo Costa" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input id="email" type="email" defaultValue="eduardo@archbuild.com" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Cargo / Ocupação</Label>
-              <Input
-                id="role"
-                defaultValue="Gestor de Projetos"
-                disabled
-                className="bg-slate-50 dark:bg-slate-900"
-              />
-            </div>
-            <div className="pt-2 flex justify-end">
-              <Button>Salvar Perfil</Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Integrações</CardTitle>
-            <CardDescription>Configure conexões com aplicativos externos.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <Label className="text-base">Slack Notificações</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Envie alertas automáticos para um canal do Slack.
-                  </p>
-                </div>
-              </div>
+              <Label>Modo de Exibição</Label>
+              <RadioGroup value={theme} onValueChange={setTheme} className="flex gap-4">
+                {[
+                  { v: 'light', i: Sun, l: 'Claro' },
+                  { v: 'dark', i: Moon, l: 'Escuro' },
+                  { v: 'system', i: Monitor, l: 'Sistema' },
+                ].map((t) => (
+                  <Label
+                    key={t.v}
+                    className="flex flex-col items-center border-2 rounded p-4 cursor-pointer hover:bg-accent [&:has([data-state=checked])]:border-primary"
+                  >
+                    <RadioGroupItem value={t.v} className="sr-only" />
+                    <t.i className="mb-2 h-5 w-5" />
+                    {t.l}
+                  </Label>
+                ))}
+              </RadioGroup>
+            </div>
+            <div className="space-y-3 pt-4 border-t">
+              <Label>Cor Primária do Tema</Label>
               <div className="flex gap-3">
-                <Input
-                  placeholder="https://hooks.slack.com/services/..."
-                  value={webhookInput}
-                  onChange={(e) => setWebhookInput(e.target.value)}
-                  className="flex-1"
-                />
-                <Button onClick={handleSaveSlack}>Salvar</Button>
+                {colors.map((c) => (
+                  <button
+                    key={c.value}
+                    onClick={() => setThemeColor(c.value)}
+                    className={cn(
+                      'h-10 w-10 rounded-full border-2',
+                      themeColor === c.value ? 'border-primary scale-110' : 'border-transparent',
+                    )}
+                  >
+                    <div className={cn('w-full h-full rounded-full', c.colorClass)} />
+                  </button>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -619,94 +299,110 @@ export default function Settings() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Preferências de Notificação</CardTitle>
-            <CardDescription>Escolha como e quando deseja ser notificado.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <Label className="text-base">Resumo Semanal</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receba um relatório por e-mail com o status geral dos projetos.
-                </p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <Label className="text-base">Alertas de Atraso</Label>
-                <p className="text-sm text-muted-foreground">
-                  Notificações imediatas quando uma tarefa ou projeto estiver atrasado.
-                </p>
-              </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <Label className="text-base">Atividades da Equipe</Label>
-                <p className="text-sm text-muted-foreground">
-                  Avisos sobre comentários e mudanças feitas por outros membros.
-                </p>
-              </div>
-              <Switch />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Relatórios Agendados</CardTitle>
-            <CardDescription>
-              Configure o envio automático do Relatório Executivo por e-mail.
-            </CardDescription>
+            <CardTitle>Configurações Operacionais</CardTitle>
+            <CardDescription>Parâmetros de funcionamento e permissões globais.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <Label className="text-base">Ativar Envio Automático</Label>
-                <p className="text-sm text-muted-foreground">
-                  Habilita a geração e envio automático do relatório para os e-mails configurados.
-                </p>
-              </div>
-              <Switch
-                checked={scheduleForm.active}
-                onCheckedChange={(checked) => setScheduleForm({ ...scheduleForm, active: checked })}
+            <div className="space-y-2">
+              <Label>Alerta de Retorno de Contatos (Dias)</Label>
+              <Input
+                type="number"
+                value={companyForm.contact_alert_days}
+                onChange={(e) =>
+                  setCompanyForm({ ...companyForm, contact_alert_days: Number(e.target.value) })
+                }
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4 border-t">
               <div className="space-y-2">
-                <Label htmlFor="recipients">E-mails dos Destinatários</Label>
-                <Input
-                  id="recipients"
-                  placeholder="gestor1@empresa.com, gestor2@empresa.com"
-                  value={scheduleForm.recipients}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, recipients: e.target.value })}
+                <Label>Visibilidade de Módulos (JSON)</Label>
+                <Textarea
+                  className="font-mono text-xs h-40"
+                  value={jsonConfigs.module_visibility}
+                  onChange={(e) =>
+                    setJsonConfigs({ ...jsonConfigs, module_visibility: e.target.value })
+                  }
                 />
-                <p className="text-xs text-muted-foreground">
-                  Separe múltiplos e-mails com vírgula.
-                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="frequency">Frequência de Envio</Label>
-                <Select
-                  value={scheduleForm.frequency}
-                  onValueChange={(val) => setScheduleForm({ ...scheduleForm, frequency: val })}
-                >
-                  <SelectTrigger id="frequency">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Diário">Diário (8:00 AM)</SelectItem>
-                    <SelectItem value="Semanal">Semanal (Segunda-feira)</SelectItem>
-                    <SelectItem value="Mensal">Mensal (Dia 1)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Permissões de Cargos (JSON)</Label>
+                <Textarea
+                  className="font-mono text-xs h-40"
+                  value={jsonConfigs.role_permissions}
+                  onChange={(e) =>
+                    setJsonConfigs({ ...jsonConfigs, role_permissions: e.target.value })
+                  }
+                />
               </div>
             </div>
-            <div className="pt-2 flex justify-end">
-              <Button onClick={handleSaveSchedule} disabled={savingSchedule}>
-                {savingSchedule ? 'Salvando...' : 'Salvar Agendamento'}
+            <div className="flex justify-end">
+              <Button onClick={handleSaveCompany} disabled={savingCompany}>
+                {savingCompany ? 'Salvando...' : 'Salvar Configurações Globais'}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Relatórios Agendados & Slack</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex gap-3 items-end">
+              <div className="flex-1 space-y-2">
+                <Label>Webhook Slack</Label>
+                <Input value={webhookInput} onChange={(e) => setWebhookInput(e.target.value)} />
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setSlackWebhookUrl(webhookInput)
+                  toast({ title: 'Slack salvo' })
+                }}
+              >
+                Salvar Slack
+              </Button>
+            </div>
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <Label>Ativar Envio Automático de Relatórios</Label>
+                <Switch
+                  checked={scheduleForm.active}
+                  onCheckedChange={(v) => setScheduleForm({ ...scheduleForm, active: v })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Destinatários</Label>
+                  <Input
+                    value={scheduleForm.recipients}
+                    onChange={(e) =>
+                      setScheduleForm({ ...scheduleForm, recipients: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Frequência</Label>
+                  <Select
+                    value={scheduleForm.frequency}
+                    onValueChange={(v) => setScheduleForm({ ...scheduleForm, frequency: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Diário">Diário</SelectItem>
+                      <SelectItem value="Semanal">Semanal</SelectItem>
+                      <SelectItem value="Mensal">Mensal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={handleSaveSchedule} disabled={savingSchedule}>
+                  Salvar Agendamentos
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

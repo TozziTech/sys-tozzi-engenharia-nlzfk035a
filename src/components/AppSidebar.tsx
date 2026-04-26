@@ -26,6 +26,7 @@ import {
   FileStack,
   FileSpreadsheet,
   GraduationCap,
+  User,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -243,7 +244,14 @@ const getNavigationGroups = () => [
         href: '/admin/analytics',
         icon: LineChart,
       },
-      { name: 'Configurações', id: 'configuracoes', href: '/settings', icon: Settings },
+      { name: 'Meu Perfil', id: 'meu_perfil', href: '/profile', icon: User },
+      {
+        name: 'Configurações do Sistema',
+        id: 'configuracoes',
+        href: '/settings',
+        icon: Settings,
+        allowedRoles: ['Administrador'],
+      },
       {
         name: 'Dashboard Executivo',
         id: 'dashboard_executivo',
@@ -369,20 +377,29 @@ export function AppSidebar() {
             />
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-sidebar-accent/50 p-2 shadow-sm">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src="https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1" />
-            <AvatarFallback>AD</AvatarFallback>
+        <Link
+          to="/profile"
+          className="flex items-center gap-3 rounded-lg border border-border bg-sidebar-accent/50 p-2 shadow-sm hover:bg-sidebar-accent/80 hover:border-amber-500/30 cursor-pointer transition-all group"
+        >
+          <Avatar className="h-9 w-9 border border-transparent group-hover:border-amber-500/50 transition-colors">
+            <AvatarImage
+              src={
+                user?.avatar
+                  ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/users/${user.id}/${user.avatar}`
+                  : 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1'
+              }
+            />
+            <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col overflow-hidden">
-            <span className="truncate text-sm font-medium text-sidebar-foreground">
+            <span className="truncate text-sm font-medium text-sidebar-foreground group-hover:text-amber-500 transition-colors">
               {user?.name || 'Usuário'}
             </span>
             <span className="truncate text-xs text-sidebar-foreground/70">
               {user?.role || 'Cargo'}
             </span>
           </div>
-        </div>
+        </Link>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton

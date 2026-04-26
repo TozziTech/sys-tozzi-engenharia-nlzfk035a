@@ -27,6 +27,7 @@ import Clients from './pages/Clients'
 import Contacts from './pages/Contacts'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import Profile from './pages/Profile'
 import Gantt from './pages/Gantt'
 import ProjectCalendar from './pages/ProjectCalendar'
 import Bottlenecks from './pages/Bottlenecks'
@@ -175,6 +176,7 @@ const App = () => (
                     <Route path="/equipments" element={<Equipments />} />
                     <Route path="/equipment" element={<Equipments />} />
                     <Route path="/settings" element={<Settings />} />
+                    <Route path="/profile" element={<Profile />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/timesheet" element={<Timesheet />} />
                     <Route path="/history" element={<History />} />

@@ -56,6 +56,7 @@ export function FinancialTransactions() {
   }, [])
 
   const filteredTransactions = useMemo(() => {
+    if (!transactions || !Array.isArray(transactions)) return []
     return transactions
       .filter((tx) => {
         const pId = tx.projectId || (tx as any).project_id

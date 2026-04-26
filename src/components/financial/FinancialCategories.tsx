@@ -35,6 +35,7 @@ import { useFinancialCategories } from '@/hooks/use-financial-categories'
 
 export function FinancialCategories() {
   const { categories, addCategory, updateCategory, deleteCategory } = useFinancialCategories()
+  const safeCategories = Array.isArray(categories) ? categories : []
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -139,14 +140,14 @@ export function FinancialCategories() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {categories.length === 0 ? (
+              {safeCategories.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-8 text-slate-500">
                     Nenhuma categoria cadastrada.
                   </TableCell>
                 </TableRow>
               ) : (
-                categories.map((c) => (
+                safeCategories.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>
                       <div

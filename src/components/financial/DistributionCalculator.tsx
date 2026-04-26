@@ -35,6 +35,8 @@ const formSchema = z.object({
 })
 type FormValues = z.infer<typeof formSchema>
 
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+
 export function DistributionCalculator() {
   const [history, setHistory] = useState<any[]>([])
   const [isCalculating, setIsCalculating] = useState(false)
@@ -159,7 +161,9 @@ export function DistributionCalculator() {
 
   return (
     <div className="flex flex-col">
-      <DistributionKPIs history={history} />
+      <ErrorBoundary>
+        <DistributionKPIs history={history} />
+      </ErrorBoundary>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up">
         <div className="lg:col-span-5 xl:col-span-4 space-y-6">
@@ -371,11 +375,13 @@ export function DistributionCalculator() {
         </div>
       </div>
 
-      <DistributionHistoryTable
-        history={history}
-        onDelete={handleDelete}
-        onEdit={setEditingRecord}
-      />
+      <ErrorBoundary>
+        <DistributionHistoryTable
+          history={history}
+          onDelete={handleDelete}
+          onEdit={setEditingRecord}
+        />
+      </ErrorBoundary>
 
       <EditDistributionDialog
         record={editingRecord}

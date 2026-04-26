@@ -66,7 +66,12 @@ export function TransactionTable({
   const today = startOfToday()
   const next3Days = addDays(today, 3)
 
-  const filteredTransactions = transactions.filter((tx) => {
+  const safeTransactions = Array.isArray(transactions) ? transactions : []
+  const safeCategories = Array.isArray(categories) ? categories : []
+  const safeProjects = Array.isArray(projects) ? projects : []
+  const safeUsers = Array.isArray(users) ? users : []
+
+  const filteredTransactions = safeTransactions.filter((tx) => {
     let matchStatus = true
     if (statusFilter !== 'Todos') {
       const txStatus = tx.status || 'Pendente'
@@ -142,7 +147,7 @@ export function TransactionTable({
           </Button>
         </div>
         <div className="text-sm text-muted-foreground">
-          Exibindo {filteredTransactions.length} de {transactions.length} registros
+          Exibindo {filteredTransactions.length} de {safeTransactions.length} registros
         </div>
       </div>
       <div className="rounded-md border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-card text-card-foreground">
@@ -199,12 +204,12 @@ export function TransactionTable({
               filteredTransactions.map((tx: any) => {
                 const cId = tx.categoryId || tx.category
                 const pId = tx.projectId || tx.project_id
-                const cat = categories.find((c: any) => c.id === cId || c.name === cId)
+                const cat = safeCategories.find((c: any) => c.id === cId || c.name === cId)
                 const projName =
                   pId === 'tozzi_interno'
                     ? 'TOZZI (Interno)'
-                    : projects.find((p: any) => p.id === pId)?.name || 'TOZZI (Interno)'
-                const respUser = users.find((u: any) => u.id === tx.responsible)
+                    : safeProjects.find((p: any) => p.id === pId)?.name || 'TOZZI (Interno)'
+                const respUser = safeUsers.find((u: any) => u.id === tx.responsible)
 
                 const txStatus = tx.status || 'Pendente'
                 const isPending = txStatus === 'Pendente'

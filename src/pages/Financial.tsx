@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default function Financial() {
   const { canAccess } = usePermissions()
@@ -18,14 +19,19 @@ export default function Financial() {
 
   if (!user) return null
 
-  if (!canAccess('lancamentos_financeiros') && user.role !== 'Administrador') {
+  const isAdminOrManager = user.role === 'Administrador' || user.role === 'Gerente de Projeto'
+  const hasFinanceAccess = (canAccess && canAccess('lancamentos_financeiros')) || isAdminOrManager
+  const hasDistributionAccess = user.role === 'Administrador' || user.role === 'Gerente de Projeto'
+  const hasCategoriesAccess = user.role === 'Administrador'
+
+  if (!hasFinanceAccess && user.role !== 'Administrador') {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[50vh] p-8 animate-fade-in">
         <h2 className="text-2xl font-bold mb-4 text-slate-800 dark:text-slate-200">
-          Acesso Negado
+          Acesso Restrito
         </h2>
         <p className="text-muted-foreground">
-          Você não tem permissão para acessar o módulo financeiro.
+          Você não tem permissão para visualizar o módulo financeiro.
         </p>
       </div>
     )
@@ -44,42 +50,60 @@ export default function Financial() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" asChild className="gap-2">
-            <Link to="/financial-dashboard">
-              <BarChart3 className="h-4 w-4" />
-              Dashboard
-            </Link>
-          </Button>
-          <TransactionModal />
+          {isAdminOrManager && (
+            <Button variant="outline" asChild className="gap-2">
+              <Link to="/financial-dashboard">
+                <BarChart3 className="h-4 w-4" />
+                Dashboard
+              </Link>
+            </Button>
+          )}
+          {hasFinanceAccess && <TransactionModal />}
         </div>
       </div>
 
-      <FinancialAlerts />
+      <ErrorBoundary>
+        <FinancialAlerts />
+      </ErrorBoundary>
 
       <Tabs defaultValue="lancamentos" className="w-full space-y-6">
         <TabsList className="bg-muted p-1 w-full justify-start overflow-x-auto h-auto flex-wrap">
           <TabsTrigger value="lancamentos" className="py-2">
             Lançamentos
           </TabsTrigger>
-          <TabsTrigger value="categorias" className="py-2">
-            Gestão de Categorias
-          </TabsTrigger>
-          <TabsTrigger value="distribuicao" className="py-2">
-            Calculadora de Distribuição
-          </TabsTrigger>
+          {hasCategoriesAccess && (
+            <TabsTrigger value="categorias" className="py-2">
+              Gestão de Categorias
+            </TabsTrigger>
+          )}
+          {hasDistributionAccess && (
+            <TabsTrigger value="distribuicao" className="py-2">
+              Calculadora de Distribuição
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="lancamentos" className="outline-none focus:outline-none m-0">
-          <FinancialTransactions />
+          <ErrorBoundary>
+            <FinancialTransactions />
+          </ErrorBoundary>
         </TabsContent>
 
-        <TabsContent value="categorias" className="outline-none focus:outline-none m-0">
-          <FinancialCategories />
-        </TabsContent>
+        {hasCategoriesAccess && (
+          <TabsContent value="categorias" className="outline-none focus:outline-none m-0">
+            <ErrorBoundary>
+              <FinancialCategories />
+            </ErrorBoundary>
+          </TabsContent>
+        )}
 
-        <TabsContent value="distribuicao" className="outline-none focus:outline-none m-0">
-          <DistributionCalculator />
-        </TabsContent>
+        {hasDistributionAccess && (
+          <TabsContent value="distribuicao" className="outline-none focus:outline-none m-0">
+            <ErrorBoundary>
+              <DistributionCalculator />
+            </ErrorBoundary>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )

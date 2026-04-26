@@ -20,6 +20,8 @@ interface OverviewProps {
 
 export function FinancialOverview({ transactions, categories }: OverviewProps) {
   const { totalIncomes, totalExpenses, balance } = useMemo(() => {
+    if (!transactions || !Array.isArray(transactions))
+      return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
     return transactions.reduce(
       (acc, tx) => {
         const val = tx.value || tx.amount || 0
@@ -33,6 +35,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
   }, [transactions])
 
   const expensesByCategory = useMemo(() => {
+    if (!transactions || !Array.isArray(transactions)) return []
     const expenses = transactions.filter((t) => t.type === 'Saída')
     const grouped = expenses.reduce(
       (acc, tx) => {
@@ -54,6 +57,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
   }, [transactions, categories])
 
   const cashFlowByMonth = useMemo(() => {
+    if (!transactions || !Array.isArray(transactions)) return []
     const currentYear = new Date().getFullYear()
 
     const grouped = transactions.reduce(
@@ -99,6 +103,9 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
   }
 
   const monthlyGoals = useMemo(() => {
+    if (!categories || !Array.isArray(categories)) return []
+    if (!transactions || !Array.isArray(transactions)) return []
+
     const currentMonth = new Date().getUTCMonth()
     const currentYear = new Date().getFullYear()
 

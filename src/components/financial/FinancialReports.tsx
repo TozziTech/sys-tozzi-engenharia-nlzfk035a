@@ -49,6 +49,7 @@ export function FinancialReports() {
   const [budgetInput, setBudgetInput] = useState('')
 
   const filteredTransactions = useMemo(() => {
+    if (!transactions || !Array.isArray(transactions)) return []
     return transactions.filter((tx) => {
       if (period === 'all') return true
       const d = new Date(tx.date)
@@ -91,12 +92,14 @@ export function FinancialReports() {
 
   const projectCosts = useMemo(() => {
     const costs: Record<string, number> = {}
+    if (!Array.isArray(expenses)) return []
+    const safeProjects = Array.isArray(projects) ? projects : []
     expenses.forEach((tx) => {
       const pId = tx.projectId || (tx as any).project_id || 'tozzi_interno'
       const pName =
         pId === 'tozzi_interno'
           ? 'TOZZI (Interno)'
-          : projects.find((p) => p.id === pId)?.name || 'TOZZI (Interno)'
+          : safeProjects.find((p) => p.id === pId)?.name || 'TOZZI (Interno)'
       costs[pName] = (costs[pName] || 0) + (tx.value || (tx as any).amount || 0)
     })
     return Object.entries(costs)
@@ -106,22 +109,26 @@ export function FinancialReports() {
 
   const categoryCosts = useMemo(() => {
     const costs: Record<string, number> = {}
+    if (!Array.isArray(expenses)) return []
+    const safeCategories = Array.isArray(categories) ? categories : []
     expenses.forEach((tx) => {
       const cId = tx.categoryId || (tx as any).category
-      const cName = categories.find((c) => c.id === cId)?.name || 'Sem Categoria'
+      const cName = safeCategories.find((c) => c.id === cId)?.name || 'Sem Categoria'
       costs[cName] = (costs[cName] || 0) + (tx.value || (tx as any).amount || 0)
     })
     return Object.entries(costs)
       .map(([name, total]) => {
-        const cat = categories.find((c) => c.name === name)
+        const cat = safeCategories.find((c) => c.name === name)
         return { name, total, fill: cat?.color || '#94a3b8' }
       })
       .sort((a, b) => b.total - a.total)
   }, [expenses, categories])
 
   const budgetAnalysis = useMemo(() => {
+    if (!transactions || !Array.isArray(transactions)) return []
+    const safeProjects = Array.isArray(projects) ? projects : []
     const allExpenses = transactions.filter((t) => t.type === 'Saída')
-    return projects.map((p) => {
+    return safeProjects.map((p) => {
       const spent = allExpenses
         .filter((tx) => (tx.projectId || (tx as any).project_id) === p.id)
         .reduce((sum, tx) => sum + (tx.value || (tx as any).amount || 0), 0)

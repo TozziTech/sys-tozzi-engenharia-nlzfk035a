@@ -25,7 +25,8 @@ export function DistributionKPIs({ history }: Props) {
     const twelveMonthsAgo = new Date(now)
     twelveMonthsAgo.setMonth(now.getMonth() - 12)
 
-    history.forEach((h) => {
+    const safeHistory = Array.isArray(history) ? history : []
+    safeHistory.forEach((h) => {
       const d = new Date(h.date)
       const amount = h.net_value || 0
       const samuel = h.samuel_amount || 0

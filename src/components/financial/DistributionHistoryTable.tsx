@@ -66,13 +66,15 @@ export function DistributionHistoryTable({ history, onDelete, onEdit }: Props) {
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [selectedYear, setSelectedYear] = useState<string>('all')
 
+  const safeHistory = Array.isArray(history) ? history : []
+
   const availableYears = useMemo(() => {
-    const years = new Set(history.map((item) => new Date(item.date).getFullYear()))
+    const years = new Set(safeHistory.map((item) => new Date(item.date).getFullYear()))
     return Array.from(years).sort((a, b) => b - a)
-  }, [history])
+  }, [safeHistory])
 
   const filteredHistory = useMemo(() => {
-    return history.filter((item) => {
+    return safeHistory.filter((item) => {
       const date = new Date(item.date)
       const monthMatch = selectedMonth === 'all' || date.getMonth().toString() === selectedMonth
       const yearMatch = selectedYear === 'all' || date.getFullYear().toString() === selectedYear

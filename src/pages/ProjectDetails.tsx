@@ -280,6 +280,8 @@ export default function ProjectDetails() {
     )
   }
 
+  const canEditOrDelete = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
+
   const totalModules = modules.length
   const modulesByStatus = modules.reduce(
     (acc, mod) => {
@@ -302,26 +304,28 @@ export default function ProjectDetails() {
             Voltar
           </Link>
         </Button>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditModalOpen(true)}
-            className="gap-2"
-          >
-            <Edit2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setIsDeleteDialogOpen(true)}
-            className="gap-2"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Deletar</span>
-          </Button>
-        </div>
+        {canEditOrDelete && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditModalOpen(true)}
+              className="gap-2"
+            >
+              <Edit2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Editar</span>
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Deletar</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Project Metrics Dashboard */}
@@ -398,6 +402,7 @@ export default function ProjectDetails() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={async () => {
+                        if (!canEditOrDelete) return
                         try {
                           await pb
                             .collection('projects')
@@ -407,8 +412,15 @@ export default function ProjectDetails() {
                           console.error(e)
                         }
                       }}
-                      className={`focus:outline-none transition-colors ${project.is_priority ? 'text-yellow-500 hover:text-yellow-600' : 'text-slate-300 hover:text-yellow-400'}`}
-                      title={project.is_priority ? 'Remover prioridade' : 'Marcar como prioridade'}
+                      disabled={!canEditOrDelete}
+                      className={`focus:outline-none transition-colors ${!canEditOrDelete ? 'cursor-default' : ''} ${project.is_priority ? (canEditOrDelete ? 'text-yellow-500 hover:text-yellow-600' : 'text-yellow-500') : canEditOrDelete ? 'text-slate-300 hover:text-yellow-400' : 'text-slate-300'}`}
+                      title={
+                        !canEditOrDelete
+                          ? 'Sem permissão'
+                          : project.is_priority
+                            ? 'Remover prioridade'
+                            : 'Marcar como prioridade'
+                      }
                     >
                       <Star className={`h-6 w-6 ${project.is_priority ? 'fill-current' : ''}`} />
                     </button>
@@ -498,7 +510,7 @@ export default function ProjectDetails() {
           <Card>
             <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
               <CardTitle className="text-lg">Observações</CardTitle>
-              {!isEditingObservations && (
+              {!isEditingObservations && canEditOrDelete && (
                 <Button
                   variant="ghost"
                   size="sm"

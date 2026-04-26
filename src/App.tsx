@@ -55,7 +55,6 @@ import { AuthProvider, useAuth } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
 import { ThemeColorInjector } from './components/ThemeColorInjector'
 import { ModuleGuard } from './components/auth/ModuleGuard'
-import { usePermissions } from './hooks/use-permissions'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import ForgotPassword from './pages/ForgotPassword'
@@ -65,11 +64,26 @@ import ChangePassword from './pages/ChangePassword'
 
 function HomeRoute() {
   const { user } = useAuth()
-  const { canAccess } = usePermissions()
+
+  if (!user) return <Navigate to="/login" replace />
   if (user?.must_change_password) return <Navigate to="/change-password" replace />
-  if (user?.role === 'Cliente') return <Navigate to="/gestao/painel-cliente" replace />
-  if (canAccess('projetos')) return <Navigate to="/dashboard" replace />
-  return <Navigate to="/meu-painel" replace />
+
+  const role = user?.role
+
+  if (role === 'Administrador' || role === 'Gerente de Projeto') {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  if (role === 'Projetista' || role === 'Estagiário') {
+    return <Navigate to="/projects" replace />
+  }
+
+  if (role === 'Cliente' || role === 'Visitante') {
+    return <Navigate to="/client-dashboard" replace />
+  }
+
+  // Fallback for undefined or unrecognized role
+  return <Navigate to="/projects" replace />
 }
 
 const App = () => (
@@ -103,6 +117,7 @@ const App = () => (
                       element={<DisciplineDetails />}
                     />
                     <Route path="/gestao/painel-cliente" element={<ClientDashboard />} />
+                    <Route path="/client-dashboard" element={<ClientDashboard />} />
                     <Route path="/gestao/painel-cliente/:id" element={<ClientProjectDetails />} />
 
                     {/* Document & File Routes */}

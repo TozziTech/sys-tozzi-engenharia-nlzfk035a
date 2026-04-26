@@ -288,7 +288,7 @@ export default function ProjectDetails() {
       : 0
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-6xl space-y-6">
+    <div className="container mx-auto p-4 md:p-6 max-w-[95%] xl:max-w-screen-2xl space-y-6">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="gap-2">
           <Link to="/projects">

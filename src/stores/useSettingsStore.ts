@@ -36,7 +36,7 @@ export interface ModuleVisibility {
 
 export interface RolePermissions {
   [role: string]: {
-    [moduleId: string]: 'Ativo' | 'Leitura' | 'Inativo'
+    [moduleIdOrAction: string]: 'Ativo' | 'Leitura' | 'Inativo' | boolean
   }
 }
 

@@ -54,6 +54,21 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { exportAccessReportPDF } from '@/lib/exportPdf'
 
+const rbacResources = [
+  { id: 'projects', name: 'Projetos' },
+  { id: 'tasks', name: 'Tarefas' },
+  { id: 'finance', name: 'Financeiro' },
+  { id: 'clients', name: 'Clientes' },
+  { id: 'contacts', name: 'Contatos' },
+]
+
+const rbacActions = [
+  { id: 'view', name: 'Visualizar' },
+  { id: 'create', name: 'Criar' },
+  { id: 'edit', name: 'Editar' },
+  { id: 'delete', name: 'Excluir' },
+]
+
 const moduleGroups = [
   {
     id: 'gestao_projetos',
@@ -408,6 +423,7 @@ const UserAccessCard = ({
 }
 
 export default function AccessControl() {
+  const { user: currentUser } = useAuth()
   const [users, setUsers] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [accessRecords, setAccessRecords] = useState<any[]>([])
@@ -422,7 +438,6 @@ export default function AccessControl() {
   const [newRoleName, setNewRoleName] = useState('')
 
   const { toast } = useToast()
-  const { user: currentUser } = useAuth()
 
   const [approvalUser, setApprovalUser] = useState<any>(null)
   const [requestActionModal, setRequestActionModal] = useState<{
@@ -560,6 +575,32 @@ export default function AccessControl() {
       })
       .sort((a, b) => b.editors + b.readers - (a.editors + a.readers))
   }, [projects, accessRecords, requests])
+
+  const handleRBACChange = async (
+    role: string,
+    resource: string,
+    action: string,
+    checked: boolean,
+  ) => {
+    if (role === 'Administrador') return // Locked
+
+    const permKey = `${resource}.${action}`
+    const newPerms = { ...rolePermissions }
+    if (!newPerms[role]) newPerms[role] = {}
+    newPerms[role][permKey] = checked
+    setRolePermissions(newPerms)
+
+    if (settings) {
+      try {
+        await pb.collection('company_settings').update(settings.id, {
+          role_permissions: newPerms,
+        })
+        toast({ title: 'Sucesso', description: 'Permissão atualizada.' })
+      } catch (e) {
+        toast({ title: 'Erro', description: 'Erro ao salvar permissão.', variant: 'destructive' })
+      }
+    }
+  }
 
   const handleRolePermissionChange = async (role: string, moduleId: string, value: string) => {
     const newPerms = { ...rolePermissions }
@@ -940,6 +981,15 @@ export default function AccessControl() {
     )
   }
 
+  if (currentUser?.role !== 'Administrador') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <h2 className="text-2xl font-bold mb-4">Acesso Negado</h2>
+        <p className="text-muted-foreground">Você não tem permissão para acessar esta página.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4 md:px-6 animate-fade-in-up">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
@@ -989,6 +1039,9 @@ export default function AccessControl() {
           </TabsTrigger>
           <TabsTrigger value="modules" className="flex gap-2">
             <Settings className="h-4 w-4" /> Módulos
+          </TabsTrigger>
+          <TabsTrigger value="rbac" className="flex gap-2">
+            <KeyRound className="h-4 w-4" /> Permissões (RBAC)
           </TabsTrigger>
           <TabsTrigger value="audit_report" className="flex gap-2">
             <ClipboardList className="h-4 w-4" /> Relatório de Auditoria
@@ -1467,6 +1520,103 @@ export default function AccessControl() {
                     sistema.
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="rbac" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <KeyRound className="h-5 w-5 text-amber-500" />
+                Matriz de Permissões (RBAC)
+              </CardTitle>
+              <CardDescription>
+                Configure as ações permitidas para cada perfil de usuário no sistema.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-hidden bg-card overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead className="w-[250px] font-semibold">Ação / Recurso</TableHead>
+                      {[
+                        'Administrador',
+                        'Gerente de Projeto',
+                        'Projetista',
+                        'Estagiário',
+                        'Visitante',
+                        'Cliente',
+                      ].map((role) => (
+                        <TableHead
+                          key={role}
+                          className="text-center font-semibold text-xs whitespace-nowrap"
+                        >
+                          {role}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rbacResources.map((resource) => (
+                      <Fragment key={resource.id}>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell
+                            colSpan={7}
+                            className="font-bold text-xs uppercase tracking-wider text-muted-foreground py-2"
+                          >
+                            {resource.name}
+                          </TableCell>
+                        </TableRow>
+                        {rbacActions.map((action) => (
+                          <TableRow key={`${resource.id}-${action.id}`}>
+                            <TableCell className="pl-6 font-medium text-sm">
+                              {action.name} {resource.name}
+                            </TableCell>
+                            {[
+                              'Administrador',
+                              'Gerente de Projeto',
+                              'Projetista',
+                              'Estagiário',
+                              'Visitante',
+                              'Cliente',
+                            ].map((role) => {
+                              const isLocked = role === 'Administrador'
+                              const permKey = `${resource.id}.${action.id}`
+
+                              let defaultChecked = false
+                              if (isLocked) defaultChecked = true
+                              else if (role === 'Gerente de Projeto') defaultChecked = true
+                              else if (action.id === 'view') defaultChecked = true
+
+                              const val = rolePermissions[role]?.[permKey]
+                              const isChecked = val !== undefined ? val === true : defaultChecked
+
+                              return (
+                                <TableCell
+                                  key={`${resource.id}-${action.id}-${role}`}
+                                  className="text-center"
+                                >
+                                  <div className="flex justify-center">
+                                    <Switch
+                                      checked={isChecked}
+                                      disabled={isLocked}
+                                      onCheckedChange={(c) =>
+                                        handleRBACChange(role, resource.id, action.id, c)
+                                      }
+                                    />
+                                  </div>
+                                </TableCell>
+                              )
+                            })}
+                          </TableRow>
+                        ))}
+                      </Fragment>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>

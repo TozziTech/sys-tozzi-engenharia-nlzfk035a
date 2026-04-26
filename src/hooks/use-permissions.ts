@@ -77,5 +77,29 @@ export function usePermissions() {
   const canAccess = (moduleId: string) => getPermission(moduleId) !== 'Inativo'
   const canWrite = (moduleId: string) => getPermission(moduleId) === 'Ativo'
 
-  return { getPermission, canAccess, canWrite }
+  const can = (action: 'view' | 'create' | 'edit' | 'delete', resource: string) => {
+    if (user?.role === 'Administrador') return true
+
+    const permKey = `${resource}.${action}`
+
+    if (user?.custom_role && customRoles[user.custom_role]) {
+      const cr = customRoles[user.custom_role]
+      const crPerms = cr.permissions || {}
+      if (crPerms[permKey] !== undefined) {
+        return crPerms[permKey] === true
+      }
+    }
+
+    const rolePerms = role_permissions?.[user?.role || '']
+    if (rolePerms && rolePerms[permKey] !== undefined) {
+      return rolePerms[permKey] === true
+    }
+
+    // Default fallback based on role and action
+    if (user?.role === 'Gerente de Projeto') return true
+    if (action === 'view') return true
+    return false
+  }
+
+  return { getPermission, canAccess, canWrite, can }
 }

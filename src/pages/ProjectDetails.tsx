@@ -71,6 +71,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
+import { usePermissions } from '@/hooks/use-permissions'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
 
 export default function ProjectDetails() {
@@ -271,6 +272,8 @@ export default function ProjectDetails() {
   const gapClass = density === 'compact' ? 'space-y-4' : 'space-y-6'
   const gridGapClass = density === 'compact' ? 'gap-4' : 'gap-6'
 
+  const { can } = usePermissions()
+
   if (!project) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8">
@@ -280,7 +283,8 @@ export default function ProjectDetails() {
     )
   }
 
-  const canEditOrDelete = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
+  const canEdit = can('edit', 'projects')
+  const canDelete = can('delete', 'projects')
 
   const totalModules = modules.length
   const modulesByStatus = modules.reduce(
@@ -304,26 +308,30 @@ export default function ProjectDetails() {
             Voltar
           </Link>
         </Button>
-        {canEditOrDelete && (
+        {(canEdit || canDelete) && (
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditModalOpen(true)}
-              className="gap-2"
-            >
-              <Edit2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Editar</span>
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setIsDeleteDialogOpen(true)}
-              className="gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Deletar</span>
-            </Button>
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditModalOpen(true)}
+                className="gap-2"
+              >
+                <Edit2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Editar</span>
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Deletar</span>
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -402,7 +410,7 @@ export default function ProjectDetails() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={async () => {
-                        if (!canEditOrDelete) return
+                        if (!canEdit) return
                         try {
                           await pb
                             .collection('projects')
@@ -412,10 +420,10 @@ export default function ProjectDetails() {
                           console.error(e)
                         }
                       }}
-                      disabled={!canEditOrDelete}
-                      className={`focus:outline-none transition-colors ${!canEditOrDelete ? 'cursor-default' : ''} ${project.is_priority ? (canEditOrDelete ? 'text-yellow-500 hover:text-yellow-600' : 'text-yellow-500') : canEditOrDelete ? 'text-slate-300 hover:text-yellow-400' : 'text-slate-300'}`}
+                      disabled={!canEdit}
+                      className={`focus:outline-none transition-colors ${!canEdit ? 'cursor-default' : ''} ${project.is_priority ? (canEdit ? 'text-yellow-500 hover:text-yellow-600' : 'text-yellow-500') : canEdit ? 'text-slate-300 hover:text-yellow-400' : 'text-slate-300'}`}
                       title={
-                        !canEditOrDelete
+                        !canEdit
                           ? 'Sem permissão'
                           : project.is_priority
                             ? 'Remover prioridade'
@@ -510,7 +518,7 @@ export default function ProjectDetails() {
           <Card>
             <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
               <CardTitle className="text-lg">Observações</CardTitle>
-              {!isEditingObservations && canEditOrDelete && (
+              {!isEditingObservations && canEdit && (
                 <Button
                   variant="ghost"
                   size="sm"

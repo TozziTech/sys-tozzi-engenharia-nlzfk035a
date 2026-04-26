@@ -18,7 +18,15 @@ import {
   format,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { TrendingUp, TrendingDown, Wallet, Download, FileText, Banknote } from 'lucide-react'
+import {
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  Download,
+  FileText,
+  Banknote,
+  AlertTriangle,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { exportFinancialCSV } from '@/lib/export'
@@ -26,6 +34,8 @@ import { exportFinancialPDF } from '@/lib/exportPdf'
 import {
   Bar,
   BarChart,
+  Area,
+  AreaChart,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -196,6 +206,17 @@ export default function FinancialDashboard() {
       .sort((a, b) => b.budget - a.budget)
   }, [projects])
 
+  const { totalBudget, totalSpent } = useMemo(() => {
+    return activeProjectsFinancials.reduce(
+      (acc, p) => {
+        acc.totalBudget += p.budget
+        acc.totalSpent += p.spent
+        return acc
+      },
+      { totalBudget: 0, totalSpent: 0 },
+    )
+  }, [activeProjectsFinancials])
+
   const handleProgressChange = async (id: string, newProgress: string) => {
     const val = parseFloat(newProgress)
     if (isNaN(val) || val < 0 || val > 100) return
@@ -226,6 +247,21 @@ export default function FinancialDashboard() {
     'hsl(var(--chart-5))',
     'hsl(var(--primary))',
   ]
+
+  if (user?.role !== 'Administrador' && user?.role !== 'Gerente de Projeto') {
+    return (
+      <div className="flex-1 p-8 pt-6">
+        <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg bg-muted/20 animate-fade-in">
+          <AlertTriangle className="h-10 w-10 text-amber-500 mb-4" />
+          <h3 className="text-lg font-medium">Acesso Restrito</h3>
+          <p className="text-muted-foreground mt-2 max-w-md">
+            Você não tem permissão para visualizar o Dashboard Executivo Financeiro. Apenas
+            Administradores e Gerentes de Projeto têm acesso a esta visão consolidada.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 animate-fade-in">
@@ -333,15 +369,16 @@ export default function FinancialDashboard() {
             </Card>
             <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Distribuído (Mês)</CardTitle>
+                <CardTitle className="text-sm font-medium">Orçamento vs Gasto</CardTitle>
                 <div className="p-2 bg-blue-500/10 rounded-full">
                   <Banknote className="h-4 w-4 text-blue-500" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {loading ? '-' : formatCurrency(currentMonthDistributed)}
+                  {loading ? '-' : `${formatCurrency(totalSpent)} / ${formatCurrency(totalBudget)}`}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">Projetos Ativos</p>
               </CardContent>
             </Card>
           </div>
@@ -374,10 +411,20 @@ export default function FinancialDashboard() {
                     }}
                     className="h-[300px] w-full"
                   >
-                    <BarChart
+                    <AreaChart
                       data={cashFlowData}
                       margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
                     >
+                      <defs>
+                        <linearGradient id="fillReceita" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--color-receita)" stopOpacity={0.8} />
+                          <stop offset="95%" stopColor="var(--color-receita)" stopOpacity={0.1} />
+                        </linearGradient>
+                        <linearGradient id="fillDespesa" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--color-despesa)" stopOpacity={0.8} />
+                          <stop offset="95%" stopColor="var(--color-despesa)" stopOpacity={0.1} />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid vertical={false} strokeDasharray="3 3" />
                       <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={10} />
                       <YAxis
@@ -386,19 +433,21 @@ export default function FinancialDashboard() {
                         tickLine={false}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
+                      <Area
+                        type="monotone"
                         dataKey="receita"
-                        fill="var(--color-receita)"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={50}
+                        stroke="var(--color-receita)"
+                        fillOpacity={1}
+                        fill="url(#fillReceita)"
                       />
-                      <Bar
+                      <Area
+                        type="monotone"
                         dataKey="despesa"
-                        fill="var(--color-despesa)"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={50}
+                        stroke="var(--color-despesa)"
+                        fillOpacity={1}
+                        fill="url(#fillDespesa)"
                       />
-                    </BarChart>
+                    </AreaChart>
                   </ChartContainer>
                 )}
               </CardContent>

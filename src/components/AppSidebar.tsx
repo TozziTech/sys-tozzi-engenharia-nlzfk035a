@@ -90,9 +90,9 @@ const getNavigationGroups = () => [
     items: [
       {
         name: 'Dashboard Financeiro',
-        id: 'lancamentos_financeiros',
         href: '/financial-dashboard',
         icon: LineChart,
+        allowedRoles: ['Administrador', 'Gerente de Projeto'],
       },
       { name: 'Lançamentos', id: 'lancamentos_financeiros', href: '/financial', icon: DollarSign },
       { name: 'Orçamentos', id: 'orcamentos', href: '/quotes', icon: FileText },

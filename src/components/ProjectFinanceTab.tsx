@@ -533,6 +533,8 @@ export function ProjectFinanceTab({ project }: { project: any }) {
                     <TableHead>Descrição</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead>Tipo</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Responsável</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -587,6 +589,35 @@ export function ProjectFinanceTab({ project }: { project: any }) {
                           >
                             {transaction.type}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {transaction.status === 'Pago' && (
+                            <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent">
+                              Pago
+                            </Badge>
+                          )}
+                          {transaction.status === 'Pendente' && (
+                            <Badge
+                              variant="outline"
+                              className="text-amber-600 border-amber-500 dark:text-amber-400"
+                            >
+                              Pendente
+                            </Badge>
+                          )}
+                          {transaction.status === 'Atrasado' && (
+                            <Badge variant="destructive">Atrasado</Badge>
+                          )}
+                          {transaction.status === 'Cancelado' && (
+                            <Badge
+                              variant="secondary"
+                              className="dark:bg-zinc-800 dark:text-zinc-300"
+                            >
+                              Cancelado
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-zinc-600 dark:text-zinc-400 text-sm">
+                          {transaction.responsible}
                         </TableCell>
                         <TableCell
                           className={`text-right font-medium whitespace-nowrap ${

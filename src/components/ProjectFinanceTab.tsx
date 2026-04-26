@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { subDays, isAfter } from 'date-fns'
 import useProjectStore from '@/stores/useProjectStore'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useFinancialCategories } from '@/hooks/use-financial-categories'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -41,6 +42,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
   const { transactions, updateTransaction } = useProjectStore()
   const { categories } = useFinancialCategories()
   const { effectiveRole } = useAuth()
+  const { can, canAccess } = usePermissions()
 
   const [periodFilter, setPeriodFilter] = useState<string>('all')
   const [draggedTx, setDraggedTx] = useState<string | null>(null)
@@ -48,8 +50,8 @@ export function ProjectFinanceTab({ project }: { project: any }) {
 
   const canViewFinance =
     effectiveRole === 'Administrador' ||
-    effectiveRole === 'Gerente de Projeto' ||
-    effectiveRole === 'Cliente'
+    effectiveRole === 'Cliente' ||
+    (canAccess('financeiro') && can('view', 'financeiro'))
 
   if (!canViewFinance) {
     return (

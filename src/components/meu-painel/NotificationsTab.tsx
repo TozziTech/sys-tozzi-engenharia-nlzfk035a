@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Bell, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Bell, Clock, AlertTriangle, CheckCircle2, AlertCircle, Calendar } from 'lucide-react'
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -77,6 +77,67 @@ export function NotificationsTab() {
     })
   }, [notifications, filterStatus, startDate, endDate])
 
+  const getNotificationVisuals = (notif: any) => {
+    const type = notif.action_type || ''
+    const title = notif.title?.toLowerCase() || ''
+
+    if (
+      type === 'Alerta de atraso' ||
+      title.includes('atraso') ||
+      title.includes('atrasada') ||
+      title.includes('vencida')
+    ) {
+      return {
+        Icon: AlertCircle,
+        colorText: 'text-rose-600 dark:text-rose-500',
+        bgUnread: 'bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100/50 dark:hover:bg-rose-950/30',
+        borderColor: 'border-rose-200 dark:border-rose-900/50',
+        borderClass: 'border-l-4 border-l-rose-500',
+        iconBg: 'bg-rose-100 dark:bg-rose-900/40',
+        indicator: 'bg-rose-500',
+      }
+    }
+    if (type === 'Alerta de urgência' || title.includes('hoje') || title.includes('urgência')) {
+      return {
+        Icon: Calendar,
+        colorText: 'text-orange-600 dark:text-orange-500',
+        bgUnread:
+          'bg-orange-50 dark:bg-orange-950/20 hover:bg-orange-100/50 dark:hover:bg-orange-950/30',
+        borderColor: 'border-orange-200 dark:border-orange-900/50',
+        borderClass: 'border-l-4 border-l-orange-500',
+        iconBg: 'bg-orange-100 dark:bg-orange-900/40',
+        indicator: 'bg-orange-500',
+      }
+    }
+    if (
+      type === 'Alerta preventivo' ||
+      title.includes('preventivo') ||
+      title.includes('3 dias') ||
+      title.includes('vence em')
+    ) {
+      return {
+        Icon: Clock,
+        colorText: 'text-yellow-600 dark:text-yellow-500',
+        bgUnread:
+          'bg-yellow-50 dark:bg-yellow-950/20 hover:bg-yellow-100/50 dark:hover:bg-yellow-950/30',
+        borderColor: 'border-yellow-200 dark:border-yellow-900/50',
+        borderClass: 'border-l-4 border-l-yellow-500',
+        iconBg: 'bg-yellow-100 dark:bg-yellow-900/40',
+        indicator: 'bg-yellow-500',
+      }
+    }
+
+    return {
+      Icon: notif.is_important ? AlertTriangle : Bell,
+      colorText: 'text-primary',
+      bgUnread: 'bg-primary/5 hover:bg-primary/10',
+      borderColor: 'border-primary/20',
+      borderClass: 'border-l-4 border-l-primary/40',
+      iconBg: 'bg-primary/20',
+      indicator: 'bg-primary',
+    }
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-end">
@@ -118,44 +179,45 @@ export function NotificationsTab() {
             <p className="text-muted-foreground font-medium">Nenhuma notificação encontrada.</p>
           </div>
         ) : (
-          filtered.map((n) => (
-            <div
-              key={n.id}
-              onClick={() => handleNotificationClick(n)}
-              className={`p-4 rounded-xl border transition-colors cursor-pointer flex gap-4 items-start ${n.read ? 'bg-background hover:bg-muted/50 border-border' : 'bg-primary/5 hover:bg-primary/10 border-primary/20 shadow-sm'}`}
-            >
+          filtered.map((n) => {
+            const visuals = getNotificationVisuals(n)
+            return (
               <div
-                className={`mt-1 rounded-full p-2.5 ${n.read ? 'bg-muted text-muted-foreground' : 'bg-primary/20 text-primary'}`}
+                key={n.id}
+                onClick={() => handleNotificationClick(n)}
+                className={`p-4 rounded-xl border transition-colors cursor-pointer flex gap-4 items-start ${n.read ? 'bg-background hover:bg-muted/50 border-border opacity-80' : `${visuals.bgUnread} ${visuals.borderColor} shadow-sm`} ${visuals.borderClass} overflow-hidden`}
               >
-                {n.is_important ? (
-                  <AlertTriangle className="w-5 h-5" />
-                ) : (
-                  <Bell className="w-5 h-5" />
+                <div
+                  className={`mt-1 rounded-full p-2.5 shrink-0 ${n.read ? `bg-muted ${visuals.colorText} opacity-50` : `${visuals.iconBg} ${visuals.colorText}`}`}
+                >
+                  <visuals.Icon className="w-5 h-5" />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2">
+                    <h4
+                      className={`font-semibold leading-tight ${n.read ? 'text-muted-foreground' : 'text-foreground'}`}
+                    >
+                      {n.title}
+                    </h4>
+                    <span className="text-xs font-medium text-muted-foreground shrink-0 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" />
+                      {format(parseISO(n.created), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                    </span>
+                  </div>
+                  <p
+                    className={`text-sm leading-relaxed ${n.read ? 'text-muted-foreground' : 'text-foreground/90'}`}
+                  >
+                    {n.message}
+                  </p>
+                </div>
+                {!n.read && (
+                  <div
+                    className={`w-2.5 h-2.5 rounded-full mt-2.5 shrink-0 shadow-sm ${visuals.indicator}`}
+                  />
                 )}
               </div>
-              <div className="flex-1 space-y-1.5">
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2">
-                  <h4
-                    className={`font-semibold leading-tight ${n.read ? 'text-muted-foreground' : 'text-foreground'}`}
-                  >
-                    {n.title}
-                  </h4>
-                  <span className="text-xs font-medium text-muted-foreground shrink-0 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
-                    {format(parseISO(n.created), "dd 'de' MMM, HH:mm", { locale: ptBR })}
-                  </span>
-                </div>
-                <p
-                  className={`text-sm leading-relaxed ${n.read ? 'text-muted-foreground' : 'text-foreground/90'}`}
-                >
-                  {n.message}
-                </p>
-              </div>
-              {!n.read && (
-                <div className="w-2.5 h-2.5 rounded-full bg-primary mt-2.5 shrink-0 shadow-sm" />
-              )}
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>

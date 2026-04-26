@@ -10,6 +10,9 @@ import {
   CheckSquare,
   FileText,
   X,
+  AlertCircle,
+  Calendar,
+  Clock,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -190,6 +193,59 @@ export function Header() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays >= 0 && diffDays <= 3
   })
+
+  const getNotificationVisuals = (notif: any) => {
+    const type = notif.action_type || ''
+    const title = notif.title?.toLowerCase() || ''
+
+    if (
+      type === 'Alerta de atraso' ||
+      title.includes('atraso') ||
+      title.includes('atrasada') ||
+      title.includes('vencida')
+    ) {
+      return {
+        Icon: AlertCircle,
+        colorText: 'text-rose-600 dark:text-rose-500',
+        bgUnread: 'bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/20 dark:hover:bg-rose-950/30',
+        borderClass: 'border-l-4 border-l-rose-500',
+        indicator: 'bg-rose-500',
+      }
+    }
+    if (type === 'Alerta de urgência' || title.includes('hoje') || title.includes('urgência')) {
+      return {
+        Icon: Calendar,
+        colorText: 'text-orange-600 dark:text-orange-500',
+        bgUnread:
+          'bg-orange-50 hover:bg-orange-100/80 dark:bg-orange-950/20 dark:hover:bg-orange-950/30',
+        borderClass: 'border-l-4 border-l-orange-500',
+        indicator: 'bg-orange-500',
+      }
+    }
+    if (
+      type === 'Alerta preventivo' ||
+      title.includes('preventivo') ||
+      title.includes('3 dias') ||
+      title.includes('vence em')
+    ) {
+      return {
+        Icon: Clock,
+        colorText: 'text-yellow-600 dark:text-yellow-500',
+        bgUnread:
+          'bg-yellow-50 hover:bg-yellow-100/80 dark:bg-yellow-950/20 dark:hover:bg-yellow-950/30',
+        borderClass: 'border-l-4 border-l-yellow-500',
+        indicator: 'bg-yellow-500',
+      }
+    }
+
+    return {
+      Icon: notif.is_important ? AlertTriangle : Bell,
+      colorText: 'text-primary',
+      bgUnread: 'bg-primary/5 hover:bg-primary/10',
+      borderClass: 'border-l-4 border-l-primary/40',
+      indicator: 'bg-primary',
+    }
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl px-4 md:px-6 shadow-sm">
@@ -447,73 +503,83 @@ export function Header() {
                   </div>
                 ) : (
                   <div className="flex flex-col">
-                    {notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className={`p-4 border-b last:border-0 flex flex-col gap-1.5 transition-colors group relative ${!notif.read ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/50'}`}
-                      >
-                        <div className="flex justify-between items-start gap-3">
-                          <SheetClose asChild>
-                            <Link
-                              to={notif.link || '#'}
-                              onClick={() => markNotificationAsRead(notif.id)}
-                              className={`text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight ${!notif.read ? 'text-foreground' : 'text-muted-foreground'}`}
-                            >
-                              {notif.title}
-                            </Link>
-                          </SheetClose>
-                          {!notif.read && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-primary mt-1 shrink-0 shadow-sm" />
-                          )}
-                        </div>
-                        <p
-                          className={`text-sm leading-relaxed ${!notif.read ? 'text-foreground/80' : 'text-muted-foreground'}`}
+                    {notifications.map((notif) => {
+                      const visuals = getNotificationVisuals(notif)
+                      return (
+                        <div
+                          key={notif.id}
+                          className={`p-4 border-b border-r-0 border-t-0 last:border-b-0 flex flex-col gap-1.5 transition-colors group relative ${!notif.read ? visuals.bgUnread : 'hover:bg-muted/50 bg-transparent'} ${visuals.borderClass}`}
                         >
-                          {notif.message}
-                        </p>
-
-                        {notif.action_type === 'approve_phase' && !notif.read && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="bg-emerald-600 hover:bg-emerald-700 text-xs h-7 px-3"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                handleApproveFromNotification(notif, true)
-                              }}
-                            >
-                              <Check className="w-3 h-3 mr-1" /> Aprovar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="text-xs h-7 px-3"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                handleApproveFromNotification(notif, false)
-                              }}
-                            >
-                              <X className="w-3 h-3 mr-1" /> Solicitar Revisão
-                            </Button>
+                          <div className="flex justify-between items-start gap-3">
+                            <div className="flex items-start gap-2">
+                              <visuals.Icon
+                                className={`mt-0.5 h-4 w-4 shrink-0 ${visuals.colorText} ${notif.read ? 'opacity-50' : ''}`}
+                              />
+                              <SheetClose asChild>
+                                <Link
+                                  to={notif.link || '#'}
+                                  onClick={() => markNotificationAsRead(notif.id)}
+                                  className={`text-sm font-medium hover:underline hover:text-primary transition-colors leading-tight ${!notif.read ? 'text-foreground' : 'text-muted-foreground'}`}
+                                >
+                                  {notif.title}
+                                </Link>
+                              </SheetClose>
+                            </div>
+                            {!notif.read && (
+                              <div
+                                className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 shadow-sm ${visuals.indicator}`}
+                              />
+                            )}
                           </div>
-                        )}
+                          <p
+                            className={`text-sm leading-relaxed ${!notif.read ? 'text-foreground/80' : 'text-muted-foreground'}`}
+                          >
+                            {notif.message}
+                          </p>
 
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-[11px] text-muted-foreground font-medium">
-                            {formatDistanceToNow(new Date(notif.created), {
-                              addSuffix: true,
-                              locale: ptBR,
-                            })}
-                          </span>
-                          {notif.read && (
-                            <span className="text-[11px] text-muted-foreground/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                              <Check className="h-3 w-3" /> Lida
-                            </span>
+                          {notif.action_type === 'approve_phase' && !notif.read && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-xs h-7 px-3"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  handleApproveFromNotification(notif, true)
+                                }}
+                              >
+                                <Check className="w-3 h-3 mr-1" /> Aprovar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="text-xs h-7 px-3"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  handleApproveFromNotification(notif, false)
+                                }}
+                              >
+                                <X className="w-3 h-3 mr-1" /> Solicitar Revisão
+                              </Button>
+                            </div>
                           )}
+
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-[11px] text-muted-foreground font-medium">
+                              {formatDistanceToNow(new Date(notif.created), {
+                                addSuffix: true,
+                                locale: ptBR,
+                              })}
+                            </span>
+                            {notif.read && (
+                              <span className="text-[11px] text-muted-foreground/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                <Check className="h-3 w-3" /> Lida
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </ScrollArea>

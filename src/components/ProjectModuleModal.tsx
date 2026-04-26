@@ -137,34 +137,6 @@ export function ProjectModuleModal({
         toast({ title: 'Disciplina criada' })
       }
 
-      if (payload.responsible) {
-        try {
-          const accesses = await pb
-            .collection('user_project_access')
-            .getFullList({ filter: `user = "${payload.responsible}" && project = "${projectId}"` })
-          if (accesses.length === 0) {
-            const requests = await pb.collection('access_requests').getFullList({
-              filter: `user = "${payload.responsible}" && project = "${projectId}" && status = "Pendente"`,
-            })
-            if (requests.length === 0) {
-              await pb.collection('access_requests').create({
-                user: payload.responsible,
-                project: projectId,
-                requested_level: 'Edição',
-                status: 'Pendente',
-              })
-              const userName = users.find((u) => u.id === payload.responsible)?.name || 'Usuário'
-              toast({
-                title: 'Acesso solicitado',
-                description: `Acesso solicitado ao administrador para o colaborador ${userName}`,
-              })
-            }
-          }
-        } catch (err) {
-          console.error('Error requesting access:', err)
-        }
-      }
-
       onClose()
     } catch (err) {
       toast({

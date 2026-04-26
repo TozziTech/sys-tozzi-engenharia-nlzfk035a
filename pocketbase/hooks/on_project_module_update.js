@@ -43,8 +43,37 @@ onRecordUpdateRequest((e) => {
         $app.saveNoValidate(log)
       }
     }
+
+    // Grant "Edição" access automatically
+    const projectId = e.record.get('project')
+    const responsibleId = e.record.get('responsible')
+    const designerId = e.record.get('designer')
+
+    const grantAccess = (uId) => {
+      if (!uId) return
+      try {
+        const existing = $app.findFirstRecordByFilter(
+          'user_project_access',
+          `user = "${uId}" && project = "${projectId}"`,
+        )
+        if (existing.get('access_level') !== 'Edição') {
+          existing.set('access_level', 'Edição')
+          $app.saveNoValidate(existing)
+        }
+      } catch (_) {
+        const col = $app.findCollectionByNameOrId('user_project_access')
+        const newRec = new Record(col)
+        newRec.set('user', uId)
+        newRec.set('project', projectId)
+        newRec.set('access_level', 'Edição')
+        $app.saveNoValidate(newRec)
+      }
+    }
+
+    grantAccess(responsibleId)
+    grantAccess(designerId)
   } catch (err) {
-    console.log('Audit log error in on_project_module_update:', err)
+    console.log('Audit/Access log error in on_project_module_update:', err)
   }
 
   return e.next()

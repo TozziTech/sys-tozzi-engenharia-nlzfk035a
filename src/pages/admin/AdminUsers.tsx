@@ -21,6 +21,8 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { Shield, Users, ShieldAlert, AlertCircle } from 'lucide-react'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { useAuth } from '@/hooks/use-auth'
+import { Navigate } from 'react-router-dom'
 
 const roles = [
   'Administrador',
@@ -32,6 +34,7 @@ const roles = [
 ]
 
 export default function AdminUsers() {
+  const { user } = useAuth()
   const [users, setUsers] = useState<any[]>([])
   const [customRoles, setCustomRoles] = useState<any[]>([])
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -77,6 +80,10 @@ export default function AdminUsers() {
     } finally {
       setUpdatingId(null)
     }
+  }
+
+  if (user?.role !== 'Administrador') {
+    return <Navigate to="/dashboard" replace />
   }
 
   return (

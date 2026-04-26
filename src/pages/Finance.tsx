@@ -8,6 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { usePermissions } from '@/hooks/use-permissions'
+import { useAuth } from '@/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -50,6 +53,9 @@ const months = [
 
 export default function Finance() {
   const { projects, transactions, categories } = useProjectStore()
+  const { canAccess } = usePermissions()
+  const { user } = useAuth()
+  const { toast } = useToast()
 
   const [periodFilter, setPeriodFilter] = useState<string>('all')
 
@@ -199,6 +205,21 @@ export default function Finance() {
     setSelectedYear('all')
     setSelectedType('all')
     setPeriodFilter('all')
+  }
+
+  if (!user) return null
+
+  if (!canAccess('lancamentos_financeiros') && user.role !== 'Administrador') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[50vh] p-8 animate-fade-in">
+        <h2 className="text-2xl font-bold mb-4 text-slate-800 dark:text-slate-200">
+          Acesso Negado
+        </h2>
+        <p className="text-muted-foreground">
+          Você não tem permissão para acessar o dashboard financeiro.
+        </p>
+      </div>
+    )
   }
 
   return (

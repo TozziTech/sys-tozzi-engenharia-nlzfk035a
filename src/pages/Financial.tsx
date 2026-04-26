@@ -7,8 +7,30 @@ import { FinancialAlerts } from '@/components/financial/FinancialAlerts'
 import { DistributionCalculator } from '@/components/financial/DistributionCalculator'
 import { Button } from '@/components/ui/button'
 import { Link } from 'react-router-dom'
+import { usePermissions } from '@/hooks/use-permissions'
+import { useAuth } from '@/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
 
 export default function Financial() {
+  const { canAccess } = usePermissions()
+  const { user } = useAuth()
+  const { toast } = useToast()
+
+  if (!user) return null
+
+  if (!canAccess('lancamentos_financeiros') && user.role !== 'Administrador') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[50vh] p-8 animate-fade-in">
+        <h2 className="text-2xl font-bold mb-4 text-slate-800 dark:text-slate-200">
+          Acesso Negado
+        </h2>
+        <p className="text-muted-foreground">
+          Você não tem permissão para acessar o módulo financeiro.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="w-full p-6 md:p-8 mx-auto space-y-6 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

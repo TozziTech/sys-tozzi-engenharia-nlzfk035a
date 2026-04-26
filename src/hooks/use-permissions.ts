@@ -51,11 +51,10 @@ export function usePermissions() {
   })
 
   const getPermission = (moduleId: string) => {
-    if (user?.role === 'Administrador') return 'Ativo'
+    if (!user) return 'Inativo'
+    if (user.role === 'Administrador') return 'Ativo'
 
     if (moduleVisibility[moduleId] === false) return 'Inativo'
-
-    if (!user) return 'Inativo'
 
     // Prioritize Custom Role if assigned
     if (user.custom_role && customRoles[user.custom_role]) {
@@ -66,7 +65,7 @@ export function usePermissions() {
       }
     }
 
-    const rolePerms = role_permissions?.[user.role]
+    const rolePerms = role_permissions?.[user.role || '']
     if (rolePerms && rolePerms[moduleId]) {
       return rolePerms[moduleId]
     }
@@ -78,11 +77,12 @@ export function usePermissions() {
   const canWrite = (moduleId: string) => getPermission(moduleId) === 'Ativo'
 
   const can = (action: 'view' | 'create' | 'edit' | 'delete', resource: string) => {
-    if (user?.role === 'Administrador') return true
+    if (!user) return false
+    if (user.role === 'Administrador') return true
 
     const permKey = `${resource}.${action}`
 
-    if (user?.custom_role && customRoles[user.custom_role]) {
+    if (user.custom_role && customRoles[user.custom_role]) {
       const cr = customRoles[user.custom_role]
       const crPerms = cr.permissions || {}
       if (crPerms[permKey] !== undefined) {
@@ -90,13 +90,13 @@ export function usePermissions() {
       }
     }
 
-    const rolePerms = role_permissions?.[user?.role || '']
+    const rolePerms = role_permissions?.[user.role || '']
     if (rolePerms && rolePerms[permKey] !== undefined) {
       return rolePerms[permKey] === true
     }
 
     // Default fallback based on role and action
-    if (user?.role === 'Gerente de Projeto') return true
+    if (user.role === 'Gerente de Projeto') return true
     if (action === 'view') return true
     return false
   }

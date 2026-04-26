@@ -350,12 +350,10 @@ export function TransactionTable({
                               onClick={async (e) => {
                                 e.stopPropagation()
                                 try {
-                                  await pb
-                                    .collection('financial_records')
-                                    .update(tx.id, {
-                                      is_approved: true,
-                                      approved_by: pb.authStore.record?.id,
-                                    })
+                                  await pb.collection('financial_records').update(tx.id, {
+                                    is_approved: true,
+                                    approved_by: pb.authStore.record?.id,
+                                  })
                                 } catch (err) {
                                   console.error(err)
                                 }

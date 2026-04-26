@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Printer,
+  UploadCloud,
+  TrendingUp,
 } from 'lucide-react'
 import {
   format,
@@ -77,30 +79,36 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PrintWeeklyReport } from '@/components/PrintWeeklyReport'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'Concluído':
-      return 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+      return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
     case 'Em Andamento':
-      return 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20'
+    case 'Em Execução':
+      return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20'
     case 'Atrasado':
-      return 'bg-rose-500/10 text-rose-500 hover:bg-rose-500/20'
+      return 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-500 dark:border-rose-500/20'
+    case 'Pendente':
+    case 'Planejamento':
     default:
-      return 'bg-slate-500/10 text-slate-500 hover:bg-slate-500/20'
+      return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
   }
 }
 
 const getStatusIcon = (status: string) => {
   switch (status) {
     case 'Concluído':
-      return <CheckCircle2 className="w-4 h-4 mr-1" />
+      return <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
     case 'Em Andamento':
-      return <PlayCircle className="w-4 h-4 mr-1" />
+    case 'Em Execução':
+      return <PlayCircle className="w-3.5 h-3.5 mr-1" />
     case 'Atrasado':
-      return <AlertCircle className="w-4 h-4 mr-1" />
+      return <AlertCircle className="w-3.5 h-3.5 mr-1" />
     default:
-      return <PauseCircle className="w-4 h-4 mr-1" />
+      return <PauseCircle className="w-3.5 h-3.5 mr-1" />
   }
 }
 
@@ -132,6 +140,10 @@ export default function DesignerPanel() {
 
   const [projectStatusFilter, setProjectStatusFilter] = useState('Todos')
   const [printMode, setPrintMode] = useState<'weekly' | null>(null)
+
+  const [uploadProject, setUploadProject] = useState<any>(null)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   const handlePrintWeeklyReport = () => {
     setPrintMode('weekly')
@@ -251,6 +263,78 @@ export default function DesignerPanel() {
       toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' })
     }
   }
+
+  const handleQuickUpload = async () => {
+    if (!uploadProject || !uploadFile) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('project', uploadProject.id)
+      formData.append('name', uploadFile.name)
+      formData.append('type', 'Other')
+      formData.append('file', uploadFile)
+
+      await pb.collection('project_documents').create(formData)
+      toast({
+        title: 'Upload concluído',
+        description: 'Documento de campo anexado com sucesso ao projeto.',
+      })
+      setUploadProject(null)
+      setUploadFile(null)
+    } catch (error: any) {
+      toast({
+        title: 'Erro no upload',
+        description: error.message || 'Não foi possível enviar o arquivo.',
+        variant: 'destructive',
+      })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const weeklyProjects = useMemo(() => {
+    const now = new Date()
+    const start = startOfWeek(now, { weekStartsOn: 0 })
+    const end = endOfWeek(now, { weekStartsOn: 0 })
+
+    return myProjects.filter((p) => {
+      const pStart = p.start_date ? new Date(p.start_date) : new Date(0)
+      const pEnd = p.end_date ? new Date(p.end_date) : new Date(8640000000000000)
+      return isBefore(pStart, end) && isAfter(pEnd, start)
+    })
+  }, [myProjects])
+
+  const chartData = useMemo(() => {
+    const counts = { Pendente: 0, 'Em Andamento': 0, Concluído: 0 }
+    weeklyProjects.forEach((p) => {
+      if (p.status === 'Concluído') counts['Concluído']++
+      else if (p.status === 'Em Andamento' || p.status === 'Em Execução') counts['Em Andamento']++
+      else counts['Pendente']++
+    })
+
+    const total = weeklyProjects.length || 1
+
+    return [
+      {
+        status: 'Pendente',
+        count: counts['Pendente'],
+        percentage: Math.round((counts['Pendente'] / total) * 100),
+        fill: 'var(--color-pendente)',
+      },
+      {
+        status: 'Em Andamento',
+        count: counts['Em Andamento'],
+        percentage: Math.round((counts['Em Andamento'] / total) * 100),
+        fill: 'var(--color-andamento)',
+      },
+      {
+        status: 'Concluído',
+        count: counts['Concluído'],
+        percentage: Math.round((counts['Concluído'] / total) * 100),
+        fill: 'var(--color-concluido)',
+      },
+    ]
+  }, [weeklyProjects])
 
   const filteredProjects = useMemo(() => {
     const s = search.toLowerCase()
@@ -407,6 +491,62 @@ export default function DesignerPanel() {
 
         <TabsContent value="overview" className="space-y-6 outline-none m-0">
           <div className="grid gap-6 md:grid-cols-2">
+            <Card className="border-zinc-800/50 bg-zinc-950/50 md:col-span-2">
+              <CardHeader className="pb-3 border-b border-zinc-800/50 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-amber-500" />
+                    Progresso Semanal ({weeklyProjects.length} Projetos Ativos)
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Distribuição de status (%) dos projetos da semana atual
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="py-6">
+                <ChartContainer
+                  config={{
+                    pendente: { label: 'Pendente', color: 'hsl(215 16.3% 46.9%)' },
+                    andamento: { label: 'Em Andamento', color: 'hsl(38 92% 50%)' },
+                    concluido: { label: 'Concluído', color: 'hsl(142 71% 45%)' },
+                  }}
+                  className="h-[120px] w-full"
+                >
+                  <BarChart
+                    data={chartData}
+                    layout="vertical"
+                    margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={true}
+                      vertical={false}
+                      stroke="hsl(var(--border))"
+                    />
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="status"
+                      type="category"
+                      axisLine={false}
+                      tickLine={false}
+                      fontSize={12}
+                      width={100}
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <ChartTooltip
+                      cursor={{ fill: 'hsl(var(--muted))', opacity: 0.2 }}
+                      content={<ChartTooltipContent />}
+                    />
+                    <Bar dataKey="percentage" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
             <Card className="border-zinc-800/50 bg-zinc-950/50">
               <CardHeader className="pb-3 border-b border-zinc-800/50">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -490,12 +630,12 @@ export default function DesignerPanel() {
                         </div>
                         <Badge
                           variant="outline"
-                          className={
-                            project.status === 'Concluído'
-                              ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/10'
-                              : ''
-                          }
+                          className={cn(
+                            'whitespace-nowrap font-medium',
+                            getStatusColor(project.status),
+                          )}
                         >
+                          {getStatusIcon(project.status)}
                           {project.status}
                         </Badge>
                       </div>
@@ -505,18 +645,32 @@ export default function DesignerPanel() {
                       </div>
                       <Progress value={project.progress || 0} className="h-1.5 mb-3" />
 
-                      {hasFinanceAccess && project.budget > 0 && (
-                        <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
-                          <div className="flex justify-between text-xs text-zinc-400 font-medium">
-                            <span>Orçamento: R$ {project.budget?.toLocaleString('pt-BR')}</span>
-                            <span>Gasto: R$ {project.spent?.toLocaleString('pt-BR')}</span>
+                      <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
+                        {hasFinanceAccess && project.budget > 0 ? (
+                          <div className="space-y-1 flex-1 mr-4">
+                            <div className="flex justify-between text-xs text-zinc-400 font-medium">
+                              <span>Orçamento: R$ {project.budget?.toLocaleString('pt-BR')}</span>
+                              <span>Gasto: R$ {project.spent?.toLocaleString('pt-BR')}</span>
+                            </div>
+                            <Progress
+                              value={Math.min(100, ((project.spent || 0) / project.budget) * 100)}
+                              className="h-1.5 [&>div]:bg-amber-500 bg-zinc-800"
+                            />
                           </div>
-                          <Progress
-                            value={Math.min(100, ((project.spent || 0) / project.budget) * 100)}
-                            className="h-1.5 [&>div]:bg-amber-500 bg-zinc-800"
-                          />
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex-1" />
+                        )}
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                          onClick={() => setUploadProject(project)}
+                        >
+                          <UploadCloud className="w-3.5 h-3.5 mr-1.5" />
+                          Upload Rápido
+                        </Button>
+                      </div>
                     </div>
                   )
                 })}
@@ -731,7 +885,6 @@ export default function DesignerPanel() {
             </div>
           ) : (
             <>
-              {/* Desktop Grid */}
               <div className="hidden md:block rounded-xl border border-zinc-800 overflow-hidden bg-zinc-950/50">
                 <div className="grid grid-cols-7 bg-zinc-900/80 border-b border-zinc-800">
                   {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
@@ -817,7 +970,6 @@ export default function DesignerPanel() {
                 </div>
               </div>
 
-              {/* Mobile View */}
               <div className="flex flex-col md:hidden items-center gap-6">
                 <Card className="border-zinc-800 bg-zinc-950 p-2 w-full flex justify-center shadow-md">
                   <Calendar
@@ -848,8 +1000,12 @@ export default function DesignerPanel() {
                           <div className="font-medium text-sm truncate flex-1 pr-2">{p.name}</div>
                           <Badge
                             variant="outline"
-                            className={p.is_priority ? 'text-amber-500 border-amber-500/20' : ''}
+                            className={cn(
+                              'whitespace-nowrap font-medium',
+                              getStatusColor(p.status),
+                            )}
                           >
+                            {getStatusIcon(p.status)}
                             {p.status}
                           </Badge>
                         </CardHeader>
@@ -940,6 +1096,42 @@ export default function DesignerPanel() {
               Cancelar
             </Button>
             <Button onClick={handleLogHours}>Salvar Registro</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!uploadProject} onOpenChange={(o) => !o && setUploadProject(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Upload Rápido de Documento</DialogTitle>
+            <DialogDescription>
+              Anexe fotos ou arquivos de campo diretamente ao projeto{' '}
+              <strong>{uploadProject?.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Arquivo (JPG, PNG, PDF)</Label>
+              <Input
+                type="file"
+                accept=".jpg,.jpeg,.png,.pdf"
+                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                disabled={uploading}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setUploadProject(null)} disabled={uploading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleQuickUpload} disabled={!uploadFile || uploading}>
+              {uploading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <UploadCloud className="w-4 h-4 mr-2" />
+              )}
+              {uploading ? 'Enviando...' : 'Enviar Documento'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

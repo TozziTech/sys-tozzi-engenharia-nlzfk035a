@@ -72,6 +72,7 @@ export interface Comment {
   content: string
   timestamp: string
   attachments?: Attachment[]
+  reactions?: Record<string, string[]>
 }
 
 export interface AuditLogChange {

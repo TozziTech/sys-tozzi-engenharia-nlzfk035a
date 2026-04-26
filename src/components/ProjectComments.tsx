@@ -5,11 +5,17 @@ import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Paperclip, Send, File as FileIcon, X, Loader2, Pencil, Trash2, Check } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format, isWithinInterval, startOfDay, endOfDay } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
 import { useRealtime } from '@/hooks/use-realtime'
 import { ptBR } from 'date-fns/locale'
 import pb from '@/lib/pocketbase/client'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { DateRange } from 'react-day-picker'
+import { SmilePlus, Search, CalendarIcon } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -48,6 +54,9 @@ export function ProjectComments({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -126,6 +135,61 @@ export function ProjectComments({
       setDeletingId(null)
     }
   }
+
+  const toggleReaction = async (comment: any, emoji: string) => {
+    if (!user) return
+
+    const currentReactions = comment.reactions || {}
+    const usersForEmoji = currentReactions[emoji] || []
+
+    let newUsersForEmoji
+    if (usersForEmoji.includes(user.id)) {
+      newUsersForEmoji = usersForEmoji.filter((id: string) => id !== user.id)
+    } else {
+      newUsersForEmoji = [...usersForEmoji, user.id]
+    }
+
+    const newReactions = { ...currentReactions, [emoji]: newUsersForEmoji }
+    if (newUsersForEmoji.length === 0) delete newReactions[emoji]
+
+    setComments((prev) =>
+      prev.map((c) => (c.id === comment.id ? { ...c, reactions: newReactions } : c)),
+    )
+
+    try {
+      await pb.collection('comentarios_projeto').update(comment.id, { reactions: newReactions })
+    } catch (error) {
+      loadData()
+      toast({ title: 'Erro ao registrar reação', variant: 'destructive' })
+    }
+  }
+
+  const filteredComments = useMemo(() => {
+    return comments.filter((c) => {
+      let matchesSearch = true
+      if (searchQuery) {
+        matchesSearch = c.mensagem.toLowerCase().includes(searchQuery.toLowerCase())
+      }
+
+      let matchesDate = true
+      if (dateRange?.from) {
+        const commentDate = new Date(c.created)
+        if (dateRange.to) {
+          matchesDate = isWithinInterval(commentDate, {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to),
+          })
+        } else {
+          matchesDate = isWithinInterval(commentDate, {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.from),
+          })
+        }
+      }
+
+      return matchesSearch && matchesDate
+    })
+  }, [comments, searchQuery, dateRange])
 
   const filteredUsers = useMemo(() => {
     if (!mentionQuery) return users
@@ -240,17 +304,79 @@ export function ProjectComments({
 
   return (
     <Card className="flex flex-col h-[600px] border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-zinc-950 w-full rounded-xl overflow-hidden">
-      <CardHeader className="py-4 border-b bg-slate-50/50 dark:bg-zinc-900/50 flex flex-row items-center justify-between gap-4">
-        <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-zinc-100">
-          Discussão
-          <Badge
-            variant="secondary"
-            className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/80 transition-colors ml-1"
-          >
-            {comments.length}
-          </Badge>
-        </CardTitle>
-        {projectType === 'projects' && <ProjectPresence projectId={projectId} />}
+      <CardHeader className="py-4 border-b bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col gap-4">
+        <div className="flex flex-row items-center justify-between w-full gap-4">
+          <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-zinc-100">
+            Discussão
+            <Badge
+              variant="secondary"
+              className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/80 transition-colors ml-1"
+            >
+              {filteredComments.length}
+            </Badge>
+          </CardTitle>
+          {projectType === 'projects' && <ProjectPresence projectId={projectId} />}
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-2 w-full">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar nas discussões..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-9 text-sm bg-white dark:bg-zinc-950"
+            />
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-9 justify-start text-left font-normal sm:w-[240px] bg-white dark:bg-zinc-950',
+                  !dateRange?.from && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, 'dd/MM/yy')} - {format(dateRange.to, 'dd/MM/yy')}
+                    </>
+                  ) : (
+                    format(dateRange.from, 'dd/MM/yy')
+                  )
+                ) : (
+                  <span>Filtrar por data</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={1}
+                locale={ptBR}
+              />
+              {dateRange?.from && (
+                <div className="p-2 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-8 text-xs"
+                    onClick={() => setDateRange(undefined)}
+                  >
+                    Limpar Filtro
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        </div>
       </CardHeader>
 
       <CardContent className="flex-1 p-0 flex flex-col overflow-hidden relative">
@@ -267,8 +393,15 @@ export function ProjectComments({
                 </div>
                 <p>Nenhum comentário ainda. Inicie a discussão!</p>
               </div>
+            ) : filteredComments.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-3">
+                <div className="bg-slate-100 dark:bg-zinc-900 p-3 rounded-full">
+                  <Search className="h-6 w-6 text-slate-400 dark:text-zinc-500" />
+                </div>
+                <p>Nenhum comentário encontrado para os filtros aplicados.</p>
+              </div>
             ) : (
-              comments.map((comment) => {
+              filteredComments.map((comment) => {
                 const isAuthor = comment.autor === user?.id
                 const isAdmin = user?.role === 'Administrador'
                 const canEditDelete = isAuthor || isAdmin
@@ -298,28 +431,63 @@ export function ProjectComments({
                             {comment.updated !== comment.created && ' (editado)'}
                           </span>
                         </div>
-                        {canEditDelete && (
-                          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                            {isAuthor && (
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                          <Popover>
+                            <PopoverTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 text-slate-400 hover:text-indigo-600"
-                                onClick={() => handleEdit(comment)}
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <SmilePlus className="h-3.5 w-3.5" />
                               </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-slate-400 hover:text-rose-600"
-                              onClick={() => setDeletingId(comment.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        )}
+                            </PopoverTrigger>
+                            <PopoverContent className="w-fit p-1 flex gap-1 shadow-lg" side="top">
+                              {['👍', '❤️', '🚀', '✅', '💡'].map((emoji) => {
+                                const hasReacted = comment.reactions?.[emoji]?.includes(user?.id)
+                                return (
+                                  <Button
+                                    key={emoji}
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      'h-8 w-8 text-lg',
+                                      hasReacted
+                                        ? 'bg-slate-100 dark:bg-zinc-800'
+                                        : 'hover:bg-slate-100 dark:hover:bg-zinc-800',
+                                    )}
+                                    onClick={() => toggleReaction(comment, emoji)}
+                                  >
+                                    {emoji}
+                                  </Button>
+                                )
+                              })}
+                            </PopoverContent>
+                          </Popover>
+
+                          {canEditDelete && (
+                            <>
+                              {isAuthor && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-slate-400 hover:text-indigo-600"
+                                  onClick={() => handleEdit(comment)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-slate-400 hover:text-rose-600"
+                                onClick={() => setDeletingId(comment.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       {editingId === comment.id ? (
@@ -374,6 +542,47 @@ export function ProjectComments({
                               </div>
                             </a>
                           ))}
+                        </div>
+                      )}
+
+                      {comment.reactions && Object.keys(comment.reactions).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          <TooltipProvider delayDuration={300}>
+                            {Object.entries(comment.reactions).map(
+                              ([emoji, userIds]: [string, any]) => {
+                                if (!userIds || userIds.length === 0) return null
+                                const hasReacted = user?.id && userIds.includes(user.id)
+                                const reactorNames = userIds
+                                  .map(
+                                    (id: string) =>
+                                      users.find((u) => u.id === id)?.name || 'Usuário',
+                                  )
+                                  .join(', ')
+
+                                return (
+                                  <Tooltip key={emoji}>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={() => toggleReaction(comment, emoji)}
+                                        className={cn(
+                                          'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors border',
+                                          hasReacted
+                                            ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-300'
+                                            : 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800',
+                                        )}
+                                      >
+                                        <span>{emoji}</span>
+                                        <span>{userIds.length}</span>
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-xs">{reactorNames}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )
+                              },
+                            )}
+                          </TooltipProvider>
                         </div>
                       )}
                     </div>

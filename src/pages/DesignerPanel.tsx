@@ -16,6 +16,7 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
+  Printer,
 } from 'lucide-react'
 import {
   format,
@@ -31,6 +32,8 @@ import {
   isToday,
   addMonths,
   subMonths,
+  differenceInDays,
+  startOfDay,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -72,6 +75,8 @@ import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { PrintWeeklyReport } from '@/components/PrintWeeklyReport'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -124,6 +129,17 @@ export default function DesignerPanel() {
 
   const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+
+  const [projectStatusFilter, setProjectStatusFilter] = useState('Todos')
+  const [printMode, setPrintMode] = useState<'weekly' | null>(null)
+
+  const handlePrintWeeklyReport = () => {
+    setPrintMode('weekly')
+    setTimeout(() => {
+      window.print()
+      setPrintMode(null)
+    }, 100)
+  }
 
   const loadData = async () => {
     if (!user) return
@@ -251,9 +267,18 @@ export default function DesignerPanel() {
         (p.client || '').toLowerCase().includes(s) ||
         matchedClients.includes(p.client)
 
-      return matchSearch
+      let matchStatus = true
+      if (projectStatusFilter === 'Pendentes') {
+        matchStatus = p.status === 'Planejamento' || p.status === 'Pendente'
+      } else if (projectStatusFilter === 'Em Andamento') {
+        matchStatus = p.status === 'Em Andamento' || p.status === 'Em Execução'
+      } else if (projectStatusFilter === 'Concluídos') {
+        matchStatus = p.status === 'Concluído'
+      }
+
+      return matchSearch && matchStatus
     })
-  }, [myProjects, search, clients])
+  }, [myProjects, search, clients, projectStatusFilter])
 
   const filteredModules = useMemo(() => {
     const s = search.toLowerCase()
@@ -326,6 +351,14 @@ export default function DesignerPanel() {
             Olá, {user?.name}. Acompanhe o progresso dos seus projetos, disciplinas e prazos.
           </p>
         </div>
+        <Button
+          variant="outline"
+          className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+          onClick={handlePrintWeeklyReport}
+        >
+          <Printer className="w-4 h-4 mr-2" />
+          Relatório Semanal
+        </Button>
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-zinc-900/50 backdrop-blur-md p-4 rounded-xl border border-zinc-800 shadow-sm">
@@ -383,49 +416,110 @@ export default function DesignerPanel() {
                 <CardDescription>Acompanhamento dos projetos que você faz parte</CardDescription>
               </CardHeader>
               <CardContent className="py-4 space-y-4">
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {['Todos', 'Pendentes', 'Em Andamento', 'Concluídos'].map((f) => (
+                    <Button
+                      key={f}
+                      variant={projectStatusFilter === f ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setProjectStatusFilter(f)}
+                      className={cn(
+                        'rounded-full text-xs h-7',
+                        projectStatusFilter === f
+                          ? 'bg-amber-500 text-amber-950 hover:bg-amber-600 border-transparent'
+                          : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800',
+                      )}
+                    >
+                      {f}
+                    </Button>
+                  ))}
+                </div>
                 {filteredProjects.length === 0 && (
                   <p className="text-sm text-zinc-500 text-center py-4">
                     Nenhum projeto vinculado a você com este filtro.
                   </p>
                 )}
-                {filteredProjects.map((project) => (
-                  <div
-                    key={project.id}
-                    className="p-4 rounded-lg bg-zinc-900 border border-zinc-800"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="font-medium text-zinc-100">{project.name}</div>
-                      <Badge
-                        variant="outline"
-                        className={
-                          project.status === 'Concluído'
-                            ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/10'
-                            : ''
-                        }
-                      >
-                        {project.status}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between text-xs text-zinc-400 mb-1">
-                      <span>Progresso Geral</span>
-                      <span>{project.progress || 0}%</span>
-                    </div>
-                    <Progress value={project.progress || 0} className="h-1.5 mb-3" />
+                {filteredProjects.map((project) => {
+                  const critical =
+                    project.status !== 'Concluído' &&
+                    project.end_date &&
+                    differenceInDays(
+                      startOfDay(new Date(project.end_date)),
+                      startOfDay(new Date()),
+                    ) >= 0 &&
+                    differenceInDays(
+                      startOfDay(new Date(project.end_date)),
+                      startOfDay(new Date()),
+                    ) <= 3
+                  const diffDays = project.end_date
+                    ? differenceInDays(
+                        startOfDay(new Date(project.end_date)),
+                        startOfDay(new Date()),
+                      )
+                    : 0
 
-                    {hasFinanceAccess && project.budget > 0 && (
-                      <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
-                        <div className="flex justify-between text-xs text-zinc-400 font-medium">
-                          <span>Orçamento: R$ {project.budget?.toLocaleString('pt-BR')}</span>
-                          <span>Gasto: R$ {project.spent?.toLocaleString('pt-BR')}</span>
+                  return (
+                    <div
+                      key={project.id}
+                      className={cn(
+                        'p-4 rounded-lg bg-zinc-900 border',
+                        critical ? 'border-rose-500/50 bg-rose-500/5' : 'border-zinc-800',
+                      )}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-medium text-zinc-100 flex items-center gap-2">
+                          {project.name}
+                          {critical && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-rose-500/10 text-rose-500 border-rose-500/20 px-1.5 py-0 h-5 cursor-help"
+                                  >
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Vence em breve
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Faltam {diffDays} dia(s) para a entrega</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
-                        <Progress
-                          value={Math.min(100, ((project.spent || 0) / project.budget) * 100)}
-                          className="h-1.5 [&>div]:bg-amber-500 bg-zinc-800"
-                        />
+                        <Badge
+                          variant="outline"
+                          className={
+                            project.status === 'Concluído'
+                              ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/10'
+                              : ''
+                          }
+                        >
+                          {project.status}
+                        </Badge>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <div className="flex justify-between text-xs text-zinc-400 mb-1">
+                        <span>Progresso Geral</span>
+                        <span>{project.progress || 0}%</span>
+                      </div>
+                      <Progress value={project.progress || 0} className="h-1.5 mb-3" />
+
+                      {hasFinanceAccess && project.budget > 0 && (
+                        <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
+                          <div className="flex justify-between text-xs text-zinc-400 font-medium">
+                            <span>Orçamento: R$ {project.budget?.toLocaleString('pt-BR')}</span>
+                            <span>Gasto: R$ {project.spent?.toLocaleString('pt-BR')}</span>
+                          </div>
+                          <Progress
+                            value={Math.min(100, ((project.spent || 0) / project.budget) * 100)}
+                            className="h-1.5 [&>div]:bg-amber-500 bg-zinc-800"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </CardContent>
             </Card>
 
@@ -849,6 +943,8 @@ export default function DesignerPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PrintWeeklyReport projects={myProjects} userName={user?.name || ''} printMode={printMode} />
     </div>
   )
 }

@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Calendar,
   Download,
+  FileText,
 } from 'lucide-react'
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -177,6 +178,18 @@ export function NotificationsTab() {
         borderClass: 'border-l-4 border-l-yellow-500',
         iconBg: 'bg-yellow-100 dark:bg-yellow-900/40',
         indicator: 'bg-yellow-500',
+      }
+    }
+
+    if (title.includes('novo arquivo') || title.includes('documento')) {
+      return {
+        Icon: FileText,
+        colorText: 'text-blue-600 dark:text-blue-500',
+        bgUnread: 'bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-950/30',
+        borderColor: 'border-blue-200 dark:border-blue-900/50',
+        borderClass: 'border-l-4 border-l-blue-500',
+        iconBg: 'bg-blue-100 dark:bg-blue-900/40',
+        indicator: 'bg-blue-500',
       }
     }
 

@@ -239,6 +239,16 @@ export function Header() {
       }
     }
 
+    if (title.includes('novo arquivo') || title.includes('documento')) {
+      return {
+        Icon: FileText,
+        colorText: 'text-blue-600 dark:text-blue-500',
+        bgUnread: 'bg-blue-50 hover:bg-blue-100/80 dark:bg-blue-950/20 dark:hover:bg-blue-950/30',
+        borderClass: 'border-l-4 border-l-blue-500',
+        indicator: 'bg-blue-500',
+      }
+    }
+
     return {
       Icon: notif.is_important ? AlertTriangle : Bell,
       colorText: 'text-primary',

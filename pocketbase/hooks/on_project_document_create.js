@@ -24,9 +24,51 @@ onRecordAfterCreateSuccess(
 
     $app.save(log)
 
+    const collectionName = e.collection.name
+
+    // New Logic: Notify Admins & PMs for internal project documents
+    if (collectionName === 'project_documents') {
+      const internalProjectId = record.getString('project')
+      if (internalProjectId) {
+        try {
+          const project = $app.findRecordById('projects', internalProjectId)
+          const projectName = project.getString('name') || 'Projeto'
+          const docName = record.getString('name') || 'Documento'
+
+          const managers = $app.findRecordsByFilter(
+            'users',
+            "role = 'Gerente de Projeto' || role = 'Administrador'",
+            '',
+            1000,
+            0,
+          )
+          const uploaderId = e.auth?.id
+
+          for (let i = 0; i < managers.length; i++) {
+            const mgr = managers[i]
+            if (mgr.id === uploaderId) continue
+
+            const notif = new Record($app.findCollectionByNameOrId('notifications'))
+            notif.set('user', mgr.id)
+            notif.set('title', 'Novo Arquivo Carregado')
+            notif.set(
+              'message',
+              'O arquivo ' + docName + ' foi carregado no projeto ' + projectName + '.',
+            )
+            notif.set('link', '/projects/' + internalProjectId)
+            notif.set('read', false)
+            notif.set('is_important', false)
+            $app.save(notif)
+          }
+        } catch (err) {
+          console.log('Error creating PM notifications: ' + err)
+        }
+      }
+    }
+
     // Automate Email on New Document for Client Dashboard
     const projectId = record.getString('projeto_id')
-    if (projectId) {
+    if (projectId && collectionName === 'documentos_projeto') {
       try {
         const project = $app.findRecordById('projetos_cliente', projectId)
         const clientId = project.getString('cliente')

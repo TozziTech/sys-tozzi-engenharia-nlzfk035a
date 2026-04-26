@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-26T03:22:41.772Z",
+  "generatedAt": "2026-04-26T03:28:22.441Z",
   "collections": [
     {
       "name": "users",
@@ -207,6 +207,18 @@
         {
           "name": "must_change_password",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_notifications_enabled",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deadline_lead_days",
+          "type": "number",
           "required": false,
           "system": false
         }

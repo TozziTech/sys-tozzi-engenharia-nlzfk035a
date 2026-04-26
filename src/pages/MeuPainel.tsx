@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
 import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
 import { HistoricoLancamentos } from '@/components/meu-painel/HistoricoLancamentos'
 import { NotificationsTab } from '@/components/meu-painel/NotificationsTab'
@@ -100,6 +101,39 @@ export default function MeuPainel() {
     hours: '',
     description: '',
   })
+
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true)
+  const [deadlineLeadDays, setDeadlineLeadDays] = useState('3')
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false)
+
+  useEffect(() => {
+    if (user) {
+      setEmailNotificationsEnabled(user.email_notifications_enabled ?? true)
+      setDeadlineLeadDays(user.deadline_lead_days?.toString() || '3')
+    }
+  }, [user])
+
+  const handleSavePreferences = async () => {
+    if (!user) return
+    const days = parseInt(deadlineLeadDays, 10)
+    if (isNaN(days) || days < 1) {
+      toast({ title: 'O número de dias deve ser no mínimo 1.', variant: 'destructive' })
+      return
+    }
+
+    setIsSavingPrefs(true)
+    try {
+      await pb.collection('users').update(user.id, {
+        email_notifications_enabled: emailNotificationsEnabled,
+        deadline_lead_days: days,
+      })
+      toast({ title: 'Preferências salvas com sucesso!' })
+    } catch (e) {
+      toast({ title: 'Erro ao salvar preferências.', variant: 'destructive' })
+    } finally {
+      setIsSavingPrefs(false)
+    }
+  }
 
   const loadData = async () => {
     if (!user) return
@@ -260,6 +294,9 @@ export default function MeuPainel() {
             </TabsTrigger>
             <TabsTrigger value="historico" className="w-full sm:w-auto">
               Histórico de Lançamentos
+            </TabsTrigger>
+            <TabsTrigger value="alertas" className="w-full sm:w-auto">
+              Configurações de Alerta
             </TabsTrigger>
           </TabsList>
         </div>
@@ -496,6 +533,54 @@ export default function MeuPainel() {
 
         <TabsContent value="notificacoes" className="space-y-6">
           <NotificationsTab />
+        </TabsContent>
+
+        <TabsContent value="alertas" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações de Alerta</CardTitle>
+              <CardDescription>
+                Gerencie como e quando você recebe notificações sobre os prazos dos seus projetos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between space-x-2 border p-4 rounded-lg">
+                <Label htmlFor="email-alerts" className="flex flex-col space-y-1 cursor-pointer">
+                  <span className="font-medium text-base">Receber notificações por e-mail</span>
+                  <span className="font-normal text-sm text-slate-500">
+                    Enviaremos alertas críticos (preventivo, urgência e atraso) para o seu e-mail.
+                  </span>
+                </Label>
+                <Switch
+                  id="email-alerts"
+                  checked={emailNotificationsEnabled}
+                  onCheckedChange={setEmailNotificationsEnabled}
+                />
+              </div>
+              <div className="space-y-3 border p-4 rounded-lg">
+                <Label htmlFor="lead-days" className="font-medium text-base">
+                  Antecedência do alerta preventivo (dias)
+                </Label>
+                <p className="text-sm text-slate-500 mb-2">
+                  Quantos dias antes do vencimento do prazo você deseja ser alertado?
+                </p>
+                <div className="flex items-center max-w-[200px]">
+                  <Input
+                    id="lead-days"
+                    type="number"
+                    min="1"
+                    value={deadlineLeadDays}
+                    onChange={(e) => setDeadlineLeadDays(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSavePreferences} disabled={isSavingPrefs}>
+                {isSavingPrefs ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </CardFooter>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

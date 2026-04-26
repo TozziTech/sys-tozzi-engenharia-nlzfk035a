@@ -75,7 +75,7 @@ function HomeRoute() {
   }
 
   if (role === 'Projetista' || role === 'Estagiário') {
-    return <Navigate to="/projects" replace />
+    return <Navigate to="/designer-panel" replace />
   }
 
   if (role === 'Cliente' || role === 'Visitante') {
@@ -83,7 +83,7 @@ function HomeRoute() {
   }
 
   // Fallback for undefined or unrecognized role
-  return <Navigate to="/projects" replace />
+  return <Navigate to="/designer-panel" replace />
 }
 
 const App = () => (

@@ -1,4 +1,4 @@
-import { DollarSign, BarChart3 } from 'lucide-react'
+import { DollarSign, BarChart3, FileText } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions'
 import { FinancialCategories } from '@/components/financial/FinancialCategories'
@@ -6,34 +6,65 @@ import { TransactionModal } from '@/components/financial/TransactionModal'
 import { FinancialAlerts } from '@/components/financial/FinancialAlerts'
 import { DistributionCalculator } from '@/components/financial/DistributionCalculator'
 import { Button } from '@/components/ui/button'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { useEffect } from 'react'
+import useProjectStore from '@/stores/useProjectStore'
+import { exportFinancialPDF } from '@/lib/exportPdf'
 
 export default function Financial() {
   const { canAccess } = usePermissions()
   const { user } = useAuth()
   const { toast } = useToast()
+  const navigate = useNavigate()
+  const { transactions } = useProjectStore()
+
+  const isAdminOrManager = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
+  const hasFinanceAccess = (canAccess && canAccess('lancamentos_financeiros')) || isAdminOrManager
+  const hasDistributionAccess =
+    user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
+  const hasCategoriesAccess = user?.role === 'Administrador'
+
+  useEffect(() => {
+    if (user && !hasFinanceAccess && user.role !== 'Administrador') {
+      toast({
+        title: 'Acesso restrito',
+        description: 'Você não tem permissão para visualizar o módulo financeiro.',
+        variant: 'destructive',
+      })
+      if (user.role === 'Projetista' || user.role === 'Estagiário') {
+        navigate('/designer-panel', { replace: true })
+      } else if (user.role === 'Cliente' || user.role === 'Visitante') {
+        navigate('/client-dashboard', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
+    }
+  }, [hasFinanceAccess, user, navigate, toast])
 
   if (!user) return null
+  if (!hasFinanceAccess && user.role !== 'Administrador') return null
 
-  const isAdminOrManager = user.role === 'Administrador' || user.role === 'Gerente de Projeto'
-  const hasFinanceAccess = (canAccess && canAccess('lancamentos_financeiros')) || isAdminOrManager
-  const hasDistributionAccess = user.role === 'Administrador' || user.role === 'Gerente de Projeto'
-  const hasCategoriesAccess = user.role === 'Administrador'
-
-  if (!hasFinanceAccess && user.role !== 'Administrador') {
-    return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[50vh] p-8 animate-fade-in">
-        <h2 className="text-2xl font-bold mb-4 text-slate-800 dark:text-slate-200">
-          Acesso Restrito
-        </h2>
-        <p className="text-muted-foreground">
-          Você não tem permissão para visualizar o módulo financeiro.
-        </p>
-      </div>
+  const handleExportPDF = () => {
+    const safeTx = Array.isArray(transactions) ? transactions : []
+    const totals = safeTx.reduce(
+      (acc, tx) => {
+        const val = tx.value || (tx as any).amount || 0
+        if (tx.type === 'Entrada') acc.revenue += val
+        else acc.expenses += val
+        acc.balance = acc.revenue - acc.expenses
+        return acc
+      },
+      { revenue: 0, expenses: 0, balance: 0 },
+    )
+    exportFinancialPDF(
+      safeTx,
+      totals,
+      'Todos os Registros (Acesso Permitido)',
+      user.name || 'Usuário',
     )
   }
 
@@ -50,6 +81,10 @@ export default function Financial() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={handleExportPDF} className="gap-2">
+            <FileText className="h-4 w-4" />
+            Exportar Relatório (PDF)
+          </Button>
           {isAdminOrManager && (
             <Button variant="outline" asChild className="gap-2">
               <Link to="/financial-dashboard">

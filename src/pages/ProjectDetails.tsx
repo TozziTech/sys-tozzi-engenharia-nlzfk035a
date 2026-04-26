@@ -234,15 +234,6 @@ export default function ProjectDetails() {
     navigate('/projects')
   }, [project, deleteProject, navigate, toast])
 
-  const formatCurrency = (value?: number) => {
-    if (value === undefined) return 'N/A'
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-  }
-
-  const budget = project?.budget || 0
-  const spent = project?.spent || 0
-  const budgetPercentage = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0
-
   const projectTimeLogs = useMemo(() => {
     if (!project) return []
     return timeLogs
@@ -336,7 +327,114 @@ export default function ProjectDetails() {
         )}
       </div>
 
-      {/* Project Metrics Dashboard */}
+      {/* Header Info Section */}
+      <Card className="w-full">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    if (!canEdit) return
+                    try {
+                      await pb
+                        .collection('projects')
+                        .update(project.id, { is_priority: !project.is_priority })
+                      updateProject(project.id, { is_priority: !project.is_priority })
+                    } catch (e) {
+                      console.error(e)
+                    }
+                  }}
+                  disabled={!canEdit}
+                  className={`focus:outline-none transition-colors ${!canEdit ? 'cursor-default' : ''} ${project.is_priority ? (canEdit ? 'text-yellow-500 hover:text-yellow-600' : 'text-yellow-500') : canEdit ? 'text-slate-300 hover:text-yellow-400' : 'text-slate-300'}`}
+                  title={
+                    !canEdit
+                      ? 'Sem permissão'
+                      : project.is_priority
+                        ? 'Remover prioridade'
+                        : 'Marcar como prioridade'
+                  }
+                >
+                  <Star className={`h-6 w-6 ${project.is_priority ? 'fill-current' : ''}`} />
+                </button>
+                <CardTitle className="text-2xl font-bold">{project.name}</CardTitle>
+              </div>
+              <CardDescription className="text-base mt-1">{project.client}</CardDescription>
+            </div>
+            <StatusBadge status={project.status} className="px-3 py-1 text-sm font-medium" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-4 gap-x-8 mb-6">
+            <div className="flex items-center gap-3 text-sm">
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                  Disciplina
+                </p>
+                <p className="font-medium">{project.discipline}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                  Engenheiro Resp.
+                </p>
+                <p className="font-medium">{project.engineer}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                  Início
+                </p>
+                <p className="font-medium">{project.startDate.split('-').reverse().join('/')}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                  Entrega
+                </p>
+                <p className="font-medium">{project.endDate.split('-').reverse().join('/')}</p>
+              </div>
+            </div>
+            {project.cno && (
+              <div className="flex items-center gap-3 text-sm">
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                    CNO da Obra
+                  </p>
+                  <p className="font-medium">{project.cno}</p>
+                </div>
+              </div>
+            )}
+            {project.cnpj && (
+              <div className="flex items-center gap-3 text-sm">
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                    CNPJ da Obra
+                  </p>
+                  <p className="font-medium">{project.cnpj}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {project.description && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-muted-foreground text-sm">{project.description}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Project Metrics Dashboard / Visão Geral do Projeto */}
       <Card className="w-full">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -400,117 +498,26 @@ export default function ProjectDetails() {
         </CardContent>
       </Card>
 
+      {/* Progresso Tracking */}
+      <Card className="w-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Progresso/Conclusão</CardTitle>
+          <CardDescription>Percentual de conclusão atual do projeto</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm font-medium">
+              <span>Conclusão</span>
+              <span>{project.progress}%</span>
+            </div>
+            <Progress value={project.progress} className="h-2" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Content Layout */}
       <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass}`}>
-        {/* Main Info */}
         <div className={`md:col-span-2 ${gapClass}`}>
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={async () => {
-                        if (!canEdit) return
-                        try {
-                          await pb
-                            .collection('projects')
-                            .update(project.id, { is_priority: !project.is_priority })
-                          updateProject(project.id, { is_priority: !project.is_priority })
-                        } catch (e) {
-                          console.error(e)
-                        }
-                      }}
-                      disabled={!canEdit}
-                      className={`focus:outline-none transition-colors ${!canEdit ? 'cursor-default' : ''} ${project.is_priority ? (canEdit ? 'text-yellow-500 hover:text-yellow-600' : 'text-yellow-500') : canEdit ? 'text-slate-300 hover:text-yellow-400' : 'text-slate-300'}`}
-                      title={
-                        !canEdit
-                          ? 'Sem permissão'
-                          : project.is_priority
-                            ? 'Remover prioridade'
-                            : 'Marcar como prioridade'
-                      }
-                    >
-                      <Star className={`h-6 w-6 ${project.is_priority ? 'fill-current' : ''}`} />
-                    </button>
-                    <CardTitle className="text-2xl font-bold">{project.name}</CardTitle>
-                  </div>
-                  <CardDescription className="text-base mt-1">{project.client}</CardDescription>
-                </div>
-                <StatusBadge status={project.status} className="px-3 py-1 text-sm font-medium" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-6">
-                <div className="flex items-center gap-3 text-sm">
-                  <Briefcase className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                      Disciplina
-                    </p>
-                    <p className="font-medium">{project.discipline}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                      Engenheiro Resp.
-                    </p>
-                    <p className="font-medium">{project.engineer}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                      Início
-                    </p>
-                    <p className="font-medium">
-                      {project.startDate.split('-').reverse().join('/')}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                      Entrega
-                    </p>
-                    <p className="font-medium">{project.endDate.split('-').reverse().join('/')}</p>
-                  </div>
-                </div>
-                {project.cno && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                        CNO da Obra
-                      </p>
-                      <p className="font-medium">{project.cno}</p>
-                    </div>
-                  </div>
-                )}
-                {project.cnpj && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                        CNPJ da Obra
-                      </p>
-                      <p className="font-medium">{project.cnpj}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {project.description && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <p className="text-muted-foreground text-sm">{project.description}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           <div className="w-full">
             <ProjectModules projectId={project.id} />
           </div>
@@ -1008,58 +1015,6 @@ export default function ProjectDetails() {
 
         {/* Sidebar Info */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Progresso</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-medium">
-                  <span>Conclusão</span>
-                  <span>{project.progress}%</span>
-                </div>
-                <Progress value={project.progress} className="h-2" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Dados Financeiros</CardTitle>
-              <CardDescription>Orçamento vs Despesas reais</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                    Orçamento Estimado
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">{formatCurrency(budget)}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                    Despesas Registradas
-                  </p>
-                  <p className="text-xl font-semibold text-foreground">{formatCurrency(spent)}</p>
-                </div>
-                <div className="pt-2">
-                  <div className="flex justify-between text-xs mb-1.5 text-muted-foreground font-medium">
-                    <span>{budgetPercentage}% Consumido</span>
-                  </div>
-                  <Progress
-                    value={budgetPercentage}
-                    className={`h-2 ${budgetPercentage > 100 ? 'bg-red-100 [&>div]:bg-red-500' : budgetPercentage > 80 ? 'bg-amber-100 [&>div]:bg-amber-500' : ''}`}
-                  />
-                </div>
-                {budgetPercentage > 100 && (
-                  <div className="p-3 bg-red-50 text-red-700 text-sm font-medium rounded-md border border-red-200">
-                    Atenção: O projeto ultrapassou o orçamento planejado.
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
           <div className="w-full">
             <ProjectComments projectId={project.id} />
           </div>

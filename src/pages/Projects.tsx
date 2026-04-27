@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Filter,
   XCircle,
@@ -104,7 +104,22 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
     load()
   }, [user])
 
-  const hasAccess = (projectId: string) => user?.role === 'Administrador' || !!myAccesses[projectId]
+  const isLinkedToUser = useCallback(
+    (project: any) =>
+      user?.assigned_projects?.includes(project.id) ||
+      !!myAccesses[project.id] ||
+      project.engineer === user?.name,
+    [user?.assigned_projects, user?.name, myAccesses],
+  )
+
+  const hasAccess = useCallback(
+    (project: any) =>
+      user?.role === 'Administrador' ||
+      user?.role === 'Gerente de Projeto' ||
+      isLinkedToUser(project),
+    [user?.role, isLinkedToUser],
+  )
+
   const isPending = (projectId: string) => pendingReqs.includes(projectId)
 
   const currentYear = new Date().getFullYear()
@@ -150,7 +165,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
           if (filterYear !== 'all' && pYear.toString() !== filterYear) matchPeriod = false
         }
       }
-      const matchMine = filterOnlyMine ? p.engineer === user?.name : true
+      const matchMine = filterOnlyMine ? isLinkedToUser(p) : true
       return (
         matchSearch &&
         matchDisc &&
@@ -195,11 +210,11 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
     const withAcc: typeof prioritizedProjects = []
     const withoutAcc: typeof prioritizedProjects = []
     prioritizedProjects.forEach((p) => {
-      if (hasAccess(p.id)) withAcc.push(p)
+      if (hasAccess(p)) withAcc.push(p)
       else withoutAcc.push(p)
     })
     return { projectsWithAccess: withAcc, projectsWithoutAccess: withoutAcc }
-  }, [prioritizedProjects, myAccesses, user?.role])
+  }, [prioritizedProjects, hasAccess])
 
   const totalOpenContracts = useMemo(() => {
     return projectsWithAccess
@@ -346,9 +361,11 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
           >
             <CalendarDays className="mr-2 h-4 w-4" /> Exportar Calendário (ICS)
           </Button>
-          <Button onClick={() => setNewProjectModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Novo Projeto
-          </Button>
+          {(user?.role === 'Administrador' || user?.role === 'Gerente de Projeto') && (
+            <Button onClick={() => setNewProjectModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Novo Projeto
+            </Button>
+          )}
         </div>
       </div>
 
@@ -505,7 +522,9 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
               : 'Não encontramos nenhum projeto com os filtros aplicados.'}
           </p>
         </div>
-      ) : user?.role === 'Administrador' || filterOnlyMine ? (
+      ) : user?.role === 'Administrador' ||
+        user?.role === 'Gerente de Projeto' ||
+        filterOnlyMine ? (
         <>
           <div className={viewMode === 'grid' ? 'hidden md:hidden' : 'hidden md:block'}>
             <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />

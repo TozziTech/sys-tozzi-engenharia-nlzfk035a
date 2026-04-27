@@ -62,7 +62,7 @@ const getNavigationGroups = () => [
         name: 'Meus Projetos',
         href: '/meus-projetos',
         icon: FolderKanban,
-        allowedRoles: ['Projetista', 'Estagiário'],
+        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista', 'Estagiário'],
       },
     ],
   },

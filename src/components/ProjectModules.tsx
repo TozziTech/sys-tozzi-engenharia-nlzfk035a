@@ -18,7 +18,12 @@ import {
   ListTree,
   LayoutGrid,
   List,
+  Filter,
 } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { SUB_DISCIPLINES_LIST } from '@/types/project_modules'
 import { format, differenceInHours } from 'date-fns'
 import { Link } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
@@ -60,6 +65,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const { viewMode, setViewMode } = usePreferencesStore()
   const [modules, setModules] = useState<ProjectModule[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedSubDisciplines, setSelectedSubDisciplines] = useState<string[]>([])
   const [editingModule, setEditingModule] = useState<ProjectModule | undefined>(undefined)
   const [deleteModuleId, setDeleteModuleId] = useState<ProjectModule | null>(null)
   const [selectedModuleForTasks, setSelectedModuleForTasks] = useState<ProjectModule | null>(null)
@@ -127,6 +133,18 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     }
   }
 
+  const toggleSubDiscipline = (sd: string) => {
+    setSelectedSubDisciplines((prev) =>
+      prev.includes(sd) ? prev.filter((item) => item !== sd) : [...prev, sd],
+    )
+  }
+
+  const filteredModules = modules.filter((mod) => {
+    if (selectedSubDisciplines.length === 0) return true
+    if (!mod.sub_disciplines || mod.sub_disciplines.length === 0) return false
+    return mod.sub_disciplines.some((sd) => selectedSubDisciplines.includes(sd))
+  })
+
   return (
     <Card>
       <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -137,6 +155,56 @@ export function ProjectModules({ projectId }: { projectId: string }) {
           </CardDescription>
         </div>
         <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2.5 text-xs gap-1.5 border-dashed"
+              >
+                <Filter className="w-3.5 h-3.5" />
+                Especialidades
+                {selectedSubDisciplines.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 px-1 py-0 text-[10px] h-4">
+                    {selectedSubDisciplines.length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-3" align="end">
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm leading-none">Filtrar por Especialidade</h4>
+                <div className="space-y-2">
+                  {SUB_DISCIPLINES_LIST.map((sd) => (
+                    <div key={sd} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`filter-${sd}`}
+                        checked={selectedSubDisciplines.includes(sd)}
+                        onCheckedChange={() => toggleSubDiscipline(sd)}
+                      />
+                      <Label
+                        htmlFor={`filter-${sd}`}
+                        className="text-sm font-normal cursor-pointer flex-1"
+                      >
+                        {sd}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                {selectedSubDisciplines.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-7 text-xs mt-2"
+                    onClick={() => setSelectedSubDisciplines([])}
+                  >
+                    Limpar Filtros
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <div className="flex items-center border rounded-md p-1 bg-muted/50">
             <Button
               variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -176,7 +244,20 @@ export function ProjectModules({ projectId }: { projectId: string }) {
           <div className="flex justify-center p-8">
             <span className="text-muted-foreground">Carregando...</span>
           </div>
-        ) : modules.length > 0 ? (
+        ) : modules.length > 0 && filteredModules.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed rounded-lg bg-muted/10 text-center">
+            <Filter className="h-8 w-8 text-muted-foreground mb-3 opacity-50" />
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">
+              Nenhum módulo encontrado
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Nenhuma disciplina corresponde aos filtros de especialidade selecionados.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => setSelectedSubDisciplines([])}>
+              Limpar Filtros
+            </Button>
+          </div>
+        ) : filteredModules.length > 0 ? (
           viewMode === 'table' ? (
             <div className="rounded-md border overflow-x-auto">
               <Table>
@@ -191,7 +272,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {modules.map((mod) => (
+                  {filteredModules.map((mod) => (
                     <TableRow key={mod.id}>
                       <TableCell>
                         <div className="flex flex-col">
@@ -324,7 +405,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {modules.map((mod) => (
+              {filteredModules.map((mod) => (
                 <Card key={mod.id} className="overflow-hidden">
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-2">

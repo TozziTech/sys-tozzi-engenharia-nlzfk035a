@@ -31,6 +31,7 @@ import {
   AlertTriangle,
   PieChart,
   Star,
+  Layers,
 } from 'lucide-react'
 import { exportProjectHoursCSV, exportAuditLogsCSV } from '@/lib/export'
 import { exportProjectHoursPDF, exportAuditLogsPDF } from '@/lib/exportPdf'
@@ -290,6 +291,29 @@ export default function ProjectDetails() {
       ? Math.round(modules.reduce((sum, m) => sum + (m.progress || 0), 0) / totalModules)
       : 0
 
+  const subDisciplineStats = useMemo(() => {
+    const stats: Record<string, { totalProgress: number; count: number }> = {}
+    modules.forEach((mod) => {
+      if (mod.sub_disciplines && mod.sub_disciplines.length > 0) {
+        mod.sub_disciplines.forEach((sd: string) => {
+          if (!stats[sd]) {
+            stats[sd] = { totalProgress: 0, count: 0 }
+          }
+          stats[sd].totalProgress += mod.progress || 0
+          stats[sd].count += 1
+        })
+      }
+    })
+
+    return Object.entries(stats)
+      .map(([name, data]) => ({
+        name,
+        count: data.count,
+        averageProgress: Math.round(data.totalProgress / data.count),
+      }))
+      .sort((a, b) => b.count - a.count)
+  }, [modules])
+
   return (
     <div className={`container mx-auto ${pClass} max-w-[95%] xl:max-w-screen-2xl ${gapClass}`}>
       <div className="flex items-center justify-between">
@@ -514,6 +538,44 @@ export default function ProjectDetails() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Specialty Progress Dashboard */}
+      {subDisciplineStats.length > 0 && (
+        <Card className="w-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Layers className="h-5 w-5 text-primary" />
+              Progresso por Especialidade (Sub-disciplinas)
+            </CardTitle>
+            <CardDescription>
+              Média de conclusão e quantidade de módulos por área técnica
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {subDisciplineStats.map((stat) => (
+                <div
+                  key={stat.name}
+                  className="flex flex-col p-3 border rounded-lg bg-muted/10 space-y-2"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-sm">{stat.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {stat.count} módulo{stat.count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Progress value={stat.averageProgress} className="h-2 flex-1" />
+                    <span className="text-xs font-semibold w-8 text-right">
+                      {stat.averageProgress}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Main Content Layout */}
       <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass}`}>

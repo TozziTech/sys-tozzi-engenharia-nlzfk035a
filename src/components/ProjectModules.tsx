@@ -20,8 +20,7 @@ import {
   LayoutGrid,
   List,
   Filter,
-  ChevronUp,
-  ChevronDown,
+  GripVertical,
   Building2,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -87,6 +86,8 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isReordering, setIsReordering] = useState(false)
+  const [draggedModule, setDraggedModule] = useState<ProjectModule | null>(null)
+  const [dragOverModule, setDragOverModule] = useState<ProjectModule | null>(null)
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
@@ -140,40 +141,88 @@ export function ProjectModules({ projectId }: { projectId: string }) {
 
   const sortedModules = [...modules].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
 
-  const handleReorder = async (mod: ProjectModule, direction: 'up' | 'down') => {
-    if (isReordering || selectedSubDisciplines.length > 0) return
+  const handleDragStart = (e: React.DragEvent, mod: ProjectModule) => {
+    if (isReordering || selectedSubDisciplines.length > 0 || priorityMode) {
+      e.preventDefault()
+      return
+    }
+    setDraggedModule(mod)
+    e.dataTransfer.effectAllowed = 'move'
+  }
 
-    const index = sortedModules.findIndex((m) => m.id === mod.id)
-    if (index < 0) return
+  const handleDragOver = (e: React.DragEvent, mod: ProjectModule) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (draggedModule && draggedModule.id !== mod.id && dragOverModule?.id !== mod.id) {
+      setDragOverModule(mod)
+    }
+  }
 
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    if (targetIndex < 0 || targetIndex >= sortedModules.length) return
+  const handleDrop = async (
+    e: React.DragEvent,
+    targetMod: ProjectModule,
+    currentGroup: ProjectModule[],
+  ) => {
+    e.preventDefault()
+    setDragOverModule(null)
+
+    if (!draggedModule || draggedModule.id === targetMod.id) {
+      setDraggedModule(null)
+      return
+    }
+
+    const fromIndex = currentGroup.findIndex((m) => m.id === draggedModule.id)
+    const toIndex = currentGroup.findIndex((m) => m.id === targetMod.id)
+
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedModule(null)
+      return
+    }
 
     setIsReordering(true)
 
-    const target = sortedModules[targetIndex]
-
-    let currentOrdem = mod.ordem ?? index + 1
-    let targetOrdem = target.ordem ?? targetIndex + 1
-
-    if (currentOrdem === targetOrdem) {
-      if (direction === 'up') {
-        currentOrdem = targetOrdem + 1
-      } else {
-        targetOrdem = currentOrdem + 1
+    // Ensure sequential ordems for clean logic
+    let baseModules = [...modules].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+    baseModules = baseModules.map((m, i) => {
+      const expected = i + 1
+      if (m.ordem !== expected) {
+        return { ...m, ordem: expected }
       }
-    }
-
-    const newModules = modules.map((m) => {
-      if (m.id === mod.id) return { ...m, ordem: targetOrdem }
-      if (m.id === target.id) return { ...m, ordem: currentOrdem }
       return m
     })
-    setModules(newModules)
+
+    const cleanGroup = currentGroup.map((cg) => baseModules.find((b) => b.id === cg.id)!)
+
+    const newGroup = [...cleanGroup]
+    const [removed] = newGroup.splice(fromIndex, 1)
+    newGroup.splice(toIndex, 0, removed)
+
+    const groupOrdems = cleanGroup.map((m) => m.ordem!).sort((a, b) => a - b)
+
+    const finalModules = baseModules.map((m) => {
+      const groupIdx = newGroup.findIndex((ng) => ng.id === m.id)
+      if (groupIdx !== -1) {
+        const newOrdem = groupOrdems[groupIdx]
+        if (m.ordem !== newOrdem) {
+          return { ...m, ordem: newOrdem }
+        }
+      }
+      return m
+    })
+
+    const allUpdates = finalModules
+      .filter((fm) => {
+        const orig = modules.find((om) => om.id === fm.id)
+        return !orig || orig.ordem !== fm.ordem
+      })
+      .map((fm) => ({ id: fm.id, ordem: fm.ordem! }))
+
+    setModules(finalModules)
 
     try {
-      await pb.collection('project_modules').update(mod.id, { ordem: targetOrdem })
-      await pb.collection('project_modules').update(target.id, { ordem: currentOrdem })
+      await Promise.all(
+        allUpdates.map((u) => pb.collection('project_modules').update(u.id, { ordem: u.ordem })),
+      )
     } catch (err) {
       toast({
         title: 'Erro ao reordenar',
@@ -183,7 +232,13 @@ export function ProjectModules({ projectId }: { projectId: string }) {
       loadData()
     } finally {
       setIsReordering(false)
+      setDraggedModule(null)
     }
+  }
+
+  const handleDragEnd = () => {
+    setDraggedModule(null)
+    setDragOverModule(null)
   }
 
   const handlePriorityModeChange = (checked: boolean) => {
@@ -493,6 +548,9 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            {canEdit && selectedSubDisciplines.length === 0 && !priorityMode && (
+                              <TableHead className="w-8 p-0"></TableHead>
+                            )}
                             <TableHead>Disciplina / Edificação</TableHead>
                             <TableHead>Sub-disciplinas</TableHead>
                             <TableHead>Equipe</TableHead>
@@ -505,8 +563,28 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                           {groupModules.map((mod) => (
                             <TableRow
                               key={mod.id}
-                              className={priorityMode ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}
+                              draggable={
+                                canEdit && selectedSubDisciplines.length === 0 && !priorityMode
+                              }
+                              onDragStart={(e) => handleDragStart(e, mod)}
+                              onDragOver={(e) => handleDragOver(e, mod)}
+                              onDrop={(e) => handleDrop(e, mod, groupModules)}
+                              onDragEnd={handleDragEnd}
+                              className={cn(
+                                priorityMode ? 'bg-amber-50/50 dark:bg-amber-950/20' : '',
+                                dragOverModule?.id === mod.id
+                                  ? 'bg-primary/10 ring-1 ring-inset ring-primary'
+                                  : '',
+                                draggedModule?.id === mod.id
+                                  ? 'opacity-30 bg-muted'
+                                  : 'transition-all duration-200',
+                              )}
                             >
+                              {canEdit && selectedSubDisciplines.length === 0 && !priorityMode && (
+                                <TableCell className="w-8 px-2 text-center text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 inline-block" />
+                                </TableCell>
+                              )}
                               <TableCell
                                 className={priorityMode ? 'border-l-4 border-l-amber-500' : ''}
                               >
@@ -625,37 +703,6 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-1 items-center">
-                                  {canEdit && selectedSubDisciplines.length === 0 && (
-                                    <div className="flex flex-col gap-0 mr-2 border-r pr-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-4 w-6 p-0 hover:bg-muted"
-                                        disabled={
-                                          isReordering ||
-                                          sortedModules.findIndex((m) => m.id === mod.id) === 0
-                                        }
-                                        onClick={() => handleReorder(mod, 'up')}
-                                        title="Mover para cima"
-                                      >
-                                        <ChevronUp className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-4 w-6 p-0 hover:bg-muted"
-                                        disabled={
-                                          isReordering ||
-                                          sortedModules.findIndex((m) => m.id === mod.id) ===
-                                            sortedModules.length - 1
-                                        }
-                                        onClick={() => handleReorder(mod, 'down')}
-                                        title="Mover para baixo"
-                                      >
-                                        <ChevronDown className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  )}
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -702,9 +749,30 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                       {groupModules.map((mod) => (
                         <Card
                           key={mod.id}
-                          className={`overflow-hidden transition-all ${priorityMode ? 'border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/50 bg-amber-50/10 dark:bg-amber-950/10' : ''}`}
+                          draggable={
+                            canEdit && selectedSubDisciplines.length === 0 && !priorityMode
+                          }
+                          onDragStart={(e) => handleDragStart(e, mod)}
+                          onDragOver={(e) => handleDragOver(e, mod)}
+                          onDrop={(e) => handleDrop(e, mod, groupModules)}
+                          onDragEnd={handleDragEnd}
+                          className={cn(
+                            'overflow-hidden transition-all duration-200 group relative',
+                            priorityMode
+                              ? 'border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/50 bg-amber-50/10 dark:bg-amber-950/10'
+                              : '',
+                            dragOverModule?.id === mod.id
+                              ? 'border-primary ring-2 ring-primary scale-[1.02] shadow-lg z-10'
+                              : '',
+                            draggedModule?.id === mod.id ? 'opacity-40 scale-[0.98]' : '',
+                          )}
                         >
                           <div className="p-4 relative">
+                            {canEdit && selectedSubDisciplines.length === 0 && !priorityMode && (
+                              <div className="absolute top-2 right-2 p-1.5 text-muted-foreground/30 hover:text-foreground cursor-grab active:cursor-grabbing rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                <GripVertical className="h-4 w-4" />
+                              </div>
+                            )}
                             {priorityMode && (
                               <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
                             )}
@@ -873,40 +941,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                               })()}
                             </div>
 
-                            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-2 pt-2 border-t">
-                              {canEdit && selectedSubDisciplines.length === 0 ? (
-                                <div className="flex items-center gap-1 pl-2">
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    disabled={
-                                      isReordering ||
-                                      sortedModules.findIndex((m) => m.id === mod.id) === 0
-                                    }
-                                    onClick={() => handleReorder(mod, 'up')}
-                                    title="Mover para cima"
-                                  >
-                                    <ChevronUp className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    disabled={
-                                      isReordering ||
-                                      sortedModules.findIndex((m) => m.id === mod.id) ===
-                                        sortedModules.length - 1
-                                    }
-                                    onClick={() => handleReorder(mod, 'down')}
-                                    title="Mover para baixo"
-                                  >
-                                    <ChevronDown className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="hidden sm:block" />
-                              )}
+                            <div className="flex flex-col sm:flex-row sm:justify-end items-start sm:items-center gap-2 pt-2 border-t">
                               <div className="flex flex-wrap justify-end gap-2 w-full sm:w-auto">
                                 <Button
                                   variant="ghost"

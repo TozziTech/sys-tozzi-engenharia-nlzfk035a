@@ -6,6 +6,7 @@ import { ProjectModule, SUB_DISCIPLINES_COLORS } from '@/types/project_modules'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { Progress } from '@/components/ui/progress'
 import {
   Plus,
@@ -66,6 +67,9 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const { toast } = useToast()
   const { viewMode, setViewMode } = usePreferencesStore()
   const [modules, setModules] = useState<ProjectModule[]>([])
+  const [priorityMode, setPriorityMode] = useState(() => {
+    return localStorage.getItem(`priority_mode_${projectId}`) === 'true'
+  })
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSubDisciplines, setSelectedSubDisciplines] = useState<string[]>([])
   const [editingModule, setEditingModule] = useState<ProjectModule | undefined>(undefined)
@@ -120,18 +124,20 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     }
   }
 
+  const sortedModules = [...modules].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+
   const handleReorder = async (mod: ProjectModule, direction: 'up' | 'down') => {
     if (isReordering || selectedSubDisciplines.length > 0) return
 
-    const index = modules.findIndex((m) => m.id === mod.id)
+    const index = sortedModules.findIndex((m) => m.id === mod.id)
     if (index < 0) return
 
     const targetIndex = direction === 'up' ? index - 1 : index + 1
-    if (targetIndex < 0 || targetIndex >= modules.length) return
+    if (targetIndex < 0 || targetIndex >= sortedModules.length) return
 
     setIsReordering(true)
 
-    const target = modules[targetIndex]
+    const target = sortedModules[targetIndex]
 
     let currentOrdem = mod.ordem ?? index + 1
     let targetOrdem = target.ordem ?? targetIndex + 1
@@ -144,10 +150,11 @@ export function ProjectModules({ projectId }: { projectId: string }) {
       }
     }
 
-    const newModules = [...modules]
-    newModules[index] = { ...mod, ordem: targetOrdem }
-    newModules[targetIndex] = { ...target, ordem: currentOrdem }
-    newModules.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+    const newModules = modules.map((m) => {
+      if (m.id === mod.id) return { ...m, ordem: targetOrdem }
+      if (m.id === target.id) return { ...m, ordem: currentOrdem }
+      return m
+    })
     setModules(newModules)
 
     try {
@@ -163,6 +170,11 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     } finally {
       setIsReordering(false)
     }
+  }
+
+  const handlePriorityModeChange = (checked: boolean) => {
+    setPriorityMode(checked)
+    localStorage.setItem(`priority_mode_${projectId}`, checked.toString())
   }
 
   const handleDelete = async () => {
@@ -187,11 +199,13 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     )
   }
 
-  const filteredModules = modules.filter((mod) => {
+  const filteredModules = sortedModules.filter((mod) => {
     if (selectedSubDisciplines.length === 0) return true
     if (!mod.sub_disciplines || mod.sub_disciplines.length === 0) return false
     return mod.sub_disciplines.some((sd) => selectedSubDisciplines.includes(sd))
   })
+
+  const displayedModules = priorityMode ? filteredModules.slice(0, 5) : filteredModules
 
   return (
     <Card>
@@ -202,7 +216,21 @@ export function ProjectModules({ projectId }: { projectId: string }) {
             Gerencie as diferentes disciplinas técnicas deste projeto.
           </CardDescription>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 mr-2 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-900/50">
+            <Switch
+              id="priority-mode"
+              checked={priorityMode}
+              onCheckedChange={handlePriorityModeChange}
+              className="data-[state=checked]:bg-amber-500"
+            />
+            <Label
+              htmlFor="priority-mode"
+              className="text-xs font-medium cursor-pointer text-amber-700 dark:text-amber-400"
+            >
+              Modo Prioritário
+            </Label>
+          </div>
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -292,7 +320,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
           <div className="flex justify-center p-8">
             <span className="text-muted-foreground">Carregando...</span>
           </div>
-        ) : modules.length > 0 && filteredModules.length === 0 ? (
+        ) : modules.length > 0 && displayedModules.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed rounded-lg bg-muted/10 text-center">
             <Filter className="h-8 w-8 text-muted-foreground mb-3 opacity-50" />
             <h3 className="text-lg font-medium text-muted-foreground mb-2">
@@ -305,7 +333,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
               Limpar Filtros
             </Button>
           </div>
-        ) : filteredModules.length > 0 ? (
+        ) : displayedModules.length > 0 ? (
           viewMode === 'table' ? (
             <div className="rounded-md border overflow-x-auto">
               <Table>
@@ -320,16 +348,26 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredModules.map((mod) => (
-                    <TableRow key={mod.id}>
-                      <TableCell>
+                  {displayedModules.map((mod) => (
+                    <TableRow
+                      key={mod.id}
+                      className={priorityMode ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}
+                    >
+                      <TableCell className={priorityMode ? 'border-l-4 border-l-amber-500' : ''}>
                         <div className="flex flex-col">
-                          <Link
-                            to={`/projects/${projectId}/disciplines/${mod.id}`}
-                            className="font-semibold text-amber-500 hover:underline text-sm"
-                          >
-                            {mod.name}
-                          </Link>
+                          <div className="flex items-center gap-2 mb-1">
+                            {priorityMode && (
+                              <Badge className="bg-amber-500 hover:bg-amber-600 text-[10px] px-1.5 py-0 h-4 font-semibold shrink-0">
+                                Prioridade
+                              </Badge>
+                            )}
+                            <Link
+                              to={`/projects/${projectId}/disciplines/${mod.id}`}
+                              className="font-semibold text-amber-600 dark:text-amber-500 hover:underline text-sm"
+                            >
+                              {mod.name}
+                            </Link>
+                          </div>
                           {mod.edificacao && (
                             <span className="text-xs text-muted-foreground mt-0.5">
                               Edificação: {mod.edificacao}
@@ -426,7 +464,8 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                                 size="icon"
                                 className="h-4 w-6 p-0 hover:bg-muted"
                                 disabled={
-                                  isReordering || modules.findIndex((m) => m.id === mod.id) === 0
+                                  isReordering ||
+                                  sortedModules.findIndex((m) => m.id === mod.id) === 0
                                 }
                                 onClick={() => handleReorder(mod, 'up')}
                                 title="Mover para cima"
@@ -439,7 +478,8 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                                 className="h-4 w-6 p-0 hover:bg-muted"
                                 disabled={
                                   isReordering ||
-                                  modules.findIndex((m) => m.id === mod.id) === modules.length - 1
+                                  sortedModules.findIndex((m) => m.id === mod.id) ===
+                                    sortedModules.length - 1
                                 }
                                 onClick={() => handleReorder(mod, 'down')}
                                 title="Mover para baixo"
@@ -491,17 +531,30 @@ export function ProjectModules({ projectId }: { projectId: string }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredModules.map((mod) => (
-                <Card key={mod.id} className="overflow-hidden">
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
+              {displayedModules.map((mod) => (
+                <Card
+                  key={mod.id}
+                  className={`overflow-hidden transition-all ${priorityMode ? 'border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/50 bg-amber-50/10 dark:bg-amber-950/10' : ''}`}
+                >
+                  <div className="p-4 relative">
+                    {priorityMode && (
+                      <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+                    )}
+                    <div className="flex justify-between items-start mb-2 pl-2">
                       <div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {priorityMode && (
+                            <Badge className="bg-amber-500 hover:bg-amber-600 text-[10px] px-1.5 py-0 h-4 font-semibold">
+                              Prioridade
+                            </Badge>
+                          )}
                           <Link
                             to={`/projects/${projectId}/disciplines/${mod.id}`}
                             className="hover:underline text-primary"
                           >
-                            <h4 className="font-semibold text-base text-amber-500">{mod.name}</h4>
+                            <h4 className="font-semibold text-base text-amber-600 dark:text-amber-500">
+                              {mod.name}
+                            </h4>
                           </Link>
 
                           {tasks
@@ -693,13 +746,13 @@ export function ProjectModules({ projectId }: { projectId: string }) {
 
                     <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-2 pt-2 border-t">
                       {canEdit && selectedSubDisciplines.length === 0 ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 pl-2">
                           <Button
                             variant="outline"
                             size="icon"
                             className="h-7 w-7"
                             disabled={
-                              isReordering || modules.findIndex((m) => m.id === mod.id) === 0
+                              isReordering || sortedModules.findIndex((m) => m.id === mod.id) === 0
                             }
                             onClick={() => handleReorder(mod, 'up')}
                             title="Mover para cima"
@@ -712,7 +765,8 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                             className="h-7 w-7"
                             disabled={
                               isReordering ||
-                              modules.findIndex((m) => m.id === mod.id) === modules.length - 1
+                              sortedModules.findIndex((m) => m.id === mod.id) ===
+                                sortedModules.length - 1
                             }
                             onClick={() => handleReorder(mod, 'down')}
                             title="Mover para baixo"

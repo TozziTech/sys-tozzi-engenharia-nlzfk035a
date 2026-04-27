@@ -6,7 +6,6 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  HardHat,
   PlayCircle,
   PauseCircle,
   Loader2,
@@ -53,13 +52,6 @@ import {
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -89,6 +81,7 @@ import { ProjectComments } from '@/components/ProjectComments'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { exportWeeklyDocsReportPDF } from '@/lib/exportPdf'
+import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -124,11 +117,8 @@ export default function DesignerPanel() {
   const { user } = useAuth()
   const { canAccess } = usePermissions()
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('Todos')
-  const [dateFilter, setDateFilter] = useState('Todos')
   const { toast } = useToast()
 
-  const [modules, setModules] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [myProjects, setMyProjects] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
@@ -204,15 +194,10 @@ export default function DesignerPanel() {
     if (!user) return
     try {
       setLoading(true)
-      const [modulesRecords, tasksRecords, upaRes, clientsRes] = await Promise.all([
-        pb.collection('project_modules').getFullList({
-          filter: `responsible = "${user.id}" || designer = "${user.id}"`,
-          expand: 'project',
-          sort: '-created',
-        }),
+      const [tasksRecords, upaRes, clientsRes] = await Promise.all([
         pb.collection('tasks').getFullList({
           filter: `responsible = "${user.id}" && status != "Concluído"`,
-          expand: 'project,module',
+          expand: 'project',
           sort: 'due_date',
         }),
         pb.collection('user_project_access').getFullList({
@@ -221,7 +206,6 @@ export default function DesignerPanel() {
         pb.collection('clients').getFullList(),
       ])
 
-      setModules(modulesRecords)
       setTasks(tasksRecords)
       setClients(clientsRes)
 
@@ -229,16 +213,17 @@ export default function DesignerPanel() {
       const accessProjectIds = upaRes.map((u) => u.project)
       const allProjectIds = Array.from(new Set([...assignedProjectIds, ...accessProjectIds]))
 
+      let projectFilter = `engineer ~ "${user.name}" || engineer = "${user.id}"`
       if (allProjectIds.length > 0) {
-        const projectsFilter = allProjectIds.map((id) => `id="${id}"`).join(' || ')
-        const projectsRes = await pb.collection('projects').getFullList({
-          filter: projectsFilter,
-          sort: '-created',
-        })
-        setMyProjects(projectsRes)
-      } else {
-        setMyProjects([])
+        const idsFilter = allProjectIds.map((id) => `id="${id}"`).join(' || ')
+        projectFilter = `(${projectFilter}) || (${idsFilter})`
       }
+
+      const projectsRes = await pb.collection('projects').getFullList({
+        filter: projectFilter,
+        sort: '-created',
+      })
+      setMyProjects(projectsRes)
     } catch (err) {
       console.error(err)
       toast({
@@ -254,7 +239,6 @@ export default function DesignerPanel() {
   useEffect(() => {
     loadData()
   }, [user])
-  useRealtime('project_modules', loadData)
   useRealtime('tasks', loadData)
   useRealtime('projects', loadData)
   useRealtime('clients', loadData)
@@ -287,7 +271,7 @@ export default function DesignerPanel() {
       if (selectedProjectForHours) {
         await pb.collection('time_logs').create({
           user_id: user.id,
-          project_id: selectedProjectForHours.project,
+          project_id: selectedProjectForHours.id,
           hours: durationHours,
           date: hoursLog.date + ' 12:00:00.000Z',
           description: hoursLog.description,
@@ -296,7 +280,7 @@ export default function DesignerPanel() {
 
       toast({
         title: 'Sucesso',
-        description: `${durationHours.toFixed(1)}h registradas na disciplina.`,
+        description: `${durationHours.toFixed(1)}h registradas no projeto.`,
       })
       setIsHoursDialogOpen(false)
       setHoursLog({
@@ -455,31 +439,6 @@ export default function DesignerPanel() {
     })
   }, [myProjects, search, clients, projectStatusFilter])
 
-  const filteredModules = useMemo(() => {
-    const s = search.toLowerCase()
-    const today = new Date()
-    return modules.filter((m) => {
-      const projectName = m.expand?.project?.name || ''
-      const matchesSearch =
-        !s || projectName.toLowerCase().includes(s) || (m.name || '').toLowerCase().includes(s)
-
-      const matchesStatus = statusFilter === 'Todos' || m.status === statusFilter
-
-      let matchesDate = true
-      if (m.deadline) {
-        const deadlineDate = new Date(m.deadline)
-        if (dateFilter === 'Atrasados')
-          matchesDate = isBefore(deadlineDate, today) && m.status !== 'Concluído'
-        else if (dateFilter === 'Proximos7')
-          matchesDate = isAfter(deadlineDate, today) && isBefore(deadlineDate, addDays(today, 7))
-        else if (dateFilter === 'Proximos30')
-          matchesDate = isAfter(deadlineDate, today) && isBefore(deadlineDate, addDays(today, 30))
-      } else if (dateFilter !== 'Todos') matchesDate = false
-
-      return matchesSearch && matchesStatus && matchesDate
-    })
-  }, [modules, search, statusFilter, dateFilter])
-
   const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(calendarMonth), { weekStartsOn: 0 })
     const end = endOfWeek(endOfMonth(calendarMonth), { weekStartsOn: 0 })
@@ -510,7 +469,7 @@ export default function DesignerPanel() {
     return projectsByDate[format(selectedDate, 'yyyy-MM-dd')] || []
   }, [selectedDate, projectsByDate])
 
-  const hasFinanceAccess = canAccess('lancamentos_financeiros') || user.role === 'Administrador'
+  const hasFinanceAccess = canAccess('lancamentos_financeiros') || user?.role === 'Administrador'
 
   return (
     <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500">
@@ -523,7 +482,7 @@ export default function DesignerPanel() {
             Resumo de Projeto (Meu Painel)
           </h2>
           <p className="text-zinc-400 mt-2">
-            Olá, {user?.name}. Acompanhe o progresso dos seus projetos, disciplinas e prazos.
+            Olá, {user?.name}. Acompanhe o progresso dos seus projetos, cronogramas e prazos.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap md:flex-nowrap">
@@ -557,7 +516,7 @@ export default function DesignerPanel() {
         <div className="relative flex-1 max-w-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
           <Input
-            placeholder="Buscar projeto, cliente, disciplina..."
+            placeholder="Buscar projeto ou cliente..."
             className="pl-9 bg-zinc-950/50 w-full"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -581,13 +540,7 @@ export default function DesignerPanel() {
             value="overview"
             className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-500"
           >
-            Visão Geral e Projetos
-          </TabsTrigger>
-          <TabsTrigger
-            value="modules"
-            className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-500"
-          >
-            Minhas Disciplinas ({modules.length})
+            Dashboards de Gestão
           </TabsTrigger>
           <TabsTrigger
             value="cronograma"
@@ -595,6 +548,14 @@ export default function DesignerPanel() {
           >
             Cronograma
           </TabsTrigger>
+          {hasFinanceAccess && (
+            <TabsTrigger
+              value="financeiro"
+              className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-500"
+            >
+              Planilha Financeira
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 outline-none m-0">
@@ -753,9 +714,9 @@ export default function DesignerPanel() {
                       </div>
                       <Progress value={project.progress || 0} className="h-1.5 mb-3" />
 
-                      <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
+                      <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between flex-wrap gap-2">
                         {hasFinanceAccess && project.budget > 0 ? (
-                          <div className="space-y-1 flex-1 mr-4">
+                          <div className="space-y-1 flex-1 mr-4 min-w-[120px]">
                             <div className="flex justify-between text-xs text-zinc-400 font-medium">
                               <span>Orçamento: R$ {project.budget?.toLocaleString('pt-BR')}</span>
                               <span>Gasto: R$ {project.spent?.toLocaleString('pt-BR')}</span>
@@ -769,7 +730,19 @@ export default function DesignerPanel() {
                           <div className="flex-1" />
                         )}
 
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
+                            onClick={() => {
+                              setSelectedProjectForHours(project)
+                              setIsHoursDialogOpen(true)
+                            }}
+                          >
+                            <Clock className="w-3.5 h-3.5 mr-1.5 text-amber-500" />
+                            Lançar Horas
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -846,132 +819,6 @@ export default function DesignerPanel() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="modules" className="space-y-6 outline-none m-0">
-          <div className="flex justify-end gap-4 w-full mb-4">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-[150px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todos Status</SelectItem>
-                <SelectItem value="Pendente">Pendente</SelectItem>
-                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                <SelectItem value="Concluído">Concluído</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-full md:w-[150px]">
-                <SelectValue placeholder="Prazo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todos Prazos</SelectItem>
-                <SelectItem value="Atrasados">Atrasados</SelectItem>
-                <SelectItem value="Proximos7">Próx. 7 dias</SelectItem>
-                <SelectItem value="Proximos30">Próx. 30 dias</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {loading ? (
-            <div className="flex justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
-            </div>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {filteredModules.map((mod) => (
-                <Card
-                  key={mod.id}
-                  className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow border-zinc-800/50"
-                >
-                  <CardHeader className="pb-4 border-b border-zinc-800/50">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1.5 flex-1 pr-2">
-                        <CardTitle className="text-lg leading-tight line-clamp-1 text-zinc-100">
-                          {mod.name}
-                        </CardTitle>
-                        <CardDescription className="font-medium text-zinc-400 line-clamp-1">
-                          Projeto: {mod.expand?.project?.name || 'N/A'}
-                        </CardDescription>
-                      </div>
-                      <Badge className={getStatusColor(mod.status)} variant="outline">
-                        {getStatusIcon(mod.status)}
-                        {mod.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="py-5 flex-1 space-y-5">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-zinc-400 flex items-center gap-1.5">
-                          <CalendarIcon className="h-4 w-4" /> Prazo
-                        </span>
-                        <span
-                          className={
-                            mod.deadline &&
-                            new Date(mod.deadline) < new Date() &&
-                            mod.status !== 'Concluído'
-                              ? 'text-rose-400 font-medium'
-                              : 'text-zinc-300'
-                          }
-                        >
-                          {mod.deadline
-                            ? format(new Date(mod.deadline), 'dd MMM, yyyy', { locale: ptBR })
-                            : 'N/A'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-zinc-400 flex items-center gap-1.5">
-                          <Clock className="h-4 w-4" /> Últ. Ativ.
-                        </span>
-                        <span className="font-medium text-zinc-300">
-                          {format(new Date(mod.updated), 'dd/MM/yy HH:mm')}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm font-medium">
-                        <span className="text-zinc-400">Progresso</span>
-                        <span
-                          className={mod.progress === 100 ? 'text-emerald-400' : 'text-amber-500'}
-                        >
-                          {mod.progress || 0}%
-                        </span>
-                      </div>
-                      <Progress value={mod.progress || 0} className="h-2" />
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-4 border-t border-zinc-800/50 bg-zinc-950/30 flex flex-wrap gap-2">
-                    <Button asChild variant="default" className="flex-1 min-w-[120px]">
-                      <Link to={`/projects/${mod.project}/disciplines/${mod.id}`}>
-                        Acessar Disciplina
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1 min-w-[120px]"
-                      onClick={() => {
-                        setSelectedProjectForHours(mod)
-                        setIsHoursDialogOpen(true)
-                      }}
-                    >
-                      <Clock className="h-4 w-4 mr-2 text-amber-500" />
-                      Lançar Horas
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-              {filteredModules.length === 0 && (
-                <div className="col-span-full py-16 text-center bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
-                  <HardHat className="h-8 w-8 text-zinc-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-zinc-100 mb-2">
-                    Nenhuma disciplina encontrada
-                  </h3>
-                </div>
-              )}
-            </div>
-          )}
         </TabsContent>
 
         <TabsContent value="cronograma" className="space-y-6 outline-none m-0">
@@ -1161,17 +1008,23 @@ export default function DesignerPanel() {
             </>
           )}
         </TabsContent>
+
+        {hasFinanceAccess && (
+          <TabsContent value="financeiro" className="space-y-6 outline-none m-0">
+            <PlanilhaFinanceira />
+          </TabsContent>
+        )}
       </Tabs>
 
       <Dialog open={isHoursDialogOpen} onOpenChange={setIsHoursDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Registrar Horas Trabalhadas</DialogTitle>
-            <DialogDescription>Insira o tempo dedicado a esta disciplina.</DialogDescription>
+            <DialogDescription>Insira o tempo dedicado a este projeto.</DialogDescription>
           </DialogHeader>
           <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <Label>Disciplina</Label>
+              <Label>Projeto</Label>
               <Input
                 value={selectedProjectForHours?.name || ''}
                 readOnly

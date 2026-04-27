@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -25,18 +25,31 @@ import {
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  startOfWeek,
+  endOfWeek,
+  isSameMonth,
+  isToday,
+  addMonths,
+  subMonths,
+} from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Briefcase,
   Clock,
   CheckSquare,
-  Calendar,
   PlayCircle,
   CheckCircle2,
   AlertCircle,
   PauseCircle,
   FolderKanban,
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -47,6 +60,9 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { NoteCard } from '@/components/NoteCard'
 import { MyTasksList } from '@/components/meu-painel/MyTasksList'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Calendar as CalendarComponent } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -79,6 +95,7 @@ type DashboardProject = {
   name: string
   discipline: string
   status: string
+  start_date?: string
   end_date: string
   progress: number
   client: string
@@ -106,6 +123,9 @@ export default function MeuPainel() {
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true)
   const [deadlineLeadDays, setDeadlineLeadDays] = useState('3')
   const [isSavingPrefs, setIsSavingPrefs] = useState(false)
+
+  const [calendarMonth, setCalendarMonth] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
   useEffect(() => {
     if (user) {
@@ -148,19 +168,9 @@ export default function MeuPainel() {
       const firstDay = format(startOfMonth(new Date()), 'yyyy-MM-dd')
       const lastDay = format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
-      let projectFilter = `engineer ~ "${user.name}"`
-      if (user.assigned_projects && user.assigned_projects.length > 0) {
-        const ids = user.assigned_projects.map((id: string) => `id = "${id}"`).join(' || ')
-        projectFilter = `(${projectFilter}) || (${ids})`
-      }
-
-      const [engineerProjects, mods, logs, th] = await Promise.all([
-        pb.collection('projects').getFullList({
-          filter: projectFilter,
-        }),
-        pb.collection('project_modules').getFullList({
-          filter: `responsible = "${user.id}" || designer = "${user.id}"`,
-          expand: 'project',
+      const [upaRes, logs, th] = await Promise.all([
+        pb.collection('user_project_access').getFullList({
+          filter: `user = "${user.id}"`,
         }),
         pb.collection('time_logs').getFullList({
           filter: `user_id = "${user.id}" && date >= "${firstDay}" && date <= "${lastDay}"`,
@@ -170,35 +180,32 @@ export default function MeuPainel() {
         }),
       ])
 
-      const projectMap = new Map<string, DashboardProject>()
+      const accessProjectIds = upaRes.map((u) => u.project)
+      const assignedProjectIds = user.assigned_projects || []
+      const allProjectIds = Array.from(new Set([...assignedProjectIds, ...accessProjectIds]))
 
-      engineerProjects.forEach((p: any) => {
-        projectMap.set(p.id, {
-          id: p.id,
-          name: p.name,
-          discipline: p.discipline || 'Geral',
-          status: p.status,
-          end_date: p.end_date,
-          progress: p.progress || 0,
-          client: p.client || '-',
-        })
+      let projectFilter = `engineer ~ "${user.name}" || engineer = "${user.id}"`
+      if (allProjectIds.length > 0) {
+        const idsFilter = allProjectIds.map((id) => `id="${id}"`).join(' || ')
+        projectFilter = `(${projectFilter}) || (${idsFilter})`
+      }
+
+      const engineerProjects = await pb.collection('projects').getFullList({
+        filter: projectFilter,
+        sort: '-created',
       })
 
-      mods.forEach((m: any) => {
-        if (m.expand?.project && !projectMap.has(m.expand.project.id)) {
-          projectMap.set(m.expand.project.id, {
-            id: m.expand.project.id,
-            name: m.expand.project.name,
-            discipline: m.expand.project.discipline || m.name,
-            status: m.expand.project.status,
-            end_date: m.expand.project.end_date,
-            progress: m.expand.project.progress || 0,
-            client: m.expand.project.client || '-',
-          })
-        }
-      })
+      const uniqueProjects = engineerProjects.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        discipline: p.discipline || 'Geral',
+        status: p.status,
+        start_date: p.start_date,
+        end_date: p.end_date,
+        progress: p.progress || 0,
+        client: p.client || '-',
+      }))
 
-      const uniqueProjects = Array.from(projectMap.values())
       setProjects(uniqueProjects)
 
       const projectIds = uniqueProjects.map((p) => p.id)
@@ -221,9 +228,9 @@ export default function MeuPainel() {
   }, [user])
 
   useRealtime('projects', loadData)
-  useRealtime('project_modules', loadData)
   useRealtime('time_logs', loadData)
   useRealtime('tarefas_hierarquicas', loadData)
+  useRealtime('user_project_access', loadData)
   useRealtime(
     'notifications',
     () => {
@@ -263,6 +270,36 @@ export default function MeuPainel() {
     }
   }
 
+  const calendarDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(calendarMonth), { weekStartsOn: 0 })
+    const end = endOfWeek(endOfMonth(calendarMonth), { weekStartsOn: 0 })
+    return eachDayOfInterval({ start, end })
+  }, [calendarMonth])
+
+  const projectsByDate = useMemo(() => {
+    const map: Record<string, DashboardProject[]> = {}
+    projects.forEach((p) => {
+      if (!p.start_date || !p.end_date) return
+      const start = new Date(p.start_date)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(p.end_date)
+      end.setHours(23, 59, 59, 999)
+
+      const interval = eachDayOfInterval({ start, end })
+      interval.forEach((d) => {
+        const key = format(d, 'yyyy-MM-dd')
+        if (!map[key]) map[key] = []
+        map[key].push(p)
+      })
+    })
+    return map
+  }, [projects])
+
+  const selectedDateProjects = useMemo(() => {
+    if (!selectedDate) return []
+    return projectsByDate[format(selectedDate, 'yyyy-MM-dd')] || []
+  }, [selectedDate, projectsByDate])
+
   if (!user) return null
 
   return (
@@ -280,8 +317,16 @@ export default function MeuPainel() {
           </div>
           <TabsList className="w-full sm:w-auto flex flex-col sm:flex-row h-auto gap-2 p-1 sm:gap-0 sm:p-1 bg-transparent sm:bg-muted overflow-x-auto">
             <TabsTrigger value="dashboard" className="w-full sm:w-auto">
-              Dashboard
+              Dashboards de Gestão
             </TabsTrigger>
+            <TabsTrigger value="cronograma" className="w-full sm:w-auto">
+              Cronograma
+            </TabsTrigger>
+            {canAccess('planilha_financeira') && (
+              <TabsTrigger value="financeiro" className="w-full sm:w-auto">
+                Planilha Financeira
+              </TabsTrigger>
+            )}
             <TabsTrigger value="notificacoes" className="w-full sm:w-auto flex items-center gap-2">
               Notificações
               {unreadCount > 0 && (
@@ -290,11 +335,6 @@ export default function MeuPainel() {
                 </span>
               )}
             </TabsTrigger>
-            {canAccess('planilha_financeira') && (
-              <TabsTrigger value="financeiro" className="w-full sm:w-auto">
-                Planilha Financeira
-              </TabsTrigger>
-            )}
             <TabsTrigger value="alertas" className="w-full sm:w-auto">
               Configurações de Alerta
             </TabsTrigger>
@@ -380,7 +420,7 @@ export default function MeuPainel() {
                   Nenhum projeto ativo
                 </h3>
                 <p className="text-sm text-slate-500 mt-1 max-w-sm">
-                  Você ainda não foi alocado(a) em nenhum projeto ou módulo no momento.
+                  Você ainda não foi alocado(a) em nenhum projeto no momento.
                 </p>
               </Card>
             ) : (
@@ -410,7 +450,7 @@ export default function MeuPainel() {
                       <div className="space-y-3">
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-500 flex items-center gap-1.5">
-                            <Calendar className="h-4 w-4" /> Prazo
+                            <CalendarIcon className="h-4 w-4" /> Prazo
                           </span>
                           <span className="font-medium">
                             {proj.end_date
@@ -437,7 +477,7 @@ export default function MeuPainel() {
                     </CardContent>
                     <CardFooter className="pt-4 border-t bg-slate-50/50 dark:bg-slate-900/50 flex flex-wrap gap-2">
                       <Button asChild variant="outline" className="flex-1 text-xs sm:text-sm">
-                        <Link to={`/projects/${proj.id}`}>Acessar Tarefas</Link>
+                        <Link to={`/projects/${proj.id}`}>Acessar Projeto</Link>
                       </Button>
                       <Button
                         variant="default"
@@ -521,6 +561,169 @@ export default function MeuPainel() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        <TabsContent value="cronograma" className="space-y-6">
+          <div className="flex items-center justify-between bg-white dark:bg-slate-950 p-4 rounded-xl border">
+            <h3 className="text-lg font-medium flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5 text-primary" />
+              Cronograma de Projetos
+            </h3>
+            <div className="flex items-center gap-2 hidden md:flex">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium w-32 text-center capitalize">
+                {format(calendarMonth, 'MMMM yyyy', { locale: ptBR })}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="hidden md:block rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-950/50">
+            <div className="grid grid-cols-7 bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800">
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+                <div
+                  key={d}
+                  className="p-3 text-center text-sm font-medium text-slate-500 dark:text-slate-400"
+                >
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 auto-rows-fr">
+              {calendarDays.map((day, i) => {
+                const key = format(day, 'yyyy-MM-dd')
+                const dayProjects = projectsByDate[key] || []
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      'min-h-[120px] p-2 bg-white dark:bg-slate-950 transition-colors flex flex-col gap-1',
+                      !isSameMonth(day, calendarMonth) &&
+                        'bg-slate-50/50 dark:bg-slate-900/50 opacity-60',
+                    )}
+                  >
+                    <div className="flex justify-end mb-1">
+                      <span
+                        className={cn(
+                          'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
+                          isToday(day)
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400',
+                        )}
+                      >
+                        {format(day, 'd')}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 flex-1 overflow-y-auto max-h-[150px] pr-1 scrollbar-thin">
+                      {dayProjects.map((p) => (
+                        <Popover key={p.id}>
+                          <PopoverTrigger asChild>
+                            <div
+                              className={cn(
+                                'text-[10px] leading-tight p-1.5 rounded-md border transition-all hover:brightness-110 cursor-pointer truncate',
+                                p.status === 'Concluído'
+                                  ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+                                  : 'bg-primary/10 text-primary border-primary/20',
+                              )}
+                            >
+                              {p.name}
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 bg-white dark:bg-slate-950">
+                            <div className="space-y-3">
+                              <div>
+                                <h4 className="font-semibold text-sm">{p.name}</h4>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Cliente: {p.client || 'N/A'}
+                                </p>
+                              </div>
+                              <div className="flex items-center justify-between text-xs font-medium">
+                                <span className="text-muted-foreground">Progresso</span>
+                                <span className="text-primary">{p.progress || 0}%</span>
+                              </div>
+                              <Progress value={p.progress || 0} className="h-1.5" />
+                              <div className="pt-2 flex justify-end">
+                                <Button size="sm" variant="outline" asChild className="h-7 text-xs">
+                                  <Link to={`/projects/${p.id}`}>Ver Detalhes</Link>
+                                </Button>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col md:hidden items-center gap-6">
+            <Card className="p-2 w-full flex justify-center shadow-md">
+              <CalendarComponent
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                className="rounded-md"
+                modifiers={{
+                  active: (d) => !!projectsByDate[format(d, 'yyyy-MM-dd')],
+                }}
+                modifiersClassNames={{
+                  active: 'font-bold text-primary bg-primary/10',
+                }}
+              />
+            </Card>
+            <div className="w-full space-y-3">
+              <h4 className="font-medium text-sm text-muted-foreground">
+                Projetos em {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : ''}
+              </h4>
+              {selectedDateProjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-dashed">
+                  Nenhum projeto ativo nesta data.
+                </p>
+              ) : (
+                selectedDateProjects.map((p) => (
+                  <Card key={p.id}>
+                    <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between space-y-0">
+                      <div className="font-medium text-sm truncate flex-1 pr-2">{p.name}</div>
+                      <Badge
+                        variant="outline"
+                        className={cn('whitespace-nowrap font-medium', getStatusColor(p.status))}
+                      >
+                        {getStatusIcon(p.status)}
+                        {p.status}
+                      </Badge>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Cliente: {p.client || 'N/A'}
+                      </p>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span>Progresso</span>
+                        <span>{p.progress || 0}%</span>
+                      </div>
+                      <Progress value={p.progress || 0} className="h-1 mb-3" />
+                      <Button size="sm" variant="outline" asChild className="w-full h-8 text-xs">
+                        <Link to={`/projects/${p.id}`}>Ver Detalhes</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
         </TabsContent>
 
         {canAccess('lancamentos_financeiros') && (

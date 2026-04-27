@@ -32,6 +32,7 @@ import {
   PieChart,
   Star,
   Layers,
+  Building2,
 } from 'lucide-react'
 import { exportProjectHoursCSV, exportAuditLogsCSV } from '@/lib/export'
 import { exportProjectHoursPDF, exportAuditLogsPDF, exportSpecialtiesPDF } from '@/lib/exportPdf'
@@ -368,6 +369,25 @@ export default function ProjectDetails() {
 
     return result
   }, [modules, tags, specialtySort])
+
+  const buildingProgress = useMemo(() => {
+    const stats: Record<string, { totalProgress: number; count: number }> = {}
+    modules.forEach((mod) => {
+      const key = mod.edificacao || 'Sem Edificação'
+      if (!stats[key]) {
+        stats[key] = { totalProgress: 0, count: 0 }
+      }
+      stats[key].totalProgress += mod.progress || 0
+      stats[key].count += 1
+    })
+
+    return Object.entries(stats)
+      .map(([name, data]) => ({
+        name,
+        averageProgress: Math.round(data.totalProgress / data.count),
+      }))
+      .sort((a, b) => b.averageProgress - a.averageProgress)
+  }, [modules])
 
   const handleExportSpecialtiesPDF = useCallback(async () => {
     if (!project) return
@@ -764,6 +784,56 @@ export default function ProjectDetails() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Building Progress Chart */}
+      {buildingProgress.length > 0 && (
+        <Card className="w-full print:hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Progresso por Edificação
+            </CardTitle>
+            <CardDescription>
+              Média de conclusão das disciplinas agrupadas por edificação
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full max-w-3xl">
+              <ChartContainer
+                config={{
+                  averageProgress: { label: 'Progresso (%)', color: 'hsl(var(--primary))' },
+                }}
+                className="w-full h-full"
+              >
+                <BarChart
+                  data={buildingProgress}
+                  margin={{ top: 20, right: 30, left: -20, bottom: 5 }}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                  <XAxis type="number" domain={[0, 100]} hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    axisLine={false}
+                    tickLine={false}
+                    width={140}
+                    fontSize={12}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar
+                    dataKey="averageProgress"
+                    name="Progresso Médio"
+                    fill="var(--color-averageProgress)"
+                    radius={[0, 4, 4, 0]}
+                    barSize={24}
+                  />
+                </BarChart>
+              </ChartContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Specialty Progress Dashboard */}
       {subDisciplineStats.length > 0 && (

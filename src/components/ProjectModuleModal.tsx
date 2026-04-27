@@ -59,7 +59,15 @@ const LEGACY_HEX_COLORS: Record<string, string> = {
 
 const schema = z.object({
   name: z.string().min(1, 'Disciplina é obrigatória'),
-  status: z.enum(['Pendente', 'Em Andamento', 'Concluído', 'Pausado', 'Em Análise', 'Em Revisão']),
+  status: z.enum([
+    'Pendente',
+    'Em Andamento',
+    'Concluído',
+    'Pausado',
+    'Em Análise',
+    'Em Revisão',
+    'Em Aprovação',
+  ]),
   progress: z.coerce.number().min(0).max(100),
   deadline_days: z.coerce.number().min(0).optional(),
   start_date: z.string().optional(),
@@ -498,6 +506,7 @@ export function ProjectModuleModal({
                         <SelectItem value="Concluído">Concluído</SelectItem>
                         <SelectItem value="Em Análise">Em Análise</SelectItem>
                         <SelectItem value="Em Revisão">Em Revisão</SelectItem>
+                        <SelectItem value="Em Aprovação">Em Aprovação</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

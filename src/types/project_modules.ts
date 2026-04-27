@@ -26,7 +26,14 @@ export interface ProjectModule {
   id: string
   name: string
   project: string
-  status: 'Pendente' | 'Em Andamento' | 'Concluído' | 'Pausado' | 'Em Análise' | 'Em Revisão'
+  status:
+    | 'Pendente'
+    | 'Em Andamento'
+    | 'Concluído'
+    | 'Pausado'
+    | 'Em Análise'
+    | 'Em Revisão'
+    | 'Em Aprovação'
   progress: number
   deadline: string
   deadline_days?: number

@@ -34,6 +34,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
 import { ProjectModuleModal } from './ProjectModuleModal'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ModuleTreeGrid } from './ModuleTreeGrid'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
 import {
@@ -74,8 +81,8 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     return localStorage.getItem(`priority_mode_${projectId}`) === 'true'
   })
 
-  const [groupByBuilding, setGroupByBuilding] = useState(() => {
-    return localStorage.getItem(`group_by_building_${projectId}`) === 'true'
+  const [groupBy, setGroupBy] = useState<'edificacao' | 'disciplina' | 'none'>(() => {
+    return (localStorage.getItem(`group_by_mode_${projectId}`) as any) || 'none'
   })
 
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -134,6 +141,8 @@ export function ProjectModules({ projectId }: { projectId: string }) {
         return 'bg-cyan-500 hover:bg-cyan-600 text-white'
       case 'Em Revisão':
         return 'bg-indigo-500 hover:bg-indigo-600 text-white'
+      case 'Em Aprovação':
+        return 'bg-purple-500 hover:bg-purple-600 text-white'
       default:
         return 'bg-slate-500 hover:bg-slate-600 text-white'
     }
@@ -247,9 +256,9 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     window.dispatchEvent(new Event('priorityModeChanged'))
   }
 
-  const handleGroupByBuildingChange = (checked: boolean) => {
-    setGroupByBuilding(checked)
-    localStorage.setItem(`group_by_building_${projectId}`, checked.toString())
+  const handleGroupByChange = (value: string) => {
+    setGroupBy(value as any)
+    localStorage.setItem(`group_by_mode_${projectId}`, value)
   }
 
   const handleDelete = async () => {
@@ -286,9 +295,15 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const groupedModules = useMemo(() => {
     const groups: Record<string, ProjectModule[]> = {}
 
-    if (groupByBuilding) {
+    if (groupBy === 'edificacao') {
       filteredModules.forEach((mod) => {
         const key = mod.edificacao || 'Sem Edificação'
+        if (!groups[key]) groups[key] = []
+        groups[key].push(mod)
+      })
+    } else if (groupBy === 'disciplina') {
+      filteredModules.forEach((mod) => {
+        const key = mod.name || 'Sem Disciplina'
         if (!groups[key]) groups[key] = []
         groups[key].push(mod)
       })
@@ -303,7 +318,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     }
 
     return groups
-  }, [filteredModules, groupByBuilding, priorityMode])
+  }, [filteredModules, groupBy, priorityMode])
 
   const hasAnyModule = Object.values(groupedModules).some((arr) => arr.length > 0)
 
@@ -407,20 +422,16 @@ export function ProjectModules({ projectId }: { projectId: string }) {
             </Label>
           </div>
 
-          <div className="flex items-center gap-2 mr-2 bg-blue-50 dark:bg-blue-950/30 px-3 py-1.5 rounded-md border border-blue-200 dark:border-blue-900/50">
-            <Switch
-              id="group-by-building"
-              checked={groupByBuilding}
-              onCheckedChange={handleGroupByBuildingChange}
-              className="data-[state=checked]:bg-blue-500"
-            />
-            <Label
-              htmlFor="group-by-building"
-              className="text-xs font-medium cursor-pointer text-blue-700 dark:text-blue-400"
-            >
-              Agrupar por Edificação
-            </Label>
-          </div>
+          <Select value={groupBy} onValueChange={handleGroupByChange}>
+            <SelectTrigger className="w-[180px] h-8 text-xs bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 text-blue-800 dark:text-blue-300">
+              <SelectValue placeholder="Agrupar por..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sem Agrupamento</SelectItem>
+              <SelectItem value="edificacao">Agrupar por Edificação</SelectItem>
+              <SelectItem value="disciplina">Agrupar por Disciplina</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Popover>
             <PopoverTrigger asChild>
@@ -531,9 +542,13 @@ export function ProjectModules({ projectId }: { projectId: string }) {
 
               return (
                 <div key={groupName} className="flex flex-col gap-3">
-                  {groupByBuilding && (
+                  {groupBy !== 'none' && (
                     <div className="flex items-center gap-2 px-1">
-                      <Building2 className="w-5 h-5 text-blue-500" />
+                      {groupBy === 'edificacao' ? (
+                        <Building2 className="w-5 h-5 text-blue-500" />
+                      ) : (
+                        <ListTree className="w-5 h-5 text-blue-500" />
+                      )}
                       <h3 className="text-base font-semibold text-foreground tracking-tight">
                         {groupName}
                       </h3>
@@ -617,7 +632,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                                       </span>
                                     </Link>
                                   </div>
-                                  {!groupByBuilding && mod.edificacao && (
+                                  {groupBy !== 'edificacao' && mod.edificacao && (
                                     <span className="text-xs text-muted-foreground mt-0.5">
                                       Edificação: {mod.edificacao}
                                     </span>
@@ -834,7 +849,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                                   {renderDeadlineAlert(mod.deadline, mod.status)}
                                 </div>
 
-                                {!groupByBuilding && mod.edificacao && (
+                                {groupBy !== 'edificacao' && mod.edificacao && (
                                   <div className="text-sm text-muted-foreground mt-1 w-full">
                                     Edificação:{' '}
                                     <span className="font-medium text-foreground">

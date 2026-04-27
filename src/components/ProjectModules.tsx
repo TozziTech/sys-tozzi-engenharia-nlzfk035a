@@ -501,7 +501,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                             <TableHead className="text-right">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
-                        <TableBody>
+                        <TableBody className="text-[0.02rem]">
                           {groupModules.map((mod) => (
                             <TableRow
                               key={mod.id}

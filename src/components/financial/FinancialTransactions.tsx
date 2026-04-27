@@ -38,6 +38,7 @@ export function FinancialTransactions() {
   const { projects, transactions } = useProjectStore()
   const { categories } = useFinancialCategories()
   const { user } = useAuth()
+  const { can } = usePermissions()
 
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
@@ -245,17 +246,19 @@ export function FinancialTransactions() {
             categories={categories}
             projects={projects}
             users={users}
-            onEdit={setEditTx}
-            onDelete={setDeleteTx}
+            onEdit={(tx) => can('edit', 'finance') && setEditTx(tx)}
+            onDelete={(tx) => can('delete', 'finance') && setDeleteTx(tx)}
           />
         </CardContent>
       </Card>
 
-      <EditTransactionModal
-        transaction={editTx}
-        open={!!editTx}
-        onOpenChange={(o) => !o && setEditTx(null)}
-      />
+      {can('edit', 'finance') && (
+        <EditTransactionModal
+          transaction={editTx}
+          open={!!editTx}
+          onOpenChange={(o) => !o && setEditTx(null)}
+        />
+      )}
 
       <AlertDialog open={!!deleteTx} onOpenChange={(o) => !o && setDeleteTx(null)}>
         <AlertDialogContent>

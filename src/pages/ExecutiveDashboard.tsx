@@ -9,14 +9,16 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export default function ExecutiveDashboard() {
   const { user } = useAuth()
+  const { canAccess } = usePermissions()
   const navigate = useNavigate()
   const { toast } = useToast()
 
   useEffect(() => {
-    if (user && user.role !== 'Administrador') {
+    if (user && !canAccess('dashboard_executivo') && user.role !== 'Administrador') {
       toast({
         title: 'Acesso Negado',
         description: 'Você não tem permissão para acessar o Dashboard Executivo.',
@@ -24,7 +26,7 @@ export default function ExecutiveDashboard() {
       })
       navigate('/dashboard', { replace: true })
     }
-  }, [user, navigate, toast])
+  }, [user, canAccess, navigate, toast])
 
   const [projects, setProjects] = useState<any[]>([])
   const [modules, setModules] = useState<any[]>([])
@@ -100,7 +102,7 @@ export default function ExecutiveDashboard() {
     value: { label: 'Módulos' },
   }
 
-  if (!user || user.role !== 'Administrador') return null
+  if (!user || (!canAccess('dashboard_executivo') && user.role !== 'Administrador')) return null
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 animate-fade-in-up">

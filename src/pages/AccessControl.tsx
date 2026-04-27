@@ -58,8 +58,12 @@ const rbacResources = [
   { id: 'projects', name: 'Projetos' },
   { id: 'tasks', name: 'Tarefas' },
   { id: 'finance', name: 'Financeiro' },
+  { id: 'quotes', name: 'Orçamentos' },
   { id: 'clients', name: 'Clientes' },
   { id: 'contacts', name: 'Contatos' },
+  { id: 'settings', name: 'Configurações do sistema' },
+  { id: 'profile', name: 'Meu Perfil' },
+  { id: 'dashboard_executivo', name: 'Dashboard Executivo' },
 ]
 
 const rbacActions = [

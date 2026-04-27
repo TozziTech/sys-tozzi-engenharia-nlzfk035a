@@ -39,6 +39,7 @@ import { format } from 'date-fns'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export type QuoteItem = {
   id: string
@@ -76,6 +77,8 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
   const [isPreview, setIsPreview] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const { can } = usePermissions()
+  const canEditQuote = can('edit', 'quotes') || !initialData?.id
 
   const [clientName, setClientName] = useState(initialData?.clientName || '')
   const [clientEmail, setClientEmail] = useState(initialData?.clientEmail || '')
@@ -686,18 +689,24 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                   >
                     <FileDown className="w-4 h-4 mr-2" /> Exportar PDF
                   </Button>
-                  <Button onClick={handleFinalize} disabled={isSaving} className="w-full sm:w-auto">
-                    {isSaving ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Check className="w-4 h-4 mr-2" />
-                    )}
-                    {isSaving
-                      ? 'Salvando...'
-                      : initialData
-                        ? 'Salvar Alterações'
-                        : 'Finalizar Orçamento'}
-                  </Button>
+                  {canEditQuote && (
+                    <Button
+                      onClick={handleFinalize}
+                      disabled={isSaving}
+                      className="w-full sm:w-auto"
+                    >
+                      {isSaving ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4 mr-2" />
+                      )}
+                      {isSaving
+                        ? 'Salvando...'
+                        : initialData
+                          ? 'Salvar Alterações'
+                          : 'Finalizar Orçamento'}
+                    </Button>
+                  )}
                 </div>
               </>
             ) : (

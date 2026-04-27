@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
 import { validateCPF } from '@/lib/utils'
+import { usePermissions } from '@/hooks/use-permissions'
 
 const Field = ({ label, id, value, onChange, type = 'text', ...props }: any) => (
   <div className="space-y-2">
@@ -26,6 +27,8 @@ const Field = ({ label, id, value, onChange, type = 'text', ...props }: any) => 
 
 export default function Profile() {
   const { user } = useAuth()
+  const { can } = usePermissions()
+  const canEditProfile = can('edit', 'profile')
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [passLoading, setPassLoading] = useState(false)
@@ -259,9 +262,11 @@ export default function Profile() {
                 placeholder="(00) 00000-0000"
               />
             </div>
-            <Button onClick={handleSave} disabled={loading} className="mt-4">
-              {loading ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
+            {canEditProfile && (
+              <Button onClick={handleSave} disabled={loading} className="mt-4">
+                {loading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            )}
           </TabsContent>
 
           <TabsContent value="professional" className="space-y-4 mt-0">
@@ -292,9 +297,11 @@ export default function Profile() {
                 onChange={(v: string) => handleChange('rg', v)}
               />
             </div>
-            <Button onClick={handleSave} disabled={loading} className="mt-4">
-              {loading ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
+            {canEditProfile && (
+              <Button onClick={handleSave} disabled={loading} className="mt-4">
+                {loading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            )}
           </TabsContent>
 
           <TabsContent value="address" className="space-y-4 mt-0">
@@ -334,9 +341,11 @@ export default function Profile() {
                 maxLength={2}
               />
             </div>
-            <Button onClick={handleSave} disabled={loading} className="mt-4">
-              {loading ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
+            {canEditProfile && (
+              <Button onClick={handleSave} disabled={loading} className="mt-4">
+                {loading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            )}
           </TabsContent>
 
           <TabsContent value="bank" className="space-y-4 mt-0">
@@ -362,9 +371,11 @@ export default function Profile() {
                 onChange={(v: string) => handleChange('chave_pix', v)}
               />
             </div>
-            <Button onClick={handleSave} disabled={loading} className="mt-4">
-              {loading ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
+            {canEditProfile && (
+              <Button onClick={handleSave} disabled={loading} className="mt-4">
+                {loading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            )}
           </TabsContent>
 
           <TabsContent value="security" className="space-y-8 mt-0">
@@ -379,6 +390,7 @@ export default function Profile() {
                 </div>
                 <Switch
                   checked={formData.email_notifications_enabled}
+                  disabled={!canEditProfile}
                   onCheckedChange={(v) => {
                     handleChange('email_notifications_enabled', v)
                     setTimeout(handleSave, 100)
@@ -416,13 +428,15 @@ export default function Profile() {
                   />
                 </div>
               </div>
-              <Button
-                variant="destructive"
-                onClick={handlePassword}
-                disabled={passLoading || !passData.password}
-              >
-                {passLoading ? 'Alterando...' : 'Atualizar Senha'}
-              </Button>
+              {canEditProfile && (
+                <Button
+                  variant="destructive"
+                  onClick={handlePassword}
+                  disabled={passLoading || !passData.password}
+                >
+                  {passLoading ? 'Alterando...' : 'Atualizar Senha'}
+                </Button>
+              )}
             </div>
           </TabsContent>
         </div>

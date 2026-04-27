@@ -22,9 +22,12 @@ import { useThemeColor } from '@/components/ThemeProvider'
 import { Sun, Moon, Monitor } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export default function Settings() {
   const { user } = useAuth()
+  const { canAccess, can } = usePermissions()
+  const canEditSettings = can('edit', 'settings')
   const { slackWebhookUrl, setSlackWebhookUrl } = useProjectStore()
   const [webhookInput, setWebhookInput] = useState(slackWebhookUrl)
   const { toast } = useToast()
@@ -107,7 +110,8 @@ export default function Settings() {
       .catch(() => {})
   }, [])
 
-  if (user?.role !== 'Administrador') return <Navigate to="/" replace />
+  if (!canAccess('configuracoes') && user?.role !== 'Administrador')
+    return <Navigate to="/" replace />
 
   const handleSaveCompany = async () => {
     setSavingCompany(true)
@@ -335,11 +339,13 @@ export default function Settings() {
                 />
               </div>
             </div>
-            <div className="flex justify-end">
-              <Button onClick={handleSaveCompany} disabled={savingCompany}>
-                {savingCompany ? 'Salvando...' : 'Salvar Configurações Globais'}
-              </Button>
-            </div>
+            {canEditSettings && (
+              <div className="flex justify-end">
+                <Button onClick={handleSaveCompany} disabled={savingCompany}>
+                  {savingCompany ? 'Salvando...' : 'Salvar Configurações Globais'}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -398,11 +404,13 @@ export default function Settings() {
                   </Select>
                 </div>
               </div>
-              <div className="flex justify-end">
-                <Button onClick={handleSaveSchedule} disabled={savingSchedule}>
-                  Salvar Agendamentos
-                </Button>
-              </div>
+              {canEditSettings && (
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveSchedule} disabled={savingSchedule}>
+                    Salvar Agendamentos
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

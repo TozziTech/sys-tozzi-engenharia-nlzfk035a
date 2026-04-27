@@ -22,6 +22,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { Client } from '@/services/clients'
+import { usePermissions } from '@/hooks/use-permissions'
 
 interface Props {
   open: boolean
@@ -94,6 +95,8 @@ export function ClientFormDialog({ open, onOpenChange, client, onSuccess }: Prop
   const [editingClient, setEditingClient] = useState<Partial<Client>>(client)
   const [newFiles, setNewFiles] = useState<File[]>([])
   const { toast } = useToast()
+  const { can } = usePermissions()
+  const canEditClient = client.id ? can('edit', 'clients') : can('create', 'clients')
 
   useEffect(() => {
     setEditingClient(client)
@@ -410,7 +413,7 @@ export function ClientFormDialog({ open, onOpenChange, client, onSuccess }: Prop
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSave}>Salvar</Button>
+          {canEditClient && <Button onClick={handleSave}>Salvar</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

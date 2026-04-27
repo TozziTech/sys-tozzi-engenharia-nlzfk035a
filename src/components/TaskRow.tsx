@@ -11,6 +11,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export type TaskNode = any
 
@@ -55,6 +56,11 @@ export function TaskRow({
   isOverdue,
   onClickTitle,
 }: TaskRowProps) {
+  const { can } = usePermissions()
+  const canEditTasks = can('edit', 'tasks')
+  const canDeleteTasks = can('delete', 'tasks')
+  const canCreateTasks = can('create', 'tasks')
+
   const hasChildren = task.children && task.children.length > 0
 
   const due = task.dados_customizados?.due_date ? new Date(task.dados_customizados.due_date) : null
@@ -141,7 +147,8 @@ export function TaskRow({
       {columns.responsavel && (
         <TableCell className="py-2.5">
           <select
-            className="bg-transparent text-sm w-full outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-1 py-0.5 transition-colors focus:ring-2 focus:ring-primary/50"
+            disabled={!canEditTasks}
+            className="bg-transparent text-sm w-full outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-1 py-0.5 transition-colors focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
             value={task.dados_customizados?.responsible || ''}
             onChange={(e) =>
               onUpdate(task.id, { dados_customizados: { responsible: e.target.value } })
@@ -161,8 +168,9 @@ export function TaskRow({
         <TableCell className="py-2.5">
           <input
             type="date"
+            disabled={!canEditTasks}
             className={cn(
-              'bg-transparent text-sm w-full outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-1 py-0.5 transition-colors focus:ring-2 focus:ring-primary/50',
+              'bg-transparent text-sm w-full outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-1 py-0.5 transition-colors focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed',
               isOverdue(task.dados_customizados?.due_date) && !task.concluida
                 ? 'text-red-600 dark:text-red-400 font-semibold'
                 : 'text-slate-600 dark:text-slate-300',
@@ -182,8 +190,9 @@ export function TaskRow({
       {columns.status && (
         <TableCell className="py-2.5">
           <select
+            disabled={!canEditTasks}
             className={cn(
-              'bg-transparent text-sm w-full outline-none cursor-pointer rounded px-2 py-1 transition-colors focus:ring-2 focus:ring-primary/50 font-medium',
+              'bg-transparent text-sm w-full outline-none cursor-pointer rounded px-2 py-1 transition-colors focus:ring-2 focus:ring-primary/50 font-medium disabled:opacity-50 disabled:cursor-not-allowed',
               task.concluida || task.dados_customizados?.status === 'Concluído'
                 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
                 : task.dados_customizados?.status === 'Atrasado'
@@ -235,24 +244,28 @@ export function TaskRow({
       {columns.acoes && (
         <TableCell className="py-2.5 text-center">
           <div className="flex items-center justify-center gap-1 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-7 h-7 hover:bg-primary/10 hover:text-primary text-slate-500"
-              onClick={() => onAdd(task.id)}
-              title="Adicionar subtarefa"
-            >
-              <PlusCircle className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-7 h-7 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-              onClick={() => onDelete(task.id)}
-              title="Excluir tarefa"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            {canCreateTasks && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-7 h-7 hover:bg-primary/10 hover:text-primary text-slate-500"
+                onClick={() => onAdd(task.id)}
+                title="Adicionar subtarefa"
+              >
+                <PlusCircle className="w-4 h-4" />
+              </Button>
+            )}
+            {canDeleteTasks && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-7 h-7 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                onClick={() => onDelete(task.id)}
+                title="Excluir tarefa"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </TableCell>
       )}

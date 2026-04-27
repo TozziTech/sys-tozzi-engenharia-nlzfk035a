@@ -21,6 +21,7 @@ import { KanbanTask, TaskPriority, TaskStatus } from './KanbanBoard'
 import { format } from 'date-fns'
 import { TaskAttachments } from './TaskAttachments'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 
 interface TaskDetailModalProps {
   isOpen: boolean
@@ -67,11 +68,8 @@ export function TaskDetailModal({
   teamMembers,
   onUpdate,
 }: TaskDetailModalProps) {
-  const { effectiveRole } = useAuth()
-  const canEdit =
-    effectiveRole === 'Administrador' ||
-    effectiveRole === 'Gerente de Projeto' ||
-    effectiveRole === 'Projetista'
+  const { can } = usePermissions()
+  const canEdit = can('edit', 'tasks')
   const [editedTask, setEditedTask] = useState<KanbanTask>(task)
   const [comments, setComments] = useState(INITIAL_COMMENTS)
   const [history, setHistory] = useState(INITIAL_HISTORY)

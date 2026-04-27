@@ -30,6 +30,7 @@ import {
 import useProjectStore from '@/stores/useProjectStore'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
+import { usePermissions } from '@/hooks/use-permissions'
 
 interface ProjectTableProps {
   projects: Project[]
@@ -42,6 +43,7 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
   const navigate = useNavigate()
   const { deleteProject, restoreProject } = useProjectStore()
   const { toast } = useToast()
+  const { can } = usePermissions()
 
   const isCritical = (project: Project) => {
     if (project.status === 'Concluído' || project.deletedAt) return false
@@ -197,28 +199,32 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-slate-500 hover:text-indigo-600"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setProjectToEdit(project)
-                        }}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-slate-500 hover:text-red-600"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setProjectToDelete(project)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {can('edit', 'projects') && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setProjectToEdit(project)
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {can('delete', 'projects') && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-500 hover:text-red-600"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setProjectToDelete(project)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>

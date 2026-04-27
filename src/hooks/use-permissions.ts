@@ -34,6 +34,18 @@ const parentMap: Record<string, string> = {
   auditoria: 'governanca',
 }
 
+const resourceToModuleMap: Record<string, string> = {
+  projects: 'projetos',
+  tasks: 'projetos',
+  finance: 'lancamentos_financeiros',
+  quotes: 'orcamentos',
+  clients: 'clientes',
+  contacts: 'contatos',
+  settings: 'configuracoes',
+  profile: 'meu_perfil',
+  dashboard_executivo: 'dashboard_executivo',
+}
+
 export function usePermissions() {
   const { user } = useAuth()
   const { moduleVisibility, role_permissions, setRolePermissions, setModuleVisibility } =
@@ -118,6 +130,12 @@ export function usePermissions() {
     if (!user) return false
     if (user.role === 'Administrador') return true
 
+    const moduleId = resourceToModuleMap[resource] || resource
+    const modulePerm = getPermission(moduleId)
+
+    if (modulePerm === 'Inativo') return false
+    if (modulePerm === 'Leitura' && action !== 'view') return false
+
     const permKey = `${resource}.${action}`
 
     if (user.custom_role && customRoles[user.custom_role]) {
@@ -133,8 +151,10 @@ export function usePermissions() {
       return rolePerms[permKey] === true
     }
 
-    // Deny by default
-    return false
+    if (action === 'view') return true
+
+    // Fallback to module's base permission if granular isn't defined explicitly
+    return modulePerm === 'Ativo'
   }
 
   return { getPermission, canAccess, canWrite, can }

@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/command'
 import useProjectStore from '@/stores/useProjectStore'
 import { useFinancialCategories } from '@/hooks/use-financial-categories'
+import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
@@ -54,6 +55,7 @@ const initialFormState = {
 export function TransactionModal() {
   const { projects } = useProjectStore()
   const { categories, addCategory } = useFinancialCategories()
+  const { can } = usePermissions()
 
   const [isOpen, setIsOpen] = useState(false)
   const [openCategory, setOpenCategory] = useState(false)
@@ -154,6 +156,8 @@ export function TransactionModal() {
       setIsSubmitting(false)
     }
   }
+
+  if (!can('create', 'finance')) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>

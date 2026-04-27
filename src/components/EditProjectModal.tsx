@@ -74,7 +74,9 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
   const { toast } = useToast()
   const { user } = useAuth()
 
-  const canEditStatus = user && ['Administrador', 'Gerente de Projeto'].includes(user?.role)
+  const canEditStatus =
+    user &&
+    (['Administrador', 'Gerente de Projeto'].includes(user?.role) || user?.role === 'Projetista')
 
   const formatCurrency = (val: string | number) => {
     if (val === undefined || val === null || val === '') return ''

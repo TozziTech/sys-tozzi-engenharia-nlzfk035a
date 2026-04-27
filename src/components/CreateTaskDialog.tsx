@@ -21,6 +21,7 @@ import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { useParams } from 'react-router-dom'
 import { createTask } from '@/services/tasks'
+import { usePermissions } from '@/hooks/use-permissions'
 
 interface CreateTaskDialogProps {
   open: boolean
@@ -39,6 +40,7 @@ export function CreateTaskDialog({
 }: CreateTaskDialogProps) {
   const { id: projectIdUrl } = useParams<{ id: string }>()
   const { toast } = useToast()
+  const { can } = usePermissions()
 
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -203,9 +205,11 @@ export function CreateTaskDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Salvando...' : 'Salvar'}
-          </Button>
+          {can('create', 'tasks') && (
+            <Button onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Salvando...' : 'Salvar'}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -3,10 +3,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useAuth } from '@/hooks/use-auth'
-import pb from '@/lib/pocketbase/client'
 import useProjectStore from '@/stores/useProjectStore'
 import { createProjectModule, updateProjectModule } from '@/services/project_modules'
-import { ProjectModule } from '@/types/project_modules'
+import { ProjectModule, SUB_DISCIPLINES_LIST } from '@/types/project_modules'
 import {
   Dialog,
   DialogContent,
@@ -32,6 +31,18 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Check, ChevronsUpDown, X } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 
 const DISCIPLINES = [
@@ -61,6 +72,7 @@ const schema = z.object({
   notes: z.string().optional(),
   responsible: z.string().optional(),
   designer: z.string().optional(),
+  sub_disciplines: z.array(z.string()).optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -89,6 +101,7 @@ export function ProjectModuleModal({
       progress: 0,
       deadline: '',
       notes: '',
+      sub_disciplines: [],
     },
   })
 
@@ -103,6 +116,7 @@ export function ProjectModuleModal({
           notes: module.notes || '',
           responsible: module.responsible || 'none',
           designer: module.designer || 'none',
+          sub_disciplines: module.sub_disciplines || [],
         })
       } else {
         form.reset({
@@ -113,6 +127,7 @@ export function ProjectModuleModal({
           notes: '',
           responsible: 'none',
           designer: 'none',
+          sub_disciplines: [],
         })
       }
     }
@@ -131,6 +146,7 @@ export function ProjectModuleModal({
         deadline: data.deadline ? new Date(data.deadline).toISOString() : '',
         responsible: data.responsible !== 'none' ? data.responsible : null,
         designer: data.designer !== 'none' ? data.designer : null,
+        sub_disciplines: data.sub_disciplines || [],
       }
 
       if (module) {
@@ -184,6 +200,83 @@ export function ProjectModuleModal({
                       )}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sub_disciplines"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Sub-disciplinas</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            'w-full justify-between font-normal',
+                            !field.value?.length && 'text-muted-foreground',
+                          )}
+                        >
+                          {field.value?.length
+                            ? `${field.value.length} selecionada(s)`
+                            : 'Selecione sub-disciplinas'}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[450px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar sub-disciplina..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhuma encontrada.</CommandEmpty>
+                          <CommandGroup>
+                            {SUB_DISCIPLINES_LIST.map((sd) => (
+                              <CommandItem
+                                key={sd}
+                                value={sd}
+                                onSelect={() => {
+                                  const current = field.value || []
+                                  const updated = current.includes(sd)
+                                    ? current.filter((c) => c !== sd)
+                                    : [...current, sd]
+                                  field.onChange(updated)
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    field.value?.includes(sd) ? 'opacity-100' : 'opacity-0',
+                                  )}
+                                />
+                                {sd}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {field.value && field.value.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {field.value.map((sd) => (
+                        <Badge key={sd} variant="secondary" className="text-xs font-normal pr-1.5">
+                          {sd}
+                          <button
+                            type="button"
+                            className="ml-1 text-muted-foreground hover:text-foreground focus:outline-none"
+                            onClick={() => field.onChange(field.value?.filter((v) => v !== sd))}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Plus, Trash2, Users, Briefcase, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
-import { ProjectModule } from '@/types/project_modules'
+import { ProjectModule, SUB_DISCIPLINES_COLORS } from '@/types/project_modules'
 import { useAuth } from '@/hooks/use-auth'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
@@ -31,6 +31,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Badge } from '@/components/ui/badge'
 
 export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   const [modules, setModules] = useState<ProjectModule[]>([])
@@ -470,16 +471,34 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
             {modules.map((mod) => (
               <Card key={mod.id} className="flex flex-col overflow-hidden shadow-sm">
                 <div className="p-4 pb-3 flex flex-row items-start justify-between gap-2 border-b bg-muted/20">
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 flex-1 pr-2">
                     <Link
                       to={`/projects/${projectId}/disciplines/${mod.id}`}
                       className="font-semibold text-base text-primary hover:underline hover:text-amber-500 transition-colors line-clamp-1 flex items-center gap-2"
                       title={mod.name}
                     >
-                      <Briefcase className="h-4 w-4 text-muted-foreground" />
-                      {mod.name}
+                      <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate">{mod.name}</span>
                     </Link>
-                    <div className="flex items-center">
+
+                    {mod.sub_disciplines && mod.sub_disciplines.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {mod.sub_disciplines.map((sd) => (
+                          <Badge
+                            key={sd}
+                            variant="outline"
+                            className={cn(
+                              'text-[9px] px-1.5 py-0 font-medium',
+                              SUB_DISCIPLINES_COLORS[sd] || '',
+                            )}
+                          >
+                            {sd}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center mt-1.5">
                       <span
                         className={cn(
                           'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',

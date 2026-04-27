@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-27T14:16:34.290Z",
+  "generatedAt": "2026-04-27T14:20:15.196Z",
   "collections": [
     {
       "name": "users",
@@ -1278,7 +1278,8 @@
             "Concluído",
             "Pausado",
             "Em Análise",
-            "Em Revisão"
+            "Em Revisão",
+            "Em Aprovação"
           ]
         },
         {

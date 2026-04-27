@@ -38,7 +38,8 @@ export function FinancialTransactions() {
   const { projects, transactions } = useProjectStore()
   const { categories } = useFinancialCategories()
   const { user } = useAuth()
-  const { can } = usePermissions()
+  const { canWrite } = usePermissions()
+  const canWriteFinance = canWrite('lancamentos_financeiros') || user?.role === 'Administrador'
 
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
@@ -246,13 +247,13 @@ export function FinancialTransactions() {
             categories={categories}
             projects={projects}
             users={users}
-            onEdit={(tx) => can('edit', 'finance') && setEditTx(tx)}
-            onDelete={(tx) => can('delete', 'finance') && setDeleteTx(tx)}
+            onEdit={(tx) => canWriteFinance && setEditTx(tx)}
+            onDelete={(tx) => canWriteFinance && setDeleteTx(tx)}
           />
         </CardContent>
       </Card>
 
-      {can('edit', 'finance') && (
+      {canWriteFinance && (
         <EditTransactionModal
           transaction={editTx}
           open={!!editTx}

@@ -1475,9 +1475,9 @@ export default function AccessControl() {
                                             <SelectValue />
                                           </SelectTrigger>
                                           <SelectContent>
-                                            <SelectItem value="Ativo">Ativo</SelectItem>
-                                            <SelectItem value="Leitura">Leitura</SelectItem>
-                                            <SelectItem value="Inativo">Inativo</SelectItem>
+                                            <SelectItem value="Ativo">Edição Completa</SelectItem>
+                                            <SelectItem value="Leitura">Somente Leitura</SelectItem>
+                                            <SelectItem value="Inativo">Nenhum Acesso</SelectItem>
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
@@ -1507,9 +1507,9 @@ export default function AccessControl() {
                                             <SelectValue />
                                           </SelectTrigger>
                                           <SelectContent>
-                                            <SelectItem value="Ativo">Ativo</SelectItem>
-                                            <SelectItem value="Leitura">Leitura</SelectItem>
-                                            <SelectItem value="Inativo">Inativo</SelectItem>
+                                            <SelectItem value="Ativo">Edição Completa</SelectItem>
+                                            <SelectItem value="Leitura">Somente Leitura</SelectItem>
+                                            <SelectItem value="Inativo">Nenhum Acesso</SelectItem>
                                           </SelectContent>
                                         </Select>
                                       </TableCell>
@@ -1735,7 +1735,7 @@ export default function AccessControl() {
                                           variant="outline"
                                           className="bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 whitespace-nowrap"
                                         >
-                                          <Check className="h-3 w-3 mr-1" /> Ativo
+                                          <Check className="h-3 w-3 mr-1" /> Edição Completa
                                         </Badge>
                                       )}
                                       {status === 'Leitura' && (
@@ -1743,7 +1743,7 @@ export default function AccessControl() {
                                           variant="outline"
                                           className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 whitespace-nowrap"
                                         >
-                                          <Eye className="h-3 w-3 mr-1" /> Leitura
+                                          <Eye className="h-3 w-3 mr-1" /> Somente Leitura
                                         </Badge>
                                       )}
                                       {(status === 'Inativo' || status === 'Oculto') && (
@@ -1751,7 +1751,8 @@ export default function AccessControl() {
                                           variant="outline"
                                           className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 whitespace-nowrap"
                                         >
-                                          <X className="h-3 w-3 mr-1" /> {status}
+                                          <X className="h-3 w-3 mr-1" />{' '}
+                                          {status === 'Inativo' ? 'Nenhum Acesso' : 'Oculto'}
                                         </Badge>
                                       )}
                                     </TableCell>
@@ -1777,7 +1778,7 @@ export default function AccessControl() {
                                           variant="outline"
                                           className="bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 whitespace-nowrap"
                                         >
-                                          <Check className="h-3 w-3 mr-1" /> Ativo
+                                          <Check className="h-3 w-3 mr-1" /> Edição Completa
                                         </Badge>
                                       )}
                                       {status === 'Leitura' && (
@@ -1785,7 +1786,7 @@ export default function AccessControl() {
                                           variant="outline"
                                           className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 whitespace-nowrap"
                                         >
-                                          <Eye className="h-3 w-3 mr-1" /> Leitura
+                                          <Eye className="h-3 w-3 mr-1" /> Somente Leitura
                                         </Badge>
                                       )}
                                       {(status === 'Inativo' || status === 'Oculto') && (
@@ -1793,7 +1794,8 @@ export default function AccessControl() {
                                           variant="outline"
                                           className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 whitespace-nowrap"
                                         >
-                                          <X className="h-3 w-3 mr-1" /> {status}
+                                          <X className="h-3 w-3 mr-1" />{' '}
+                                          {status === 'Inativo' ? 'Nenhum Acesso' : 'Oculto'}
                                         </Badge>
                                       )}
                                     </TableCell>

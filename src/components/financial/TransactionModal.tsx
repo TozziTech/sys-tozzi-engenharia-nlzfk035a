@@ -55,7 +55,10 @@ const initialFormState = {
 export function TransactionModal() {
   const { projects } = useProjectStore()
   const { categories, addCategory } = useFinancialCategories()
-  const { can } = usePermissions()
+  const { canWrite } = usePermissions()
+  const { user } = useAuth()
+
+  const canWriteFinance = canWrite('lancamentos_financeiros') || user?.role === 'Administrador'
 
   const [isOpen, setIsOpen] = useState(false)
   const [openCategory, setOpenCategory] = useState(false)
@@ -157,7 +160,7 @@ export function TransactionModal() {
     }
   }
 
-  if (!can('create', 'finance')) return null
+  if (!canWriteFinance) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>

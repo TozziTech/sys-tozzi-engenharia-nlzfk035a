@@ -46,6 +46,7 @@ import { exportBankAccountsCSV } from '@/lib/export'
 import { exportBankAccountsPDF } from '@/lib/exportPdf'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
+import { AccessRestricted } from '@/components/auth/AccessRestricted'
 
 export default function BankAccounts() {
   const [accounts, setAccounts] = useState<BankAccount[]>([])
@@ -58,7 +59,9 @@ export default function BankAccounts() {
   const [activeTab, setActiveTab] = useState('Todas')
   const { toast } = useToast()
   const { user } = useAuth()
-  const { canAccess } = usePermissions()
+  const { canAccess, canWrite } = usePermissions()
+
+  const canWriteBank = canWrite('contas_bancarias') || user?.role === 'Administrador'
 
   const loadAccounts = async () => {
     try {
@@ -138,17 +141,7 @@ export default function BankAccounts() {
   }
 
   if (!canAccess('contas_bancarias') && user?.role !== 'Administrador') {
-    return (
-      <div className="flex-1 p-8 pt-6">
-        <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg bg-muted/20 animate-fade-in">
-          <ShieldAlert className="h-10 w-10 text-amber-500 mb-4" />
-          <h3 className="text-lg font-medium">Acesso Restrito</h3>
-          <p className="text-muted-foreground mt-2 max-w-md">
-            Você não tem permissão para acessar a gestão de contas bancárias.
-          </p>
-        </div>
-      </div>
-    )
+    return <AccessRestricted />
   }
 
   return (
@@ -178,18 +171,22 @@ export default function BankAccounts() {
             <ShieldAlert className="mr-2 h-4 w-4" />
             Auditoria
           </Button>
-          <Button
-            onClick={() => setIsTransferOpen(true)}
-            variant="outline"
-            className="bg-background"
-          >
-            <ArrowRightLeft className="mr-2 h-4 w-4" />
-            Transferência
-          </Button>
-          <Button onClick={openNew}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Conta
-          </Button>
+          {canWriteBank && (
+            <>
+              <Button
+                onClick={() => setIsTransferOpen(true)}
+                variant="outline"
+                className="bg-background"
+              >
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                Transferência
+              </Button>
+              <Button onClick={openNew}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Conta
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -215,10 +212,12 @@ export default function BankAccounts() {
             Você ainda não cadastrou nenhuma conta bancária. Adicione sua primeira conta para
             começar a gerenciar os saldos.
           </p>
-          <Button onClick={openNew} variant="secondary">
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar Primeira Conta
-          </Button>
+          {canWriteBank && (
+            <Button onClick={openNew} variant="secondary">
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Primeira Conta
+            </Button>
+          )}
         </div>
       ) : (
         <Tabs
@@ -284,45 +283,49 @@ export default function BankAccounts() {
                       <CheckCircle className="h-4 w-4 mr-1.5 text-emerald-500" />
                       Conciliar
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEdit(acc)}
-                      className="bg-background shrink-0"
-                    >
-                      <Pencil className="h-4 w-4 mr-1.5" />
-                      Editar
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
+                    {canWriteBank && (
+                      <>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-destructive hover:bg-destructive/10 border-destructive/20 bg-background shrink-0"
+                          onClick={() => openEdit(acc)}
+                          className="bg-background shrink-0"
                         >
-                          <Trash2 className="h-4 w-4 mr-1.5" />
-                          Excluir
+                          <Pencil className="h-4 w-4 mr-1.5" />
+                          Editar
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja excluir a conta "{acc.name}"? Esta ação não pode
-                            ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(acc.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:bg-destructive/10 border-destructive/20 bg-background shrink-0"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1.5" />
+                              Excluir
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir a conta "{acc.name}"? Esta ação não
+                                pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(acc.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
                   </CardFooter>
                 </Card>
               ))}

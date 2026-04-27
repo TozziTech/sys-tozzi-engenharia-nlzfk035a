@@ -14,6 +14,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useEffect } from 'react'
 import useProjectStore from '@/stores/useProjectStore'
 import { exportFinancialPDF } from '@/lib/exportPdf'
+import { AccessRestricted } from '@/components/auth/AccessRestricted'
 
 export default function Financial() {
   const { canAccess } = usePermissions()
@@ -29,25 +30,8 @@ export default function Financial() {
     user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
   const hasCategoriesAccess = user?.role === 'Administrador'
 
-  useEffect(() => {
-    if (user && !hasFinanceAccess && user.role !== 'Administrador') {
-      toast({
-        title: 'Acesso restrito',
-        description: 'Você não tem permissão para visualizar os Lançamentos Financeiros.',
-        variant: 'destructive',
-      })
-      if (user.role === 'Projetista' || user.role === 'Estagiário') {
-        navigate('/designer-panel', { replace: true })
-      } else if (user.role === 'Cliente' || user.role === 'Visitante') {
-        navigate('/client-dashboard', { replace: true })
-      } else {
-        navigate('/dashboard', { replace: true })
-      }
-    }
-  }, [hasFinanceAccess, user, navigate, toast])
-
   if (!user) return null
-  if (!hasFinanceAccess && user.role !== 'Administrador') return null
+  if (!hasFinanceAccess && user.role !== 'Administrador') return <AccessRestricted />
 
   const handleExportPDF = () => {
     const safeTx = Array.isArray(transactions) ? transactions : []

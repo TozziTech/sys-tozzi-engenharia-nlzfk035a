@@ -38,6 +38,8 @@ import pb from '@/lib/pocketbase/client'
 import { isBefore, startOfToday, addDays, isWithinInterval, parseISO } from 'date-fns'
 import { Download } from 'lucide-react'
 import { exportFinancialCSV } from '@/lib/export'
+import { usePermissions } from '@/hooks/use-permissions'
+import { useAuth } from '@/hooks/use-auth'
 
 interface TableProps {
   transactions: any[]
@@ -56,6 +58,10 @@ export function TransactionTable({
   onEdit,
   onDelete,
 }: TableProps) {
+  const { canWrite } = usePermissions()
+  const { user } = useAuth()
+  const canWriteFinance = canWrite('lancamentos_financeiros') || user?.role === 'Administrador'
+
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [typeFilter, setTypeFilter] = useState('Todos')
   const [recurrenceFilter, setRecurrenceFilter] = useState('Todos')
@@ -187,7 +193,7 @@ export function TransactionTable({
               <TableHead className="w-[60px] text-center font-semibold text-zinc-700 dark:text-zinc-300">
                 Anexo
               </TableHead>
-              <TableHead className="w-[60px] text-center"></TableHead>
+              {canWriteFinance && <TableHead className="w-[60px] text-center"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -347,12 +353,12 @@ export function TransactionTable({
                             >
                               Pendente
                             </Badge>
-                            {/* Assumes we have Admin/Manager check here or rely on backend rules, simple button for demonstration */}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 px-2 text-[10px]"
-                              onClick={async (e) => {
+                            {canWriteFinance && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[10px]"
+                                onClick={async (e) => {
                                 e.stopPropagation()
                                 try {
                                   await pb.collection('financial_records').update(tx.id, {
@@ -400,36 +406,38 @@ export function TransactionTable({
                         </Button>
                       )}
                     </TableCell>
-                    <TableCell className="text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="hover:text-amber-500 dark:hover:text-amber-400"
+                    {canWriteFinance && (
+                      <TableCell className="text-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="hover:text-amber-500 dark:hover:text-amber-400"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="dark:bg-zinc-900 dark:border-zinc-800"
                           >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="dark:bg-zinc-900 dark:border-zinc-800"
-                        >
-                          <DropdownMenuItem
-                            onClick={() => onEdit(tx)}
-                            className="focus:text-amber-500 dark:focus:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30 cursor-pointer"
-                          >
-                            <Pencil className="h-4 w-4 mr-2" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onDelete(tx)}
-                            className="text-red-600 focus:text-red-600 dark:focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/30 cursor-pointer"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                            <DropdownMenuItem
+                              onClick={() => onEdit(tx)}
+                              className="focus:text-amber-500 dark:focus:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30 cursor-pointer"
+                            >
+                              <Pencil className="h-4 w-4 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => onDelete(tx)}
+                              className="text-red-600 focus:text-red-600 dark:focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/30 cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
                   </TableRow>
                 )
               })

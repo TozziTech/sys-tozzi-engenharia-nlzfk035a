@@ -53,10 +53,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { exportServicosFinanceirosCSV } from '@/lib/export'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { usePermissions } from '@/hooks/use-permissions'
+import { AccessRestricted } from '@/components/auth/AccessRestricted'
 
 export function PlanilhaFinanceira() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const { canAccess, canWrite } = usePermissions()
+
+  const canWritePlanilha = canWrite('planilha_financeira') || user?.role === 'Administrador'
   const [servicos, setServicos] = useState<any[]>([])
   const [pagamentos, setPagamentos] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -213,6 +218,10 @@ export function PlanilhaFinanceira() {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
+  if (!canAccess('planilha_financeira') && user?.role !== 'Administrador') {
+    return <AccessRestricted />
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
@@ -246,9 +255,11 @@ export function PlanilhaFinanceira() {
             >
               <Download className="w-4 h-4 mr-2" /> Exportar para CSV
             </Button>
-            <Button onClick={() => openForm()} className="flex-1 sm:flex-none">
-              <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
-            </Button>
+            {canWritePlanilha && (
+              <Button onClick={() => openForm()} className="flex-1 sm:flex-none">
+                <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -443,25 +454,27 @@ export function PlanilhaFinanceira() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openForm(s)}
-                            title="Editar"
-                          >
-                            <Edit2 className="w-4 h-4 text-slate-500" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
-                            onClick={() => handleDelete(s.id)}
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        {canWritePlanilha && (
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openForm(s)}
+                              title="Editar"
+                            >
+                              <Edit2 className="w-4 h-4 text-slate-500" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                              onClick={() => handleDelete(s.id)}
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                     {expandedRows[s.id] && (

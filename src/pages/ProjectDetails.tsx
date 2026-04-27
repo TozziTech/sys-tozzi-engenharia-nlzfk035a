@@ -433,45 +433,152 @@ export default function ProjectDetails() {
       ? Math.round(modules.reduce((sum, m) => sum + (m.progress || 0), 0) / totalModules)
       : 0
 
+  const [priorityMode, setPriorityMode] = useState(() => {
+    return localStorage.getItem(`priority_mode_${id}`) === 'true'
+  })
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setPriorityMode(localStorage.getItem(`priority_mode_${id}`) === 'true')
+    }
+    window.addEventListener('priorityModeChanged', handleStorageChange)
+    return () => window.removeEventListener('priorityModeChanged', handleStorageChange)
+  }, [id])
+
+  const crisisModules = useMemo(() => {
+    const now = new Date()
+    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000)
+    let filtered = modules
+      .filter((m) => {
+        if (m.status === 'Concluído' || !m.deadline) return false
+        const deadline = new Date(m.deadline)
+        return deadline <= in48h
+      })
+      .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
+
+    if (priorityMode) {
+      filtered = filtered.slice(0, 5)
+    }
+
+    return filtered
+  }, [modules, priorityMode])
+
+  const getCountdown = (deadline: string) => {
+    const now = new Date()
+    const d = new Date(deadline)
+    const diffHours = Math.round((d.getTime() - now.getTime()) / (1000 * 60 * 60))
+    if (diffHours < 0) return `Atrasado há ${Math.abs(diffHours)}h`
+    return `Expira em ${diffHours}h`
+  }
+
+  const handlePrintPriorityReport = () => {
+    window.print()
+  }
+
   return (
-    <div className={`container mx-auto ${pClass} max-w-[95%] xl:max-w-screen-2xl ${gapClass}`}>
-      <div className="flex items-center justify-between">
+    <div
+      className={`container mx-auto ${pClass} max-w-[95%] xl:max-w-screen-2xl ${gapClass} print:m-0 print:p-0 print:max-w-none`}
+    >
+      {/* Print-only Priority Report */}
+      <div className="hidden print:block text-black bg-white p-8">
+        <h1 className="text-3xl font-bold mb-2">Resumo de Prioridades</h1>
+        <h2 className="text-xl mb-1">Projeto: {project.name}</h2>
+        <h3 className="text-lg text-gray-600 mb-6">Cliente: {project.client}</h3>
+
+        {(() => {
+          const sortedModules = [...modules].sort((a, b) => {
+            if (a.ordem !== b.ordem) return (a.ordem ?? 0) - (b.ordem ?? 0)
+            if (a.deadline && b.deadline)
+              return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+            if (a.deadline) return -1
+            if (b.deadline) return 1
+            return 0
+          })
+          const grouped = sortedModules.reduce(
+            (acc, mod) => {
+              const key = mod.edificacao || 'Sem Edificação'
+              if (!acc[key]) acc[key] = []
+              acc[key].push(mod)
+              return acc
+            },
+            {} as Record<string, typeof modules>,
+          )
+
+          return Object.entries(grouped).map(([edificacao, mods]) => (
+            <div key={edificacao} className="mb-8">
+              <h4 className="text-lg font-bold border-b border-gray-300 pb-1 mb-4">{edificacao}</h4>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-gray-300">
+                    <th className="py-2 px-2">Ordem</th>
+                    <th className="py-2 px-2">Disciplina</th>
+                    <th className="py-2 px-2">Status</th>
+                    <th className="py-2 px-2">Prazo</th>
+                    <th className="py-2 px-2">Responsável</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mods.map((m) => (
+                    <tr key={m.id} className="border-b border-gray-200">
+                      <td className="py-2 px-2">{m.ordem ?? '-'}</td>
+                      <td className="py-2 px-2 font-medium">{m.name}</td>
+                      <td className="py-2 px-2">{m.status}</td>
+                      <td className="py-2 px-2">
+                        {m.deadline ? new Date(m.deadline).toLocaleDateString('pt-BR') : '-'}
+                      </td>
+                      <td className="py-2 px-2">{m.expand?.responsible?.name || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))
+        })()}
+      </div>
+
+      <div className="flex items-center justify-between print:hidden">
         <Button variant="ghost" size="sm" asChild className="gap-2">
           <Link to="/projects">
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </Link>
         </Button>
-        {(canEdit || canDelete) && (
-          <div className="flex items-center gap-2">
-            {canEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditModalOpen(true)}
-                className="gap-2"
-              >
-                <Edit2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Editar</span>
-              </Button>
-            )}
-            {canDelete && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setIsDeleteDialogOpen(true)}
-                className="gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Deletar</span>
-              </Button>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-2 print:hidden">
+          <Button variant="outline" size="sm" onClick={handlePrintPriorityReport} className="gap-2">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Resumo de Prioridades</span>
+          </Button>
+          {(canEdit || canDelete) && (
+            <>
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="gap-2"
+                >
+                  <Edit2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Editar</span>
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Deletar</span>
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Header Info Section */}
-      <Card className="w-full">
+      <Card className="w-full print:hidden">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
@@ -578,7 +685,7 @@ export default function ProjectDetails() {
       </Card>
 
       {/* Project Metrics Dashboard / Visão Geral do Projeto */}
-      <Card className="w-full">
+      <Card className="w-full print:hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <PieChart className="h-5 w-5 text-primary" />
@@ -642,7 +749,7 @@ export default function ProjectDetails() {
       </Card>
 
       {/* Progresso Tracking */}
-      <Card className="w-full">
+      <Card className="w-full print:hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Progresso/Conclusão</CardTitle>
           <CardDescription>Percentual de conclusão atual do projeto</CardDescription>
@@ -660,7 +767,7 @@ export default function ProjectDetails() {
 
       {/* Specialty Progress Dashboard */}
       {subDisciplineStats.length > 0 && (
-        <Card className="w-full">
+        <Card className="w-full print:hidden">
           <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -733,11 +840,11 @@ export default function ProjectDetails() {
       )}
 
       {/* Main Content Layout */}
-      <div className="w-full mb-6">
+      <div className="w-full mb-6 print:hidden">
         <ProjectModules projectId={project.id} />
       </div>
 
-      <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass}`}>
+      <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass} print:hidden`}>
         <div className={`md:col-span-2 ${gapClass}`}>
           <Card>
             <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
@@ -1292,7 +1399,50 @@ export default function ProjectDetails() {
         </div>
 
         {/* Sidebar Info */}
-        <div className="space-y-6">
+        <div className="space-y-6 print:hidden">
+          <Card className="border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2 text-red-600 dark:text-red-400">
+                <AlertTriangle className="h-5 w-5" />
+                Painel de Crise (48h)
+              </CardTitle>
+              <CardDescription>Vencimentos críticos e tarefas atrasadas.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {crisisModules.length > 0 ? (
+                <div className="space-y-3">
+                  {crisisModules.map((mod) => (
+                    <div
+                      key={mod.id}
+                      className="flex flex-col gap-1 p-3 bg-white dark:bg-slate-950 border border-red-100 dark:border-red-900/50 rounded-md shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-semibold text-sm">{mod.name}</span>
+                        <Badge
+                          variant="destructive"
+                          className="text-[10px] px-1.5 py-0 h-4 bg-red-500"
+                        >
+                          {getCountdown(mod.deadline!)}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                        <span>{mod.edificacao || 'Sem Edificação'}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(mod.deadline!).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground bg-white/50 dark:bg-slate-950/50 p-4 rounded-md border border-dashed text-center">
+                  Nenhum vencimento crítico nas próximas 48h.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="w-full">
             <ProjectComments projectId={project.id} />
           </div>

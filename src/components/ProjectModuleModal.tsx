@@ -46,24 +46,7 @@ import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { addDays, format, parseISO } from 'date-fns'
 
-const DISCIPLINES = [
-  'Estrutural Concreto',
-  'Estrutural Metálico',
-  'Fundação/Contenção',
-  'Hidráulico',
-  'Elétrico',
-  'Engenharia Diagnóstico',
-  'Prevenção de Incêndio',
-  'Gases',
-  'Orçamento',
-  'Ensaios',
-  'Recuperação e Reforço',
-  'Consultoria',
-  'Climatização',
-  'Arquitetura e Regularização',
-  'Assistência Técnica',
-  'Auditoria',
-]
+import pb from '@/lib/pocketbase/client'
 
 const LEGACY_HEX_COLORS: Record<string, string> = {
   'Alvenaria Estrutural': '#475569',
@@ -106,6 +89,11 @@ export function ProjectModuleModal({
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [subDisciplineSearch, setSubDisciplineSearch] = useState('')
+  const [tags, setTags] = useState<any[]>([])
+
+  useEffect(() => {
+    pb.collection('tags').getFullList({ sort: 'name' }).then(setTags).catch(console.error)
+  }, [])
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -237,12 +225,18 @@ export function ProjectModuleModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {DISCIPLINES.map((discipline) => (
-                          <SelectItem key={discipline} value={discipline}>
-                            {discipline}
+                        {tags.map((tag) => (
+                          <SelectItem key={tag.id} value={tag.name}>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: tag.color }}
+                              />
+                              {tag.name}
+                            </div>
                           </SelectItem>
                         ))}
-                        {field.value && !DISCIPLINES.includes(field.value) && (
+                        {field.value && !tags.some((t) => t.name === field.value) && (
                           <SelectItem value={field.value}>{field.value} (Legado)</SelectItem>
                         )}
                       </SelectContent>

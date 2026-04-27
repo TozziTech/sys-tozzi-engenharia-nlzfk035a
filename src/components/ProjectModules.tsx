@@ -69,6 +69,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const { toast } = useToast()
   const { viewMode, setViewMode } = usePreferencesStore()
   const [modules, setModules] = useState<ProjectModule[]>([])
+  const [tags, setTags] = useState<any[]>([])
 
   const [priorityMode, setPriorityMode] = useState(() => {
     return localStorage.getItem(`priority_mode_${projectId}`) === 'true'
@@ -91,12 +92,14 @@ export function ProjectModules({ projectId }: { projectId: string }) {
 
   const loadData = async () => {
     try {
-      const [modulesData, tasksData] = await Promise.all([
+      const [modulesData, tasksData, tagsData] = await Promise.all([
         getProjectModules(projectId),
         pb.collection('tasks').getFullList({ filter: `project = "${projectId}"` }),
+        pb.collection('tags').getFullList(),
       ])
       setModules(modulesData)
       setTasks(tasksData)
+      setTags(tagsData)
     } catch (err) {
       console.error(err)
     } finally {
@@ -112,6 +115,9 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     loadData()
   })
   useRealtime('tasks', () => {
+    loadData()
+  })
+  useRealtime('tags', () => {
     loadData()
   })
 
@@ -183,6 +189,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const handlePriorityModeChange = (checked: boolean) => {
     setPriorityMode(checked)
     localStorage.setItem(`priority_mode_${projectId}`, checked.toString())
+    window.dispatchEvent(new Event('priorityModeChanged'))
   }
 
   const handleGroupByBuildingChange = (checked: boolean) => {
@@ -244,6 +251,11 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   }, [filteredModules, groupByBuilding, priorityMode])
 
   const hasAnyModule = Object.values(groupedModules).some((arr) => arr.length > 0)
+
+  const getModuleTagColor = (moduleName: string) => {
+    const tag = tags.find((t) => t.name === moduleName)
+    return tag?.color
+  }
 
   const renderDeadlineAlert = (deadline: string | undefined, status: string) => {
     if (!deadline || status === 'Concluído') return null
@@ -507,9 +519,24 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                                     )}
                                     <Link
                                       to={`/projects/${projectId}/disciplines/${mod.id}`}
-                                      className="font-semibold text-amber-600 dark:text-amber-500 hover:underline text-sm"
+                                      className="font-semibold hover:underline text-sm flex items-center gap-1.5"
+                                      style={{ color: getModuleTagColor(mod.name) }}
                                     >
-                                      {mod.name}
+                                      {getModuleTagColor(mod.name) && (
+                                        <span
+                                          className="w-2 h-2 rounded-full"
+                                          style={{ backgroundColor: getModuleTagColor(mod.name) }}
+                                        />
+                                      )}
+                                      <span
+                                        className={
+                                          !getModuleTagColor(mod.name)
+                                            ? 'text-amber-600 dark:text-amber-500'
+                                            : ''
+                                        }
+                                      >
+                                        {mod.name}
+                                      </span>
                                     </Link>
                                   </div>
                                   {!groupByBuilding && mod.edificacao && (
@@ -691,9 +718,18 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                                   )}
                                   <Link
                                     to={`/projects/${projectId}/disciplines/${mod.id}`}
-                                    className="hover:underline text-primary"
+                                    className="hover:underline flex items-center gap-1.5"
+                                    style={{ color: getModuleTagColor(mod.name) }}
                                   >
-                                    <h4 className="font-semibold text-base text-amber-600 dark:text-amber-500">
+                                    {getModuleTagColor(mod.name) && (
+                                      <span
+                                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                                        style={{ backgroundColor: getModuleTagColor(mod.name) }}
+                                      />
+                                    )}
+                                    <h4
+                                      className={`font-semibold text-base ${!getModuleTagColor(mod.name) ? 'text-amber-600 dark:text-amber-500' : ''}`}
+                                    >
                                       {mod.name}
                                     </h4>
                                   </Link>

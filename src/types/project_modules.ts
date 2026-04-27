@@ -29,6 +29,7 @@ export interface ProjectModule {
   status: 'Pendente' | 'Em Andamento' | 'Concluído' | 'Pausado' | 'Em Análise' | 'Em Revisão'
   progress: number
   deadline: string
+  deadline_days?: number
   notes: string
   documents?: string[]
   responsible?: string

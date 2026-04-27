@@ -169,6 +169,27 @@ export default function ProjectDetails() {
 
   useRealtime('audit_logs', loadAuditLogs)
 
+  const [reportsHistory, setReportsHistory] = useState<any[]>([])
+
+  const loadReportsHistory = useCallback(async () => {
+    if (!id) return
+    try {
+      const records = await pb.collection('project_reports_history').getFullList({
+        filter: `project = "${id}"`,
+        sort: '-created',
+      })
+      setReportsHistory(records)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [id])
+
+  useEffect(() => {
+    loadReportsHistory()
+  }, [loadReportsHistory])
+
+  useRealtime('project_reports_history', loadReportsHistory)
+
   const loadDocuments = useCallback(async () => {
     if (!id) return
     try {
@@ -340,7 +361,7 @@ export default function ProjectDetails() {
     return result
   }, [modules, tags, specialtySort])
 
-  const handleExportSpecialtiesPDF = useCallback(() => {
+  const handleExportSpecialtiesPDF = useCallback(async () => {
     if (!project) return
     exportSpecialtiesPDF(
       project,
@@ -348,7 +369,36 @@ export default function ProjectDetails() {
       user?.name || user?.email || 'Usuário',
       settings,
     )
-  }, [project, subDisciplineStats, user, settings])
+
+    const totalM = modules.length
+    const byStatus = modules.reduce(
+      (acc, mod) => {
+        acc[mod.status] = (acc[mod.status] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>,
+    )
+    const progress =
+      totalM > 0 ? Math.round(modules.reduce((sum, m) => sum + (m.progress || 0), 0) / totalM) : 0
+
+    try {
+      await pb.collection('project_reports_history').create({
+        project: project.id,
+        snapshot_data: {
+          subDisciplineStats,
+          modulesByStatus: byStatus,
+          totalModules: totalM,
+        },
+        total_progress: progress,
+      })
+      toast({
+        title: 'Relatório salvo no histórico',
+        description: 'O instantâneo de progresso foi registrado.',
+      })
+    } catch (e) {
+      console.error('Failed to create report history', e)
+    }
+  }, [project, subDisciplineStats, user, settings, modules, toast])
 
   if (!project) {
     return (
@@ -1078,7 +1128,7 @@ export default function ProjectDetails() {
               </div>
             </TabsContent>
 
-            <TabsContent value="history" className="mt-4">
+            <TabsContent value="history" className="mt-4 space-y-6">
               <Card>
                 <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
@@ -1158,6 +1208,67 @@ export default function ProjectDetails() {
                   ) : (
                     <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
                       Nenhum histórico registrado para a equipe deste projeto.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Histórico de Relatórios</CardTitle>
+                  <CardDescription>
+                    Instantâneos do progresso do projeto salvos ao exportar relatórios gerenciais.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {reportsHistory.length > 0 ? (
+                    <div className="space-y-3">
+                      {reportsHistory.map((report) => (
+                        <div
+                          key={report.id}
+                          className="flex items-center justify-between p-4 border rounded-lg bg-muted/10"
+                        >
+                          <div>
+                            <p className="font-medium text-sm flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              Relatório de Especialidades
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(report.created).toLocaleString('pt-BR')}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="hidden sm:block text-right">
+                              <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                Módulos
+                              </p>
+                              <p className="font-medium text-sm">
+                                {report.snapshot_data?.totalModules || 0}
+                              </p>
+                            </div>
+                            <div className="hidden md:block text-right">
+                              <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                Concluídos
+                              </p>
+                              <p className="font-medium text-sm text-emerald-600 dark:text-emerald-400">
+                                {report.snapshot_data?.modulesByStatus?.['Concluído'] || 0}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                Progresso
+                              </p>
+                              <p className="font-bold text-base text-primary">
+                                {report.total_progress}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20 text-sm">
+                      Nenhum relatório exportado para este projeto ainda.
                     </div>
                   )}
                 </CardContent>

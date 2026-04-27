@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-27T01:24:03.718Z",
+  "generatedAt": "2026-04-27T01:35:23.322Z",
   "collections": [
     {
       "name": "users",
@@ -1336,6 +1336,12 @@
         {
           "name": "sub_disciplines",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deadline_days",
+          "type": "number",
           "required": false,
           "system": false
         }
@@ -3305,6 +3311,56 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_project_presence_user_project ON project_presence (user, project)",
         "CREATE INDEX idx_project_presence_project_active ON project_presence (project, last_active)"
+      ]
+    },
+    {
+      "name": "project_reports_history",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.role = 'Administrador'",
+        "delete": "@request.auth.role = 'Administrador'"
+      },
+      "fields": [
+        {
+          "name": "project",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "projects"
+        },
+        {
+          "name": "snapshot_data",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_progress",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_project_reports_history_project ON project_reports_history (project)",
+        "CREATE INDEX idx_project_reports_history_created ON project_reports_history (created)"
       ]
     }
   ]

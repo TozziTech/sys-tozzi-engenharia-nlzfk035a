@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { getProjectModules, deleteProjectModule } from '@/services/project_modules'
@@ -22,12 +22,13 @@ import {
   Filter,
   ChevronUp,
   ChevronDown,
+  Building2,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { SUB_DISCIPLINES_LIST } from '@/types/project_modules'
-import { format, differenceInHours } from 'date-fns'
+import { format, differenceInHours, differenceInDays, startOfDay } from 'date-fns'
 import { Link } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -61,15 +62,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { cn } from '@/lib/utils'
 
 export function ProjectModules({ projectId }: { projectId: string }) {
   const { user } = useAuth()
   const { toast } = useToast()
   const { viewMode, setViewMode } = usePreferencesStore()
   const [modules, setModules] = useState<ProjectModule[]>([])
+
   const [priorityMode, setPriorityMode] = useState(() => {
     return localStorage.getItem(`priority_mode_${projectId}`) === 'true'
   })
+
+  const [groupByBuilding, setGroupByBuilding] = useState(() => {
+    return localStorage.getItem(`group_by_building_${projectId}`) === 'true'
+  })
+
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSubDisciplines, setSelectedSubDisciplines] = useState<string[]>([])
   const [editingModule, setEditingModule] = useState<ProjectModule | undefined>(undefined)
@@ -177,6 +185,11 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     localStorage.setItem(`priority_mode_${projectId}`, checked.toString())
   }
 
+  const handleGroupByBuildingChange = (checked: boolean) => {
+    setGroupByBuilding(checked)
+    localStorage.setItem(`group_by_building_${projectId}`, checked.toString())
+  }
+
   const handleDelete = async () => {
     if (!deleteModuleId || !user) return
     try {
@@ -202,14 +215,109 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const filteredModules = sortedModules.filter((mod) => {
     if (selectedSubDisciplines.length === 0) return true
     if (!mod.sub_disciplines || mod.sub_disciplines.length === 0) return false
-    return mod.sub_disciplines.some((sd) => selectedSubDisciplines.includes(sd))
+    return mod.sub_disciplines.some((sd) => {
+      const name = typeof sd === 'string' ? sd : sd.name
+      return selectedSubDisciplines.includes(name)
+    })
   })
 
-  const displayedModules = priorityMode ? filteredModules.slice(0, 5) : filteredModules
+  const groupedModules = useMemo(() => {
+    const groups: Record<string, ProjectModule[]> = {}
+
+    if (groupByBuilding) {
+      filteredModules.forEach((mod) => {
+        const key = mod.edificacao || 'Sem Edificação'
+        if (!groups[key]) groups[key] = []
+        groups[key].push(mod)
+      })
+    } else {
+      groups['Todos os Módulos'] = [...filteredModules]
+    }
+
+    if (priorityMode) {
+      Object.keys(groups).forEach((key) => {
+        groups[key] = groups[key].slice(0, 5)
+      })
+    }
+
+    return groups
+  }, [filteredModules, groupByBuilding, priorityMode])
+
+  const hasAnyModule = Object.values(groupedModules).some((arr) => arr.length > 0)
+
+  const renderDeadlineAlert = (deadline: string | undefined, status: string) => {
+    if (!deadline || status === 'Concluído') return null
+    const today = startOfDay(new Date())
+    const deadlineDate = startOfDay(new Date(deadline))
+    const days = differenceInDays(deadlineDate, today)
+
+    if (days < 0) {
+      return (
+        <Badge className="bg-red-500 hover:bg-red-600 text-white border-none px-1.5 py-0 h-5 whitespace-nowrap">
+          <AlertTriangle className="w-3 h-3 mr-1" /> Atrasado
+        </Badge>
+      )
+    } else if (days === 0) {
+      return (
+        <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-none px-1.5 py-0 h-5 whitespace-nowrap">
+          <Clock className="w-3 h-3 mr-1" /> Vence hoje
+        </Badge>
+      )
+    } else if (days <= 3) {
+      return (
+        <Badge className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950 border-none px-1.5 py-0 h-5 whitespace-nowrap">
+          <Clock className="w-3 h-3 mr-1" /> {days} {days === 1 ? 'dia restante' : 'dias restantes'}
+        </Badge>
+      )
+    } else {
+      return (
+        <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-none px-1.5 py-0 h-5 whitespace-nowrap">
+          <Clock className="w-3 h-3 mr-1" /> {days} dias restantes
+        </Badge>
+      )
+    }
+  }
+
+  const renderSubDisciplines = (subDisciplines: any[] | undefined) => {
+    if (!subDisciplines || subDisciplines.length === 0) return null
+
+    return (
+      <div className="flex flex-wrap gap-1 mt-1.5 w-full">
+        {subDisciplines.map((sd, i) => {
+          const name = typeof sd === 'string' ? sd : sd.name
+          const color = typeof sd === 'string' ? null : sd.color
+          const legacyColorClass = typeof sd === 'string' ? SUB_DISCIPLINES_COLORS[sd] : ''
+
+          if (color) {
+            return (
+              <Badge
+                key={i}
+                variant="outline"
+                className="text-[10px] px-1.5 py-0"
+                style={{ backgroundColor: `${color}20`, color: color, borderColor: color }}
+              >
+                {name}
+              </Badge>
+            )
+          }
+
+          return (
+            <Badge
+              key={i}
+              variant="outline"
+              className={`text-[10px] px-1.5 py-0 ${legacyColorClass}`}
+            >
+              {name}
+            </Badge>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     <Card>
-      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <CardHeader className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <CardTitle className="text-lg">Módulos por Disciplina</CardTitle>
           <CardDescription>
@@ -217,7 +325,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
           </CardDescription>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 mr-2 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-900/50">
+          <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-900/50">
             <Switch
               id="priority-mode"
               checked={priorityMode}
@@ -231,6 +339,22 @@ export function ProjectModules({ projectId }: { projectId: string }) {
               Modo Prioritário
             </Label>
           </div>
+
+          <div className="flex items-center gap-2 mr-2 bg-blue-50 dark:bg-blue-950/30 px-3 py-1.5 rounded-md border border-blue-200 dark:border-blue-900/50">
+            <Switch
+              id="group-by-building"
+              checked={groupByBuilding}
+              onCheckedChange={handleGroupByBuildingChange}
+              className="data-[state=checked]:bg-blue-500"
+            />
+            <Label
+              htmlFor="group-by-building"
+              className="text-xs font-medium cursor-pointer text-blue-700 dark:text-blue-400"
+            >
+              Agrupar por Edificação
+            </Label>
+          </div>
+
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -320,500 +444,474 @@ export function ProjectModules({ projectId }: { projectId: string }) {
           <div className="flex justify-center p-8">
             <span className="text-muted-foreground">Carregando...</span>
           </div>
-        ) : modules.length > 0 && displayedModules.length === 0 ? (
+        ) : modules.length > 0 && !hasAnyModule ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed rounded-lg bg-muted/10 text-center">
             <Filter className="h-8 w-8 text-muted-foreground mb-3 opacity-50" />
             <h3 className="text-lg font-medium text-muted-foreground mb-2">
               Nenhum módulo encontrado
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Nenhuma disciplina corresponde aos filtros de especialidade selecionados.
+              Nenhuma disciplina corresponde aos filtros selecionados.
             </p>
             <Button variant="outline" size="sm" onClick={() => setSelectedSubDisciplines([])}>
               Limpar Filtros
             </Button>
           </div>
-        ) : displayedModules.length > 0 ? (
-          viewMode === 'table' ? (
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Disciplina / Edificação</TableHead>
-                    <TableHead>Sub-disciplinas</TableHead>
-                    <TableHead>Equipe</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Progresso</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayedModules.map((mod) => (
-                    <TableRow
-                      key={mod.id}
-                      className={priorityMode ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}
-                    >
-                      <TableCell className={priorityMode ? 'border-l-4 border-l-amber-500' : ''}>
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2 mb-1">
-                            {priorityMode && (
-                              <Badge className="bg-amber-500 hover:bg-amber-600 text-[10px] px-1.5 py-0 h-4 font-semibold shrink-0">
-                                Prioridade
-                              </Badge>
-                            )}
-                            <Link
-                              to={`/projects/${projectId}/disciplines/${mod.id}`}
-                              className="font-semibold text-amber-600 dark:text-amber-500 hover:underline text-sm"
-                            >
-                              {mod.name}
-                            </Link>
-                          </div>
-                          {mod.edificacao && (
-                            <span className="text-xs text-muted-foreground mt-0.5">
-                              Edificação: {mod.edificacao}
-                            </span>
-                          )}
-                          {(mod.start_date || mod.deadline) && (
-                            <span className="text-[11px] text-muted-foreground flex items-center mt-1 gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {mod.start_date
-                                ? format(new Date(mod.start_date), 'dd/MM/yyyy')
-                                : '--'}
-                              {' → '}
-                              {mod.deadline ? format(new Date(mod.deadline), 'dd/MM/yyyy') : '--'}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1 max-w-[200px]">
-                          {mod.sub_disciplines?.map((sd) => (
-                            <Badge
-                              key={sd}
-                              variant="outline"
-                              className={`text-[10px] px-1.5 py-0 ${SUB_DISCIPLINES_COLORS[sd] || ''}`}
-                            >
-                              {sd}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1.5">
-                          {mod.expand?.responsible ? (
-                            <div className="flex items-center gap-1.5" title="Responsável">
-                              <Avatar className="h-5 w-5">
-                                <AvatarImage
-                                  src={
-                                    mod.expand.responsible.avatar
-                                      ? pb.files.getURL(
-                                          mod.expand.responsible as any,
-                                          mod.expand.responsible.avatar,
-                                        )
-                                      : undefined
-                                  }
-                                />
-                                <AvatarFallback className="text-[9px]">R</AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs">{mod.expand.responsible.name}</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic">
-                              Sem gerente
-                            </span>
-                          )}
-                          {mod.expand?.designer && (
-                            <div className="flex items-center gap-1.5" title="Projetista">
-                              <Avatar className="h-5 w-5">
-                                <AvatarImage
-                                  src={
-                                    mod.expand.designer.avatar
-                                      ? pb.files.getURL(
-                                          mod.expand.designer as any,
-                                          mod.expand.designer.avatar,
-                                        )
-                                      : undefined
-                                  }
-                                />
-                                <AvatarFallback className="text-[9px]">P</AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs text-muted-foreground">
-                                {mod.expand.designer.name}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${getStatusColor(mod.status)} text-[10px]`}>
-                          {mod.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={mod.progress} className="h-1.5 w-16" />
-                          <span className="text-xs font-medium">{mod.progress}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1 items-center">
-                          {canEdit && selectedSubDisciplines.length === 0 && (
-                            <div className="flex flex-col gap-0 mr-2 border-r pr-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-4 w-6 p-0 hover:bg-muted"
-                                disabled={
-                                  isReordering ||
-                                  sortedModules.findIndex((m) => m.id === mod.id) === 0
-                                }
-                                onClick={() => handleReorder(mod, 'up')}
-                                title="Mover para cima"
-                              >
-                                <ChevronUp className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-4 w-6 p-0 hover:bg-muted"
-                                disabled={
-                                  isReordering ||
-                                  sortedModules.findIndex((m) => m.id === mod.id) ===
-                                    sortedModules.length - 1
-                                }
-                                onClick={() => handleReorder(mod, 'down')}
-                                title="Mover para baixo"
-                              >
-                                <ChevronDown className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => setSelectedModuleForTasks(mod)}
-                            title="Tarefas"
-                          >
-                            <ListTree className="w-4 h-4" />
-                          </Button>
-                          {canEdit && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setEditingModule(mod)
-                                  setIsModalOpen(true)
-                                }}
-                                title="Editar"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => setDeleteModuleId(mod)}
-                                title="Remover"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {displayedModules.map((mod) => (
-                <Card
-                  key={mod.id}
-                  className={`overflow-hidden transition-all ${priorityMode ? 'border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/50 bg-amber-50/10 dark:bg-amber-950/10' : ''}`}
-                >
-                  <div className="p-4 relative">
-                    {priorityMode && (
-                      <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
-                    )}
-                    <div className="flex justify-between items-start mb-2 pl-2">
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          {priorityMode && (
-                            <Badge className="bg-amber-500 hover:bg-amber-600 text-[10px] px-1.5 py-0 h-4 font-semibold">
-                              Prioridade
-                            </Badge>
-                          )}
-                          <Link
-                            to={`/projects/${projectId}/disciplines/${mod.id}`}
-                            className="hover:underline text-primary"
-                          >
-                            <h4 className="font-semibold text-base text-amber-600 dark:text-amber-500">
-                              {mod.name}
-                            </h4>
-                          </Link>
+        ) : hasAnyModule ? (
+          <div className="space-y-6">
+            {Object.entries(groupedModules).map(([groupName, groupModules]) => {
+              if (groupModules.length === 0) return null
 
-                          {tasks
-                            .filter((t) => t.module === mod.id)
-                            .some(
-                              (t) =>
-                                t.status !== 'Concluído' &&
-                                t.due_date &&
-                                differenceInHours(new Date(t.due_date), new Date()) <= 72,
-                            ) && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge
-                                    variant="destructive"
-                                    className="px-1.5 py-0 h-5 bg-red-500 hover:bg-red-600 border-none cursor-help"
+              return (
+                <div key={groupName} className="flex flex-col gap-3">
+                  {groupByBuilding && (
+                    <div className="flex items-center gap-2 px-1">
+                      <Building2 className="w-5 h-5 text-blue-500" />
+                      <h3 className="text-base font-semibold text-foreground tracking-tight">
+                        {groupName}
+                      </h3>
+                      <Badge variant="secondary" className="text-xs px-2 py-0.5 h-5 ml-1">
+                        {groupModules.length}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {viewMode === 'table' ? (
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Disciplina / Edificação</TableHead>
+                            <TableHead>Sub-disciplinas</TableHead>
+                            <TableHead>Equipe</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Progresso</TableHead>
+                            <TableHead className="text-right">Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {groupModules.map((mod) => (
+                            <TableRow
+                              key={mod.id}
+                              className={priorityMode ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}
+                            >
+                              <TableCell
+                                className={priorityMode ? 'border-l-4 border-l-amber-500' : ''}
+                              >
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {priorityMode && (
+                                      <Badge className="bg-amber-500 hover:bg-amber-600 text-[10px] px-1.5 py-0 h-4 font-semibold shrink-0">
+                                        Prioridade
+                                      </Badge>
+                                    )}
+                                    <Link
+                                      to={`/projects/${projectId}/disciplines/${mod.id}`}
+                                      className="font-semibold text-amber-600 dark:text-amber-500 hover:underline text-sm"
+                                    >
+                                      {mod.name}
+                                    </Link>
+                                  </div>
+                                  {!groupByBuilding && mod.edificacao && (
+                                    <span className="text-xs text-muted-foreground mt-0.5">
+                                      Edificação: {mod.edificacao}
+                                    </span>
+                                  )}
+                                  <div className="flex flex-col items-start gap-1 mt-1">
+                                    {(mod.start_date || mod.deadline) && (
+                                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                        <Calendar className="w-3 h-3" />
+                                        {mod.start_date
+                                          ? format(new Date(mod.start_date), 'dd/MM/yyyy')
+                                          : '--'}
+                                        {' → '}
+                                        {mod.deadline
+                                          ? format(new Date(mod.deadline), 'dd/MM/yyyy')
+                                          : '--'}
+                                      </span>
+                                    )}
+                                    {renderDeadlineAlert(mod.deadline, mod.status)}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="max-w-[200px]">
+                                  {renderSubDisciplines(mod.sub_disciplines)}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1.5">
+                                  {mod.expand?.responsible ? (
+                                    <div className="flex items-center gap-1.5" title="Responsável">
+                                      <Avatar className="h-5 w-5">
+                                        <AvatarImage
+                                          src={
+                                            mod.expand.responsible.avatar
+                                              ? pb.files.getURL(
+                                                  mod.expand.responsible as any,
+                                                  mod.expand.responsible.avatar,
+                                                )
+                                              : undefined
+                                          }
+                                        />
+                                        <AvatarFallback className="text-[9px]">R</AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-xs">{mod.expand.responsible.name}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground italic">
+                                      Sem gerente
+                                    </span>
+                                  )}
+                                  {mod.expand?.designer && (
+                                    <div className="flex items-center gap-1.5" title="Projetista">
+                                      <Avatar className="h-5 w-5">
+                                        <AvatarImage
+                                          src={
+                                            mod.expand.designer.avatar
+                                              ? pb.files.getURL(
+                                                  mod.expand.designer as any,
+                                                  mod.expand.designer.avatar,
+                                                )
+                                              : undefined
+                                          }
+                                        />
+                                        <AvatarFallback className="text-[9px]">P</AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-xs text-muted-foreground">
+                                        {mod.expand.designer.name}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={`${getStatusColor(mod.status)} text-[10px]`}>
+                                  {mod.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Progress value={mod.progress} className="h-1.5 w-16" />
+                                  <span className="text-xs font-medium">{mod.progress}%</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1 items-center">
+                                  {canEdit && selectedSubDisciplines.length === 0 && (
+                                    <div className="flex flex-col gap-0 mr-2 border-r pr-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-4 w-6 p-0 hover:bg-muted"
+                                        disabled={
+                                          isReordering ||
+                                          sortedModules.findIndex((m) => m.id === mod.id) === 0
+                                        }
+                                        onClick={() => handleReorder(mod, 'up')}
+                                        title="Mover para cima"
+                                      >
+                                        <ChevronUp className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-4 w-6 p-0 hover:bg-muted"
+                                        disabled={
+                                          isReordering ||
+                                          sortedModules.findIndex((m) => m.id === mod.id) ===
+                                            sortedModules.length - 1
+                                        }
+                                        onClick={() => handleReorder(mod, 'down')}
+                                        title="Mover para baixo"
+                                      >
+                                        <ChevronDown className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => setSelectedModuleForTasks(mod)}
+                                    title="Tarefas"
                                   >
-                                    <AlertTriangle className="w-3 h-3 mr-1" />
-                                    Tarefas Críticas
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Existem tarefas atrasadas ou vencendo nos próximos 3 dias.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-
-                          {mod.deadline &&
-                            mod.status !== 'Concluído' &&
-                            differenceInHours(new Date(mod.deadline), new Date()) <= 72 &&
-                            differenceInHours(new Date(mod.deadline), new Date()) > 0 && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge
-                                      variant="destructive"
-                                      className="px-1.5 py-0 h-5 bg-orange-500 hover:bg-orange-600 border-none cursor-help"
-                                    >
-                                      <Clock className="w-3 h-3 mr-1" />
-                                      Prazo Próximo
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>
-                                      O prazo encerra em{' '}
-                                      {differenceInHours(new Date(mod.deadline), new Date())} horas.
-                                    </p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                          {mod.deadline &&
-                            mod.status !== 'Concluído' &&
-                            differenceInHours(new Date(mod.deadline), new Date()) <= 0 && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge
-                                      variant="destructive"
-                                      className="px-1.5 py-0 h-5 border-none cursor-help"
-                                    >
-                                      <AlertTriangle className="w-3 h-3 mr-1" />
-                                      Atrasado
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>O prazo deste módulo expirou.</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                        </div>
-
-                        {mod.edificacao && (
-                          <div className="text-sm text-muted-foreground mt-1 w-full">
-                            Edificação:{' '}
-                            <span className="font-medium text-foreground">{mod.edificacao}</span>
-                          </div>
-                        )}
-
-                        {mod.sub_disciplines && mod.sub_disciplines.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5 w-full">
-                            {mod.sub_disciplines.map((sd) => (
-                              <Badge
-                                key={sd}
-                                variant="outline"
-                                className={`text-[10px] px-1.5 py-0 ${SUB_DISCIPLINES_COLORS[sd] || ''}`}
-                              >
-                                {sd}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-
-                        {(mod.start_date || mod.deadline) && (
-                          <div className="flex items-center text-[11px] text-muted-foreground mt-2 gap-1.5">
-                            <Calendar className="w-3 h-3" />
-                            <span>
-                              Início:{' '}
-                              {mod.start_date
-                                ? format(new Date(mod.start_date), 'dd/MM/yyyy')
-                                : '--'}
-                            </span>
-                            <span>|</span>
-                            <span>
-                              Entrega:{' '}
-                              {mod.deadline ? format(new Date(mod.deadline), 'dd/MM/yyyy') : '--'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <Link to={`/projects/${projectId}/disciplines/${mod.id}`}>
-                        <Badge className={`${getStatusColor(mod.status)} cursor-pointer`}>
-                          {mod.status}
-                        </Badge>
-                      </Link>
+                                    <ListTree className="w-4 h-4" />
+                                  </Button>
+                                  {canEdit && (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => {
+                                          setEditingModule(mod)
+                                          setIsModalOpen(true)
+                                        }}
+                                        title="Editar"
+                                      >
+                                        <Edit2 className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => setDeleteModuleId(mod)}
+                                        title="Remover"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
-
-                    {mod.expand?.responsible && (
-                      <div className="flex items-center gap-2 mb-4 mt-2 p-2 bg-muted/30 rounded-md border border-border/50">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage
-                            src={
-                              mod.expand.responsible.avatar
-                                ? pb.files.getURL(
-                                    mod.expand.responsible as any,
-                                    mod.expand.responsible.avatar,
-                                  )
-                                : undefined
-                            }
-                          />
-                          <AvatarFallback className="text-[10px]">
-                            <User className="h-3 w-3" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-medium text-foreground leading-none">
-                            {mod.expand.responsible.name || 'Usuário'}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground leading-none mt-0.5">
-                            Responsável pela disciplina
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-1.5 mb-4">
-                      <div className="flex justify-between text-xs font-medium">
-                        <span>Progresso</span>
-                        <span>{mod.progress}%</span>
-                      </div>
-                      <Progress value={mod.progress} className="h-2" />
-                    </div>
-
-                    {mod.notes && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4 bg-muted/50 p-2 rounded">
-                        {mod.notes}
-                      </p>
-                    )}
-
-                    <div className="mb-4 pt-3 border-t border-border/50 text-sm">
-                      {(() => {
-                        const moduleTasks = tasks.filter((t) => t.module === mod.id)
-                        const completedTasks = moduleTasks.filter(
-                          (t) => t.status === 'Concluído' || t.completed_at,
-                        ).length
-                        const pendingTasks = moduleTasks.length - completedTasks
-                        const hasTasks = moduleTasks.length > 0
-
-                        return hasTasks ? (
-                          <span className="text-muted-foreground">
-                            Tarefas:{' '}
-                            <strong className="text-amber-600 dark:text-amber-400 font-medium">
-                              {pendingTasks} pendentes
-                            </strong>{' '}
-                            /{' '}
-                            <strong className="text-emerald-600 dark:text-emerald-400 font-medium">
-                              {completedTasks} concluídas
-                            </strong>
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground italic">
-                            Sem tarefas cadastradas
-                          </span>
-                        )
-                      })()}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-2 pt-2 border-t">
-                      {canEdit && selectedSubDisciplines.length === 0 ? (
-                        <div className="flex items-center gap-1 pl-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={
-                              isReordering || sortedModules.findIndex((m) => m.id === mod.id) === 0
-                            }
-                            onClick={() => handleReorder(mod, 'up')}
-                            title="Mover para cima"
-                          >
-                            <ChevronUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={
-                              isReordering ||
-                              sortedModules.findIndex((m) => m.id === mod.id) ===
-                                sortedModules.length - 1
-                            }
-                            onClick={() => handleReorder(mod, 'down')}
-                            title="Mover para baixo"
-                          >
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="hidden sm:block" />
-                      )}
-                      <div className="flex flex-wrap justify-end gap-2 w-full sm:w-auto">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedModuleForTasks(mod)}
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {groupModules.map((mod) => (
+                        <Card
+                          key={mod.id}
+                          className={`overflow-hidden transition-all ${priorityMode ? 'border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/50 bg-amber-50/10 dark:bg-amber-950/10' : ''}`}
                         >
-                          <ListTree className="w-4 h-4 mr-2" /> Tarefas
-                        </Button>
-                        {canEdit && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditingModule(mod)
-                                setIsModalOpen(true)
-                              }}
-                            >
-                              <Edit2 className="w-4 h-4 mr-2" /> Editar
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => setDeleteModuleId(mod)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" /> Remover
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                          <div className="p-4 relative">
+                            {priorityMode && (
+                              <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+                            )}
+                            <div className="flex justify-between items-start mb-2 pl-2">
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                  {priorityMode && (
+                                    <Badge className="bg-amber-500 hover:bg-amber-600 text-[10px] px-1.5 py-0 h-4 font-semibold">
+                                      Prioridade
+                                    </Badge>
+                                  )}
+                                  <Link
+                                    to={`/projects/${projectId}/disciplines/${mod.id}`}
+                                    className="hover:underline text-primary"
+                                  >
+                                    <h4 className="font-semibold text-base text-amber-600 dark:text-amber-500">
+                                      {mod.name}
+                                    </h4>
+                                  </Link>
+
+                                  {tasks
+                                    .filter((t) => t.module === mod.id)
+                                    .some(
+                                      (t) =>
+                                        t.status !== 'Concluído' &&
+                                        t.due_date &&
+                                        differenceInHours(new Date(t.due_date), new Date()) <= 72,
+                                    ) && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge
+                                            variant="destructive"
+                                            className="px-1.5 py-0 h-5 bg-red-500 hover:bg-red-600 border-none cursor-help"
+                                          >
+                                            <AlertTriangle className="w-3 h-3 mr-1" />
+                                            Tarefas Críticas
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>
+                                            Existem tarefas atrasadas ou vencendo nos próximos 3
+                                            dias.
+                                          </p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+
+                                  {renderDeadlineAlert(mod.deadline, mod.status)}
+                                </div>
+
+                                {!groupByBuilding && mod.edificacao && (
+                                  <div className="text-sm text-muted-foreground mt-1 w-full">
+                                    Edificação:{' '}
+                                    <span className="font-medium text-foreground">
+                                      {mod.edificacao}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {renderSubDisciplines(mod.sub_disciplines)}
+
+                                {(mod.start_date || mod.deadline) && (
+                                  <div className="flex items-center text-[11px] text-muted-foreground mt-2 gap-1.5">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>
+                                      Início:{' '}
+                                      {mod.start_date
+                                        ? format(new Date(mod.start_date), 'dd/MM/yyyy')
+                                        : '--'}
+                                    </span>
+                                    <span>|</span>
+                                    <span>
+                                      Entrega:{' '}
+                                      {mod.deadline
+                                        ? format(new Date(mod.deadline), 'dd/MM/yyyy')
+                                        : '--'}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <Link to={`/projects/${projectId}/disciplines/${mod.id}`}>
+                                <Badge className={`${getStatusColor(mod.status)} cursor-pointer`}>
+                                  {mod.status}
+                                </Badge>
+                              </Link>
+                            </div>
+
+                            {mod.expand?.responsible && (
+                              <div className="flex items-center gap-2 mb-4 mt-2 p-2 bg-muted/30 rounded-md border border-border/50">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage
+                                    src={
+                                      mod.expand.responsible.avatar
+                                        ? pb.files.getURL(
+                                            mod.expand.responsible as any,
+                                            mod.expand.responsible.avatar,
+                                          )
+                                        : undefined
+                                    }
+                                  />
+                                  <AvatarFallback className="text-[10px]">
+                                    <User className="h-3 w-3" />
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-medium text-foreground leading-none">
+                                    {mod.expand.responsible.name || 'Usuário'}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground leading-none mt-0.5">
+                                    Responsável pela disciplina
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="space-y-1.5 mb-4">
+                              <div className="flex justify-between text-xs font-medium">
+                                <span>Progresso</span>
+                                <span>{mod.progress}%</span>
+                              </div>
+                              <Progress value={mod.progress} className="h-2" />
+                            </div>
+
+                            {mod.notes && (
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-4 bg-muted/50 p-2 rounded">
+                                {mod.notes}
+                              </p>
+                            )}
+
+                            <div className="mb-4 pt-3 border-t border-border/50 text-sm">
+                              {(() => {
+                                const moduleTasks = tasks.filter((t) => t.module === mod.id)
+                                const completedTasks = moduleTasks.filter(
+                                  (t) => t.status === 'Concluído' || t.completed_at,
+                                ).length
+                                const pendingTasks = moduleTasks.length - completedTasks
+                                const hasTasks = moduleTasks.length > 0
+
+                                return hasTasks ? (
+                                  <span className="text-muted-foreground">
+                                    Tarefas:{' '}
+                                    <strong className="text-amber-600 dark:text-amber-400 font-medium">
+                                      {pendingTasks} pendentes
+                                    </strong>{' '}
+                                    /{' '}
+                                    <strong className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                      {completedTasks} concluídas
+                                    </strong>
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground italic">
+                                    Sem tarefas cadastradas
+                                  </span>
+                                )
+                              })()}
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-2 pt-2 border-t">
+                              {canEdit && selectedSubDisciplines.length === 0 ? (
+                                <div className="flex items-center gap-1 pl-2">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={
+                                      isReordering ||
+                                      sortedModules.findIndex((m) => m.id === mod.id) === 0
+                                    }
+                                    onClick={() => handleReorder(mod, 'up')}
+                                    title="Mover para cima"
+                                  >
+                                    <ChevronUp className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    disabled={
+                                      isReordering ||
+                                      sortedModules.findIndex((m) => m.id === mod.id) ===
+                                        sortedModules.length - 1
+                                    }
+                                    onClick={() => handleReorder(mod, 'down')}
+                                    title="Mover para baixo"
+                                  >
+                                    <ChevronDown className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="hidden sm:block" />
+                              )}
+                              <div className="flex flex-wrap justify-end gap-2 w-full sm:w-auto">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedModuleForTasks(mod)}
+                                >
+                                  <ListTree className="w-4 h-4 mr-2" /> Tarefas
+                                </Button>
+                                {canEdit && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setEditingModule(mod)
+                                        setIsModalOpen(true)
+                                      }}
+                                    >
+                                      <Edit2 className="w-4 h-4 mr-2" /> Editar
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      onClick={() => setDeleteModuleId(mod)}
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" /> Remover
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
                     </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )
+                  )}
+                </div>
+              )
+            })}
+          </div>
         ) : (
           <div className="text-center py-12 border rounded-lg bg-muted/20">
             <h3 className="text-lg font-medium text-muted-foreground mb-2">
@@ -876,10 +974,10 @@ export function ProjectModules({ projectId }: { projectId: string }) {
       >
         <DialogContent className="max-w-5xl w-[95vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-background border-slate-200 dark:border-slate-800 shadow-xl">
           <DialogHeader className="px-6 py-5 border-b border-zinc-800 shrink-0 bg-zinc-950">
-            <DialogTitle className="text-xl">
+            <DialogTitle className="text-xl text-zinc-100">
               Estrutura Analítica (WBS) - {selectedModuleForTasks?.name}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-zinc-400">
               Gerencie a hierarquia de tarefas desta disciplina em formato de planilha.
             </DialogDescription>
           </DialogHeader>

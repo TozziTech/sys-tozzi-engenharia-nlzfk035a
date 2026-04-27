@@ -65,6 +65,15 @@ const DISCIPLINES = [
   'Auditoria',
 ]
 
+const LEGACY_HEX_COLORS: Record<string, string> = {
+  'Alvenaria Estrutural': '#475569',
+  Protendido: '#7c3aed',
+  'Concreto Armado': '#52525b',
+  Esgoto: '#d97706',
+  'Água Fria': '#2563eb',
+  'Água Quente': '#dc2626',
+}
+
 const schema = z.object({
   name: z.string().min(1, 'Disciplina é obrigatória'),
   status: z.enum(['Pendente', 'Em Andamento', 'Concluído', 'Pausado', 'Em Análise', 'Em Revisão']),
@@ -76,7 +85,7 @@ const schema = z.object({
   notes: z.string().optional(),
   responsible: z.string().optional(),
   designer: z.string().optional(),
-  sub_disciplines: z.array(z.string()).optional(),
+  sub_disciplines: z.array(z.any()).optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -127,7 +136,9 @@ export function ProjectModuleModal({
           notes: module.notes || '',
           responsible: module.responsible || 'none',
           designer: module.designer || 'none',
-          sub_disciplines: module.sub_disciplines || [],
+          sub_disciplines: (module.sub_disciplines || []).map((sd: any) =>
+            typeof sd === 'string' ? { name: sd, color: LEGACY_HEX_COLORS[sd] || '#3b82f6' } : sd,
+          ),
         })
       } else {
         form.reset({
@@ -278,41 +289,68 @@ export function ProjectModuleModal({
                             <CommandEmpty>Nenhuma encontrada.</CommandEmpty>
                             <CommandGroup>
                               {Array.from(
-                                new Set([...SUB_DISCIPLINES_LIST, ...(field.value || [])]),
-                              ).map((sd) => (
-                                <CommandItem
-                                  key={sd}
-                                  value={sd}
-                                  onSelect={() => {
-                                    const current = field.value || []
-                                    const updated = current.includes(sd)
-                                      ? current.filter((c) => c !== sd)
-                                      : [...current, sd]
-                                    field.onChange(updated)
-                                    setSubDisciplineSearch('')
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      'mr-2 h-4 w-4',
-                                      field.value?.includes(sd) ? 'opacity-100' : 'opacity-0',
-                                    )}
-                                  />
-                                  {sd}
-                                </CommandItem>
-                              ))}
+                                new Set([
+                                  ...SUB_DISCIPLINES_LIST,
+                                  ...(field.value || []).map((v: any) =>
+                                    typeof v === 'string' ? v : v.name,
+                                  ),
+                                ]),
+                              ).map((sdName) => {
+                                const isSelected = field.value?.some(
+                                  (v: any) => (typeof v === 'string' ? v : v.name) === sdName,
+                                )
+                                return (
+                                  <CommandItem
+                                    key={sdName}
+                                    value={sdName}
+                                    onSelect={() => {
+                                      const current = field.value || []
+                                      if (isSelected) {
+                                        field.onChange(
+                                          current.filter(
+                                            (c: any) =>
+                                              (typeof c === 'string' ? c : c.name) !== sdName,
+                                          ),
+                                        )
+                                      } else {
+                                        field.onChange([
+                                          ...current,
+                                          {
+                                            name: sdName,
+                                            color: LEGACY_HEX_COLORS[sdName] || '#3b82f6',
+                                          },
+                                        ])
+                                      }
+                                      setSubDisciplineSearch('')
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        'mr-2 h-4 w-4',
+                                        isSelected ? 'opacity-100' : 'opacity-0',
+                                      )}
+                                    />
+                                    {sdName}
+                                  </CommandItem>
+                                )
+                              })}
                               {subDisciplineSearch &&
                                 !SUB_DISCIPLINES_LIST.some(
                                   (sd) => sd.toLowerCase() === subDisciplineSearch.toLowerCase(),
                                 ) &&
                                 !field.value?.some(
-                                  (sd) => sd.toLowerCase() === subDisciplineSearch.toLowerCase(),
+                                  (v: any) =>
+                                    (typeof v === 'string' ? v : v.name).toLowerCase() ===
+                                    subDisciplineSearch.toLowerCase(),
                                 ) && (
                                   <CommandItem
                                     value={subDisciplineSearch}
                                     onSelect={() => {
                                       const current = field.value || []
-                                      field.onChange([...current, subDisciplineSearch])
+                                      field.onChange([
+                                        ...current,
+                                        { name: subDisciplineSearch, color: '#3b82f6' },
+                                      ])
                                       setSubDisciplineSearch('')
                                     }}
                                   >
@@ -327,22 +365,54 @@ export function ProjectModuleModal({
                     </Popover>
                     {field.value && field.value.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
-                        {field.value.map((sd) => (
-                          <Badge
-                            key={sd}
-                            variant="secondary"
-                            className="text-xs font-normal pr-1.5 mb-1"
-                          >
-                            {sd}
-                            <button
-                              type="button"
-                              className="ml-1 text-muted-foreground hover:text-foreground focus:outline-none"
-                              onClick={() => field.onChange(field.value?.filter((v) => v !== sd))}
+                        {field.value.map((sd: any, idx: number) => {
+                          const name = typeof sd === 'string' ? sd : sd.name
+                          const color =
+                            typeof sd === 'string'
+                              ? LEGACY_HEX_COLORS[sd] || '#3b82f6'
+                              : sd.color || '#3b82f6'
+                          return (
+                            <Badge
+                              key={idx}
+                              variant="secondary"
+                              className="text-xs font-normal pr-1.5 mb-1 flex items-center gap-1.5"
+                              style={{
+                                backgroundColor: `${color}20`,
+                                color: color,
+                                borderColor: color,
+                                borderWidth: 1,
+                              }}
                             >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
+                              <div
+                                className="relative w-4 h-4 rounded-sm overflow-hidden border border-black/10 dark:border-white/10 shrink-0 shadow-sm"
+                                title="Alterar cor"
+                              >
+                                <input
+                                  type="color"
+                                  value={color}
+                                  onChange={(e) => {
+                                    const newValues = [...field.value]
+                                    newValues[idx] = { name, color: e.target.value }
+                                    field.onChange(newValues)
+                                  }}
+                                  className="absolute -top-2 -left-2 w-8 h-8 p-0 border-0 bg-transparent cursor-pointer"
+                                />
+                              </div>
+                              {name}
+                              <button
+                                type="button"
+                                className="ml-0.5 text-current opacity-70 hover:opacity-100 focus:outline-none transition-opacity"
+                                onClick={() => {
+                                  const newValues = [...field.value]
+                                  newValues.splice(idx, 1)
+                                  field.onChange(newValues)
+                                }}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </Badge>
+                          )
+                        })}
                       </div>
                     )}
                     <FormMessage />

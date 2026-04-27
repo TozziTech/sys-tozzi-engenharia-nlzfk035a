@@ -321,17 +321,22 @@ export default function ProjectDetails() {
   const subDisciplineStats = useMemo(() => {
     const stats: Record<
       string,
-      { totalProgress: number; count: number; statuses: Record<string, number> }
+      { totalProgress: number; count: number; statuses: Record<string, number>; color: string }
     > = {}
     modules.forEach((mod) => {
       if (mod.sub_disciplines && mod.sub_disciplines.length > 0) {
-        mod.sub_disciplines.forEach((sd: string) => {
-          if (!stats[sd]) {
-            stats[sd] = { totalProgress: 0, count: 0, statuses: {} }
+        mod.sub_disciplines.forEach((sd: any) => {
+          const name = typeof sd === 'string' ? sd : sd.name
+          const color = typeof sd === 'string' ? null : sd.color
+          if (!stats[name]) {
+            stats[name] = { totalProgress: 0, count: 0, statuses: {}, color: color || '#94a3b8' }
           }
-          stats[sd].totalProgress += mod.progress || 0
-          stats[sd].count += 1
-          stats[sd].statuses[mod.status] = (stats[sd].statuses[mod.status] || 0) + 1
+          if (color && stats[name].color === '#94a3b8') {
+            stats[name].color = color
+          }
+          stats[name].totalProgress += mod.progress || 0
+          stats[name].count += 1
+          stats[name].statuses[mod.status] = (stats[name].statuses[mod.status] || 0) + 1
         })
       }
     })
@@ -343,7 +348,7 @@ export default function ProjectDetails() {
         count: data.count,
         averageProgress: Math.round(data.totalProgress / data.count),
         statuses: data.statuses,
-        color: tag?.color || '#94a3b8',
+        color: data.color !== '#94a3b8' ? data.color : tag?.color || '#94a3b8',
         is_emphasized: tag?.is_emphasized || false,
       }
     })

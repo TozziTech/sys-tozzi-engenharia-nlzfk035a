@@ -110,10 +110,7 @@ export function usePermissions() {
       return undefined
     }
 
-    if (checkVisibility(effModuleId) === false) return 'Inativo'
-
     const parentId = parentMap[effModuleId]
-    if (parentId && checkVisibility(parentId) === false) return 'Inativo'
 
     const checkRolePerm = (perms: any, id: string) => {
       if (perms[id]) return perms[id]
@@ -122,21 +119,46 @@ export function usePermissions() {
       return undefined
     }
 
-    // Prioritize Custom Role if assigned
-    if (user.custom_role && customRoles[user.custom_role]) {
-      const cr = customRoles[user.custom_role]
-      const crPerms = cr.permissions || {}
-      if (parentId && checkRolePerm(crPerms, parentId) === 'Inativo') return 'Inativo'
+    // 1. Check explicit granular permission first (prioritizes specific functional permissions)
+    let specificPerm: string | undefined = undefined
 
-      const p = checkRolePerm(crPerms, effModuleId)
-      if (p) return p
+    if (user.custom_role && customRoles[user.custom_role]) {
+      const crPerms = customRoles[user.custom_role].permissions || {}
+      specificPerm = checkRolePerm(crPerms, effModuleId)
     }
 
-    const rolePerms = role_permissions?.[user.role || '']
-    if (rolePerms) {
-      if (parentId && checkRolePerm(rolePerms, parentId) === 'Inativo') return 'Inativo'
-      const p = checkRolePerm(rolePerms, effModuleId)
-      if (p) return p
+    if (!specificPerm) {
+      const rolePerms = role_permissions?.[user.role || '']
+      if (rolePerms) {
+        specificPerm = checkRolePerm(rolePerms, effModuleId)
+      }
+    }
+
+    if (specificPerm) {
+      return specificPerm
+    }
+
+    // 2. If no specific permission, fallback to visibility checks
+    if (checkVisibility(effModuleId) === false) return 'Inativo'
+    if (parentId && checkVisibility(parentId) === false) return 'Inativo'
+
+    // 3. Fallback to parent role permissions
+    let parentPerm: string | undefined = undefined
+    if (parentId) {
+      if (user.custom_role && customRoles[user.custom_role]) {
+        const crPerms = customRoles[user.custom_role].permissions || {}
+        parentPerm = checkRolePerm(crPerms, parentId)
+      }
+      if (!parentPerm) {
+        const rolePerms = role_permissions?.[user.role || '']
+        if (rolePerms) {
+          parentPerm = checkRolePerm(rolePerms, parentId)
+        }
+      }
+    }
+
+    if (parentPerm) {
+      return parentPerm
     }
 
     // Deny by default if not configured explicitly

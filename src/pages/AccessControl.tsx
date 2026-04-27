@@ -1453,7 +1453,7 @@ export default function AccessControl() {
                                     'Visitante',
                                     'Cliente',
                                   ].map((role) => {
-                                    const val = rolePermissions[role]?.[mod.id] || 'Ativo'
+                                    const val = rolePermissions[role]?.[mod.id] || 'Inativo'
                                     return (
                                       <TableCell
                                         key={role}
@@ -1485,7 +1485,7 @@ export default function AccessControl() {
                                     const val =
                                       cr.permissions && cr.permissions[mod.id]
                                         ? cr.permissions[mod.id]
-                                        : 'Ativo'
+                                        : 'Inativo'
                                     return (
                                       <TableCell
                                         key={cr.id}
@@ -1712,7 +1712,7 @@ export default function AccessControl() {
                                   } else if (isModDisabled) {
                                     status = 'Oculto'
                                   } else {
-                                    status = rolePermissions[role]?.[mod.id] || 'Ativo'
+                                    status = rolePermissions[role]?.[mod.id] || 'Inativo'
                                   }
 
                                   return (
@@ -1763,7 +1763,7 @@ export default function AccessControl() {
                                     status =
                                       cr.permissions && cr.permissions[mod.id]
                                         ? cr.permissions[mod.id]
-                                        : 'Ativo'
+                                        : 'Inativo'
                                   }
                                   return (
                                     <TableCell

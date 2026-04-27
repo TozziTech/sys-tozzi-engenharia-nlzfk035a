@@ -115,7 +115,7 @@ export default function DesignerPanel() {
     }
   }, [user])
 
-  const hasFinanceAccess = canAccess('lancamentos_financeiros') || user?.role === 'Administrador'
+  const hasFinanceAccess = canAccess('planilha_financeira') || user?.role === 'Administrador'
 
   const availableWidgets = useMemo(() => {
     const defaults = ['daily', 'overview', 'cronograma', 'financeiro']

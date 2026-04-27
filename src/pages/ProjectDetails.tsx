@@ -266,6 +266,29 @@ export default function ProjectDetails() {
 
   const { can } = usePermissions()
 
+  const subDisciplineStats = useMemo(() => {
+    const stats: Record<string, { totalProgress: number; count: number }> = {}
+    modules.forEach((mod) => {
+      if (mod.sub_disciplines && mod.sub_disciplines.length > 0) {
+        mod.sub_disciplines.forEach((sd: string) => {
+          if (!stats[sd]) {
+            stats[sd] = { totalProgress: 0, count: 0 }
+          }
+          stats[sd].totalProgress += mod.progress || 0
+          stats[sd].count += 1
+        })
+      }
+    })
+
+    return Object.entries(stats)
+      .map(([name, data]) => ({
+        name,
+        count: data.count,
+        averageProgress: Math.round(data.totalProgress / data.count),
+      }))
+      .sort((a, b) => b.count - a.count)
+  }, [modules])
+
   if (!project) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8">
@@ -290,29 +313,6 @@ export default function ProjectDetails() {
     totalModules > 0
       ? Math.round(modules.reduce((sum, m) => sum + (m.progress || 0), 0) / totalModules)
       : 0
-
-  const subDisciplineStats = useMemo(() => {
-    const stats: Record<string, { totalProgress: number; count: number }> = {}
-    modules.forEach((mod) => {
-      if (mod.sub_disciplines && mod.sub_disciplines.length > 0) {
-        mod.sub_disciplines.forEach((sd: string) => {
-          if (!stats[sd]) {
-            stats[sd] = { totalProgress: 0, count: 0 }
-          }
-          stats[sd].totalProgress += mod.progress || 0
-          stats[sd].count += 1
-        })
-      }
-    })
-
-    return Object.entries(stats)
-      .map(([name, data]) => ({
-        name,
-        count: data.count,
-        averageProgress: Math.round(data.totalProgress / data.count),
-      }))
-      .sort((a, b) => b.count - a.count)
-  }, [modules])
 
   return (
     <div className={`container mx-auto ${pClass} max-w-[95%] xl:max-w-screen-2xl ${gapClass}`}>

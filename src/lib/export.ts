@@ -133,8 +133,41 @@ export function exportNotesCSV(data: any[]) {
 export function exportReportsCSV(data: any[]) {
   genericExport(data, 'relatorios')
 }
-export function exportModulesCSV(data: any[]) {
-  genericExport(data, 'modulos')
+export function exportModulesCSV(modules: any[], projectName: string = '') {
+  const headers = [
+    'Nome do Módulo',
+    'Categoria/Disciplina',
+    'Sub-disciplinas',
+    'Edificação',
+    'Status',
+    'Progresso (%)',
+    'Responsável',
+    'Projetista',
+    'Data de Início',
+    'Prazo',
+  ]
+
+  const rows = modules.map((m) =>
+    [
+      escapeCSV(m.name),
+      escapeCSV(m.name),
+      escapeCSV(
+        m.sub_disciplines?.map((sd: any) => (typeof sd === 'string' ? sd : sd.name)).join(', ') ||
+          '',
+      ),
+      escapeCSV(m.edificacao),
+      escapeCSV(m.status),
+      escapeCSV(m.progress),
+      escapeCSV(m.expand?.responsible?.name || ''),
+      escapeCSV(m.expand?.designer?.name || ''),
+      escapeCSV(m.start_date ? new Date(m.start_date).toLocaleDateString('pt-BR') : ''),
+      escapeCSV(m.deadline ? new Date(m.deadline).toLocaleDateString('pt-BR') : ''),
+    ].join(';'),
+  )
+
+  const csvContent = [headers.join(';'), ...rows].join('\n')
+  const safeName = projectName ? `${projectName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}_` : ''
+  downloadCSV(csvContent, `modulos_${safeName}${new Date().toISOString().split('T')[0]}.csv`)
 }
 export function exportCategoriesCSV(data: any[]) {
   genericExport(data, 'categorias')

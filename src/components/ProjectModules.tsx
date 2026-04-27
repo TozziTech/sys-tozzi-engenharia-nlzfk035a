@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { getProjectModules, deleteProjectModule } from '@/services/project_modules'
+import { exportModulesCSV } from '@/lib/export'
+import { FileSpreadsheet } from 'lucide-react'
 import { ProjectModule, SUB_DISCIPLINES_COLORS } from '@/types/project_modules'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -86,7 +88,10 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   })
 
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedSubDisciplines, setSelectedSubDisciplines] = useState<string[]>([])
+  const [selectedSubDisciplines, setSelectedSubDisciplines] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`sub_disciplines_filter_${projectId}`)
+    return saved ? JSON.parse(saved) : []
+  })
   const [editingModule, setEditingModule] = useState<ProjectModule | undefined>(undefined)
   const [deleteModuleId, setDeleteModuleId] = useState<ProjectModule | null>(null)
   const [selectedModuleForTasks, setSelectedModuleForTasks] = useState<ProjectModule | null>(null)
@@ -259,6 +264,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const handleGroupByChange = (value: string) => {
     setGroupBy(value as any)
     localStorage.setItem(`group_by_mode_${projectId}`, value)
+    window.dispatchEvent(new Event('groupByModeChanged'))
   }
 
   const handleDelete = async () => {
@@ -278,9 +284,24 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   }
 
   const toggleSubDiscipline = (sd: string) => {
-    setSelectedSubDisciplines((prev) =>
-      prev.includes(sd) ? prev.filter((item) => item !== sd) : [...prev, sd],
-    )
+    setSelectedSubDisciplines((prev) => {
+      const newVal = prev.includes(sd) ? prev.filter((item) => item !== sd) : [...prev, sd]
+      localStorage.setItem(`sub_disciplines_filter_${projectId}`, JSON.stringify(newVal))
+      window.dispatchEvent(new Event('subDisciplinesChanged'))
+      return newVal
+    })
+  }
+
+  const clearFilters = () => {
+    setSelectedSubDisciplines([])
+    localStorage.setItem(`sub_disciplines_filter_${projectId}`, JSON.stringify([]))
+    window.dispatchEvent(new Event('subDisciplinesChanged'))
+  }
+
+  const handleExportCSV = () => {
+    const flatFilteredModules = Object.values(groupedModules).flat()
+    const uniqueModules = Array.from(new Set(flatFilteredModules))
+    exportModulesCSV(uniqueModules, projectId)
   }
 
   const filteredModules = sortedModules.filter((mod) => {
@@ -474,7 +495,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                     variant="ghost"
                     size="sm"
                     className="w-full h-7 text-xs mt-2"
-                    onClick={() => setSelectedSubDisciplines([])}
+                    onClick={clearFilters}
                   >
                     Limpar Filtros
                   </Button>
@@ -503,6 +524,19 @@ export function ProjectModules({ projectId }: { projectId: string }) {
               Lista
             </Button>
           </div>
+
+          {canEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="h-8 px-2.5 text-xs gap-1.5"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Exportar CSV</span>
+            </Button>
+          )}
+
           {canEdit && (
             <Button
               onClick={() => {
@@ -510,9 +544,10 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                 setIsModalOpen(true)
               }}
               size="sm"
+              className="h-8"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Adicionar Disciplina
+              <span className="hidden sm:inline">Adicionar Disciplina</span>
             </Button>
           )}
         </div>
@@ -531,7 +566,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
             <p className="text-sm text-muted-foreground mb-4">
               Nenhuma disciplina corresponde aos filtros selecionados.
             </p>
-            <Button variant="outline" size="sm" onClick={() => setSelectedSubDisciplines([])}>
+            <Button variant="outline" size="sm" onClick={clearFilters}>
               Limpar Filtros
             </Button>
           </div>

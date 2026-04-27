@@ -6,7 +6,7 @@ const getPrimaryColor = (settings: any) => settings?.primary_color || '#1f2937'
 
 export function exportSpecialtiesPDF(
   project: any,
-  stats: any[],
+  groupedStats: { groupName: string; stats: any[] }[],
   currentUser: string,
   settings: any = null,
 ) {
@@ -44,7 +44,17 @@ export function exportSpecialtiesPDF(
           .header h1 { margin: 0; color: ${primaryColor}; font-size: 24px; }
           .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
           
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          .group-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #111827;
+            margin: 30px 0 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 5px;
+            page-break-after: avoid;
+          }
+          
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
           th, td {
             text-align: left;
             padding: 10px;
@@ -72,6 +82,7 @@ export function exportSpecialtiesPDF(
           @media print {
             body { padding: 0; }
             .no-print { display: none; }
+            .group-container { page-break-inside: avoid; }
           }
         </style>
       </head>
@@ -87,48 +98,61 @@ export function exportSpecialtiesPDF(
           <p>Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
         </div>
         
-        <table>
-          <thead>
-            <tr>
-              <th>Especialidade</th>
-              <th style="width: 100px;">Módulos</th>
-              <th style="width: 200px;">Status dos Módulos</th>
-              <th style="width: 150px; text-align: right;">Progresso Médio</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${stats
-              .map(
-                (stat: any) => `
-                <tr>
-                  <td>
-                    <div style="font-weight: 600; color: #111827; display: flex; align-items: center; gap: 6px;">
-                      <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ${stat.color};"></span>
-                      ${stat.name} ${stat.is_emphasized ? '<span style="color: #eab308; font-size: 16px;">★</span>' : ''}
-                    </div>
-                  </td>
-                  <td>${stat.count}</td>
-                  <td>
-                    <div class="status-grid">
-                      ${Object.entries(stat.statuses)
-                        .map(
-                          ([status, count]) => `<div class="status-item">${status}: ${count}</div>`,
-                        )
-                        .join('')}
-                    </div>
-                  </td>
-                  <td style="text-align: right;">
-                    <div style="font-weight: 700; color: ${primaryColor};">${stat.averageProgress}%</div>
-                    <div class="progress-bg">
-                      <div class="progress-bar" style="width: ${stat.averageProgress}%;"></div>
-                    </div>
-                  </td>
-                </tr>
-              `,
-              )
-              .join('')}
-          </tbody>
-        </table>
+        ${groupedStats
+          .map((group) => {
+            if (group.stats.length === 0) return ''
+            return `
+            <div class="group-container">
+              ${groupedStats.length > 1 || group.groupName !== 'Todos os Módulos' ? `<div class="group-title">${group.groupName}</div>` : ''}
+              <table>
+                <thead>
+                  <tr>
+                    <th>Especialidade</th>
+                    <th style="width: 100px;">Módulos</th>
+                    <th style="width: 200px;">Status dos Módulos</th>
+                    <th style="width: 150px; text-align: right;">Progresso Médio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${group.stats
+                    .map(
+                      (stat: any) => `
+                      <tr>
+                        <td>
+                          <div style="font-weight: 600; color: #111827; display: flex; align-items: center; gap: 6px;">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ${stat.color};"></span>
+                            ${stat.name} ${stat.is_emphasized ? '<span style="color: #eab308; font-size: 16px;">★</span>' : ''}
+                          </div>
+                        </td>
+                        <td>${stat.count}</td>
+                        <td>
+                          <div class="status-grid">
+                            ${Object.entries(stat.statuses)
+                              .map(
+                                ([status, count]) =>
+                                  `<div class="status-item">${status}: ${count}</div>`,
+                              )
+                              .join('')}
+                          </div>
+                        </td>
+                        <td style="text-align: right;">
+                          <div style="font-weight: 700; color: ${primaryColor};">${stat.averageProgress}%</div>
+                          <div class="progress-bg">
+                            <div class="progress-bar" style="width: ${stat.averageProgress}%;"></div>
+                          </div>
+                        </td>
+                      </tr>
+                    `,
+                    )
+                    .join('')}
+                </tbody>
+              </table>
+            </div>
+          `
+          })
+          .join('')}
+        
+        ${groupedStats.every((g) => g.stats.length === 0) ? '<p style="text-align: center; color: #6b7280; padding: 40px;">Nenhuma especialidade encontrada para os filtros atuais.</p>' : ''}
         
         <div class="footer">
           Documento gerado pelo Sistema de Gerenciamento de Projetos.

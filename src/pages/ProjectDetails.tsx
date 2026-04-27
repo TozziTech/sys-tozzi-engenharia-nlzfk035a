@@ -391,12 +391,110 @@ export default function ProjectDetails() {
 
   const handleExportSpecialtiesPDF = useCallback(async () => {
     if (!project) return
-    exportSpecialtiesPDF(
-      project,
-      subDisciplineStats,
-      user?.name || user?.email || 'Usuário',
-      settings,
+
+    let filteredModules = [...modules]
+    if (selectedSubDisciplines.length > 0) {
+      filteredModules = filteredModules.filter((mod) => {
+        if (!mod.sub_disciplines || mod.sub_disciplines.length === 0) return false
+        return mod.sub_disciplines.some((sd) => {
+          const name = typeof sd === 'string' ? sd : sd.name
+          return selectedSubDisciplines.includes(name)
+        })
+      })
+    }
+
+    filteredModules.sort((a, b) => {
+      if (a.ordem !== b.ordem) return (a.ordem ?? 0) - (b.ordem ?? 0)
+      if (a.deadline && b.deadline)
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+      if (a.deadline) return -1
+      if (b.deadline) return 1
+      return 0
+    })
+
+    const grouped = filteredModules.reduce(
+      (acc, mod) => {
+        let key = 'Todos os Módulos'
+        if (groupBy === 'edificacao') {
+          key = mod.edificacao || 'Sem Edificação'
+        } else if (groupBy === 'disciplina') {
+          key = mod.name || 'Sem Disciplina'
+        }
+        if (!acc[key]) acc[key] = []
+        acc[key].push(mod)
+        return acc
+      },
+      {} as Record<string, typeof modules>,
     )
+
+    if (priorityMode) {
+      Object.keys(grouped).forEach((key) => {
+        grouped[key] = grouped[key].slice(0, 5)
+      })
+    }
+
+    const groupedStats = Object.entries(grouped).map(([groupName, groupMods]) => {
+      const stats: Record<
+        string,
+        {
+          totalProgress: number
+          count: number
+          statuses: Record<string, number>
+          color: string
+          is_emphasized: boolean
+        }
+      > = {}
+      groupMods.forEach((mod) => {
+        if (mod.sub_disciplines && mod.sub_disciplines.length > 0) {
+          mod.sub_disciplines.forEach((sd: any) => {
+            const name = typeof sd === 'string' ? sd : sd.name
+            const color = typeof sd === 'string' ? null : sd.color
+            const tag = tags.find((t) => t.name === name)
+            if (!stats[name]) {
+              stats[name] = {
+                totalProgress: 0,
+                count: 0,
+                statuses: {},
+                color: color || tag?.color || '#94a3b8',
+                is_emphasized: tag?.is_emphasized || false,
+              }
+            }
+            if (color && stats[name].color === '#94a3b8') {
+              stats[name].color = color
+            }
+            stats[name].totalProgress += mod.progress || 0
+            stats[name].count += 1
+            stats[name].statuses[mod.status] = (stats[name].statuses[mod.status] || 0) + 1
+          })
+        }
+      })
+
+      const result = Object.entries(stats).map(([name, data]) => ({
+        name,
+        count: data.count,
+        averageProgress: Math.round(data.totalProgress / data.count),
+        statuses: data.statuses,
+        color: data.color,
+        is_emphasized: data.is_emphasized,
+      }))
+
+      if (specialtySort === 'emphasis') {
+        result.sort((a, b) => {
+          if (a.is_emphasized === b.is_emphasized) return b.averageProgress - a.averageProgress
+          return a.is_emphasized ? -1 : 1
+        })
+      } else if (specialtySort === 'progressDesc') {
+        result.sort((a, b) => b.averageProgress - a.averageProgress)
+      } else if (specialtySort === 'progressAsc') {
+        result.sort((a, b) => a.averageProgress - b.averageProgress)
+      } else if (specialtySort === 'nameAsc') {
+        result.sort((a, b) => a.name.localeCompare(b.name))
+      }
+
+      return { groupName, stats: result }
+    })
+
+    exportSpecialtiesPDF(project, groupedStats, user?.name || user?.email || 'Usuário', settings)
 
     const totalM = modules.length
     const byStatus = modules.reduce(
@@ -426,18 +524,49 @@ export default function ProjectDetails() {
     } catch (e) {
       console.error('Failed to create report history', e)
     }
-  }, [project, subDisciplineStats, user, settings, modules, toast])
+  }, [
+    project,
+    subDisciplineStats,
+    user,
+    settings,
+    modules,
+    toast,
+    selectedSubDisciplines,
+    groupBy,
+    priorityMode,
+    tags,
+    specialtySort,
+  ])
 
   const [priorityMode, setPriorityMode] = useState(() => {
     return localStorage.getItem(`priority_mode_${id}`) === 'true'
   })
 
+  const [groupBy, setGroupBy] = useState<'edificacao' | 'disciplina' | 'none'>(() => {
+    return (localStorage.getItem(`group_by_mode_${id}`) as any) || 'none'
+  })
+
+  const [selectedSubDisciplines, setSelectedSubDisciplines] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`sub_disciplines_filter_${id}`)
+    return saved ? JSON.parse(saved) : []
+  })
+
   useEffect(() => {
     const handleStorageChange = () => {
       setPriorityMode(localStorage.getItem(`priority_mode_${id}`) === 'true')
+      setGroupBy((localStorage.getItem(`group_by_mode_${id}`) as any) || 'none')
+      const savedSubs = localStorage.getItem(`sub_disciplines_filter_${id}`)
+      setSelectedSubDisciplines(savedSubs ? JSON.parse(savedSubs) : [])
     }
     window.addEventListener('priorityModeChanged', handleStorageChange)
-    return () => window.removeEventListener('priorityModeChanged', handleStorageChange)
+    window.addEventListener('groupByModeChanged', handleStorageChange)
+    window.addEventListener('subDisciplinesChanged', handleStorageChange)
+
+    return () => {
+      window.removeEventListener('priorityModeChanged', handleStorageChange)
+      window.removeEventListener('groupByModeChanged', handleStorageChange)
+      window.removeEventListener('subDisciplinesChanged', handleStorageChange)
+    }
   }, [id])
 
   const crisisModules = useMemo(() => {
@@ -506,7 +635,18 @@ export default function ProjectDetails() {
         <h3 className="text-lg text-gray-600 mb-6">Cliente: {project.client}</h3>
 
         {(() => {
-          const sortedModules = [...modules].sort((a, b) => {
+          let filteredModules = [...modules]
+          if (selectedSubDisciplines.length > 0) {
+            filteredModules = filteredModules.filter((mod) => {
+              if (!mod.sub_disciplines || mod.sub_disciplines.length === 0) return false
+              return mod.sub_disciplines.some((sd) => {
+                const name = typeof sd === 'string' ? sd : sd.name
+                return selectedSubDisciplines.includes(name)
+              })
+            })
+          }
+
+          filteredModules.sort((a, b) => {
             if (a.ordem !== b.ordem) return (a.ordem ?? 0) - (b.ordem ?? 0)
             if (a.deadline && b.deadline)
               return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
@@ -514,9 +654,15 @@ export default function ProjectDetails() {
             if (b.deadline) return 1
             return 0
           })
-          const grouped = sortedModules.reduce(
+
+          const grouped = filteredModules.reduce(
             (acc, mod) => {
-              const key = mod.edificacao || 'Sem Edificação'
+              let key = 'Todos os Módulos'
+              if (groupBy === 'edificacao') {
+                key = mod.edificacao || 'Sem Edificação'
+              } else if (groupBy === 'disciplina') {
+                key = mod.name || 'Sem Disciplina'
+              }
               if (!acc[key]) acc[key] = []
               acc[key].push(mod)
               return acc
@@ -524,35 +670,46 @@ export default function ProjectDetails() {
             {} as Record<string, typeof modules>,
           )
 
-          return Object.entries(grouped).map(([edificacao, mods]) => (
-            <div key={edificacao} className="mb-8">
-              <h4 className="text-lg font-bold border-b border-gray-300 pb-1 mb-4">{edificacao}</h4>
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-gray-300">
-                    <th className="py-2 px-2">Ordem</th>
-                    <th className="py-2 px-2">Disciplina</th>
-                    <th className="py-2 px-2">Status</th>
-                    <th className="py-2 px-2">Prazo</th>
-                    <th className="py-2 px-2">Responsável</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mods.map((m) => (
-                    <tr key={m.id} className="border-b border-gray-200">
-                      <td className="py-2 px-2">{m.ordem ?? '-'}</td>
-                      <td className="py-2 px-2 font-medium">{m.name}</td>
-                      <td className="py-2 px-2">{m.status}</td>
-                      <td className="py-2 px-2">
-                        {m.deadline ? new Date(m.deadline).toLocaleDateString('pt-BR') : '-'}
-                      </td>
-                      <td className="py-2 px-2">{m.expand?.responsible?.name || '-'}</td>
+          if (priorityMode) {
+            Object.keys(grouped).forEach((key) => {
+              grouped[key] = grouped[key].slice(0, 5)
+            })
+          }
+
+          return Object.entries(grouped).map(([groupName, mods]) => {
+            if (mods.length === 0) return null
+            return (
+              <div key={groupName} className="mb-8 break-inside-avoid">
+                <h4 className="text-lg font-bold border-b border-gray-300 pb-1 mb-4">
+                  {groupName}
+                </h4>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-gray-300">
+                      <th className="py-2 px-2">Ordem</th>
+                      <th className="py-2 px-2">Disciplina</th>
+                      <th className="py-2 px-2">Status</th>
+                      <th className="py-2 px-2">Prazo</th>
+                      <th className="py-2 px-2">Responsável</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))
+                  </thead>
+                  <tbody>
+                    {mods.map((m) => (
+                      <tr key={m.id} className="border-b border-gray-200">
+                        <td className="py-2 px-2">{m.ordem ?? '-'}</td>
+                        <td className="py-2 px-2 font-medium">{m.name}</td>
+                        <td className="py-2 px-2">{m.status}</td>
+                        <td className="py-2 px-2">
+                          {m.deadline ? new Date(m.deadline).toLocaleDateString('pt-BR') : '-'}
+                        </td>
+                        <td className="py-2 px-2">{m.expand?.responsible?.name || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })
         })()}
       </div>
 

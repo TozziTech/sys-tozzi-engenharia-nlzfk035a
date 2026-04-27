@@ -359,19 +359,20 @@ export function TransactionTable({
                                 variant="ghost"
                                 className="h-6 px-2 text-[10px]"
                                 onClick={async (e) => {
-                                e.stopPropagation()
-                                try {
-                                  await pb.collection('financial_records').update(tx.id, {
-                                    is_approved: true,
-                                    approved_by: pb.authStore.record?.id,
-                                  })
-                                } catch (err) {
-                                  console.error(err)
-                                }
-                              }}
-                            >
-                              Aprovar
-                            </Button>
+                                  e.stopPropagation()
+                                  try {
+                                    await pb.collection('financial_records').update(tx.id, {
+                                      is_approved: true,
+                                      approved_by: pb.authStore.record?.id,
+                                    })
+                                  } catch (err) {
+                                    console.error(err)
+                                  }
+                                }}
+                              >
+                                Aprovar
+                              </Button>
+                            )}
                           </div>
                         )
                       ) : (

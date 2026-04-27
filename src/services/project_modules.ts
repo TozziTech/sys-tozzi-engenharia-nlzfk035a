@@ -4,12 +4,24 @@ import { ProjectModule } from '@/types/project_modules'
 export const getProjectModules = async (projectId: string) => {
   return pb.collection('project_modules').getFullList<ProjectModule>({
     filter: `project = "${projectId}"`,
-    sort: '-created',
+    sort: 'ordem,created',
     expand: 'responsible,designer,project',
   })
 }
 
 export const createProjectModule = async (data: Partial<ProjectModule>, userId: string) => {
+  if (data.ordem === undefined && data.project) {
+    try {
+      const existing = await pb.collection('project_modules').getList(1, 1, {
+        filter: `project = "${data.project}"`,
+        sort: '-ordem',
+      })
+      data.ordem = existing.items.length > 0 ? (existing.items[0].ordem || 0) + 1 : 1
+    } catch (e) {
+      data.ordem = 1
+    }
+  }
+
   const record = await pb.collection('project_modules').create<ProjectModule>(data)
 
   await pb

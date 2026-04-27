@@ -37,6 +37,7 @@ export interface ProjectModule {
   responsible?: string
   designer?: string
   sub_disciplines?: string[]
+  ordem?: number
   expand?: {
     responsible?: {
       id: string

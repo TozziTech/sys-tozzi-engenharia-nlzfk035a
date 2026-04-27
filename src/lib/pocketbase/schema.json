@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-27T12:56:07.636Z",
+  "generatedAt": "2026-04-27T13:12:31.966Z",
   "collections": [
     {
       "name": "users",
@@ -1354,6 +1354,12 @@
         {
           "name": "start_date",
           "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
           "required": false,
           "system": false
         }

@@ -19,6 +19,8 @@ import {
   LayoutGrid,
   List,
   Filter,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -71,6 +73,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
   const [selectedModuleForTasks, setSelectedModuleForTasks] = useState<ProjectModule | null>(null)
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [isReordering, setIsReordering] = useState(false)
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
@@ -114,6 +117,51 @@ export function ProjectModules({ projectId }: { projectId: string }) {
         return 'bg-indigo-500 hover:bg-indigo-600 text-white'
       default:
         return 'bg-slate-500 hover:bg-slate-600 text-white'
+    }
+  }
+
+  const handleReorder = async (mod: ProjectModule, direction: 'up' | 'down') => {
+    if (isReordering || selectedSubDisciplines.length > 0) return
+
+    const index = modules.findIndex((m) => m.id === mod.id)
+    if (index < 0) return
+
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= modules.length) return
+
+    setIsReordering(true)
+
+    const target = modules[targetIndex]
+
+    let currentOrdem = mod.ordem ?? index + 1
+    let targetOrdem = target.ordem ?? targetIndex + 1
+
+    if (currentOrdem === targetOrdem) {
+      if (direction === 'up') {
+        currentOrdem = targetOrdem + 1
+      } else {
+        targetOrdem = currentOrdem + 1
+      }
+    }
+
+    const newModules = [...modules]
+    newModules[index] = { ...mod, ordem: targetOrdem }
+    newModules[targetIndex] = { ...target, ordem: currentOrdem }
+    newModules.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+    setModules(newModules)
+
+    try {
+      await pb.collection('project_modules').update(mod.id, { ordem: targetOrdem })
+      await pb.collection('project_modules').update(target.id, { ordem: currentOrdem })
+    } catch (err) {
+      toast({
+        title: 'Erro ao reordenar',
+        description: 'Não foi possível alterar a ordem da disciplina.',
+        variant: 'destructive',
+      })
+      loadData()
+    } finally {
+      setIsReordering(false)
     }
   }
 
@@ -370,7 +418,36 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-1 items-center">
+                          {canEdit && selectedSubDisciplines.length === 0 && (
+                            <div className="flex flex-col gap-0 mr-2 border-r pr-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-6 p-0 hover:bg-muted"
+                                disabled={
+                                  isReordering || modules.findIndex((m) => m.id === mod.id) === 0
+                                }
+                                onClick={() => handleReorder(mod, 'up')}
+                                title="Mover para cima"
+                              >
+                                <ChevronUp className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-6 p-0 hover:bg-muted"
+                                disabled={
+                                  isReordering ||
+                                  modules.findIndex((m) => m.id === mod.id) === modules.length - 1
+                                }
+                                onClick={() => handleReorder(mod, 'down')}
+                                title="Mover para baixo"
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -614,36 +691,69 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                       })()}
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedModuleForTasks(mod)}
-                      >
-                        <ListTree className="w-4 h-4 mr-2" /> Tarefas
-                      </Button>
-                      {canEdit && (
-                        <>
+                    <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-2 pt-2 border-t">
+                      {canEdit && selectedSubDisciplines.length === 0 ? (
+                        <div className="flex items-center gap-1">
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingModule(mod)
-                              setIsModalOpen(true)
-                            }}
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            disabled={
+                              isReordering || modules.findIndex((m) => m.id === mod.id) === 0
+                            }
+                            onClick={() => handleReorder(mod, 'up')}
+                            title="Mover para cima"
                           >
-                            <Edit2 className="w-4 h-4 mr-2" /> Editar
+                            <ChevronUp className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => setDeleteModuleId(mod)}
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            disabled={
+                              isReordering ||
+                              modules.findIndex((m) => m.id === mod.id) === modules.length - 1
+                            }
+                            onClick={() => handleReorder(mod, 'down')}
+                            title="Mover para baixo"
                           >
-                            <Trash2 className="w-4 h-4 mr-2" /> Remover
+                            <ChevronDown className="h-4 w-4" />
                           </Button>
-                        </>
+                        </div>
+                      ) : (
+                        <div className="hidden sm:block" />
                       )}
+                      <div className="flex flex-wrap justify-end gap-2 w-full sm:w-auto">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedModuleForTasks(mod)}
+                        >
+                          <ListTree className="w-4 h-4 mr-2" /> Tarefas
+                        </Button>
+                        {canEdit && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingModule(mod)
+                                setIsModalOpen(true)
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4 mr-2" /> Editar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeleteModuleId(mod)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" /> Remover
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Card>

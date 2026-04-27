@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
-import { useRealtime } from '@/hooks/use-realtime'
 import { validateCPF } from '@/lib/utils'
 
 const Field = ({ label, id, value, onChange, type = 'text', ...props }: any) => (
@@ -95,9 +94,6 @@ export default function Profile() {
   useEffect(() => {
     loadData()
   }, [user?.id])
-  useRealtime('users', (e) => {
-    if (e.action === 'update' && e.record.id === user?.id) loadData()
-  })
 
   const fetchCep = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '')
@@ -135,11 +131,23 @@ export default function Profile() {
       }
       const data = new FormData()
       Object.entries(formData).forEach(([k, v]) => {
-        if (k !== 'email') {
+        if (k === 'email') return // API requirement: avoid auth field conflicts
+
+        if (k === 'birth_date') {
+          if (v) {
+            data.append(k, String(v).substring(0, 10)) // Format YYYY-MM-DD
+          } else {
+            data.append(k, '')
+          }
+        } else if (typeof v === 'boolean') {
+          data.append(k, v ? 'true' : 'false')
+        } else {
           data.append(k, String(v))
         }
       })
+
       if (avatarFile) data.append('avatar', avatarFile)
+
       await pb.collection('users').update(user.id, data)
       toast({ title: 'Perfil atualizado com sucesso!' })
     } catch (e: any) {

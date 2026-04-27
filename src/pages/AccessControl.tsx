@@ -57,7 +57,8 @@ import { exportAccessReportPDF } from '@/lib/exportPdf'
 const rbacResources = [
   { id: 'projects', name: 'Projetos' },
   { id: 'tasks', name: 'Tarefas' },
-  { id: 'finance', name: 'Financeiro' },
+  { id: 'finance', name: 'Financeiro (Lançamentos)' },
+  { id: 'planilha_financeira', name: 'Planilha Financeira' },
   { id: 'quotes', name: 'Orçamentos' },
   { id: 'clients', name: 'Clientes' },
   { id: 'contacts', name: 'Contatos' },
@@ -98,6 +99,11 @@ const moduleGroups = [
         id: 'lancamentos_financeiros',
         name: 'Lançamentos Financeiros',
         desc: 'Receitas e despesas',
+      },
+      {
+        id: 'planilha_financeira',
+        name: 'Planilha Financeira',
+        desc: 'Planilha global e no projeto',
       },
       { id: 'orcamentos', name: 'Orçamentos', desc: 'Propostas comerciais' },
       { id: 'contratos', name: 'Contratos', desc: 'Gerador de contratos' },

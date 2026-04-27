@@ -312,7 +312,11 @@ export default function ProjectDetails() {
   const gapClass = density === 'compact' ? 'space-y-4' : 'space-y-6'
   const gridGapClass = density === 'compact' ? 'gap-4' : 'gap-6'
 
-  const { can } = usePermissions()
+  const { can, canAccess } = usePermissions()
+  const canAccessFinance =
+    canAccess('planilha_financeira') ||
+    canAccess('lancamentos_financeiros') ||
+    user?.role === 'Administrador'
 
   const subDisciplineStats = useMemo(() => {
     const stats: Record<
@@ -1003,13 +1007,20 @@ export default function ProjectDetails() {
           </div>
 
           <Tabs defaultValue="documents" className="w-full">
-            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-3 p-1">
+            <TabsList
+              className={cn(
+                'flex flex-wrap w-full h-auto gap-1 p-1',
+                canAccessFinance ? 'sm:grid sm:grid-cols-3' : 'sm:grid sm:grid-cols-2',
+              )}
+            >
               <TabsTrigger value="documents" className="flex-1">
                 Documentos
               </TabsTrigger>
-              <TabsTrigger value="finance" className="flex-1">
-                Financeiro
-              </TabsTrigger>
+              {canAccessFinance && (
+                <TabsTrigger value="finance" className="flex-1">
+                  Financeiro
+                </TabsTrigger>
+              )}
               <TabsTrigger value="history" className="flex-1">
                 Histórico
               </TabsTrigger>
@@ -1265,11 +1276,13 @@ export default function ProjectDetails() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="finance" className="mt-4 space-y-6">
-              <div className="w-full">
-                <ProjectFinanceTab project={project} />
-              </div>
-            </TabsContent>
+            {canAccessFinance && (
+              <TabsContent value="finance" className="mt-4 space-y-6">
+                <div className="w-full">
+                  <ProjectFinanceTab project={project} />
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
 

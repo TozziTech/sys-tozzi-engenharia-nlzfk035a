@@ -408,31 +408,6 @@ export default function ProjectDetails() {
     }
   }, [project, subDisciplineStats, user, settings, modules, toast])
 
-  if (!project) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
-        <h2 className="text-2xl font-bold mb-4">Projeto não encontrado</h2>
-        <Button onClick={() => navigate('/projects')}>Voltar para Projetos</Button>
-      </div>
-    )
-  }
-
-  const canEdit = can('edit', 'projects')
-  const canDelete = can('delete', 'projects')
-
-  const totalModules = modules.length
-  const modulesByStatus = modules.reduce(
-    (acc, mod) => {
-      acc[mod.status] = (acc[mod.status] || 0) + 1
-      return acc
-    },
-    {} as Record<string, number>,
-  )
-  const overallProgress =
-    totalModules > 0
-      ? Math.round(modules.reduce((sum, m) => sum + (m.progress || 0), 0) / totalModules)
-      : 0
-
   const [priorityMode, setPriorityMode] = useState(() => {
     return localStorage.getItem(`priority_mode_${id}`) === 'true'
   })
@@ -462,6 +437,31 @@ export default function ProjectDetails() {
 
     return filtered
   }, [modules, priorityMode])
+
+  if (!project) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <h2 className="text-2xl font-bold mb-4">Projeto não encontrado</h2>
+        <Button onClick={() => navigate('/projects')}>Voltar para Projetos</Button>
+      </div>
+    )
+  }
+
+  const canEdit = can('edit', 'projects')
+  const canDelete = can('delete', 'projects')
+
+  const totalModules = modules.length
+  const modulesByStatus = modules.reduce(
+    (acc, mod) => {
+      acc[mod.status] = (acc[mod.status] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+  const overallProgress =
+    totalModules > 0
+      ? Math.round(modules.reduce((sum, m) => sum + (m.progress || 0), 0) / totalModules)
+      : 0
 
   const getCountdown = (deadline: string) => {
     const now = new Date()

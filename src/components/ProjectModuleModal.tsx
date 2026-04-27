@@ -340,9 +340,7 @@ export function ProjectModuleModal({
                           field.onChange(e)
                           const days = parseInt(e.target.value, 10)
                           if (!isNaN(days)) {
-                            const p = projects.find((p) => p.id === projectId)
-                            const start = p?.startDate ? parseISO(p.startDate) : new Date()
-                            const newDate = addDays(start, days)
+                            const newDate = addDays(new Date(), days)
                             form.setValue('deadline', format(newDate, 'yyyy-MM-dd'))
                           }
                         }}
@@ -448,8 +446,7 @@ export function ProjectModuleModal({
                           )
                           .map((u) => (
                             <SelectItem key={u.id} value={u.id}>
-                              {u.name || u.codigo || 'Usuário sem nome'}{' '}
-                              {u.email ? `(${u.email})` : ''}
+                              {u.name || u.codigo || 'Usuário sem nome'}
                             </SelectItem>
                           ))}
                       </SelectContent>
@@ -490,8 +487,7 @@ export function ProjectModuleModal({
                           )
                           .map((u) => (
                             <SelectItem key={u.id} value={u.id}>
-                              {u.name || u.codigo || 'Usuário sem nome'}{' '}
-                              {u.email ? `(${u.email})` : ''}
+                              {u.name || u.codigo || 'Usuário sem nome'}
                             </SelectItem>
                           ))}
                       </SelectContent>

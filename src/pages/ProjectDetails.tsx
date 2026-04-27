@@ -58,7 +58,6 @@ import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
 import { ProjectModules } from '@/components/ProjectModules'
 import { ProjectFinanceTab } from '@/components/ProjectFinanceTab'
-import { ProjectDisciplinesTab } from '@/components/ProjectDisciplinesTab'
 import { NoteCard } from '@/components/NoteCard'
 import {
   AlertDialog,
@@ -725,12 +724,12 @@ export default function ProjectDetails() {
       )}
 
       {/* Main Content Layout */}
+      <div className="w-full mb-6">
+        <ProjectModules projectId={project.id} />
+      </div>
+
       <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass}`}>
         <div className={`md:col-span-2 ${gapClass}`}>
-          <div className="w-full">
-            <ProjectModules projectId={project.id} />
-          </div>
-
           <Card>
             <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
               <CardTitle className="text-lg">Observações</CardTitle>
@@ -1004,12 +1003,9 @@ export default function ProjectDetails() {
           </div>
 
           <Tabs defaultValue="documents" className="w-full">
-            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-2 md:grid-cols-4 p-1">
+            <TabsList className="flex flex-wrap w-full h-auto gap-1 sm:grid sm:grid-cols-3 p-1">
               <TabsTrigger value="documents" className="flex-1">
                 Documentos
-              </TabsTrigger>
-              <TabsTrigger value="disciplines" className="flex-1">
-                Equipe e Disciplinas
               </TabsTrigger>
               <TabsTrigger value="finance" className="flex-1">
                 Financeiro
@@ -1120,12 +1116,6 @@ export default function ProjectDetails() {
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="disciplines" className="mt-4 space-y-6">
-              <div className="w-full">
-                <ProjectDisciplinesTab projectId={project.id} />
-              </div>
             </TabsContent>
 
             <TabsContent value="history" className="mt-4 space-y-6">

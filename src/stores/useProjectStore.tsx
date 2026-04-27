@@ -674,22 +674,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }),
       )
     }
-
-    const taskTimer = setTimeout(() => {
-      addNotification({
-        title: 'Nova Tarefa Atribuída',
-        description: 'Nova tarefa atribuída: Revisão de Estrutura de Concreto',
-        link: '/projects/1',
-      })
-      const localUrl = localStorage.getItem('slackWebhookUrl') || ''
-      sendSlackNotification(
-        localUrl,
-        '📋 Nova Tarefa Atribuída',
-        `*Eng. Ricardo Silva* foi atribuído à tarefa *Revisão de Estrutura de Concreto* no projeto *Edifício Aurora*.`,
-      )
-    }, 3000)
-
-    return () => clearTimeout(taskTimer)
   }, [projects, addNotification])
 
   return React.createElement(

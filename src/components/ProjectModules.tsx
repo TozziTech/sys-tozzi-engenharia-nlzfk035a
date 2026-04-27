@@ -263,7 +263,7 @@ export function ProjectModules({ projectId }: { projectId: string }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Disciplina</TableHead>
+                    <TableHead>Disciplina / Edificação</TableHead>
                     <TableHead>Sub-disciplinas</TableHead>
                     <TableHead>Equipe</TableHead>
                     <TableHead>Status</TableHead>
@@ -282,10 +282,19 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                           >
                             {mod.name}
                           </Link>
-                          {mod.deadline && (
-                            <span className="text-[11px] text-muted-foreground flex items-center mt-1">
-                              <Calendar className="w-3 h-3 mr-1" />{' '}
-                              {format(new Date(mod.deadline), 'dd/MM/yyyy')}
+                          {mod.edificacao && (
+                            <span className="text-xs text-muted-foreground mt-0.5">
+                              Edificação: {mod.edificacao}
+                            </span>
+                          )}
+                          {(mod.start_date || mod.deadline) && (
+                            <span className="text-[11px] text-muted-foreground flex items-center mt-1 gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {mod.start_date
+                                ? format(new Date(mod.start_date), 'dd/MM/yyyy')
+                                : '--'}
+                              {' → '}
+                              {mod.deadline ? format(new Date(mod.deadline), 'dd/MM/yyyy') : '--'}
                             </span>
                           )}
                         </div>
@@ -490,6 +499,13 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                             )}
                         </div>
 
+                        {mod.edificacao && (
+                          <div className="text-sm text-muted-foreground mt-1 w-full">
+                            Edificação:{' '}
+                            <span className="font-medium text-foreground">{mod.edificacao}</span>
+                          </div>
+                        )}
+
                         {mod.sub_disciplines && mod.sub_disciplines.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5 w-full">
                             {mod.sub_disciplines.map((sd) => (
@@ -504,10 +520,20 @@ export function ProjectModules({ projectId }: { projectId: string }) {
                           </div>
                         )}
 
-                        {mod.deadline && (
-                          <div className="flex items-center text-xs text-muted-foreground mt-2">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            Entrega: {format(new Date(mod.deadline), 'dd/MM/yyyy')}
+                        {(mod.start_date || mod.deadline) && (
+                          <div className="flex items-center text-[11px] text-muted-foreground mt-2 gap-1.5">
+                            <Calendar className="w-3 h-3" />
+                            <span>
+                              Início:{' '}
+                              {mod.start_date
+                                ? format(new Date(mod.start_date), 'dd/MM/yyyy')
+                                : '--'}
+                            </span>
+                            <span>|</span>
+                            <span>
+                              Entrega:{' '}
+                              {mod.deadline ? format(new Date(mod.deadline), 'dd/MM/yyyy') : '--'}
+                            </span>
                           </div>
                         )}
                       </div>

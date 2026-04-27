@@ -30,6 +30,8 @@ export interface ProjectModule {
   progress: number
   deadline: string
   deadline_days?: number
+  start_date?: string
+  edificacao?: string
   notes: string
   documents?: string[]
   responsible?: string

@@ -70,7 +70,9 @@ const schema = z.object({
   status: z.enum(['Pendente', 'Em Andamento', 'Concluído', 'Pausado', 'Em Análise', 'Em Revisão']),
   progress: z.coerce.number().min(0).max(100),
   deadline_days: z.coerce.number().min(0).optional(),
+  start_date: z.string().optional(),
   deadline: z.string().optional(),
+  edificacao: z.string().optional(),
   notes: z.string().optional(),
   responsible: z.string().optional(),
   designer: z.string().optional(),
@@ -117,7 +119,11 @@ export function ProjectModuleModal({
           status: module.status,
           progress: module.progress,
           deadline_days: module.deadline_days || 0,
+          start_date: module.start_date
+            ? new Date(module.start_date).toISOString().split('T')[0]
+            : '',
           deadline: module.deadline ? new Date(module.deadline).toISOString().split('T')[0] : '',
+          edificacao: module.edificacao || '',
           notes: module.notes || '',
           responsible: module.responsible || 'none',
           designer: module.designer || 'none',
@@ -129,7 +135,9 @@ export function ProjectModuleModal({
           status: 'Pendente',
           progress: 0,
           deadline_days: 0,
+          start_date: '',
           deadline: '',
+          edificacao: '',
           notes: '',
           responsible: 'none',
           designer: 'none',
@@ -139,6 +147,23 @@ export function ProjectModuleModal({
       setSubDisciplineSearch('')
     }
   }, [isOpen, module, form])
+
+  const startDateValue = form.watch('start_date')
+  const deadlineDaysValue = form.watch('deadline_days')
+
+  useEffect(() => {
+    if (startDateValue && deadlineDaysValue !== undefined) {
+      const days = parseInt(deadlineDaysValue.toString(), 10)
+      if (!isNaN(days) && days >= 0) {
+        const [year, month, day] = startDateValue.split('-').map(Number)
+        if (year && month && day) {
+          const start = new Date(year, month - 1, day)
+          const deadlineDate = addDays(start, days)
+          form.setValue('deadline', format(deadlineDate, 'yyyy-MM-dd'))
+        }
+      }
+    }
+  }, [startDateValue, deadlineDaysValue, form])
 
   const onSubmit = async (data: FormData) => {
     if (!user) return
@@ -150,8 +175,10 @@ export function ProjectModuleModal({
         progress: data.progress,
         notes: data.notes,
         project: projectId,
+        edificacao: data.edificacao || '',
+        start_date: data.start_date ? new Date(`${data.start_date}T12:00:00Z`).toISOString() : '',
         deadline_days: data.deadline_days || 0,
-        deadline: data.deadline ? new Date(data.deadline).toISOString() : '',
+        deadline: data.deadline ? new Date(`${data.deadline}T12:00:00Z`).toISOString() : '',
         responsible: data.responsible !== 'none' ? data.responsible : null,
         designer: data.designer !== 'none' ? data.designer : null,
         sub_disciplines: data.sub_disciplines || [],
@@ -324,7 +351,35 @@ export function ProjectModuleModal({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="edificacao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Edificação (Opcional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Bloco A, Torre 1..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="start_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Início</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="deadline_days"
@@ -332,19 +387,7 @@ export function ProjectModuleModal({
                   <FormItem>
                     <FormLabel>Prazo (dias)</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        {...field}
-                        onChange={(e) => {
-                          field.onChange(e)
-                          const days = parseInt(e.target.value, 10)
-                          if (!isNaN(days)) {
-                            const newDate = addDays(new Date(), days)
-                            form.setValue('deadline', format(newDate, 'yyyy-MM-dd'))
-                          }
-                        }}
-                      />
+                      <Input type="number" min="0" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -358,7 +401,12 @@ export function ProjectModuleModal({
                   <FormItem>
                     <FormLabel>Prazo de Entrega</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input
+                        type="date"
+                        {...field}
+                        readOnly
+                        className="bg-muted cursor-not-allowed"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

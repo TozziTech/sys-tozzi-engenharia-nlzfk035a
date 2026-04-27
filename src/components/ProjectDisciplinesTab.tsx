@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input'
 import { Plus, Trash2, Users, Briefcase, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
-import { ProjectModule, SUB_DISCIPLINES_COLORS } from '@/types/project_modules'
+import { ProjectModule } from '@/types/project_modules'
+import { getContrastYIQ } from '@/lib/colors'
 import { useAuth } from '@/hooks/use-auth'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
@@ -38,6 +39,7 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   const [users, setUsers] = useState<any[]>([])
   const [projectAccesses, setProjectAccesses] = useState<any[]>([])
   const [pendingRequests, setPendingRequests] = useState<any[]>([])
+  const [tags, setTags] = useState<any[]>([])
   const [newModuleName, setNewModuleName] = useState('')
   const [newModuleStatus, setNewModuleStatus] = useState<ProjectModule['status']>('Pendente')
   const [newModuleResponsible, setNewModuleResponsible] = useState<string>('none')
@@ -113,7 +115,7 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
 
   const loadData = async () => {
     try {
-      const [mods, usrs, accessesRes, requestsRes] = await Promise.all([
+      const [mods, usrs, accessesRes, requestsRes, tagsRes] = await Promise.all([
         pb.collection('project_modules').getFullList<ProjectModule>({
           filter: `project = "${projectId}"`,
           expand: 'responsible,designer',
@@ -123,11 +125,13 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
         pb
           .collection('access_requests')
           .getFullList({ filter: `project = "${projectId}" && status = "Pendente"` }),
+        pb.collection('tags').getFullList(),
       ])
       setModules(mods)
       setUsers(usrs)
       setProjectAccesses(accessesRes)
       setPendingRequests(requestsRes)
+      setTags(tagsRes)
     } catch (error) {
       console.error(error)
     }
@@ -140,6 +144,7 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   useRealtime('project_modules', loadData)
   useRealtime('user_project_access', loadData)
   useRealtime('access_requests', loadData)
+  useRealtime('tags', loadData)
 
   const handleUpdate = async (
     moduleId: string,
@@ -483,18 +488,23 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
 
                     {mod.sub_disciplines && mod.sub_disciplines.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {mod.sub_disciplines.map((sd) => (
-                          <Badge
-                            key={sd}
-                            variant="outline"
-                            className={cn(
-                              'text-[9px] px-1.5 py-0 font-medium',
-                              SUB_DISCIPLINES_COLORS[sd] || '',
-                            )}
-                          >
-                            {sd}
-                          </Badge>
-                        ))}
+                        {mod.sub_disciplines.map((sd) => {
+                          const tag = tags.find((t) => t.name === sd)
+                          const bgColor = tag?.color || '#94a3b8'
+                          const textColor = getContrastYIQ(bgColor)
+                          return (
+                            <Badge
+                              key={sd}
+                              style={{ backgroundColor: bgColor, color: textColor }}
+                              className={cn(
+                                'text-[9px] px-1.5 py-0 font-medium border-none',
+                                tag?.is_emphasized ? 'ring-1 ring-offset-1 ring-primary' : '',
+                              )}
+                            >
+                              {sd} {tag?.is_emphasized && '★'}
+                            </Badge>
+                          )
+                        })}
                       </div>
                     )}
 

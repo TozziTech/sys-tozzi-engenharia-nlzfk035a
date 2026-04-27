@@ -34,7 +34,7 @@ import {
   Layers,
 } from 'lucide-react'
 import { exportProjectHoursCSV, exportAuditLogsCSV } from '@/lib/export'
-import { exportProjectHoursPDF, exportAuditLogsPDF } from '@/lib/exportPdf'
+import { exportProjectHoursPDF, exportAuditLogsPDF, exportSpecialtiesPDF } from '@/lib/exportPdf'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
@@ -74,6 +74,7 @@ import { useToast } from '@/hooks/use-toast'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { usePermissions } from '@/hooks/use-permissions'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
+import { cn } from '@/lib/utils'
 
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
@@ -123,11 +124,23 @@ export default function ProjectDetails() {
 
   const { user } = useAuth()
   const { projects, deleteProject, timeLogs, users, tasks } = useProjectStore()
+  const [settings, setSettings] = useState<any>(null)
+
+  useEffect(() => {
+    pb.collection('company_settings')
+      .getFirstListItem('')
+      .then(setSettings)
+      .catch(() => {})
+  }, [])
 
   const store = useProjectStore() as any
   const updateProject = store.updateProject
   const { toast } = useToast()
 
+  const [tags, setTags] = useState<any[]>([])
+  const [specialtySort, setSpecialtySort] = useState<
+    'emphasis' | 'progressDesc' | 'progressAsc' | 'nameAsc'
+  >('emphasis')
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isEditingObservations, setIsEditingObservations] = useState(false)
@@ -173,6 +186,21 @@ export default function ProjectDetails() {
   }, [loadDocuments])
 
   useRealtime('project_documents', loadDocuments)
+
+  const loadTags = useCallback(async () => {
+    try {
+      const records = await pb.collection('tags').getFullList()
+      setTags(records)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadTags()
+  }, [loadTags])
+
+  useRealtime('tags', loadTags)
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
 
@@ -267,27 +295,60 @@ export default function ProjectDetails() {
   const { can } = usePermissions()
 
   const subDisciplineStats = useMemo(() => {
-    const stats: Record<string, { totalProgress: number; count: number }> = {}
+    const stats: Record<
+      string,
+      { totalProgress: number; count: number; statuses: Record<string, number> }
+    > = {}
     modules.forEach((mod) => {
       if (mod.sub_disciplines && mod.sub_disciplines.length > 0) {
         mod.sub_disciplines.forEach((sd: string) => {
           if (!stats[sd]) {
-            stats[sd] = { totalProgress: 0, count: 0 }
+            stats[sd] = { totalProgress: 0, count: 0, statuses: {} }
           }
           stats[sd].totalProgress += mod.progress || 0
           stats[sd].count += 1
+          stats[sd].statuses[mod.status] = (stats[sd].statuses[mod.status] || 0) + 1
         })
       }
     })
 
-    return Object.entries(stats)
-      .map(([name, data]) => ({
+    const result = Object.entries(stats).map(([name, data]) => {
+      const tag = tags.find((t) => t.name === name)
+      return {
         name,
         count: data.count,
         averageProgress: Math.round(data.totalProgress / data.count),
-      }))
-      .sort((a, b) => b.count - a.count)
-  }, [modules])
+        statuses: data.statuses,
+        color: tag?.color || '#94a3b8',
+        is_emphasized: tag?.is_emphasized || false,
+      }
+    })
+
+    if (specialtySort === 'emphasis') {
+      result.sort((a, b) => {
+        if (a.is_emphasized === b.is_emphasized) return b.averageProgress - a.averageProgress
+        return a.is_emphasized ? -1 : 1
+      })
+    } else if (specialtySort === 'progressDesc') {
+      result.sort((a, b) => b.averageProgress - a.averageProgress)
+    } else if (specialtySort === 'progressAsc') {
+      result.sort((a, b) => a.averageProgress - b.averageProgress)
+    } else if (specialtySort === 'nameAsc') {
+      result.sort((a, b) => a.name.localeCompare(b.name))
+    }
+
+    return result
+  }, [modules, tags, specialtySort])
+
+  const handleExportSpecialtiesPDF = useCallback(() => {
+    if (!project) return
+    exportSpecialtiesPDF(
+      project,
+      subDisciplineStats,
+      user?.name || user?.email || 'Usuário',
+      settings,
+    )
+  }, [project, subDisciplineStats, user, settings])
 
   if (!project) {
     return (
@@ -542,27 +603,63 @@ export default function ProjectDetails() {
       {/* Specialty Progress Dashboard */}
       {subDisciplineStats.length > 0 && (
         <Card className="w-full">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Layers className="h-5 w-5 text-primary" />
-              Progresso por Especialidade (Sub-disciplinas)
-            </CardTitle>
-            <CardDescription>
-              Média de conclusão e quantidade de módulos por área técnica
-            </CardDescription>
+          <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Layers className="h-5 w-5 text-primary" />
+                Progresso por Especialidade (Sub-disciplinas)
+              </CardTitle>
+              <CardDescription>
+                Média de conclusão e quantidade de módulos por área técnica
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={specialtySort} onValueChange={(v: any) => setSpecialtySort(v)}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="Ordenar por" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="emphasis">Destaque (Emphasis)</SelectItem>
+                  <SelectItem value="progressDesc">Maior Progresso</SelectItem>
+                  <SelectItem value="progressAsc">Menor Progresso</SelectItem>
+                  <SelectItem value="nameAsc">Ordem Alfabética</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportSpecialtiesPDF}
+                className="h-9"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Exportar Relatório
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {subDisciplineStats.map((stat) => (
                 <div
                   key={stat.name}
-                  className="flex flex-col p-3 border rounded-lg bg-muted/10 space-y-2"
+                  className={cn(
+                    'flex flex-col p-3 border rounded-lg space-y-2 transition-all',
+                    stat.is_emphasized ? 'bg-primary/5 border-primary/40 shadow-sm' : 'bg-muted/10',
+                  )}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-sm">{stat.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {stat.count} módulo{stat.count !== 1 ? 's' : ''}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: stat.color }}
+                      />
+                      <span className="font-medium text-sm flex items-center gap-1">
+                        {stat.name}
+                        {stat.is_emphasized && (
+                          <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                        )}
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{stat.count} mód.</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Progress value={stat.averageProgress} className="h-2 flex-1" />

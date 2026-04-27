@@ -4,6 +4,148 @@ import { format } from 'date-fns'
 
 const getPrimaryColor = (settings: any) => settings?.primary_color || '#1f2937'
 
+export function exportSpecialtiesPDF(
+  project: any,
+  stats: any[],
+  currentUser: string,
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Especialidades - ${project.name}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            line-height: 1.5; 
+            color: #1a1a1a; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid ${primaryColor};
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header img { max-height: 60px; margin-bottom: 10px; }
+          .header h1 { margin: 0; color: ${primaryColor}; font-size: 24px; }
+          .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
+          
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+            vertical-align: middle;
+          }
+          th { font-weight: 600; color: #ffffff; background-color: ${primaryColor}; font-size: 12px; text-transform: uppercase; }
+          
+          .progress-bg { background-color: #e5e7eb; border-radius: 4px; width: 100%; height: 8px; overflow: hidden; margin-top: 4px; }
+          .progress-bar { background-color: ${primaryColor}; height: 100%; }
+          
+          .status-grid { display: flex; gap: 8px; font-size: 11px; flex-wrap: wrap; margin-top: 4px; }
+          .status-item { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; color: #4b5563; }
+          
+          .footer { 
+            margin-top: 50px; 
+            padding-top: 20px; 
+            border-top: 1px dashed #e5e7eb; 
+            font-size: 12px; 
+            color: #9ca3af; 
+            text-align: center; 
+          }
+          
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+      
+        <div class="header">
+          ${logoUrl ? `<img src="${logoUrl}" />` : ''}
+          <h1>Relatório de Especialidades</h1>
+          <p><strong>Projeto:</strong> ${project.name} &bull; <strong>Cliente:</strong> ${project.client}</p>
+          <p>Gerado por: ${currentUser} em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Especialidade</th>
+              <th style="width: 100px;">Módulos</th>
+              <th style="width: 200px;">Status dos Módulos</th>
+              <th style="width: 150px; text-align: right;">Progresso Médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${stats
+              .map(
+                (stat: any) => `
+                <tr>
+                  <td>
+                    <div style="font-weight: 600; color: #111827; display: flex; align-items: center; gap: 6px;">
+                      <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ${stat.color};"></span>
+                      ${stat.name} ${stat.is_emphasized ? '<span style="color: #eab308; font-size: 16px;">★</span>' : ''}
+                    </div>
+                  </td>
+                  <td>${stat.count}</td>
+                  <td>
+                    <div class="status-grid">
+                      ${Object.entries(stat.statuses)
+                        .map(
+                          ([status, count]) => `<div class="status-item">${status}: ${count}</div>`,
+                        )
+                        .join('')}
+                    </div>
+                  </td>
+                  <td style="text-align: right;">
+                    <div style="font-weight: 700; color: ${primaryColor};">${stat.averageProgress}%</div>
+                    <div class="progress-bg">
+                      <div class="progress-bar" style="width: ${stat.averageProgress}%;"></div>
+                    </div>
+                  </td>
+                </tr>
+              `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          Documento gerado pelo Sistema de Gerenciamento de Projetos.
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
 export function exportTeamPDF(members: any[], currentUser: string, settings: any = null) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return

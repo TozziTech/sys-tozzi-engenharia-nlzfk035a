@@ -389,6 +389,37 @@ export default function ProjectDetails() {
       .sort((a, b) => b.averageProgress - a.averageProgress)
   }, [modules])
 
+  const [priorityMode, setPriorityMode] = useState(() => {
+    return localStorage.getItem(`priority_mode_${id}`) === 'true'
+  })
+
+  const [groupBy, setGroupBy] = useState<'edificacao' | 'disciplina' | 'none'>(() => {
+    return (localStorage.getItem(`group_by_mode_${id}`) as any) || 'none'
+  })
+
+  const [selectedSubDisciplines, setSelectedSubDisciplines] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`sub_disciplines_filter_${id}`)
+    return saved ? JSON.parse(saved) : []
+  })
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setPriorityMode(localStorage.getItem(`priority_mode_${id}`) === 'true')
+      setGroupBy((localStorage.getItem(`group_by_mode_${id}`) as any) || 'none')
+      const savedSubs = localStorage.getItem(`sub_disciplines_filter_${id}`)
+      setSelectedSubDisciplines(savedSubs ? JSON.parse(savedSubs) : [])
+    }
+    window.addEventListener('priorityModeChanged', handleStorageChange)
+    window.addEventListener('groupByModeChanged', handleStorageChange)
+    window.addEventListener('subDisciplinesChanged', handleStorageChange)
+
+    return () => {
+      window.removeEventListener('priorityModeChanged', handleStorageChange)
+      window.removeEventListener('groupByModeChanged', handleStorageChange)
+      window.removeEventListener('subDisciplinesChanged', handleStorageChange)
+    }
+  }, [id])
+
   const handleExportSpecialtiesPDF = useCallback(async () => {
     if (!project) return
 
@@ -537,37 +568,6 @@ export default function ProjectDetails() {
     tags,
     specialtySort,
   ])
-
-  const [priorityMode, setPriorityMode] = useState(() => {
-    return localStorage.getItem(`priority_mode_${id}`) === 'true'
-  })
-
-  const [groupBy, setGroupBy] = useState<'edificacao' | 'disciplina' | 'none'>(() => {
-    return (localStorage.getItem(`group_by_mode_${id}`) as any) || 'none'
-  })
-
-  const [selectedSubDisciplines, setSelectedSubDisciplines] = useState<string[]>(() => {
-    const saved = localStorage.getItem(`sub_disciplines_filter_${id}`)
-    return saved ? JSON.parse(saved) : []
-  })
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setPriorityMode(localStorage.getItem(`priority_mode_${id}`) === 'true')
-      setGroupBy((localStorage.getItem(`group_by_mode_${id}`) as any) || 'none')
-      const savedSubs = localStorage.getItem(`sub_disciplines_filter_${id}`)
-      setSelectedSubDisciplines(savedSubs ? JSON.parse(savedSubs) : [])
-    }
-    window.addEventListener('priorityModeChanged', handleStorageChange)
-    window.addEventListener('groupByModeChanged', handleStorageChange)
-    window.addEventListener('subDisciplinesChanged', handleStorageChange)
-
-    return () => {
-      window.removeEventListener('priorityModeChanged', handleStorageChange)
-      window.removeEventListener('groupByModeChanged', handleStorageChange)
-      window.removeEventListener('subDisciplinesChanged', handleStorageChange)
-    }
-  }, [id])
 
   const crisisModules = useMemo(() => {
     const now = new Date()

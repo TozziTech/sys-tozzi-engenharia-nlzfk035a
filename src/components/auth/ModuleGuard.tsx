@@ -112,14 +112,14 @@ export function ModuleGuard() {
       return <Outlet />
     }
 
-    const parentId = parentMap[moduleId]
-    if (parentId && moduleVisibility[parentId] === false) {
-      return <Navigate to={defaultRedirect} replace />
-    }
-    if (moduleId === 'gestao_arq_doc' && moduleVisibility['gestao_arq_doc'] === false) {
-      return <Navigate to={defaultRedirect} replace />
-    }
-    if (moduleId !== 'gestao_arq_doc' && !canAccess(moduleId)) {
+    // moduleVisibility and parent checks are now handled inside canAccess.
+    // We skip canAccess for the group 'gestao_arq_doc' itself to avoid blocking
+    // fallback file routes that don't have explicit sub-module permissions.
+    if (moduleId === 'gestao_arq_doc') {
+      if (moduleVisibility['gestao_arq_doc'] === false) {
+        return <Navigate to={defaultRedirect} replace />
+      }
+    } else if (!canAccess(moduleId)) {
       return (
         <RedirectWithToast
           to={defaultRedirect}

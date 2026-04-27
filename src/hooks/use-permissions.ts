@@ -4,6 +4,34 @@ import { useAuth } from '@/hooks/use-auth'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useRealtime } from '@/hooks/use-realtime'
 
+const parentMap: Record<string, string> = {
+  biblioteca: 'gestao_arq_doc',
+  pops: 'gestao_arq_doc',
+  projetos_base: 'gestao_arq_doc',
+  documentos_modelos: 'gestao_arq_doc',
+  cursos: 'gestao_arq_doc',
+  dashboard_geral: 'gestao_projetos',
+  projetos: 'gestao_projetos',
+  painel_cliente: 'gestao_projetos',
+  diagnostico: 'gestao_projetos',
+  performance: 'gestao_projetos',
+  cronograma: 'gestao_projetos',
+  auditoria_prazos: 'gestao_projetos',
+  calendario: 'gestao_projetos',
+  lancamentos_financeiros: 'gestao_financeira',
+  orcamentos: 'gestao_financeira',
+  contratos: 'gestao_financeira',
+  contas_bancarias: 'gestao_financeira',
+  projetistas: 'cadastro',
+  clientes: 'cadastro',
+  contatos: 'cadastro',
+  equipamentos: 'cadastro',
+  controle_acesso: 'governanca',
+  visao_carteira: 'governanca',
+  configuracoes: 'governanca',
+  auditoria: 'governanca',
+}
+
 export function usePermissions() {
   const { user } = useAuth()
   const { moduleVisibility, role_permissions, setRolePermissions, setModuleVisibility } =
@@ -56,18 +84,25 @@ export function usePermissions() {
 
     if (moduleVisibility[moduleId] === false) return 'Inativo'
 
+    const parentId = parentMap[moduleId]
+    if (parentId && moduleVisibility[parentId] === false) return 'Inativo'
+
     // Prioritize Custom Role if assigned
     if (user.custom_role && customRoles[user.custom_role]) {
       const cr = customRoles[user.custom_role]
       const crPerms = cr.permissions || {}
+      if (parentId && crPerms[parentId] === 'Inativo') return 'Inativo'
       if (crPerms[moduleId]) {
         return crPerms[moduleId]
       }
     }
 
     const rolePerms = role_permissions?.[user.role || '']
-    if (rolePerms && rolePerms[moduleId]) {
-      return rolePerms[moduleId]
+    if (rolePerms) {
+      if (parentId && rolePerms[parentId] === 'Inativo') return 'Inativo'
+      if (rolePerms[moduleId]) {
+        return rolePerms[moduleId]
+      }
     }
 
     // Deny by default if not configured explicitly

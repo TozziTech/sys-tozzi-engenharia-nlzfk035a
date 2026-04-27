@@ -70,62 +70,19 @@ const getNavigationGroups = () => [
     label: 'Gestão de Projetos',
     id: 'gestao_projetos',
     items: [
-      {
-        name: 'Dashboard geral',
-        id: 'dashboard_geral',
-        href: '/dashboard',
-        icon: LayoutDashboard,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
-      {
-        name: 'Todos os Projetos',
-        id: 'projetos',
-        href: '/projects',
-        icon: FolderKanban,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
+      { name: 'Dashboard geral', id: 'dashboard_geral', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Todos os Projetos', id: 'projetos', href: '/projects', icon: FolderKanban },
       {
         name: 'Painel do cliente',
         id: 'painel_cliente',
         href: '/gestao/painel-cliente',
         icon: LayoutDashboard,
-        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Cliente'],
       },
-      {
-        name: 'Diagnóstico',
-        id: 'diagnostico',
-        href: '/diagnostics',
-        icon: AlertTriangle,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
-      {
-        name: 'Performance',
-        id: 'performance',
-        href: '/performance',
-        icon: Activity,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
-      {
-        name: 'Cronograma',
-        id: 'cronograma',
-        href: '/schedule',
-        icon: CalendarDays,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
-      {
-        name: 'Auditoria de Prazos',
-        id: 'auditoria_prazos',
-        href: '/deadline-audit',
-        icon: Clock,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
-      {
-        name: 'Calendário',
-        id: 'calendario',
-        href: '/calendar',
-        icon: CalendarIcon,
-        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista', 'Estagiário'],
-      },
+      { name: 'Diagnóstico', id: 'diagnostico', href: '/diagnostics', icon: AlertTriangle },
+      { name: 'Performance', id: 'performance', href: '/performance', icon: Activity },
+      { name: 'Cronograma', id: 'cronograma', href: '/schedule', icon: CalendarDays },
+      { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
+      { name: 'Calendário', id: 'calendario', href: '/calendar', icon: CalendarIcon },
     ],
   },
   {
@@ -134,37 +91,23 @@ const getNavigationGroups = () => [
     items: [
       {
         name: 'Dashboard Financeiro',
+        id: 'lancamentos_financeiros',
         href: '/financial-dashboard',
         icon: LineChart,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
       },
-      {
-        name: 'Lançamentos',
-        id: 'lancamentos_financeiros',
-        href: '/financial',
-        icon: DollarSign,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
-      {
-        name: 'Orçamentos',
-        id: 'orcamentos',
-        href: '/quotes',
-        icon: FileText,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
+      { name: 'Lançamentos', id: 'lancamentos_financeiros', href: '/financial', icon: DollarSign },
+      { name: 'Orçamentos', id: 'orcamentos', href: '/quotes', icon: FileText },
       {
         name: 'Contratos',
         id: 'contratos',
         href: '/operations/contract-generator',
         icon: FileSignature,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
       },
       {
         name: 'Contas Bancárias',
         id: 'contas_bancarias',
         href: '/management/bank-accounts',
         icon: Landmark,
-        allowedRoles: ['Administrador'],
       },
     ],
   },
@@ -172,34 +115,10 @@ const getNavigationGroups = () => [
     label: 'Cadastro',
     id: 'cadastro',
     items: [
-      {
-        name: 'Projetistas',
-        id: 'projetistas',
-        href: '/team',
-        icon: Users,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
-      {
-        name: 'Clientes',
-        id: 'clientes',
-        href: '/clients',
-        icon: Briefcase,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
-      {
-        name: 'Contatos',
-        id: 'contatos',
-        href: '/contacts',
-        icon: Contact,
-        allowedRoles: ['Administrador', 'Gerente de Projeto'],
-      },
-      {
-        name: 'Equipamentos',
-        id: 'equipamentos',
-        href: '/equipment',
-        icon: HardHat,
-        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
-      },
+      { name: 'Projetistas', id: 'projetistas', href: '/team', icon: Users },
+      { name: 'Clientes', id: 'clientes', href: '/clients', icon: Briefcase },
+      { name: 'Contatos', id: 'contatos', href: '/contacts', icon: Contact },
+      { name: 'Equipamentos', id: 'equipamentos', href: '/equipment', icon: HardHat },
     ],
   },
   {
@@ -207,18 +126,8 @@ const getNavigationGroups = () => [
     id: 'gestao_arq_doc',
     items: [
       { name: 'Biblioteca', id: 'biblioteca', href: '/files/library', icon: BookOpen },
-      {
-        name: 'POPs',
-        id: 'pops',
-        href: '/files/pops',
-        icon: FileCheck,
-      },
-      {
-        name: 'Projetos Base',
-        id: 'projetos_base',
-        href: '/files/base-projects',
-        icon: FileStack,
-      },
+      { name: 'POPs', id: 'pops', href: '/files/pops', icon: FileCheck },
+      { name: 'Projetos Base', id: 'projetos_base', href: '/files/base-projects', icon: FileStack },
       {
         name: 'Documentos Modelos',
         id: 'documentos_modelos',
@@ -244,27 +153,15 @@ const getNavigationGroups = () => [
         href: '/admin/analytics',
         icon: LineChart,
       },
-      { name: 'Meu Perfil', id: 'meu_perfil', href: '/profile', icon: User },
-      {
-        name: 'Configurações do Sistema',
-        id: 'configuracoes',
-        href: '/settings',
-        icon: Settings,
-        allowedRoles: ['Administrador'],
-      },
+      { name: 'Meu Perfil', href: '/profile', icon: User },
+      { name: 'Configurações do Sistema', id: 'configuracoes', href: '/settings', icon: Settings },
       {
         name: 'Dashboard Executivo',
-        id: 'dashboard_executivo',
+        id: 'visao_carteira',
         href: '/executive-dashboard',
         icon: LayoutDashboard,
-        allowedRoles: ['Administrador'],
       },
-      {
-        name: 'Auditoria Executiva',
-        id: 'auditoria',
-        href: '/admin/audit-log',
-        icon: History,
-      },
+      { name: 'Auditoria Executiva', id: 'auditoria', href: '/admin/audit-log', icon: History },
     ],
   },
 ]
@@ -284,9 +181,6 @@ export function AppSidebar() {
   const groups = getNavigationGroups().filter((g) => {
     if (user?.role === 'Administrador') return true
     if ((g as any).id && moduleVisibility[(g as any).id] === false) return false
-    if ((g as any).allowedRoles && (!user?.role || !(g as any).allowedRoles.includes(user.role))) {
-      return false
-    }
     return true
   })
 
@@ -309,12 +203,8 @@ export function AppSidebar() {
 
             if ((item as any).id) {
               if (!canAccess((item as any).id)) return false
-            } else {
-              if (
-                (item as any).allowedRoles &&
-                (!user?.role || !(item as any).allowedRoles.includes(user.role))
-              )
-                return false
+            } else if ((item as any).allowedRoles) {
+              if (!user?.role || !(item as any).allowedRoles.includes(user.role)) return false
             }
 
             return true

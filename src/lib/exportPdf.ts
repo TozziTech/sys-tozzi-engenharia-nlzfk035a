@@ -1620,6 +1620,158 @@ export function exportAccessReportPDF(
   setTimeout(() => printWindow.print(), 250)
 }
 
+export function exportDesignerDashboardPDF(
+  user: any,
+  projects: any[],
+  urgentTasks: any[],
+  financeData: any,
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório do Painel - ${user.name}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; max-width: 1000px; margin: 0 auto; }
+          .header { border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 20px; text-align: center; }
+          .header img { max-height: 60px; margin-bottom: 10px; }
+          .header h1 { margin: 0; color: ${primaryColor}; font-size: 24px; }
+          .section { margin-bottom: 30px; }
+          .section-title { font-size: 18px; color: ${primaryColor}; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 15px; font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+          th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+          th { background-color: ${primaryColor}; color: white; font-size: 12px; text-transform: uppercase; }
+          .summary-grid { display: flex; gap: 20px; margin-bottom: 20px; }
+          .summary-card { background: #f9fafb; padding: 15px; border-radius: 8px; flex: 1; border-left: 4px solid ${primaryColor}; }
+          .summary-card h3 { margin: 0 0 5px 0; font-size: 12px; color: #6b7280; text-transform: uppercase; }
+          .summary-card p { margin: 0; font-size: 20px; font-weight: bold; color: #111827; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <div class="header">
+          ${logoUrl ? `<img src="${logoUrl}" />` : ''}
+          <h1>Relatório de Painel - ${user.name}</h1>
+          <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;">Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+        </div>
+
+        ${
+          financeData
+            ? `
+        <div class="section">
+          <div class="section-title">Resumo Financeiro</div>
+          <div class="summary-grid">
+            <div class="summary-card">
+              <h3>Total em Serviços</h3>
+              <p>${formatCurrency(financeData.total)}</p>
+            </div>
+            <div class="summary-card">
+              <h3>Recebido</h3>
+              <p style="color: #059669;">${formatCurrency(financeData.recebido)}</p>
+            </div>
+            <div class="summary-card">
+              <h3>A Receber</h3>
+              <p style="color: #d97706;">${formatCurrency(financeData.aReceber)}</p>
+            </div>
+          </div>
+        </div>
+        `
+            : ''
+        }
+
+        <div class="section">
+          <div class="section-title">Atividades do Dia (Urgentes)</div>
+          ${
+            urgentTasks.length === 0
+              ? '<p style="color: #6b7280;">Nenhuma atividade urgente.</p>'
+              : `
+          <table>
+            <thead>
+              <tr>
+                <th>Tarefa</th>
+                <th>Projeto</th>
+                <th>Prazo</th>
+                <th>Prioridade</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${urgentTasks
+                .map(
+                  (t) => `
+                <tr>
+                  <td>${t.title}</td>
+                  <td>${t.expand?.project?.name || '-'}</td>
+                  <td>${t.due_date ? new Date(t.due_date).toLocaleDateString('pt-BR') : '-'}</td>
+                  <td>${t.priority || 'Normal'}</td>
+                </tr>
+              `,
+                )
+                .join('')}
+            </tbody>
+          </table>
+          `
+          }
+        </div>
+
+        <div class="section">
+          <div class="section-title">Progresso dos Projetos</div>
+          ${
+            projects.length === 0
+              ? '<p style="color: #6b7280;">Nenhum projeto ativo.</p>'
+              : `
+          <table>
+            <thead>
+              <tr>
+                <th>Projeto</th>
+                <th>Cliente</th>
+                <th>Progresso</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${projects
+                .map(
+                  (p) => `
+                <tr>
+                  <td>${p.name}</td>
+                  <td>${p.client || '-'}</td>
+                  <td>${p.progress || 0}%</td>
+                  <td>${p.status}</td>
+                </tr>
+              `,
+                )
+                .join('')}
+            </tbody>
+          </table>
+          `
+          }
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportWeeklyDocsReportPDF(
   documents: any[],
   currentUser: string,

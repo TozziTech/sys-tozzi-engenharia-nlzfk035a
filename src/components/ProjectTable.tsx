@@ -65,7 +65,7 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
   }
 
   return (
-    <div className="hidden md:block rounded-xl border bg-white shadow-sm overflow-hidden animate-fade-in-up">
+    <div className="rounded-xl border bg-white shadow-sm overflow-x-auto animate-fade-in-up">
       <Table>
         <TableHeader className="bg-slate-50/50">
           <TableRow className="hover:bg-transparent">

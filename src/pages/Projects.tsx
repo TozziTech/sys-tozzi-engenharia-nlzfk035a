@@ -311,7 +311,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             type="single"
             value={viewMode}
             onValueChange={(v) => v && setViewMode(v as 'grid' | 'table', user?.id)}
-            className="border rounded-md hidden md:flex shrink-0 bg-white dark:bg-zinc-900"
+            className="border rounded-md flex shrink-0 bg-white dark:bg-zinc-900"
           >
             <ToggleGroupItem value="table" aria-label="Ver em Tabela">
               <ListIcon className="h-4 w-4" />
@@ -525,12 +525,11 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         user?.role === 'Gerente de Projeto' ||
         filterOnlyMine ? (
         <>
-          <div className={viewMode === 'grid' ? 'hidden md:hidden' : 'hidden md:block'}>
+          {viewMode === 'table' ? (
             <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />
-          </div>
-          <div className={viewMode === 'table' ? 'block md:hidden' : 'block'}>
+          ) : (
             <ProjectCardList projects={projectsWithAccess} isTrashView={showTrash} />
-          </div>
+          )}
         </>
       ) : (
         <Tabs defaultValue="with-access" className="w-full">
@@ -547,15 +546,10 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
               <p className="text-center py-10 text-muted-foreground">
                 Nenhum projeto com acesso no momento.
               </p>
+            ) : viewMode === 'table' ? (
+              <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />
             ) : (
-              <>
-                <div className={viewMode === 'grid' ? 'hidden md:hidden' : 'hidden md:block'}>
-                  <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />
-                </div>
-                <div className={viewMode === 'table' ? 'block md:hidden' : 'block'}>
-                  <ProjectCardList projects={projectsWithAccess} isTrashView={showTrash} />
-                </div>
-              </>
+              <ProjectCardList projects={projectsWithAccess} isTrashView={showTrash} />
             )}
           </TabsContent>
           <TabsContent value="without-access">

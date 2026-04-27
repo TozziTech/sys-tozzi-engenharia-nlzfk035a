@@ -18,6 +18,8 @@ const parentMap: Record<string, string> = {
   cronograma: 'gestao_projetos',
   auditoria_prazos: 'gestao_projetos',
   calendario: 'gestao_projetos',
+  dashboard_financeiro: 'gestao_financeira',
+  lancamentos_financeiros: 'gestao_financeira',
   planilha_financeira: 'gestao_financeira',
   orcamentos: 'gestao_financeira',
   contratos: 'gestao_financeira',
@@ -37,10 +39,11 @@ const parentMap: Record<string, string> = {
 const resourceToModuleMap: Record<string, string> = {
   projects: 'projetos',
   tasks: 'projetos',
-  finance: 'planilha_financeira',
-  financeiro: 'planilha_financeira',
+  finance: 'lancamentos_financeiros',
+  financeiro: 'lancamentos_financeiros',
   planilha_financeira: 'planilha_financeira',
-  lancamentos_financeiros: 'planilha_financeira',
+  lancamentos_financeiros: 'lancamentos_financeiros',
+  dashboard_financeiro: 'dashboard_financeiro',
   quotes: 'orcamentos',
   clients: 'clientes',
   contacts: 'contatos',
@@ -100,13 +103,10 @@ export function usePermissions() {
     if (user.role === 'Administrador') return 'Ativo'
 
     let effModuleId = moduleId
-    if (effModuleId === 'lancamentos_financeiros' || effModuleId === 'finance')
-      effModuleId = 'planilha_financeira'
+    if (effModuleId === 'finance') effModuleId = 'lancamentos_financeiros'
 
     const checkVisibility = (id: string) => {
       if (moduleVisibility[id] !== undefined) return moduleVisibility[id]
-      if (id === 'planilha_financeira' && moduleVisibility['lancamentos_financeiros'] !== undefined)
-        return moduleVisibility['lancamentos_financeiros']
       return undefined
     }
 
@@ -114,8 +114,6 @@ export function usePermissions() {
 
     const checkRolePerm = (perms: any, id: string) => {
       if (perms[id]) return perms[id]
-      if (id === 'planilha_financeira' && perms['lancamentos_financeiros'])
-        return perms['lancamentos_financeiros']
       return undefined
     }
 
@@ -173,8 +171,7 @@ export function usePermissions() {
     if (user.role === 'Administrador') return true
 
     let effResource = resource
-    if (effResource === 'finance' || effResource === 'lancamentos_financeiros')
-      effResource = 'planilha_financeira'
+    if (effResource === 'finance') effResource = 'lancamentos_financeiros'
 
     const moduleId = resourceToModuleMap[effResource] || effResource
     const modulePerm = getPermission(moduleId)
@@ -183,13 +180,11 @@ export function usePermissions() {
     if (modulePerm === 'Leitura' && action !== 'view') return false
 
     const permKey = `${effResource}.${action}`
-    const oldPermKey1 = `finance.${action}`
-    const oldPermKey2 = `lancamentos_financeiros.${action}`
+    const oldPermKey = `finance.${action}`
 
     const checkPerm = (perms: any) => {
       if (perms[permKey] !== undefined) return perms[permKey]
-      if (perms[oldPermKey1] !== undefined) return perms[oldPermKey1]
-      if (perms[oldPermKey2] !== undefined) return perms[oldPermKey2]
+      if (perms[oldPermKey] !== undefined) return perms[oldPermKey]
       return undefined
     }
 

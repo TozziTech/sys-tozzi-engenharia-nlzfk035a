@@ -56,11 +56,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FinancialReports } from '@/components/financial/FinancialReports'
 import { RecurringExpensesChart } from '@/components/financial/RecurringExpensesChart'
 import { RecurringExpensesCard } from '@/components/financial/RecurringExpensesCard'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export default function FinancialDashboard() {
   const { updateProject } = useProjectStore()
   const { toast } = useToast()
   const { user } = useAuth()
+  const { canAccess } = usePermissions()
   const [financials, setFinancials] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [distributions, setDistributions] = useState<any[]>([])
@@ -248,15 +250,14 @@ export default function FinancialDashboard() {
     'hsl(var(--primary))',
   ]
 
-  if (user?.role !== 'Administrador' && user?.role !== 'Gerente de Projeto') {
+  if (!canAccess('dashboard_financeiro') && user?.role !== 'Administrador') {
     return (
       <div className="flex-1 p-8 pt-6">
         <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg bg-muted/20 animate-fade-in">
           <AlertTriangle className="h-10 w-10 text-amber-500 mb-4" />
           <h3 className="text-lg font-medium">Acesso Restrito</h3>
           <p className="text-muted-foreground mt-2 max-w-md">
-            Você não tem permissão para visualizar o Dashboard Executivo Financeiro. Apenas
-            Administradores e Gerentes de Projeto têm acesso a esta visão consolidada.
+            Você não tem permissão para visualizar o Dashboard Financeiro.
           </p>
         </div>
       </div>

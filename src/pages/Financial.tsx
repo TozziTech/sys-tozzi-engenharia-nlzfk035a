@@ -23,7 +23,8 @@ export default function Financial() {
   const { transactions } = useProjectStore()
 
   const isAdminOrManager = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
-  const hasFinanceAccess = (canAccess && canAccess('lancamentos_financeiros')) || isAdminOrManager
+  const hasFinanceAccess = canAccess ? canAccess('lancamentos_financeiros') : isAdminOrManager
+  const hasDashboardAccess = canAccess ? canAccess('dashboard_financeiro') : isAdminOrManager
   const hasDistributionAccess =
     user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
   const hasCategoriesAccess = user?.role === 'Administrador'
@@ -32,7 +33,7 @@ export default function Financial() {
     if (user && !hasFinanceAccess && user.role !== 'Administrador') {
       toast({
         title: 'Acesso restrito',
-        description: 'Você não tem permissão para visualizar o módulo financeiro.',
+        description: 'Você não tem permissão para visualizar os Lançamentos Financeiros.',
         variant: 'destructive',
       })
       if (user.role === 'Projetista' || user.role === 'Estagiário') {
@@ -85,7 +86,7 @@ export default function Financial() {
             <FileText className="h-4 w-4" />
             Exportar Relatório (PDF)
           </Button>
-          {isAdminOrManager && (
+          {hasDashboardAccess && (
             <Button variant="outline" asChild className="gap-2">
               <Link to="/financial-dashboard">
                 <BarChart3 className="h-4 w-4" />

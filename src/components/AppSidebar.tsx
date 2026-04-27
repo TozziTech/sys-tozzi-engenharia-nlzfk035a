@@ -91,11 +91,11 @@ const getNavigationGroups = () => [
     items: [
       {
         name: 'Dashboard Financeiro',
-        id: 'planilha_financeira',
+        id: 'dashboard_financeiro',
         href: '/financial-dashboard',
         icon: LineChart,
       },
-      { name: 'Lançamentos', id: 'planilha_financeira', href: '/financial', icon: DollarSign },
+      { name: 'Lançamentos', id: 'lancamentos_financeiros', href: '/financial', icon: DollarSign },
       {
         name: 'Planilha Financeira',
         id: 'planilha_financeira',

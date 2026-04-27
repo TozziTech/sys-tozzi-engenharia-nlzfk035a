@@ -55,6 +55,9 @@ import { quotesService } from '@/services/quotes'
 import { CompanySettingsModal } from '@/components/CompanySettingsModal'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
+import { usePermissions } from '@/hooks/use-permissions'
+import { useAuth } from '@/hooks/use-auth'
+import { AlertTriangle } from 'lucide-react'
 
 export default function Quotes() {
   const [quotes, setQuotes] = useState<QuoteData[]>([])
@@ -62,6 +65,8 @@ export default function Quotes() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('Todos')
   const { toast } = useToast()
+  const { canAccess } = usePermissions()
+  const { user } = useAuth()
 
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [emailForm, setEmailForm] = useState({ to: '', subject: '', message: '' })
@@ -262,6 +267,20 @@ export default function Quotes() {
         new Date(Number(y2), Number(m2) - 1).getTime()
       )
     })
+
+  if (!canAccess('orcamentos') && user?.role !== 'Administrador') {
+    return (
+      <div className="flex-1 p-8 pt-6">
+        <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg bg-muted/20 animate-fade-in">
+          <AlertTriangle className="h-10 w-10 text-amber-500 mb-4" />
+          <h3 className="text-lg font-medium">Acesso Restrito</h3>
+          <p className="text-muted-foreground mt-2 max-w-md">
+            Você não tem permissão para acessar os Orçamentos.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

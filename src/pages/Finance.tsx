@@ -209,14 +209,14 @@ export default function Finance() {
 
   if (!user) return null
 
-  if (!canAccess('lancamentos_financeiros') && user.role !== 'Administrador') {
+  if (!canAccess('planilha_financeira') && user.role !== 'Administrador') {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[50vh] p-8 animate-fade-in">
         <h2 className="text-2xl font-bold mb-4 text-slate-800 dark:text-slate-200">
           Acesso Negado
         </h2>
         <p className="text-muted-foreground">
-          Você não tem permissão para acessar o dashboard financeiro.
+          Você não tem permissão para acessar a planilha financeira.
         </p>
       </div>
     )

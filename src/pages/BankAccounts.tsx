@@ -45,6 +45,7 @@ import {
 import { exportBankAccountsCSV } from '@/lib/export'
 import { exportBankAccountsPDF } from '@/lib/exportPdf'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export default function BankAccounts() {
   const [accounts, setAccounts] = useState<BankAccount[]>([])
@@ -57,6 +58,7 @@ export default function BankAccounts() {
   const [activeTab, setActiveTab] = useState('Todas')
   const { toast } = useToast()
   const { user } = useAuth()
+  const { canAccess } = usePermissions()
 
   const loadAccounts = async () => {
     try {
@@ -133,6 +135,20 @@ export default function BankAccounts() {
       default:
         return 'secondary'
     }
+  }
+
+  if (!canAccess('contas_bancarias') && user?.role !== 'Administrador') {
+    return (
+      <div className="flex-1 p-8 pt-6">
+        <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg bg-muted/20 animate-fade-in">
+          <ShieldAlert className="h-10 w-10 text-amber-500 mb-4" />
+          <h3 className="text-lg font-medium">Acesso Restrito</h3>
+          <p className="text-muted-foreground mt-2 max-w-md">
+            Você não tem permissão para acessar a gestão de contas bancárias.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

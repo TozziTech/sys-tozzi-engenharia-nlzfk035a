@@ -17,6 +17,8 @@ export interface ModuleVisibility {
   auditoria_prazos?: boolean
   calendario?: boolean
   gestao_financeira?: boolean
+  dashboard_financeiro?: boolean
+  lancamentos_financeiros?: boolean
   planilha_financeira?: boolean
   orcamentos?: boolean
   contratos?: boolean

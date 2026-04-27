@@ -45,6 +45,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { addDays, format, parseISO } from 'date-fns'
+import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 
 import pb from '@/lib/pocketbase/client'
 
@@ -193,19 +194,31 @@ export function ProjectModuleModal({
 
       if (module) {
         await updateProjectModule(module.id, payload, user.id)
-        toast({ title: 'Disciplina atualizada' })
+        toast({ title: 'Sucesso', description: 'Disciplina atualizada com êxito.' })
       } else {
         await createProjectModule(payload, user.id)
-        toast({ title: 'Disciplina criada' })
+        toast({ title: 'Sucesso', description: 'Disciplina criada com êxito.' })
       }
 
       onClose()
     } catch (err) {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível salvar a disciplina',
-        variant: 'destructive',
-      })
+      const fieldErrors = extractFieldErrors(err)
+      if (Object.keys(fieldErrors).length > 0) {
+        for (const [field, message] of Object.entries(fieldErrors)) {
+          form.setError(field as any, { type: 'manual', message })
+        }
+        toast({
+          title: 'Erro de validação',
+          description: 'Verifique os campos do formulário.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Erro',
+          description: `Não foi possível atualizar a disciplina. ${getErrorMessage(err)}`,
+          variant: 'destructive',
+        })
+      }
     } finally {
       setIsSubmitting(false)
     }

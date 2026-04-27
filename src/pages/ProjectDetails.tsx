@@ -75,12 +75,15 @@ import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { usePermissions } from '@/hooks/use-permissions'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
   const [modules, setModules] = useState<any[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
 
   const loadModules = useCallback(async () => {
     if (!id) return
@@ -91,6 +94,8 @@ export default function ProjectDetails() {
       setModules(res)
     } catch (e) {
       console.error(e)
+    } finally {
+      setIsLoadingData(false)
     }
   }, [id])
 
@@ -587,6 +592,52 @@ export default function ProjectDetails() {
     return filtered
   }, [modules, priorityMode])
 
+  if (isLoadingData) {
+    return (
+      <div className={`container mx-auto ${pClass} max-w-[95%] xl:max-w-screen-2xl ${gapClass}`}>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-9 w-24" />
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-32 hidden sm:block" />
+            <Skeleton className="h-9 w-24 hidden sm:block" />
+            <Skeleton className="h-9 w-24 hidden sm:block" />
+          </div>
+        </div>
+        <Card className="w-full">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+              <Skeleton className="h-6 w-24" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-4 gap-x-8 mb-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                  <div className="space-y-2 w-full">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    )
+  }
+
   if (!project) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8">
@@ -768,8 +819,17 @@ export default function ProjectDetails() {
                         .collection('projects')
                         .update(project.id, { is_priority: !project.is_priority })
                       updateProject(project.id, { is_priority: !project.is_priority })
+                      toast({
+                        title: 'Sucesso',
+                        description: `Prioridade ${!project.is_priority ? 'adicionada' : 'removida'} com êxito.`,
+                      })
                     } catch (e) {
                       console.error(e)
+                      toast({
+                        title: 'Erro',
+                        description: `Não foi possível atualizar a prioridade. ${getErrorMessage(e)}`,
+                        variant: 'destructive',
+                      })
                     }
                   }}
                   disabled={!canEdit}
@@ -1142,14 +1202,14 @@ export default function ProjectDetails() {
                           }
                           setIsEditingObservations(false)
                           toast({
-                            title: 'Observações atualizadas',
-                            description: 'As observações foram salvas com sucesso.',
+                            title: 'Sucesso',
+                            description: 'Observações atualizadas com êxito.',
                           })
                         } catch (err) {
                           console.error(err)
                           toast({
                             title: 'Erro',
-                            description: 'Ocorreu um erro ao salvar as observações.',
+                            description: `Ocorreu um erro ao salvar as observações. ${getErrorMessage(err)}`,
                             variant: 'destructive',
                           })
                         }

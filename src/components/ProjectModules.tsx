@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { getProjectModules, deleteProjectModule } from '@/services/project_modules'
 import { exportModulesCSV } from '@/lib/export'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { FileSpreadsheet } from 'lucide-react'
 import { ProjectModule, SUB_DISCIPLINES_COLORS } from '@/types/project_modules'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,7 @@ import {
 } from '@/components/ui/select'
 import { ModuleTreeGrid } from './ModuleTreeGrid'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -237,10 +239,11 @@ export function ProjectModules({ projectId }: { projectId: string }) {
       await Promise.all(
         allUpdates.map((u) => pb.collection('project_modules').update(u.id, { ordem: u.ordem })),
       )
+      toast({ title: 'Sucesso', description: 'Ordem das disciplinas atualizada com êxito.' })
     } catch (err) {
       toast({
-        title: 'Erro ao reordenar',
-        description: 'Não foi possível alterar a ordem da disciplina.',
+        title: 'Erro',
+        description: `Não foi possível atualizar a disciplina. ${getErrorMessage(err)}`,
         variant: 'destructive',
       })
       loadData()
@@ -271,11 +274,11 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     if (!deleteModuleId || !user) return
     try {
       await deleteProjectModule(deleteModuleId.id, deleteModuleId.name, projectId, user.id)
-      toast({ title: 'Módulo removido', description: 'A disciplina foi removida com sucesso.' })
+      toast({ title: 'Sucesso', description: 'Disciplina removida com êxito.' })
     } catch (err) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível remover a disciplina.',
+        description: `Não foi possível remover a disciplina. ${getErrorMessage(err)}`,
         variant: 'destructive',
       })
     } finally {
@@ -554,8 +557,23 @@ export function ProjectModules({ projectId }: { projectId: string }) {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="flex justify-center p-8">
-            <span className="text-muted-foreground">Carregando...</span>
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-6 w-8 rounded-full" />
+            </div>
+            <div
+              className={
+                viewMode === 'table' ? 'space-y-2' : 'grid grid-cols-1 md:grid-cols-2 gap-4'
+              }
+            >
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton
+                  key={i}
+                  className={viewMode === 'table' ? 'h-16 w-full' : 'h-48 w-full'}
+                />
+              ))}
+            </div>
           </div>
         ) : modules.length > 0 && !hasAnyModule ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed rounded-lg bg-muted/10 text-center">

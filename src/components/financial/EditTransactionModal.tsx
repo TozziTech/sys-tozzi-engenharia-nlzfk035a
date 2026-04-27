@@ -21,6 +21,8 @@ import useProjectStore from '@/stores/useProjectStore'
 import { useFinancialCategories } from '@/hooks/use-financial-categories'
 import pb from '@/lib/pocketbase/client'
 import { toast } from 'sonner'
+import { usePermissions } from '@/hooks/use-permissions'
+import { useAuth } from '@/hooks/use-auth'
 
 export function EditTransactionModal({
   transaction,
@@ -33,6 +35,10 @@ export function EditTransactionModal({
 }) {
   const { projects } = useProjectStore()
   const { categories } = useFinancialCategories()
+  const { canWrite } = usePermissions()
+  const { user } = useAuth()
+
+  const canWriteFinance = canWrite('lancamentos_financeiros') || user?.role === 'Administrador'
 
   const [formError, setFormError] = useState<string | null>(null)
   const [existingAttachment, setExistingAttachment] = useState<string | null>(null)
@@ -175,7 +181,9 @@ export function EditTransactionModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar Transação</DialogTitle>
+          <DialogTitle>
+            {canWriteFinance ? 'Editar Transação' : 'Detalhes da Transação'}
+          </DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4 py-4">
           <div className="col-span-2 space-y-2">
@@ -186,6 +194,7 @@ export function EditTransactionModal({
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Ex: Compra de materiais..."
+              disabled={!canWriteFinance}
             />
           </div>
           <div className="space-y-2">
@@ -199,6 +208,7 @@ export function EditTransactionModal({
                   categoryId: v === 'Entrada' ? '' : formData.categoryId,
                 })
               }
+              disabled={!canWriteFinance}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -219,6 +229,7 @@ export function EditTransactionModal({
               step="0.01"
               value={formData.value || ''}
               onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+              disabled={!canWriteFinance}
             />
           </div>
           <div className="space-y-2">
@@ -229,6 +240,7 @@ export function EditTransactionModal({
               type="date"
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              disabled={!canWriteFinance}
             />
           </div>
           <div className="space-y-2">
@@ -236,6 +248,7 @@ export function EditTransactionModal({
             <Select
               value={formData.status}
               onValueChange={(v) => setFormData({ ...formData, status: v })}
+              disabled={!canWriteFinance}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -254,6 +267,7 @@ export function EditTransactionModal({
             <Select
               value={formData.projectId}
               onValueChange={(v) => setFormData({ ...formData, projectId: v })}
+              disabled={!canWriteFinance}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um projeto" />
@@ -274,6 +288,7 @@ export function EditTransactionModal({
             <Select
               value={formData.responsible}
               onValueChange={(v) => setFormData({ ...formData, responsible: v })}
+              disabled={!canWriteFinance}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um responsável..." />
@@ -296,6 +311,7 @@ export function EditTransactionModal({
             <Select
               value={formData.bankAccount}
               onValueChange={(v) => setFormData({ ...formData, bankAccount: v })}
+              disabled={!canWriteFinance}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma conta..." />
@@ -317,6 +333,7 @@ export function EditTransactionModal({
               <Select
                 value={formData.categoryId}
                 onValueChange={(v) => setFormData({ ...formData, categoryId: v })}
+                disabled={!canWriteFinance}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma categoria..." />
@@ -343,6 +360,7 @@ export function EditTransactionModal({
                   })
                 }
                 id="edit-recurring"
+                disabled={!canWriteFinance}
               />
               <Label htmlFor="edit-recurring" className="font-semibold cursor-pointer">
                 Lançamento Recorrente?
@@ -355,6 +373,7 @@ export function EditTransactionModal({
                   <Select
                     value={formData.frequency}
                     onValueChange={(v) => setFormData({ ...formData, frequency: v })}
+                    disabled={!canWriteFinance}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -372,6 +391,7 @@ export function EditTransactionModal({
                     type="date"
                     value={formData.end_date || ''}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    disabled={!canWriteFinance}
                   />
                 </div>
               </div>
@@ -388,6 +408,7 @@ export function EditTransactionModal({
                   variant="destructive"
                   size="sm"
                   onClick={() => setRemoveAttachment(true)}
+                  disabled={!canWriteFinance}
                 >
                   Remover
                 </Button>
@@ -400,6 +421,7 @@ export function EditTransactionModal({
                   setNewAttachment(e.target.files?.[0] || null)
                   if (e.target.files?.[0]) setRemoveAttachment(false)
                 }}
+                disabled={!canWriteFinance}
               />
             )}
           </div>
@@ -408,14 +430,16 @@ export function EditTransactionModal({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {canWriteFinance ? 'Cancelar' : 'Fechar'}
           </Button>
-          <Button
-            onClick={handleSave}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            Salvar Alterações
-          </Button>
+          {canWriteFinance && (
+            <Button
+              onClick={handleSave}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              Salvar Alterações
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

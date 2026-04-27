@@ -193,7 +193,7 @@ export function TransactionTable({
               <TableHead className="w-[60px] text-center font-semibold text-zinc-700 dark:text-zinc-300">
                 Anexo
               </TableHead>
-              {canWriteFinance && <TableHead className="w-[60px] text-center"></TableHead>}
+              <TableHead className="w-[60px] text-center"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -407,38 +407,44 @@ export function TransactionTable({
                         </Button>
                       )}
                     </TableCell>
-                    {canWriteFinance && (
-                      <TableCell className="text-center">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="hover:text-amber-500 dark:hover:text-amber-400"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="dark:bg-zinc-900 dark:border-zinc-800"
+                    <TableCell className="text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="hover:text-amber-500 dark:hover:text-amber-400"
                           >
-                            <DropdownMenuItem
-                              onClick={() => onEdit(tx)}
-                              className="focus:text-amber-500 dark:focus:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30 cursor-pointer"
-                            >
-                              <Pencil className="h-4 w-4 mr-2" /> Editar
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="dark:bg-zinc-900 dark:border-zinc-800"
+                        >
+                          {canWriteFinance ? (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => onEdit(tx)}
+                                className="focus:text-amber-500 dark:focus:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30 cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4 mr-2" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => onDelete(tx)}
+                                className="text-red-600 focus:text-red-600 dark:focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/30 cursor-pointer"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <DropdownMenuItem onClick={() => onEdit(tx)} className="cursor-pointer">
+                              <Pencil className="h-4 w-4 mr-2" /> Ver Detalhes
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => onDelete(tx)}
-                              className="text-red-600 focus:text-red-600 dark:focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/30 cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    )}
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 )
               })

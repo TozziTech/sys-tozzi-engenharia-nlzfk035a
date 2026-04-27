@@ -31,6 +31,7 @@ import {
 import useProjectStore from '@/stores/useProjectStore'
 import { useFinancialCategories } from '@/hooks/use-financial-categories'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
@@ -160,12 +161,13 @@ export function TransactionModal() {
     }
   }
 
-  if (!canWriteFinance) return null
-
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+        <Button
+          disabled={!canWriteFinance}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+        >
           <Plus className="h-4 w-4 mr-2" /> Nova Transação
         </Button>
       </DialogTrigger>
@@ -181,6 +183,7 @@ export function TransactionModal() {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Ex: Compra de materiais..."
+              disabled={!canWriteFinance}
             />
             {fieldErrors.description && (
               <span className="text-xs text-red-500">{fieldErrors.description}</span>
@@ -196,6 +199,7 @@ export function TransactionModal() {
                   type: v,
                 })
               }
+              disabled={!canWriteFinance}
             >
               <SelectTrigger className={cn(fieldErrors.type && 'border-red-500')}>
                 <SelectValue />
@@ -216,6 +220,7 @@ export function TransactionModal() {
               className={cn(fieldErrors.amount && 'border-red-500')}
               value={formData.value || ''}
               onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
+              disabled={!canWriteFinance}
             />
             {fieldErrors.amount && (
               <span className="text-xs text-red-500">{fieldErrors.amount}</span>
@@ -228,6 +233,7 @@ export function TransactionModal() {
               className={cn(fieldErrors.date && 'border-red-500')}
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              disabled={!canWriteFinance}
             />
             {fieldErrors.date && <span className="text-xs text-red-500">{fieldErrors.date}</span>}
           </div>
@@ -236,6 +242,7 @@ export function TransactionModal() {
             <Select
               value={formData.status}
               onValueChange={(v) => setFormData({ ...formData, status: v })}
+              disabled={!canWriteFinance}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -256,6 +263,7 @@ export function TransactionModal() {
             <Select
               value={formData.projectId}
               onValueChange={(v) => setFormData({ ...formData, projectId: v })}
+              disabled={!canWriteFinance}
             >
               <SelectTrigger className={cn(fieldErrors.project_id && 'border-red-500')}>
                 <SelectValue placeholder="Selecione um projeto" />
@@ -279,6 +287,7 @@ export function TransactionModal() {
             <Select
               value={formData.responsible}
               onValueChange={(v) => setFormData({ ...formData, responsible: v })}
+              disabled={!canWriteFinance}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um responsável..." />
@@ -301,6 +310,7 @@ export function TransactionModal() {
             <Select
               value={formData.bankAccount}
               onValueChange={(v) => setFormData({ ...formData, bankAccount: v })}
+              disabled={!canWriteFinance}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma conta..." />
@@ -324,6 +334,7 @@ export function TransactionModal() {
                   variant="outline"
                   role="combobox"
                   aria-expanded={openCategory}
+                  disabled={!canWriteFinance}
                   className={cn(
                     'w-full justify-between font-normal',
                     !formData.category && 'text-muted-foreground',
@@ -433,6 +444,7 @@ export function TransactionModal() {
                   })
                 }
                 id="recurring"
+                disabled={!canWriteFinance}
               />
               <Label htmlFor="recurring" className="font-semibold cursor-pointer">
                 Lançamento Recorrente?
@@ -445,6 +457,7 @@ export function TransactionModal() {
                   <Select
                     value={formData.frequency}
                     onValueChange={(v) => setFormData({ ...formData, frequency: v })}
+                    disabled={!canWriteFinance}
                   >
                     <SelectTrigger className={cn(fieldErrors.frequency && 'border-red-500')}>
                       <SelectValue />
@@ -468,6 +481,7 @@ export function TransactionModal() {
                     className={cn(fieldErrors.end_date && 'border-red-500')}
                     value={formData.end_date || ''}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    disabled={!canWriteFinance}
                   />
                   {fieldErrors.end_date && (
                     <span className="text-xs text-red-500">{fieldErrors.end_date}</span>
@@ -485,6 +499,7 @@ export function TransactionModal() {
               onChange={(e) =>
                 setFormData({ ...formData, attachment: e.target.files?.[0] || null })
               }
+              disabled={!canWriteFinance}
             />
           </div>
 
@@ -496,14 +511,16 @@ export function TransactionModal() {
           <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Salvar
-          </Button>
+          {canWriteFinance && (
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Salvar
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

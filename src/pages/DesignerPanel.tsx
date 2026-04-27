@@ -80,11 +80,16 @@ const getStatusIcon = (status: string) => {
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
-    case 'Baixa': return 'bg-slate-500/10 text-slate-500 border-slate-500/20 dark:text-slate-400'
-    case 'Média': return 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400'
-    case 'Alta': return 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-500'
-    case 'Urgente': return 'bg-rose-500/10 text-rose-600 border-rose-500/20 dark:text-rose-500'
-    default: return 'bg-slate-500/10 text-slate-500 border-slate-500/20 dark:text-slate-400'
+    case 'Baixa':
+      return 'bg-slate-500/10 text-slate-500 border-slate-500/20 dark:text-slate-400'
+    case 'Média':
+      return 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400'
+    case 'Alta':
+      return 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-500'
+    case 'Urgente':
+      return 'bg-rose-500/10 text-rose-600 border-rose-500/20 dark:text-rose-500'
+    default:
+      return 'bg-slate-500/10 text-slate-500 border-slate-500/20 dark:text-slate-400'
   }
 }
 
@@ -115,10 +120,10 @@ export default function DesignerPanel() {
   const availableWidgets = useMemo(() => {
     const defaults = ['daily', 'overview', 'cronograma', 'financeiro']
     const current = [...layout]
-    defaults.forEach(d => {
+    defaults.forEach((d) => {
       if (!current.includes(d)) current.push(d)
     })
-    return current.filter(id => id !== 'financeiro' || hasFinanceAccess)
+    return current.filter((id) => id !== 'financeiro' || hasFinanceAccess)
   }, [layout, hasFinanceAccess])
 
   const handleExportDashboard = async () => {
@@ -126,10 +131,16 @@ export default function DesignerPanel() {
     try {
       let financeData = null
       if (hasFinanceAccess) {
-        const servicos = await pb.collection('servicos_financeiros').getFullList({ filter: `user_id = "${user.id}"` })
-        const pgs = await pb.collection('pagamentos_servicos').getFullList({ filter: `servico_id.user_id = "${user.id}"` })
-        
-        const totalGeral = servicos.filter(s => s.status !== 'Cancelado').reduce((acc, s) => acc + (s.valor_total || 0), 0)
+        const servicos = await pb
+          .collection('servicos_financeiros')
+          .getFullList({ filter: `user_id = "${user.id}"` })
+        const pgs = await pb
+          .collection('pagamentos_servicos')
+          .getFullList({ filter: `servico_id.user_id = "${user.id}"` })
+
+        const totalGeral = servicos
+          .filter((s) => s.status !== 'Cancelado')
+          .reduce((acc, s) => acc + (s.valor_total || 0), 0)
         const totalPago = pgs.reduce((acc, p) => acc + (p.valor || 0), 0)
         financeData = { total: totalGeral, recebido: totalPago, aReceber: totalGeral - totalPago }
       }
@@ -137,7 +148,9 @@ export default function DesignerPanel() {
       let companySettings = null
       try {
         companySettings = await pb.collection('company_settings').getFirstListItem('')
-      } catch { /* intentionally ignored */ }
+      } catch {
+        /* intentionally ignored */
+      }
 
       exportDesignerDashboardPDF(user, myProjects, urgentTasks, financeData, companySettings)
       toast({ title: 'Relatório exportado com sucesso!' })
@@ -241,8 +254,8 @@ export default function DesignerPanel() {
         await pb.collection('users').update(user.id, {
           ui_preferences: {
             ...uiPrefs,
-            designerLayout: newLayout
-          }
+            designerLayout: newLayout,
+          },
         })
       } catch (err) {
         console.error('Erro ao salvar layout', err)
@@ -341,21 +354,34 @@ export default function DesignerPanel() {
             {urgentTasks.length === 0 ? (
               <div className="text-center py-8 bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-3 opacity-50" />
-                <p className="text-sm text-zinc-400">Tudo em dia! Nenhuma atividade urgente para as próximas 24 horas.</p>
+                <p className="text-sm text-zinc-400">
+                  Tudo em dia! Nenhuma atividade urgente para as próximas 24 horas.
+                </p>
               </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {urgentTasks.map(t => (
-                  <div key={t.id} className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors shadow-sm">
+                {urgentTasks.map((t) => (
+                  <div
+                    key={t.id}
+                    className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors shadow-sm"
+                  >
                     <div className="flex justify-between items-start mb-2">
-                      <Badge variant="outline" className={cn("whitespace-nowrap", getPriorityColor(t.priority || 'Urgente'))}>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'whitespace-nowrap',
+                          getPriorityColor(t.priority || 'Urgente'),
+                        )}
+                      >
                         {t.priority || 'Urgente'}
                       </Badge>
                       <span className="text-xs font-medium text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md">
                         {new Date(t.due_date).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
-                    <p className="font-semibold text-zinc-100 text-sm mb-1 leading-snug">{t.title}</p>
+                    <p className="font-semibold text-zinc-100 text-sm mb-1 leading-snug">
+                      {t.title}
+                    </p>
                     <p className="text-xs text-zinc-400 flex items-center gap-1.5">
                       <LayoutDashboard className="w-3.5 h-3.5 opacity-70" />
                       {t.expand?.project?.name || 'Projeto não especificado'}
@@ -525,6 +551,8 @@ export default function DesignerPanel() {
                                           ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 font-medium'
                                           : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
                                     )}
+                                  >
+                                    {p.name}
                                   </div>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-64 bg-zinc-950 border-zinc-800">
@@ -603,7 +631,9 @@ export default function DesignerPanel() {
                             </Badge>
                           </CardHeader>
                           <CardContent className="p-3 pt-0">
-                            <p className="text-xs text-zinc-400 mb-2">Cliente: {p.client || 'N/A'}</p>
+                            <p className="text-xs text-zinc-400 mb-2">
+                              Cliente: {p.client || 'N/A'}
+                            </p>
                             <div className="flex items-center justify-between text-xs mb-1">
                               <span>Progresso</span>
                               <span>{p.progress || 0}%</span>
@@ -631,7 +661,7 @@ export default function DesignerPanel() {
       case 'financeiro':
         content = (
           <div className="space-y-4">
-             <PlanilhaFinanceira />
+            <PlanilhaFinanceira />
           </div>
         )
         break
@@ -640,23 +670,21 @@ export default function DesignerPanel() {
     if (!content) return null
 
     return (
-      <div 
+      <div
         key={id}
         onDragOver={handleDragOver}
         onDrop={(e) => handleDrop(e, id)}
         className="mb-8 border border-zinc-800 rounded-xl bg-zinc-950/30 overflow-hidden shadow-lg transition-all"
       >
-        <div 
-          draggable 
-          onDragStart={(e) => handleDragStart(e, id)} 
+        <div
+          draggable
+          onDragStart={(e) => handleDragStart(e, id)}
           className="cursor-move p-1 bg-zinc-900 border-b border-zinc-800 flex justify-center items-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
           title="Arraste para reordenar"
         >
           <GripHorizontal className="w-5 h-5 opacity-70" />
         </div>
-        <div className="p-4 md:p-6">
-          {content}
-        </div>
+        <div className="p-4 md:p-6">{content}</div>
       </div>
     )
   }
@@ -692,10 +720,7 @@ export default function DesignerPanel() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        {availableWidgets.map(id => renderWidget(id))}
-      </div>
-
+      <div className="space-y-2">{availableWidgets.map((id) => renderWidget(id))}</div>
     </div>
   )
 }

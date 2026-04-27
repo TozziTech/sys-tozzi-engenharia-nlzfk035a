@@ -1,16 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Search,
   Calendar as CalendarIcon,
   AlertCircle,
   CheckCircle2,
   PlayCircle,
   PauseCircle,
   Loader2,
-  CheckSquare,
   LayoutDashboard,
-  XCircle,
   ChevronLeft,
   ChevronRight,
   Printer,
@@ -35,7 +32,6 @@ import { ptBR } from 'date-fns/locale'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -52,6 +48,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { exportWeeklyDocsReportPDF } from '@/lib/exportPdf'
 import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
+import { MyTasksList } from '@/components/meu-painel/MyTasksList'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -86,10 +83,8 @@ const getStatusIcon = (status: string) => {
 export default function DesignerPanel() {
   const { user } = useAuth()
   const { canAccess } = usePermissions()
-  const [search, setSearch] = useState('')
   const { toast } = useToast()
 
-  const [tasks, setTasks] = useState<any[]>([])
   const [myProjects, setMyProjects] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -141,19 +136,13 @@ export default function DesignerPanel() {
     if (!user) return
     try {
       setLoading(true)
-      const [tasksRecords, upaRes, clientsRes] = await Promise.all([
-        pb.collection('tasks').getFullList({
-          filter: `responsible = "${user.id}" && status != "Concluído"`,
-          expand: 'project',
-          sort: 'due_date',
-        }),
+      const [upaRes, clientsRes] = await Promise.all([
         pb.collection('user_project_access').getFullList({
           filter: `user = "${user.id}"`,
         }),
         pb.collection('clients').getFullList(),
       ])
 
-      setTasks(tasksRecords)
       setClients(clientsRes)
 
       let assignedProjectIds = user.assigned_projects || []
@@ -186,7 +175,6 @@ export default function DesignerPanel() {
   useEffect(() => {
     loadData()
   }, [user])
-  useRealtime('tasks', loadData)
   useRealtime('projects', loadData)
   useRealtime('clients', loadData)
 
@@ -235,23 +223,8 @@ export default function DesignerPanel() {
   }, [weeklyProjects])
 
   const filteredProjects = useMemo(() => {
-    const s = search.toLowerCase()
-    const matchedClients = clients
-      .filter(
-        (c) => (c.name || '').toLowerCase().includes(s) || (c.code || '').toLowerCase().includes(s),
-      )
-      .map((c) => c.name)
-
-    return myProjects.filter((p) => {
-      const matchSearch =
-        !s ||
-        (p.name || '').toLowerCase().includes(s) ||
-        (p.client || '').toLowerCase().includes(s) ||
-        matchedClients.includes(p.client)
-
-      return matchSearch
-    })
-  }, [myProjects, search, clients])
+    return myProjects
+  }, [myProjects])
 
   const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(calendarMonth), { weekStartsOn: 0 })
@@ -326,28 +299,6 @@ export default function DesignerPanel() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-zinc-900/50 backdrop-blur-md p-4 rounded-xl border border-zinc-800 shadow-sm">
-        <div className="relative flex-1 max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-          <Input
-            placeholder="Buscar projeto ou cliente..."
-            className="pl-9 bg-zinc-950/50 w-full"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-zinc-500"
-              onClick={() => setSearch('')}
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-
       <Tabs defaultValue="overview" className="w-full space-y-6">
         <TabsList className="bg-zinc-900/50 p-1 w-full justify-start overflow-x-auto h-auto flex-wrap border border-zinc-800">
           <TabsTrigger
@@ -379,10 +330,11 @@ export default function DesignerPanel() {
                 <div>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-amber-500" />
-                    Progresso Semanal ({weeklyProjects.length} Projetos Ativos)
+                    Métricas de Eficiência (Semana Atual)
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    Distribuição de status (%) dos projetos da semana atual
+                    Distribuição de status (%) dos {weeklyProjects.length} projetos com atividades
+                    nesta semana
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -430,48 +382,9 @@ export default function DesignerPanel() {
               </CardContent>
             </Card>
 
-            <Card className="border-zinc-800/50 bg-zinc-950/50 md:col-span-2">
-              <CardHeader className="pb-3 border-b border-zinc-800/50">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CheckSquare className="h-5 w-5 text-emerald-400" />
-                  Próximas Tarefas e Prazos
-                </CardTitle>
-                <CardDescription>Tarefas pendentes atribuídas a você</CardDescription>
-              </CardHeader>
-              <CardContent className="py-4 space-y-3">
-                {tasks.length === 0 && (
-                  <p className="text-sm text-zinc-500 text-center py-4">Nenhuma tarefa pendente.</p>
-                )}
-                <div className="grid gap-4 md:grid-cols-2">
-                  {tasks.slice(0, 10).map((task) => {
-                    const isLate = task.due_date && new Date(task.due_date) < new Date()
-                    return (
-                      <div
-                        key={task.id}
-                        className="flex flex-col p-3 rounded-lg bg-zinc-900 border border-zinc-800 gap-1.5"
-                      >
-                        <div className="flex justify-between items-start">
-                          <span className="font-medium text-sm text-zinc-200">{task.title}</span>
-                          <Badge variant="secondary" className="text-[10px]">
-                            {task.status}
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between text-xs text-zinc-500">
-                          <span className="truncate max-w-[150px]">
-                            {task.expand?.project?.name || 'Sem projeto'}
-                          </span>
-                          <span className={isLate ? 'text-rose-400 font-medium' : 'text-zinc-400'}>
-                            {task.due_date
-                              ? format(new Date(task.due_date), 'dd/MM/yyyy')
-                              : 'Sem prazo'}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="md:col-span-2">
+              <MyTasksList />
+            </div>
           </div>
         </TabsContent>
 

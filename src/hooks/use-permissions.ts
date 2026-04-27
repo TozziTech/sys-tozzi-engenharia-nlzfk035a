@@ -18,7 +18,6 @@ const parentMap: Record<string, string> = {
   cronograma: 'gestao_projetos',
   auditoria_prazos: 'gestao_projetos',
   calendario: 'gestao_projetos',
-  lancamentos_financeiros: 'gestao_financeira',
   planilha_financeira: 'gestao_financeira',
   orcamentos: 'gestao_financeira',
   contratos: 'gestao_financeira',
@@ -38,9 +37,10 @@ const parentMap: Record<string, string> = {
 const resourceToModuleMap: Record<string, string> = {
   projects: 'projetos',
   tasks: 'projetos',
-  finance: 'lancamentos_financeiros',
+  finance: 'planilha_financeira',
   financeiro: 'planilha_financeira',
   planilha_financeira: 'planilha_financeira',
+  lancamentos_financeiros: 'planilha_financeira',
   quotes: 'orcamentos',
   clients: 'clientes',
   contacts: 'contatos',
@@ -99,27 +99,44 @@ export function usePermissions() {
     if (!user) return 'Inativo'
     if (user.role === 'Administrador') return 'Ativo'
 
-    if (moduleVisibility[moduleId] === false) return 'Inativo'
+    let effModuleId = moduleId
+    if (effModuleId === 'lancamentos_financeiros' || effModuleId === 'finance')
+      effModuleId = 'planilha_financeira'
 
-    const parentId = parentMap[moduleId]
-    if (parentId && moduleVisibility[parentId] === false) return 'Inativo'
+    const checkVisibility = (id: string) => {
+      if (moduleVisibility[id] !== undefined) return moduleVisibility[id]
+      if (id === 'planilha_financeira' && moduleVisibility['lancamentos_financeiros'] !== undefined)
+        return moduleVisibility['lancamentos_financeiros']
+      return undefined
+    }
+
+    if (checkVisibility(effModuleId) === false) return 'Inativo'
+
+    const parentId = parentMap[effModuleId]
+    if (parentId && checkVisibility(parentId) === false) return 'Inativo'
+
+    const checkRolePerm = (perms: any, id: string) => {
+      if (perms[id]) return perms[id]
+      if (id === 'planilha_financeira' && perms['lancamentos_financeiros'])
+        return perms['lancamentos_financeiros']
+      return undefined
+    }
 
     // Prioritize Custom Role if assigned
     if (user.custom_role && customRoles[user.custom_role]) {
       const cr = customRoles[user.custom_role]
       const crPerms = cr.permissions || {}
-      if (parentId && crPerms[parentId] === 'Inativo') return 'Inativo'
-      if (crPerms[moduleId]) {
-        return crPerms[moduleId]
-      }
+      if (parentId && checkRolePerm(crPerms, parentId) === 'Inativo') return 'Inativo'
+
+      const p = checkRolePerm(crPerms, effModuleId)
+      if (p) return p
     }
 
     const rolePerms = role_permissions?.[user.role || '']
     if (rolePerms) {
-      if (parentId && rolePerms[parentId] === 'Inativo') return 'Inativo'
-      if (rolePerms[moduleId]) {
-        return rolePerms[moduleId]
-      }
+      if (parentId && checkRolePerm(rolePerms, parentId) === 'Inativo') return 'Inativo'
+      const p = checkRolePerm(rolePerms, effModuleId)
+      if (p) return p
     }
 
     // Deny by default if not configured explicitly
@@ -133,25 +150,42 @@ export function usePermissions() {
     if (!user) return false
     if (user.role === 'Administrador') return true
 
-    const moduleId = resourceToModuleMap[resource] || resource
+    let effResource = resource
+    if (effResource === 'finance' || effResource === 'lancamentos_financeiros')
+      effResource = 'planilha_financeira'
+
+    const moduleId = resourceToModuleMap[effResource] || effResource
     const modulePerm = getPermission(moduleId)
 
     if (modulePerm === 'Inativo') return false
     if (modulePerm === 'Leitura' && action !== 'view') return false
 
-    const permKey = `${resource}.${action}`
+    const permKey = `${effResource}.${action}`
+    const oldPermKey1 = `finance.${action}`
+    const oldPermKey2 = `lancamentos_financeiros.${action}`
+
+    const checkPerm = (perms: any) => {
+      if (perms[permKey] !== undefined) return perms[permKey]
+      if (perms[oldPermKey1] !== undefined) return perms[oldPermKey1]
+      if (perms[oldPermKey2] !== undefined) return perms[oldPermKey2]
+      return undefined
+    }
 
     if (user.custom_role && customRoles[user.custom_role]) {
       const cr = customRoles[user.custom_role]
       const crPerms = cr.permissions || {}
-      if (crPerms[permKey] !== undefined) {
-        return crPerms[permKey] === true
+      const p = checkPerm(crPerms)
+      if (p !== undefined) {
+        return p === true
       }
     }
 
     const rolePerms = role_permissions?.[user.role || '']
-    if (rolePerms && rolePerms[permKey] !== undefined) {
-      return rolePerms[permKey] === true
+    if (rolePerms) {
+      const p = checkPerm(rolePerms)
+      if (p !== undefined) {
+        return p === true
+      }
     }
 
     if (action === 'view') return true

@@ -290,7 +290,7 @@ export default function MeuPainel() {
                 </span>
               )}
             </TabsTrigger>
-            {canAccess('lancamentos_financeiros') && (
+            {canAccess('planilha_financeira') && (
               <TabsTrigger value="financeiro" className="w-full sm:w-auto">
                 Planilha Financeira
               </TabsTrigger>

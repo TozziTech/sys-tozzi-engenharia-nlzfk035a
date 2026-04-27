@@ -42,8 +42,8 @@ import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
-import { HistoricoLancamentos } from '@/components/meu-painel/HistoricoLancamentos'
 import { NotificationsTab } from '@/components/meu-painel/NotificationsTab'
+import { usePermissions } from '@/hooks/use-permissions'
 import { NoteCard } from '@/components/NoteCard'
 import { MyTasksList } from '@/components/meu-painel/MyTasksList'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -87,6 +87,7 @@ type DashboardProject = {
 export default function MeuPainel() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const { canAccess } = usePermissions()
 
   const [projects, setProjects] = useState<DashboardProject[]>([])
   const [timeLogs, setTimeLogs] = useState<any[]>([])
@@ -289,12 +290,11 @@ export default function MeuPainel() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="financeiro" className="w-full sm:w-auto">
-              Planilha Financeira
-            </TabsTrigger>
-            <TabsTrigger value="historico" className="w-full sm:w-auto">
-              Histórico de Lançamentos
-            </TabsTrigger>
+            {canAccess('lancamentos_financeiros') && (
+              <TabsTrigger value="financeiro" className="w-full sm:w-auto">
+                Planilha Financeira
+              </TabsTrigger>
+            )}
             <TabsTrigger value="alertas" className="w-full sm:w-auto">
               Configurações de Alerta
             </TabsTrigger>
@@ -523,13 +523,11 @@ export default function MeuPainel() {
           </Dialog>
         </TabsContent>
 
-        <TabsContent value="financeiro" className="space-y-6">
-          <PlanilhaFinanceira />
-        </TabsContent>
-
-        <TabsContent value="historico" className="space-y-6">
-          <HistoricoLancamentos />
-        </TabsContent>
+        {canAccess('lancamentos_financeiros') && (
+          <TabsContent value="financeiro" className="space-y-6">
+            <PlanilhaFinanceira />
+          </TabsContent>
+        )}
 
         <TabsContent value="notificacoes" className="space-y-6">
           <NotificationsTab />

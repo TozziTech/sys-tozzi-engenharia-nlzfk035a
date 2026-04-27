@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-27T00:41:13.976Z",
+  "generatedAt": "2026-04-27T01:02:31.979Z",
   "collections": [
     {
       "name": "users",
@@ -1272,7 +1272,14 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Pendente", "Em Andamento", "Concluído", "Pausado"]
+          "selectValues": [
+            "Pendente",
+            "Em Andamento",
+            "Concluído",
+            "Pausado",
+            "Em Análise",
+            "Em Revisão"
+          ]
         },
         {
           "name": "progress",

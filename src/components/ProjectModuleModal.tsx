@@ -55,11 +55,12 @@ const DISCIPLINES = [
 
 const schema = z.object({
   name: z.string().min(1, 'Disciplina é obrigatória'),
-  status: z.enum(['Pendente', 'Em Andamento', 'Concluído', 'Pausado']),
+  status: z.enum(['Pendente', 'Em Andamento', 'Concluído', 'Pausado', 'Em Análise', 'Em Revisão']),
   progress: z.coerce.number().min(0).max(100),
   deadline: z.string().optional(),
   notes: z.string().optional(),
   responsible: z.string().optional(),
+  designer: z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -101,6 +102,7 @@ export function ProjectModuleModal({
           deadline: module.deadline ? new Date(module.deadline).toISOString().split('T')[0] : '',
           notes: module.notes || '',
           responsible: module.responsible || 'none',
+          designer: module.designer || 'none',
         })
       } else {
         form.reset({
@@ -110,6 +112,7 @@ export function ProjectModuleModal({
           deadline: '',
           notes: '',
           responsible: 'none',
+          designer: 'none',
         })
       }
     }
@@ -127,6 +130,7 @@ export function ProjectModuleModal({
         project: projectId,
         deadline: data.deadline ? new Date(data.deadline).toISOString() : '',
         responsible: data.responsible !== 'none' ? data.responsible : null,
+        designer: data.designer !== 'none' ? data.designer : null,
       }
 
       if (module) {
@@ -203,6 +207,8 @@ export function ProjectModuleModal({
                         <SelectItem value="Em Andamento">Em Andamento</SelectItem>
                         <SelectItem value="Pausado">Pausado</SelectItem>
                         <SelectItem value="Concluído">Concluído</SelectItem>
+                        <SelectItem value="Em Análise">Em Análise</SelectItem>
+                        <SelectItem value="Em Revisão">Em Revisão</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -225,27 +231,27 @@ export function ProjectModuleModal({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="deadline"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prazo de Entrega</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="deadline"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prazo de Entrega</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="responsible"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Responsável</FormLabel>
+                    <FormLabel>Gerente Responsável</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -277,7 +283,50 @@ export function ProjectModuleModal({
                           )
                           .map((u) => (
                             <SelectItem key={u.id} value={u.id}>
-                              {u.name || u.codigo || 'Usuário sem nome'}
+                              {u.name || u.codigo || 'Usuário sem nome'}{' '}
+                              {u.email ? `(${u.email})` : ''}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="designer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Projetista (Designer)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um projetista" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {users.filter(
+                          (u) =>
+                            (u.status === 'Ativo' && u.role === 'Projetista') ||
+                            u.id === module?.designer,
+                        ).length === 0 && (
+                          <SelectItem value="none_disabled" disabled>
+                            Nenhum projetista disponível
+                          </SelectItem>
+                        )}
+                        {users
+                          .filter(
+                            (u) =>
+                              (u.status === 'Ativo' && u.role === 'Projetista') ||
+                              u.id === module?.designer,
+                          )
+                          .map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.name || u.codigo || 'Usuário sem nome'}{' '}
+                              {u.email ? `(${u.email})` : ''}
                             </SelectItem>
                           ))}
                       </SelectContent>

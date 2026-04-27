@@ -2,7 +2,7 @@ export interface ProjectModule {
   id: string
   name: string
   project: string
-  status: 'Pendente' | 'Em Andamento' | 'Concluído' | 'Pausado'
+  status: 'Pendente' | 'Em Andamento' | 'Concluído' | 'Pausado' | 'Em Análise' | 'Em Revisão'
   progress: number
   deadline: string
   notes: string

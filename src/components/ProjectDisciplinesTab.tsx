@@ -39,6 +39,8 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
   const [pendingRequests, setPendingRequests] = useState<any[]>([])
   const [newModuleName, setNewModuleName] = useState('')
   const [newModuleStatus, setNewModuleStatus] = useState<ProjectModule['status']>('Pendente')
+  const [newModuleResponsible, setNewModuleResponsible] = useState<string>('none')
+  const [newModuleDesigner, setNewModuleDesigner] = useState<string>('none')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const { toast } = useToast()
   const { user } = useAuth()
@@ -196,9 +198,13 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
         project: projectId,
         status: newModuleStatus,
         progress: 0,
+        responsible: newModuleResponsible === 'none' ? null : newModuleResponsible,
+        designer: newModuleDesigner === 'none' ? null : newModuleDesigner,
       })
       setNewModuleName('')
       setNewModuleStatus('Pendente')
+      setNewModuleResponsible('none')
+      setNewModuleDesigner('none')
       toast({ title: 'Módulo adicionado' })
     } catch (e) {
       setFieldErrors(extractFieldErrors(e))
@@ -368,10 +374,10 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
         {canEdit && (
           <div className="flex flex-col gap-3 p-4 border rounded-lg bg-muted/30">
             <h3 className="text-sm font-medium">Adicionar Nova Disciplina</h3>
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-start">
-              <div className="flex-1 w-full space-y-1">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+              <div className="md:col-span-3 space-y-1">
                 <Input
-                  placeholder="Nome da nova disciplina..."
+                  placeholder="Nome da disciplina..."
                   value={newModuleName}
                   onChange={(e) => {
                     setNewModuleName(e.target.value)
@@ -384,7 +390,7 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                 />
                 {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
               </div>
-              <div className="w-full sm:w-[200px] space-y-1">
+              <div className="md:col-span-2 space-y-1">
                 <Select
                   value={newModuleStatus}
                   onValueChange={(v: ProjectModule['status']) => {
@@ -404,16 +410,57 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                     <SelectItem value="Em Andamento">Em Andamento</SelectItem>
                     <SelectItem value="Concluído">Concluído</SelectItem>
                     <SelectItem value="Pausado">Pausado</SelectItem>
+                    <SelectItem value="Em Análise">Em Análise</SelectItem>
+                    <SelectItem value="Em Revisão">Em Revisão</SelectItem>
                   </SelectContent>
                 </Select>
                 {fieldErrors.status && (
                   <p className="text-xs text-destructive">{fieldErrors.status}</p>
                 )}
               </div>
-              <Button onClick={handleAdd} className="w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar
-              </Button>
+              <div className="md:col-span-3 space-y-1">
+                <Select value={newModuleResponsible} onValueChange={setNewModuleResponsible}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Gerente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem Gerente</SelectItem>
+                    {users
+                      .filter(
+                        (u) =>
+                          u.status === 'Ativo' &&
+                          ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(u.role),
+                      )
+                      .map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name} {u.email ? `(${u.email})` : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-3 space-y-1">
+                <Select value={newModuleDesigner} onValueChange={setNewModuleDesigner}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Projetista" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem Projetista</SelectItem>
+                    {users
+                      .filter((u) => u.status === 'Ativo' && u.role === 'Projetista')
+                      .map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name} {u.email ? `(${u.email})` : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-1">
+                <Button onClick={handleAdd} className="w-full" size="icon">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -444,6 +491,10 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                             'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800',
                           mod.status === 'Pendente' &&
                             'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
+                          mod.status === 'Em Análise' &&
+                            'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/30 dark:text-cyan-400 dark:border-cyan-800',
+                          mod.status === 'Em Revisão' &&
+                            'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-800',
                         )}
                       >
                         {mod.status}
@@ -517,7 +568,9 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                                         />
                                         <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
                                       </Avatar>
-                                      <span className="truncate">{u.name}</span>
+                                      <span className="truncate">
+                                        {u.name} {u.email ? `(${u.email})` : ''}
+                                      </span>
                                       {!hasAccess && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>
@@ -624,7 +677,9 @@ export function ProjectDisciplinesTab({ projectId }: { projectId: string }) {
                                         />
                                         <AvatarFallback>{u.name?.charAt(0) || 'U'}</AvatarFallback>
                                       </Avatar>
-                                      <span className="truncate">{u.name}</span>
+                                      <span className="truncate">
+                                        {u.name} {u.email ? `(${u.email})` : ''}
+                                      </span>
                                       {!hasAccess && (
                                         <Tooltip>
                                           <TooltipTrigger asChild>

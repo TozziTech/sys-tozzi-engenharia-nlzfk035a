@@ -81,6 +81,10 @@ export function ProjectModules({ projectId }: { projectId: string }) {
         return 'bg-blue-500 hover:bg-blue-600 text-white'
       case 'Pausado':
         return 'bg-amber-500 hover:bg-amber-600 text-white'
+      case 'Em Análise':
+        return 'bg-cyan-500 hover:bg-cyan-600 text-white'
+      case 'Em Revisão':
+        return 'bg-indigo-500 hover:bg-indigo-600 text-white'
       default:
         return 'bg-slate-500 hover:bg-slate-600 text-white'
     }

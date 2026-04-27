@@ -130,7 +130,9 @@ const moduleGroups = [
     children: [
       { id: 'controle_acesso', name: 'Controle de Acesso', desc: 'Gestão de permissões' },
       { id: 'visao_carteira', name: 'Visão Geral da Carteira', desc: 'Analytics global' },
-      { id: 'configuracoes', name: 'Configurações', desc: 'Ajustes do sistema' },
+      { id: 'dashboard_executivo', name: 'Dashboard Executivo', desc: 'Visão executiva' },
+      { id: 'meu_perfil', name: 'Meu Perfil', desc: 'Gestão do perfil do usuário' },
+      { id: 'configuracoes', name: 'Configurações do Sistema', desc: 'Ajustes do sistema' },
       { id: 'auditoria', name: 'Auditoria Executiva', desc: 'Logs do sistema' },
     ],
   },

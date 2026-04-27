@@ -28,6 +28,8 @@ const parentMap: Record<string, string> = {
   equipamentos: 'cadastro',
   controle_acesso: 'governanca',
   visao_carteira: 'governanca',
+  dashboard_executivo: 'governanca',
+  meu_perfil: 'governanca',
   configuracoes: 'governanca',
   auditoria: 'governanca',
 }

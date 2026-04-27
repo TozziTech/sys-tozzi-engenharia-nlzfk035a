@@ -153,11 +153,11 @@ const getNavigationGroups = () => [
         href: '/admin/analytics',
         icon: LineChart,
       },
-      { name: 'Meu Perfil', href: '/profile', icon: User },
+      { name: 'Meu Perfil', id: 'meu_perfil', href: '/profile', icon: User },
       { name: 'Configurações do Sistema', id: 'configuracoes', href: '/settings', icon: Settings },
       {
         name: 'Dashboard Executivo',
-        id: 'visao_carteira',
+        id: 'dashboard_executivo',
         href: '/executive-dashboard',
         icon: LayoutDashboard,
       },
@@ -267,29 +267,52 @@ export function AppSidebar() {
             />
           </div>
         </div>
-        <Link
-          to="/profile"
-          className="flex items-center gap-3 rounded-lg border border-border bg-sidebar-accent/50 p-2 shadow-sm hover:bg-sidebar-accent/80 hover:border-amber-500/30 cursor-pointer transition-all group"
-        >
-          <Avatar className="h-9 w-9 border border-transparent group-hover:border-amber-500/50 transition-colors">
-            <AvatarImage
-              src={
-                user?.avatar
-                  ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/users/${user.id}/${user.avatar}`
-                  : 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1'
-              }
-            />
-            <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col overflow-hidden">
-            <span className="truncate text-sm font-medium text-sidebar-foreground group-hover:text-amber-500 transition-colors">
-              {user?.name || 'Usuário'}
-            </span>
-            <span className="truncate text-xs text-sidebar-foreground/70">
-              {user?.role || 'Cargo'}
-            </span>
+        {canAccess('meu_perfil') ? (
+          <Link
+            to="/profile"
+            className="flex items-center gap-3 rounded-lg border border-border bg-sidebar-accent/50 p-2 shadow-sm hover:bg-sidebar-accent/80 hover:border-amber-500/30 cursor-pointer transition-all group"
+          >
+            <Avatar className="h-9 w-9 border border-transparent group-hover:border-amber-500/50 transition-colors">
+              <AvatarImage
+                src={
+                  user?.avatar
+                    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/users/${user.id}/${user.avatar}`
+                    : 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1'
+                }
+              />
+              <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col overflow-hidden">
+              <span className="truncate text-sm font-medium text-sidebar-foreground group-hover:text-amber-500 transition-colors">
+                {user?.name || 'Usuário'}
+              </span>
+              <span className="truncate text-xs text-sidebar-foreground/70">
+                {user?.role || 'Cargo'}
+              </span>
+            </div>
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-sidebar-accent/50 p-2 shadow-sm">
+            <Avatar className="h-9 w-9 border border-transparent">
+              <AvatarImage
+                src={
+                  user?.avatar
+                    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/users/${user.id}/${user.avatar}`
+                    : 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1'
+                }
+              />
+              <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col overflow-hidden">
+              <span className="truncate text-sm font-medium text-sidebar-foreground">
+                {user?.name || 'Usuário'}
+              </span>
+              <span className="truncate text-xs text-sidebar-foreground/70">
+                {user?.role || 'Cargo'}
+              </span>
+            </div>
           </div>
-        </Link>
+        )}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton

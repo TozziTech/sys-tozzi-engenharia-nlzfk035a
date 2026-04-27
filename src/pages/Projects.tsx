@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
+import { usePermissions } from '@/hooks/use-permissions'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
@@ -63,6 +64,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
   const { viewMode, setViewMode } = usePreferencesStore()
   const { user } = useAuth()
   const { toast } = useToast()
+  const { can } = usePermissions()
 
   const [discipline, setDiscipline] = useState<string>('all')
   const [status, setStatus] = useState<string>('all')
@@ -105,11 +107,8 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
   }, [user])
 
   const isLinkedToUser = useCallback(
-    (project: any) =>
-      user?.assigned_projects?.includes(project.id) ||
-      !!myAccesses[project.id] ||
-      project.engineer === user?.name,
-    [user?.assigned_projects, user?.name, myAccesses],
+    (project: any) => user?.assigned_projects?.includes(project.id) || !!myAccesses[project.id],
+    [user?.assigned_projects, myAccesses],
   )
 
   const hasAccess = useCallback(
@@ -189,22 +188,22 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
     filterMonth,
     filterYear,
     filterOnlyMine,
-    user?.name,
+    isLinkedToUser,
   ])
 
   const prioritizedProjects = useMemo(() => {
     const sorted = [...filteredProjects]
     if (user?.role === 'Projetista') {
       sorted.sort((a, b) => {
-        const aIsMine = a.engineer === user.name
-        const bIsMine = b.engineer === user.name
+        const aIsMine = isLinkedToUser(a)
+        const bIsMine = isLinkedToUser(b)
         if (aIsMine && !bIsMine) return -1
         if (!aIsMine && bIsMine) return 1
         return 0
       })
     }
     return sorted
-  }, [filteredProjects, user?.role, user?.name])
+  }, [filteredProjects, user?.role, isLinkedToUser])
 
   const { projectsWithAccess, projectsWithoutAccess } = useMemo(() => {
     const withAcc: typeof prioritizedProjects = []
@@ -361,7 +360,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
           >
             <CalendarDays className="mr-2 h-4 w-4" /> Exportar Calendário (ICS)
           </Button>
-          {(user?.role === 'Administrador' || user?.role === 'Gerente de Projeto') && (
+          {(user?.role === 'Administrador' || can('create', 'projects')) && (
             <Button onClick={() => setNewProjectModalOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Novo Projeto
             </Button>

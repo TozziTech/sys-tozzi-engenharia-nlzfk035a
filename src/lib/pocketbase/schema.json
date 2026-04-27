@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-27T03:04:04.414Z",
+  "generatedAt": "2026-04-27T03:16:26.019Z",
   "collections": [
     {
       "name": "users",
@@ -332,7 +332,7 @@
       "apiRules": {
         "list": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
         "view": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
-        "create": "@request.auth.id != '' && @request.auth.role != 'Cliente'",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto')",
         "update": "@request.auth.id != '' && (@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto')",
         "delete": "@request.auth.id != '' && (@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto')"
       },

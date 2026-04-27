@@ -70,7 +70,8 @@ export function usePermissions() {
       return rolePerms[moduleId]
     }
 
-    return 'Ativo' // fallback to active if not configured explicitly
+    // Deny by default if not configured explicitly
+    return 'Inativo'
   }
 
   const canAccess = (moduleId: string) => getPermission(moduleId) !== 'Inativo'
@@ -95,9 +96,7 @@ export function usePermissions() {
       return rolePerms[permKey] === true
     }
 
-    // Default fallback based on role and action
-    if (user.role === 'Gerente de Projeto') return true
-    if (action === 'view') return true
+    // Deny by default
     return false
   }
 

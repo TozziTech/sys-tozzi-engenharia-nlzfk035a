@@ -27,7 +27,6 @@ import {
   Trash,
   ArrowLeft,
   Check,
-  InfoIcon,
   Eye,
   X,
   FileDown,
@@ -69,9 +68,15 @@ interface QuoteGeneratorModalProps {
   children?: React.ReactNode
   initialData?: QuoteData
   onSave?: (data: QuoteData) => void | Promise<void>
+  readOnly?: boolean
 }
 
-export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGeneratorModalProps) {
+export function QuoteGeneratorModal({
+  children,
+  initialData,
+  onSave,
+  readOnly,
+}: QuoteGeneratorModalProps) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [isPreview, setIsPreview] = useState(false)
@@ -111,9 +116,9 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
           { id: Math.random().toString(), description: '', quantity: 1, unitPrice: 0 },
         ],
       )
-      setIsPreview(false)
+      setIsPreview(readOnly ? true : false)
     }
-  }, [open, initialData])
+  }, [open, initialData, readOnly])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -421,6 +426,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                     placeholder="Nome do cliente..."
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
+                    disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-3">
@@ -433,6 +439,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                     placeholder="Ex: cliente@empresa.com"
                     value={clientEmail}
                     onChange={(e) => setClientEmail(e.target.value)}
+                    disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-3">
@@ -444,6 +451,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                     placeholder="Ex: Reforma Comercial..."
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
+                    disabled={readOnly}
                   />
                 </div>
               </div>
@@ -457,6 +465,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                     date={deadline}
                     setDate={setDeadline}
                     label="Selecione uma data limite"
+                    disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-3">
@@ -468,6 +477,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                     placeholder="Ex: 50% no aceite, 50% na homologação"
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
+                    disabled={readOnly}
                   />
                 </div>
               </div>
@@ -482,6 +492,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                     value={includedItems}
                     onChange={(e) => setIncludedItems(e.target.value)}
                     className="min-h-[140px] resize-y"
+                    disabled={readOnly}
                   />
                 </div>
                 <div className="space-y-3">
@@ -493,6 +504,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                     value={notIncludedItems}
                     onChange={(e) => setNotIncludedItems(e.target.value)}
                     className="min-h-[140px] resize-y"
+                    disabled={readOnly}
                   />
                 </div>
               </div>
@@ -502,9 +514,11 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                   <Label className="text-sm font-semibold text-foreground/90 ml-1">
                     Tabela de Precificação
                   </Label>
-                  <Button variant="secondary" size="sm" onClick={handleAddItem} className="h-8">
-                    <Plus className="w-4 h-4 mr-2" /> Adicionar Serviço
-                  </Button>
+                  {!readOnly && (
+                    <Button variant="secondary" size="sm" onClick={handleAddItem} className="h-8">
+                      <Plus className="w-4 h-4 mr-2" /> Adicionar Serviço
+                    </Button>
+                  )}
                 </div>
                 <div className="border rounded-md overflow-hidden bg-background shadow-sm">
                   <Table>
@@ -522,7 +536,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                         <TableHead className="w-[150px] text-right font-semibold text-foreground">
                           Subtotal
                         </TableHead>
-                        <TableHead className="w-[60px]"></TableHead>
+                        {!readOnly && <TableHead className="w-[60px]"></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -536,6 +550,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                               }
                               placeholder="Ex: Desenvolvimento Frontend"
                               className="focus-visible:ring-1"
+                              disabled={readOnly}
                             />
                           </TableCell>
                           <TableCell className="p-2 align-top">
@@ -547,6 +562,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                                 handleItemChange(item.id, 'quantity', parseInt(e.target.value) || 0)
                               }
                               className="text-center focus-visible:ring-1"
+                              disabled={readOnly}
                             />
                           </TableCell>
                           <TableCell className="p-2 align-top">
@@ -563,22 +579,25 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                                 )
                               }
                               className="text-right focus-visible:ring-1"
+                              disabled={readOnly}
                             />
                           </TableCell>
                           <TableCell className="text-right font-medium p-4 align-top text-foreground/80">
                             {formatCurrency(item.quantity * item.unitPrice)}
                           </TableCell>
-                          <TableCell className="p-2 text-center align-top pt-3">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8"
-                              onClick={() => handleRemoveItem(item.id)}
-                              disabled={items.length === 1}
-                            >
-                              <Trash className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
+                          {!readOnly && (
+                            <TableCell className="p-2 text-center align-top pt-3">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8"
+                                onClick={() => handleRemoveItem(item.id)}
+                                disabled={items.length === 1}
+                              >
+                                <Trash className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -593,7 +612,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                         <TableCell className="text-right font-bold text-lg text-primary py-4">
                           {formatCurrency(total)}
                         </TableCell>
-                        <TableCell></TableCell>
+                        {!readOnly && <TableCell></TableCell>}
                       </TableRow>
                     </TableFooter>
                   </Table>
@@ -605,25 +624,30 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                   <Paperclip className="w-4 h-4 text-slate-500" /> Anexos do Orçamento
                 </Label>
                 <div className="border rounded-md p-4 bg-muted/20">
-                  <Input
-                    type="file"
-                    multiple
-                    onChange={handleFileChange}
-                    className="file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 file:text-xs hover:file:bg-primary/90 file:font-medium cursor-pointer"
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Formatos suportados: PDF, Imagens, Documentos. Tamanho máximo: 10MB por arquivo.
-                  </p>
+                  {!readOnly && (
+                    <>
+                      <Input
+                        type="file"
+                        multiple
+                        onChange={handleFileChange}
+                        className="file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 file:text-xs hover:file:bg-primary/90 file:font-medium cursor-pointer"
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Formatos suportados: PDF, Imagens, Documentos. Tamanho máximo: 10MB por
+                        arquivo.
+                      </p>
+                    </>
+                  )}
 
                   {attachments.length > 0 && (
-                    <ul className="mt-4 space-y-2">
+                    <ul className={readOnly ? '' : 'mt-4 space-y-2'}>
                       {attachments.map((att, i) => {
                         const isFile = att instanceof File
                         const name = isFile ? att.name : att
                         return (
                           <li
                             key={i}
-                            className="flex items-center justify-between bg-background px-3 py-2 rounded-md border shadow-sm text-sm"
+                            className="flex items-center justify-between bg-background px-3 py-2 rounded-md border shadow-sm text-sm mb-2"
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
                               <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -634,14 +658,16 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                                 </span>
                               )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 ml-2"
-                              onClick={() => handleRemoveAttachment(i)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                            {!readOnly && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 ml-2"
+                                onClick={() => handleRemoveAttachment(i)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
                           </li>
                         )
                       })}
@@ -662,6 +688,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                   value={observations}
                   onChange={(e) => setObservations(e.target.value)}
                   className="min-h-[100px]"
+                  disabled={readOnly}
                 />
               </div>
             </div>
@@ -672,15 +699,17 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
           <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between w-full gap-3 sm:gap-0">
             {isPreview ? (
               <>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsPreview(false)}
-                  disabled={isSaving}
-                  className="w-full sm:w-auto"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Edição
-                </Button>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                {!readOnly && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsPreview(false)}
+                    disabled={isSaving}
+                    className="w-full sm:w-auto"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Edição
+                  </Button>
+                )}
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto ml-auto">
                   <Button
                     variant="outline"
                     onClick={handleExport}
@@ -689,7 +718,7 @@ export function QuoteGeneratorModal({ children, initialData, onSave }: QuoteGene
                   >
                     <FileDown className="w-4 h-4 mr-2" /> Exportar PDF
                   </Button>
-                  {canEditQuote && (
+                  {canEditQuote && !readOnly && (
                     <Button
                       onClick={handleFinalize}
                       disabled={isSaving}

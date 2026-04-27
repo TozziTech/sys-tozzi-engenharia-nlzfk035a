@@ -24,9 +24,12 @@ import {
 } from '@/components/ui/sheet'
 import { ContractStatusBadge } from './ContractStatusBadge'
 import { ContractPreview } from './ContractPreview'
+import { usePermissions } from '@/hooks/use-permissions'
 
 export function HistoryTab({ onEditDraft }: { onEditDraft: (c: GeneratedContract) => void }) {
   const { user } = useAuth()
+  const { canWrite } = usePermissions()
+  const canEdit = canWrite('contratos')
   const [contracts, setContracts] = useState<GeneratedContract[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedContract, setSelectedContract] = useState<GeneratedContract | null>(null)
@@ -106,7 +109,7 @@ export function HistoryTab({ onEditDraft }: { onEditDraft: (c: GeneratedContract
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      {c.status === 'Rascunho' && (
+                      {c.status === 'Rascunho' && canEdit && (
                         <Button
                           variant="ghost"
                           size="icon"

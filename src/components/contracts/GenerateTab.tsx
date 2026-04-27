@@ -42,6 +42,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { ContractPreview } from './ContractPreview'
 import { RichTextEditor } from '@/components/RichTextEditor'
 import { Label } from '@/components/ui/label'
+import { usePermissions } from '@/hooks/use-permissions'
 
 const formSchema = z.object({
   templateId: z.string().min(1, 'Selecione um modelo'),
@@ -59,6 +60,8 @@ const formSchema = z.object({
 })
 
 export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) {
+  const { canWrite } = usePermissions()
+  const canEdit = canWrite('contratos')
   const [templates, setTemplates] = useState<ContractTemplate[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
@@ -203,6 +206,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
   })
 
   const handleAction = async (isSend: boolean) => {
+    if (!canEdit) return
     if (!(await form.trigger()) || !selectedTemplate) return
     if (isSend && !values.clientEmail)
       return form.setError('clientEmail', { type: 'manual', message: 'Obrigatório para envio' })
@@ -251,7 +255,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Modelo</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!canEdit}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -283,6 +287,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                               <Button
                                 variant="outline"
                                 role="combobox"
+                                disabled={!canEdit}
                                 aria-expanded={clientSearchOpen}
                                 className={cn(
                                   'w-full justify-between font-normal pr-12',
@@ -361,7 +366,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        {field.value && (
+                        {field.value && canEdit && (
                           <Button
                             type="button"
                             variant="ghost"
@@ -391,7 +396,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                     <FormItem className="flex flex-col justify-end">
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} disabled={!canEdit} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -406,7 +411,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                     <FormItem>
                       <FormLabel>CPF / CNPJ</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} disabled={!canEdit} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -419,7 +424,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                     <FormItem>
                       <FormLabel>Endereço</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} disabled={!canEdit} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -434,7 +439,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                     <FormItem>
                       <FormLabel>Valor (R$)</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} disabled={!canEdit} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -447,7 +452,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                     <FormItem>
                       <FormLabel>Prazo (dias)</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} disabled={!canEdit} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -462,7 +467,11 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                     name="isCustomEmail"
                     render={({ field }) => (
                       <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={!canEdit}
+                        />
                       </FormControl>
                     )}
                   />
@@ -476,7 +485,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                         <FormItem>
                           <FormLabel>Assunto</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input {...field} disabled={!canEdit} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -488,7 +497,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                         <FormItem>
                           <FormLabel>Mensagem</FormLabel>
                           <FormControl>
-                            <Textarea {...field} />
+                            <Textarea {...field} disabled={!canEdit} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -496,22 +505,24 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                   </div>
                 )}
               </div>
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => handleAction(false)}
-                  disabled={isProcessing}
-                >
-                  <Save className="h-4 w-4 mr-2" /> Salvar Rascunho
-                </Button>
-                <Button
-                  onClick={() => handleAction(true)}
-                  disabled={isProcessing}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <PenTool className="h-4 w-4 mr-2" /> Enviar para Assinatura
-                </Button>
-              </div>
+              {canEdit && (
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleAction(false)}
+                    disabled={isProcessing}
+                  >
+                    <Save className="h-4 w-4 mr-2" /> Salvar Rascunho
+                  </Button>
+                  <Button
+                    onClick={() => handleAction(true)}
+                    disabled={isProcessing}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <PenTool className="h-4 w-4 mr-2" /> Enviar para Assinatura
+                  </Button>
+                </div>
+              )}
             </form>
           </Form>
         </CardContent>
@@ -528,6 +539,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
             <Switch
               id="custom-content"
               checked={values.isCustomContent}
+              disabled={!canEdit}
               onCheckedChange={(c) => {
                 form.setValue('isCustomContent', c)
                 if (c) {
@@ -544,6 +556,7 @@ export function GenerateTab({ editingContract, onClearEdit, onTabChange }: any) 
                 className="h-full bg-white text-black ring-1 ring-black/5"
                 value={values.customContent || ''}
                 onChange={(val) => form.setValue('customContent', val)}
+                readOnly={!canEdit}
               />
             </div>
           ) : (

@@ -481,45 +481,55 @@ export default function Quotes() {
                       >
                         <FileDown className="h-4 w-4" />
                       </Button>
+                      <QuoteGeneratorModal
+                        initialData={quote}
+                        onSave={handleSave}
+                        readOnly={!canWriteQuotes}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title={canWriteQuotes ? 'Editar' : 'Visualizar'}
+                        >
+                          {canWriteQuotes ? (
+                            <Pencil className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-blue-600" />
+                          )}
+                        </Button>
+                      </QuoteGeneratorModal>
                       {canWriteQuotes && (
-                        <>
-                          <QuoteGeneratorModal initialData={quote} onSave={handleSave}>
-                            <Button variant="ghost" size="icon" title="Editar">
-                              <Pencil className="h-4 w-4" />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Excluir"
+                              className="text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                          </QuoteGeneratorModal>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Excluir"
-                                className="text-destructive hover:bg-destructive/10"
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir Proposta</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir a proposta para{' '}
+                                <strong>{quote.clientName}</strong>? Esta ação não pode ser
+                                desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(quote.id!)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Proposta</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir a proposta para{' '}
-                                  <strong>{quote.clientName}</strong>? Esta ação não pode ser
-                                  desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(quote.id!)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </div>
                   </TableCell>

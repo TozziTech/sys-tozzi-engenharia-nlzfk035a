@@ -40,6 +40,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { RichTextEditor } from '@/components/RichTextEditor'
+import { usePermissions } from '@/hooks/use-permissions'
 
 const templateSchema = z.object({
   name: z.string().min(3, 'Mínimo 3 caracteres.'),
@@ -49,6 +50,8 @@ const templateSchema = z.object({
 })
 
 export function TemplatesTab() {
+  const { canWrite } = usePermissions()
+  const canEdit = canWrite('contratos')
   const [templates, setTemplates] = useState<ContractTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
@@ -92,6 +95,7 @@ export function TemplatesTab() {
   }
 
   const onSubmit = async (values: z.infer<typeof templateSchema>) => {
+    if (!canEdit) return
     try {
       if (editingId) await updateContractTemplate(editingId, values)
       else await createContractTemplate(values)
@@ -103,6 +107,7 @@ export function TemplatesTab() {
   }
 
   const handleDelete = async (id: string) => {
+    if (!canEdit) return
     if (confirm('Deseja excluir este modelo?')) {
       try {
         await deleteContractTemplate(id)
@@ -116,62 +121,32 @@ export function TemplatesTab() {
   return (
     <div className="flex flex-col h-full space-y-4">
       <div className="flex justify-end">
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpen()} className="gap-2">
-              <Plus className="h-4 w-4" /> Novo Modelo
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[800px]">
-            <DialogHeader>
-              <DialogTitle>{editingId ? 'Editar Modelo' : 'Novo Modelo'}</DialogTitle>
-              <DialogDescription>
-                Use variáveis: {'{{cliente}}'}, {'{{endereco}}'}, {'{{documento}}'}, {'{{valor}}'},{' '}
-                {'{{prazo}}'}.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4 mt-2 max-h-[75vh] overflow-y-auto px-1 flex flex-col"
-              >
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="content"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col flex-1">
-                      <FormLabel>Corpo do Contrato</FormLabel>
-                      <FormControl>
-                        <RichTextEditor
-                          value={field.value}
-                          onChange={field.onChange}
-                          className="min-h-[300px] h-[300px]"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="space-y-4 pt-4 border-t">
+        {canEdit && (
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => handleOpen()} className="gap-2">
+                <Plus className="h-4 w-4" /> Novo Modelo
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[800px]">
+              <DialogHeader>
+                <DialogTitle>{editingId ? 'Editar Modelo' : 'Novo Modelo'}</DialogTitle>
+                <DialogDescription>
+                  Use variáveis: {'{{cliente}}'}, {'{{endereco}}'}, {'{{documento}}'}, {'{{valor}}'}
+                  , {'{{prazo}}'}.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-4 mt-2 max-h-[75vh] overflow-y-auto px-1 flex flex-col"
+                >
                   <FormField
                     control={form.control}
-                    name="email_subject"
+                    name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Assunto do E-mail</FormLabel>
+                        <FormLabel>Nome</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -181,28 +156,60 @@ export function TemplatesTab() {
                   />
                   <FormField
                     control={form.control}
-                    name="email_body"
+                    name="content"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Corpo do E-mail</FormLabel>
+                      <FormItem className="flex flex-col flex-1">
+                        <FormLabel>Corpo do Contrato</FormLabel>
                         <FormControl>
-                          <Textarea className="min-h-[100px]" {...field} />
+                          <RichTextEditor
+                            value={field.value}
+                            onChange={field.onChange}
+                            className="min-h-[300px] h-[300px]"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">Salvar</Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                  <div className="space-y-4 pt-4 border-t">
+                    <FormField
+                      control={form.control}
+                      name="email_subject"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assunto do E-mail</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email_body"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Corpo do E-mail</FormLabel>
+                          <FormControl>
+                            <Textarea className="min-h-[100px]" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit">Salvar</Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="rounded-md border bg-card overflow-auto flex-1">
@@ -233,17 +240,21 @@ export function TemplatesTab() {
                   <TableCell className="font-medium">{t.name}</TableCell>
                   <TableCell>{new Date(t.updated).toLocaleDateString('pt-BR')}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleOpen(t)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(t.id)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canEdit && (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => handleOpen(t)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(t.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

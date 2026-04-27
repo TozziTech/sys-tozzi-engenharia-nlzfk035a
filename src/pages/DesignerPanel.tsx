@@ -3,31 +3,24 @@ import { Link } from 'react-router-dom'
 import {
   Search,
   Calendar as CalendarIcon,
-  Clock,
   AlertCircle,
   CheckCircle2,
   PlayCircle,
   PauseCircle,
   Loader2,
-  FolderKanban,
   CheckSquare,
   LayoutDashboard,
   XCircle,
   ChevronLeft,
   ChevronRight,
   Printer,
-  UploadCloud,
   TrendingUp,
   FileText,
-  Download,
-  Save,
-  MessageSquare,
 } from 'lucide-react'
 import {
   format,
   isAfter,
   isBefore,
-  addDays,
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
@@ -37,47 +30,24 @@ import {
   isToday,
   addMonths,
   subMonths,
-  differenceInDays,
-  startOfDay,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar } from '@/components/ui/calendar'
-import { Checkbox } from '@/components/ui/checkbox'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PrintWeeklyReport } from '@/components/PrintWeeklyReport'
-import { ProjectComments } from '@/components/ProjectComments'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { exportWeeklyDocsReportPDF } from '@/lib/exportPdf'
@@ -124,34 +94,11 @@ export default function DesignerPanel() {
   const [clients, setClients] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [hoursLog, setHoursLog] = useState({
-    startTime: '',
-    endTime: '',
-    description: '',
-    date: format(new Date(), 'yyyy-MM-dd'),
-  })
-  const [isHoursDialogOpen, setIsHoursDialogOpen] = useState(false)
-  const [selectedProjectForHours, setSelectedProjectForHours] = useState<any>(null)
-
   const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
-  const [projectStatusFilter, setProjectStatusFilter] = useState('Todos')
   const [printMode, setPrintMode] = useState<'weekly' | null>(null)
-
-  const [uploadProject, setUploadProject] = useState<any>(null)
-  const [uploadFile, setUploadFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [uploadIsUrgent, setUploadIsUrgent] = useState(false)
-  const [uploadFeedback, setUploadFeedback] = useState('')
-
-  const [docsProject, setDocsProject] = useState<any>(null)
-  const [projectDocsList, setProjectDocsList] = useState<any[]>([])
-  const [loadingDocs, setLoadingDocs] = useState(false)
-  const [feedbackEdits, setFeedbackEdits] = useState<Record<string, string>>({})
-  const [savingFeedback, setSavingFeedback] = useState<string | null>(null)
   const [exportingDocs, setExportingDocs] = useState(false)
-  const [discussionProject, setDiscussionProject] = useState<any>(null)
 
   const handleExportWeeklyDocs = async () => {
     setExportingDocs(true)
@@ -243,90 +190,6 @@ export default function DesignerPanel() {
   useRealtime('projects', loadData)
   useRealtime('clients', loadData)
 
-  const handleLogHours = async () => {
-    if (!hoursLog.date || !hoursLog.startTime || !hoursLog.endTime || !hoursLog.description) {
-      toast({
-        title: 'Erro',
-        description: 'Preencha todos os campos obrigatórios.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    const start = new Date(`2000-01-01T${hoursLog.startTime}`)
-    const end = new Date(`2000-01-01T${hoursLog.endTime}`)
-
-    if (end <= start) {
-      toast({
-        title: 'Erro',
-        description: 'Término deve ser posterior ao início.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
-
-    try {
-      if (selectedProjectForHours) {
-        await pb.collection('time_logs').create({
-          user_id: user.id,
-          project_id: selectedProjectForHours.id,
-          hours: durationHours,
-          date: hoursLog.date + ' 12:00:00.000Z',
-          description: hoursLog.description,
-        })
-      }
-
-      toast({
-        title: 'Sucesso',
-        description: `${durationHours.toFixed(1)}h registradas no projeto.`,
-      })
-      setIsHoursDialogOpen(false)
-      setHoursLog({
-        startTime: '',
-        endTime: '',
-        description: '',
-        date: format(new Date(), 'yyyy-MM-dd'),
-      })
-      setSelectedProjectForHours(null)
-    } catch (err: any) {
-      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' })
-    }
-  }
-
-  const handleQuickUpload = async () => {
-    if (!uploadProject || !uploadFile) return
-    setUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('project', uploadProject.id)
-      formData.append('name', uploadFile.name)
-      formData.append('type', 'Other')
-      formData.append('file', uploadFile)
-      formData.append('is_urgent', String(uploadIsUrgent))
-      formData.append('feedback', uploadFeedback)
-
-      await pb.collection('project_documents').create(formData)
-      toast({
-        title: 'Upload concluído',
-        description: 'Documento anexado com sucesso ao projeto.',
-      })
-      setUploadProject(null)
-      setUploadFile(null)
-      setUploadIsUrgent(false)
-      setUploadFeedback('')
-    } catch (error: any) {
-      toast({
-        title: 'Erro no upload',
-        description: error.message || 'Não foi possível enviar o arquivo.',
-        variant: 'destructive',
-      })
-    } finally {
-      setUploading(false)
-    }
-  }
-
   const weeklyProjects = useMemo(() => {
     const now = new Date()
     const start = startOfWeek(now, { weekStartsOn: 0 })
@@ -371,46 +234,6 @@ export default function DesignerPanel() {
     ]
   }, [weeklyProjects])
 
-  const loadProjectDocs = async (project: any) => {
-    setDocsProject(project)
-    setLoadingDocs(true)
-    try {
-      const docs = await pb.collection('project_documents').getFullList({
-        filter: `project = "${project.id}"`,
-        sort: '-created',
-      })
-      setProjectDocsList(docs)
-      const edits: Record<string, string> = {}
-      docs.forEach((d) => {
-        edits[d.id] = d.feedback || ''
-      })
-      setFeedbackEdits(edits)
-    } catch (err) {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar documentos',
-        variant: 'destructive',
-      })
-    } finally {
-      setLoadingDocs(false)
-    }
-  }
-
-  const handleSaveFeedback = async (docId: string) => {
-    setSavingFeedback(docId)
-    try {
-      await pb.collection('project_documents').update(docId, { feedback: feedbackEdits[docId] })
-      toast({ title: 'Feedback salvo com sucesso' })
-      setProjectDocsList((prev) =>
-        prev.map((d) => (d.id === docId ? { ...d, feedback: feedbackEdits[docId] } : d)),
-      )
-    } catch (err) {
-      toast({ title: 'Erro ao salvar feedback', variant: 'destructive' })
-    } finally {
-      setSavingFeedback(null)
-    }
-  }
-
   const filteredProjects = useMemo(() => {
     const s = search.toLowerCase()
     const matchedClients = clients
@@ -426,18 +249,9 @@ export default function DesignerPanel() {
         (p.client || '').toLowerCase().includes(s) ||
         matchedClients.includes(p.client)
 
-      let matchStatus = true
-      if (projectStatusFilter === 'Pendentes') {
-        matchStatus = p.status === 'Planejamento' || p.status === 'Pendente'
-      } else if (projectStatusFilter === 'Em Andamento') {
-        matchStatus = p.status === 'Em Andamento' || p.status === 'Em Execução'
-      } else if (projectStatusFilter === 'Concluídos') {
-        matchStatus = p.status === 'Concluído'
-      }
-
-      return matchSearch && matchStatus
+      return matchSearch
     })
-  }, [myProjects, search, clients, projectStatusFilter])
+  }, [myProjects, search, clients])
 
   const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(calendarMonth), { weekStartsOn: 0 })
@@ -616,169 +430,7 @@ export default function DesignerPanel() {
               </CardContent>
             </Card>
 
-            <Card className="border-zinc-800/50 bg-zinc-950/50">
-              <CardHeader className="pb-3 border-b border-zinc-800/50">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FolderKanban className="h-5 w-5 text-indigo-400" />
-                  Projetos Ativos
-                </CardTitle>
-                <CardDescription>Acompanhamento dos projetos que você faz parte</CardDescription>
-              </CardHeader>
-              <CardContent className="py-4 space-y-4">
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {['Todos', 'Pendentes', 'Em Andamento', 'Concluídos'].map((f) => (
-                    <Button
-                      key={f}
-                      variant={projectStatusFilter === f ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setProjectStatusFilter(f)}
-                      className={cn(
-                        'rounded-full text-xs h-7',
-                        projectStatusFilter === f
-                          ? 'bg-amber-500 text-amber-950 hover:bg-amber-600 border-transparent'
-                          : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800',
-                      )}
-                    >
-                      {f}
-                    </Button>
-                  ))}
-                </div>
-                {filteredProjects.length === 0 && (
-                  <p className="text-sm text-zinc-500 text-center py-4">
-                    Nenhum projeto vinculado a você com este filtro.
-                  </p>
-                )}
-                {filteredProjects.map((project) => {
-                  const critical =
-                    project.status !== 'Concluído' &&
-                    project.end_date &&
-                    differenceInDays(
-                      startOfDay(new Date(project.end_date)),
-                      startOfDay(new Date()),
-                    ) >= 0 &&
-                    differenceInDays(
-                      startOfDay(new Date(project.end_date)),
-                      startOfDay(new Date()),
-                    ) <= 3
-                  const diffDays = project.end_date
-                    ? differenceInDays(
-                        startOfDay(new Date(project.end_date)),
-                        startOfDay(new Date()),
-                      )
-                    : 0
-
-                  return (
-                    <div
-                      key={project.id}
-                      className={cn(
-                        'p-4 rounded-lg bg-zinc-900 border',
-                        critical ? 'border-rose-500/50 bg-rose-500/5' : 'border-zinc-800',
-                      )}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="font-medium text-zinc-100 flex items-center gap-2">
-                          {project.name}
-                          {critical && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-rose-500/10 text-rose-500 border-rose-500/20 px-1.5 py-0 h-5 cursor-help"
-                                  >
-                                    <AlertCircle className="w-3 h-3 mr-1" />
-                                    Vence em breve
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Faltam {diffDays} dia(s) para a entrega</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'whitespace-nowrap font-medium',
-                            getStatusColor(project.status),
-                          )}
-                        >
-                          {getStatusIcon(project.status)}
-                          {project.status}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between text-xs text-zinc-400 mb-1">
-                        <span>Progresso Geral</span>
-                        <span>{project.progress || 0}%</span>
-                      </div>
-                      <Progress value={project.progress || 0} className="h-1.5 mb-3" />
-
-                      <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between flex-wrap gap-2">
-                        {hasFinanceAccess && project.budget > 0 ? (
-                          <div className="space-y-1 flex-1 mr-4 min-w-[120px]">
-                            <div className="flex justify-between text-xs text-zinc-400 font-medium">
-                              <span>Orçamento: R$ {project.budget?.toLocaleString('pt-BR')}</span>
-                              <span>Gasto: R$ {project.spent?.toLocaleString('pt-BR')}</span>
-                            </div>
-                            <Progress
-                              value={Math.min(100, ((project.spent || 0) / project.budget) * 100)}
-                              className="h-1.5 [&>div]:bg-amber-500 bg-zinc-800"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex-1" />
-                        )}
-
-                        <div className="flex gap-2 flex-wrap">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
-                            onClick={() => {
-                              setSelectedProjectForHours(project)
-                              setIsHoursDialogOpen(true)
-                            }}
-                          >
-                            <Clock className="w-3.5 h-3.5 mr-1.5 text-amber-500" />
-                            Lançar Horas
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
-                            onClick={() => setDiscussionProject(project)}
-                          >
-                            <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
-                            Discussão
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
-                            onClick={() => loadProjectDocs(project)}
-                          >
-                            <FileText className="w-3.5 h-3.5 mr-1.5" />
-                            Docs
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs border-zinc-700 bg-zinc-900 hover:bg-zinc-800"
-                            onClick={() => setUploadProject(project)}
-                          >
-                            <UploadCloud className="w-3.5 h-3.5 mr-1.5" />
-                            Upload
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
-
-            <Card className="border-zinc-800/50 bg-zinc-950/50">
+            <Card className="border-zinc-800/50 bg-zinc-950/50 md:col-span-2">
               <CardHeader className="pb-3 border-b border-zinc-800/50">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CheckSquare className="h-5 w-5 text-emerald-400" />
@@ -790,32 +442,34 @@ export default function DesignerPanel() {
                 {tasks.length === 0 && (
                   <p className="text-sm text-zinc-500 text-center py-4">Nenhuma tarefa pendente.</p>
                 )}
-                {tasks.slice(0, 10).map((task) => {
-                  const isLate = task.due_date && new Date(task.due_date) < new Date()
-                  return (
-                    <div
-                      key={task.id}
-                      className="flex flex-col p-3 rounded-lg bg-zinc-900 border border-zinc-800 gap-1.5"
-                    >
-                      <div className="flex justify-between items-start">
-                        <span className="font-medium text-sm text-zinc-200">{task.title}</span>
-                        <Badge variant="secondary" className="text-[10px]">
-                          {task.status}
-                        </Badge>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {tasks.slice(0, 10).map((task) => {
+                    const isLate = task.due_date && new Date(task.due_date) < new Date()
+                    return (
+                      <div
+                        key={task.id}
+                        className="flex flex-col p-3 rounded-lg bg-zinc-900 border border-zinc-800 gap-1.5"
+                      >
+                        <div className="flex justify-between items-start">
+                          <span className="font-medium text-sm text-zinc-200">{task.title}</span>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {task.status}
+                          </Badge>
+                        </div>
+                        <div className="flex justify-between text-xs text-zinc-500">
+                          <span className="truncate max-w-[150px]">
+                            {task.expand?.project?.name || 'Sem projeto'}
+                          </span>
+                          <span className={isLate ? 'text-rose-400 font-medium' : 'text-zinc-400'}>
+                            {task.due_date
+                              ? format(new Date(task.due_date), 'dd/MM/yyyy')
+                              : 'Sem prazo'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-between text-xs text-zinc-500">
-                        <span className="truncate max-w-[150px]">
-                          {task.expand?.project?.name || 'Sem projeto'}
-                        </span>
-                        <span className={isLate ? 'text-rose-400 font-medium' : 'text-zinc-400'}>
-                          {task.due_date
-                            ? format(new Date(task.due_date), 'dd/MM/yyyy')
-                            : 'Sem prazo'}
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -1016,229 +670,11 @@ export default function DesignerPanel() {
         )}
       </Tabs>
 
-      <Dialog open={isHoursDialogOpen} onOpenChange={setIsHoursDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Registrar Horas Trabalhadas</DialogTitle>
-            <DialogDescription>Insira o tempo dedicado a este projeto.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-5 py-4">
-            <div className="space-y-2">
-              <Label>Projeto</Label>
-              <Input
-                value={selectedProjectForHours?.name || ''}
-                readOnly
-                disabled
-                className="bg-zinc-900 font-medium"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="date">Data da Atividade *</Label>
-              <Input
-                id="date"
-                type="date"
-                value={hoursLog.date}
-                onChange={(e) => setHoursLog({ ...hoursLog, date: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startTime">Hora de Início *</Label>
-                <Input
-                  id="startTime"
-                  type="time"
-                  value={hoursLog.startTime}
-                  onChange={(e) => setHoursLog({ ...hoursLog, startTime: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endTime">Hora de Término *</Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={hoursLog.endTime}
-                  onChange={(e) => setHoursLog({ ...hoursLog, endTime: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição da Atividade *</Label>
-              <Textarea
-                id="description"
-                placeholder="Resumo do trabalho..."
-                className="resize-none h-24"
-                value={hoursLog.description}
-                onChange={(e) => setHoursLog({ ...hoursLog, description: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsHoursDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleLogHours}>Salvar Registro</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!uploadProject} onOpenChange={(o) => !o && setUploadProject(null)}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Upload Rápido de Documento</DialogTitle>
-            <DialogDescription>
-              Anexe fotos ou arquivos de campo diretamente ao projeto{' '}
-              <strong>{uploadProject?.name}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Arquivo (JPG, PNG, PDF)</Label>
-              <Input
-                type="file"
-                accept=".jpg,.jpeg,.png,.pdf"
-                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                disabled={uploading}
-              />
-            </div>
-            <div className="flex items-center space-x-2 pt-2">
-              <Checkbox
-                id="urgent-upload"
-                checked={uploadIsUrgent}
-                onCheckedChange={(c) => setUploadIsUrgent(!!c)}
-              />
-              <Label htmlFor="urgent-upload" className="text-rose-500 font-bold cursor-pointer">
-                Marcar como Urgente
-              </Label>
-            </div>
-            <div className="space-y-2 pt-2">
-              <Label>Comentários / Feedback Inicial</Label>
-              <Textarea
-                placeholder="Instruções ou observações sobre o arquivo..."
-                className="h-20 resize-none bg-zinc-950"
-                value={uploadFeedback}
-                onChange={(e) => setUploadFeedback(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setUploadProject(null)} disabled={uploading}>
-              Cancelar
-            </Button>
-            <Button onClick={handleQuickUpload} disabled={!uploadFile || uploading}>
-              {uploading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <UploadCloud className="w-4 h-4 mr-2" />
-              )}
-              {uploading ? 'Enviando...' : 'Enviar Documento'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!docsProject} onOpenChange={(o) => !o && setDocsProject(null)}>
-        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Documentos: {docsProject?.name}</DialogTitle>
-            <DialogDescription>
-              Visualize e gerencie os documentos e feedbacks deste projeto.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden min-h-0 py-2">
-            {loadingDocs ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
-              </div>
-            ) : projectDocsList.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-8">Nenhum documento encontrado.</p>
-            ) : (
-              <ScrollArea className="h-[500px] pr-4">
-                <div className="space-y-4">
-                  {projectDocsList.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className={cn(
-                        'p-3 bg-zinc-950 border rounded-lg space-y-3',
-                        doc.is_urgent ? 'border-rose-500/50' : 'border-zinc-800',
-                      )}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="font-medium text-zinc-200 text-sm truncate max-w-[300px]">
-                          {doc.name}
-                        </div>
-                        <div className="flex gap-2 items-center shrink-0">
-                          {doc.is_urgent && (
-                            <Badge
-                              variant="destructive"
-                              className="bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500/20 text-[10px] py-0 h-5"
-                            >
-                              <AlertCircle className="w-3 h-3 mr-1" />
-                              ⚠️ URGENTE
-                            </Badge>
-                          )}
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" asChild>
-                            <a
-                              href={pb.files.getURL(doc, doc.file)}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                            </a>
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-zinc-400">Feedback / Comentários</Label>
-                        <Textarea
-                          className="text-sm min-h-[60px] resize-none bg-zinc-900 border-zinc-800"
-                          value={feedbackEdits[doc.id] ?? ''}
-                          onChange={(e) =>
-                            setFeedbackEdits((prev) => ({ ...prev, [doc.id]: e.target.value }))
-                          }
-                          readOnly={user?.role === 'Projetista' || user?.role === 'Estagiário'}
-                        />
-                        {(user?.role === 'Administrador' ||
-                          user?.role === 'Gerente de Projeto') && (
-                          <div className="flex justify-end mt-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="h-7 text-xs bg-zinc-800 hover:bg-zinc-700"
-                              disabled={
-                                savingFeedback === doc.id ||
-                                feedbackEdits[doc.id] === (doc.feedback || '')
-                              }
-                              onClick={() => handleSaveFeedback(doc.id)}
-                            >
-                              {savingFeedback === doc.id ? (
-                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                              ) : (
-                                <Save className="w-3 h-3 mr-1" />
-                              )}
-                              Salvar Feedback
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!discussionProject} onOpenChange={(o) => !o && setDiscussionProject(null)}>
-        <DialogContent className="sm:max-w-[700px] p-0 border-0 bg-transparent shadow-none">
-          <DialogTitle className="sr-only">Discussão do Projeto</DialogTitle>
-          {discussionProject && (
-            <ProjectComments projectId={discussionProject.id} projectType="projects" />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <PrintWeeklyReport projects={myProjects} userName={user?.name || ''} printMode={printMode} />
+      <PrintWeeklyReport
+        projects={filteredProjects}
+        userName={user?.name || ''}
+        printMode={printMode}
+      />
     </div>
   )
 }

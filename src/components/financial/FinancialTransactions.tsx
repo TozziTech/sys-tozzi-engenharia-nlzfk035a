@@ -24,6 +24,7 @@ import {
 import useProjectStore from '@/stores/useProjectStore'
 import { useFinancialCategories } from '@/hooks/use-financial-categories'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 import pb from '@/lib/pocketbase/client'
 import { exportFinancialCSV } from '@/lib/export'
 import { exportFinancialPDF } from '@/lib/exportPdf'

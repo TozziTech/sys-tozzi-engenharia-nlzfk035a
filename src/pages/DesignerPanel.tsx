@@ -505,7 +505,7 @@ export default function DesignerPanel() {
                 </p>
               </div>
             ) : (
-              <>
+              <div className="w-full">
                 <div className="hidden md:block rounded-xl border border-zinc-800 overflow-hidden bg-zinc-950/50">
                   <div className="grid grid-cols-7 bg-zinc-900/80 border-b border-zinc-800">
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
@@ -653,7 +653,7 @@ export default function DesignerPanel() {
                     )}
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )

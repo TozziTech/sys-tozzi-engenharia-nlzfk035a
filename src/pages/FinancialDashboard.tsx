@@ -81,6 +81,26 @@ export default function FinancialDashboard() {
     )
   }
 
+  const filteredFinancials = useMemo(() => {
+    const now = new Date()
+    return financials.filter((f) => {
+      if (projectFilter !== 'all' && f.project_id !== projectFilter) return false
+
+      if (period === 'all') return true
+      const date = new Date(f.date || f.created)
+      if (period === 'weekly')
+        return isWithinInterval(date, {
+          start: startOfWeek(now, { weekStartsOn: 1 }),
+          end: endOfWeek(now, { weekStartsOn: 1 }),
+        })
+      if (period === 'monthly')
+        return isWithinInterval(date, { start: startOfMonth(now), end: endOfMonth(now) })
+      if (period === 'quarterly')
+        return isWithinInterval(date, { start: startOfQuarter(now), end: endOfQuarter(now) })
+      return true
+    })
+  }, [financials, period, projectFilter])
+
   const comparisonData = useMemo(() => {
     return comparisonSelectedProjects.map((projectId) => {
       const p = projects.find((proj) => proj.id === projectId)
@@ -110,26 +130,6 @@ export default function FinancialDashboard() {
       }
     })
   }, [comparisonSelectedProjects, projects, filteredFinancials])
-
-  const filteredFinancials = useMemo(() => {
-    const now = new Date()
-    return financials.filter((f) => {
-      if (projectFilter !== 'all' && f.project_id !== projectFilter) return false
-
-      if (period === 'all') return true
-      const date = new Date(f.date || f.created)
-      if (period === 'weekly')
-        return isWithinInterval(date, {
-          start: startOfWeek(now, { weekStartsOn: 1 }),
-          end: endOfWeek(now, { weekStartsOn: 1 }),
-        })
-      if (period === 'monthly')
-        return isWithinInterval(date, { start: startOfMonth(now), end: endOfMonth(now) })
-      if (period === 'quarterly')
-        return isWithinInterval(date, { start: startOfQuarter(now), end: endOfQuarter(now) })
-      return true
-    })
-  }, [financials, period, projectFilter])
 
   const loadData = async () => {
     try {

@@ -88,8 +88,8 @@ function HomeRoute() {
 
 const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
-    <ThemeColorInjector />
     <AuthProvider>
+      <ThemeColorInjector />
       <ProjectProvider>
         <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
           <TooltipProvider>

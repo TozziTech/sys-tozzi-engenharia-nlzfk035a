@@ -14,16 +14,10 @@ export function useRealtime(
   callback: (data: RecordSubscription<any>) => void,
   enabled: boolean = true,
 ) {
-  let loading = false
-  let userId: string | undefined = undefined
-
-  try {
-    const auth = useAuth()
-    loading = auth.loading
-    userId = auth.user?.id
-  } catch (e) {
-    // Fallback if used outside AuthProvider
-  }
+  // Call useAuth unconditionally to follow React rules of hooks.
+  const auth = useAuth()
+  const loading = auth?.loading ?? false
+  const userId = auth?.user?.id
 
   const callbackRef = useRef(callback)
   callbackRef.current = callback

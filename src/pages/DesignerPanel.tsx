@@ -220,9 +220,9 @@ export default function DesignerPanel() {
   useEffect(() => {
     loadData()
   }, [user])
-  useRealtime('projects', loadData)
-  useRealtime('clients', loadData)
-  useRealtime('tasks', loadData)
+  useRealtime('projects', loadData, !!user?.id)
+  useRealtime('clients', loadData, !!user?.id)
+  useRealtime('tasks', loadData, !!user?.id)
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id)

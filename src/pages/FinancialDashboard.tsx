@@ -40,7 +40,15 @@ import {
   Tooltip as RechartsTooltip,
   Legend,
 } from 'recharts'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@/components/ui/chart'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Input } from '@/components/ui/input'
@@ -65,6 +73,43 @@ export default function FinancialDashboard() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<string>('monthly')
   const [projectFilter, setProjectFilter] = useState<string>('all')
+  const [comparisonSelectedProjects, setComparisonSelectedProjects] = useState<string[]>([])
+
+  const toggleComparisonProject = (id: string) => {
+    setComparisonSelectedProjects((prev) =>
+      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id],
+    )
+  }
+
+  const comparisonData = useMemo(() => {
+    return comparisonSelectedProjects.map((projectId) => {
+      const p = projects.find((proj) => proj.id === projectId)
+      let actualSpent = 0
+      let actualRevenue = 0
+
+      filteredFinancials.forEach((f) => {
+        if (f.project_id === projectId) {
+          const isExpense =
+            f.type?.toLowerCase().includes('saída') ||
+            f.type?.toLowerCase().includes('despesa') ||
+            f.amount < 0
+          if (isExpense) {
+            actualSpent += Math.abs(f.amount)
+          } else {
+            actualRevenue += f.amount
+          }
+        }
+      })
+
+      return {
+        id: projectId,
+        name: p?.name || 'Desconhecido',
+        Orçamento: p?.budget || 0,
+        Custo: actualSpent,
+        Receita: actualRevenue,
+      }
+    })
+  }, [comparisonSelectedProjects, projects, filteredFinancials])
 
   const filteredFinancials = useMemo(() => {
     const now = new Date()
@@ -706,60 +751,70 @@ export default function FinancialDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
+          <Card className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 backdrop-blur-md text-zinc-100 shadow-xl">
             <CardHeader>
               <CardTitle>Comparação de Projetos</CardTitle>
-              <CardDescription>Comparativo de Receita Realizada vs Custo Realizado</CardDescription>
+              <CardDescription className="text-zinc-400">
+                Selecione múltiplos projetos para comparar Orçamento vs Custo e Receita.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {projectPerformance.length === 0 ? (
-                <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                  Nenhum projeto com movimentação financeira no período.
-                </div>
-              ) : (
+              <div className="flex flex-wrap gap-4 mb-6 p-4 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
+                {projects
+                  .filter((p) => p.status !== 'Concluído')
+                  .map((p) => (
+                    <div key={p.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`comp-${p.id}`}
+                        checked={comparisonSelectedProjects.includes(p.id)}
+                        onCheckedChange={() => toggleComparisonProject(p.id)}
+                      />
+                      <Label
+                        htmlFor={`comp-${p.id}`}
+                        className="cursor-pointer font-medium text-zinc-200"
+                      >
+                        {p.name}
+                      </Label>
+                    </div>
+                  ))}
+              </div>
+
+              {comparisonSelectedProjects.length > 0 ? (
                 <ChartContainer
                   config={{
-                    income: { label: 'Receita Realizada', color: 'hsl(var(--chart-2))' },
-                    expense: { label: 'Custo Realizado', color: 'hsl(var(--destructive))' },
+                    Orçamento: { label: 'Orçamento', color: 'hsl(var(--chart-1))' },
+                    Receita: { label: 'Receita', color: 'hsl(var(--chart-2))' },
+                    Custo: { label: 'Custo', color: 'hsl(var(--destructive))' },
                   }}
-                  className="h-[400px] w-full"
+                  className="h-[350px] w-full"
                 >
                   <BarChart
-                    data={projectPerformance}
-                    layout="vertical"
-                    margin={{ top: 10, right: 30, left: 50, bottom: 20 }}
+                    data={comparisonData}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
                   >
-                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                    <XAxis
-                      type="number"
-                      tickFormatter={(v) => `R$ ${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`}
-                      axisLine={false}
-                      tickLine={false}
-                    />
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#52525b" />
+                    <XAxis dataKey="name" tickLine={false} axisLine={false} stroke="#a1a1aa" />
                     <YAxis
-                      type="category"
-                      dataKey="name"
+                      tickFormatter={(val) =>
+                        `R$${val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val}`
+                      }
                       tickLine={false}
                       axisLine={false}
-                      width={150}
+                      stroke="#a1a1aa"
                     />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar
-                      dataKey="income"
-                      fill="var(--color-income)"
-                      radius={[0, 4, 4, 0]}
-                      barSize={20}
-                    />
-                    <Bar
-                      dataKey="expense"
-                      fill="var(--color-expense)"
-                      radius={[0, 4, 4, 0]}
-                      barSize={20}
-                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar dataKey="Orçamento" fill="var(--color-Orçamento)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Receita" fill="var(--color-Receita)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Custo" fill="var(--color-Custo)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ChartContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-sm text-zinc-400 border border-dashed border-zinc-700 rounded-md bg-zinc-800/20">
+                  Selecione um ou mais projetos acima para visualizar a comparação.
+                </div>
               )}
-            </CardContent>{' '}
+            </CardContent>
           </Card>
         </TabsContent>
 

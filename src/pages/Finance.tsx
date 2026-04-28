@@ -11,9 +11,7 @@ import {
 import { usePermissions } from '@/hooks/use-permissions'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -31,8 +29,6 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
   ChartConfig,
 } from '@/components/ui/chart'
 
@@ -171,33 +167,6 @@ export default function Finance() {
     })
     return config
   }, [categories])
-
-  const [comparisonSelectedProjects, setComparisonSelectedProjects] = useState<string[]>([])
-
-  const comparisonData = useMemo(() => {
-    return comparisonSelectedProjects.map((projectId) => {
-      const p = projects.find((proj) => proj.id === projectId)
-      const pTxs = transactions.filter((tx) => tx.projectId === projectId)
-      let inFlow = 0
-      let outFlow = 0
-      pTxs.forEach((tx) => {
-        if (tx.type === 'Entrada') inFlow += tx.value
-        else outFlow += tx.value
-      })
-      return {
-        name: p?.name || 'Desconhecido',
-        Entradas: inFlow,
-        Saídas: outFlow,
-        Lucro: inFlow - outFlow,
-      }
-    })
-  }, [comparisonSelectedProjects, projects, transactions])
-
-  const toggleComparisonProject = (id: string) => {
-    setComparisonSelectedProjects((prev) =>
-      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id],
-    )
-  }
 
   const clearFilters = () => {
     setSelectedProject('all')
@@ -343,61 +312,6 @@ export default function Finance() {
           <FilterX className="h-4 w-4 mr-2" /> Limpar
         </Button>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Comparação de Projetos</CardTitle>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Selecione múltiplos projetos para comparar suas métricas financeiras lado a lado.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4 mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800">
-            {projects.map((p) => (
-              <div key={p.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`comp-${p.id}`}
-                  checked={comparisonSelectedProjects.includes(p.id)}
-                  onCheckedChange={() => toggleComparisonProject(p.id)}
-                />
-                <Label htmlFor={`comp-${p.id}`} className="cursor-pointer font-medium">
-                  {p.name}
-                </Label>
-              </div>
-            ))}
-          </div>
-
-          {comparisonSelectedProjects.length > 0 ? (
-            <ChartContainer
-              config={{
-                Entradas: { label: 'Entradas', color: 'hsl(var(--chart-1))' },
-                Saídas: { label: 'Saídas', color: 'hsl(var(--chart-2))' },
-                Lucro: { label: 'Lucro', color: 'hsl(var(--chart-3))' },
-              }}
-              className="h-[350px] w-full"
-            >
-              <BarChart data={comparisonData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                <YAxis
-                  tickFormatter={(val) => `R$${val / 1000}k`}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar dataKey="Entradas" fill="var(--color-Entradas)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Saídas" fill="var(--color-Saídas)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Lucro" fill="var(--color-Lucro)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
-          ) : (
-            <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md bg-slate-50/50 dark:bg-slate-900/20">
-              Selecione um ou mais projetos acima para visualizar a comparação.
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   )
 }

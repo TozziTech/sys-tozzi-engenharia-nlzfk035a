@@ -96,12 +96,6 @@ const getNavigationGroups = () => [
         icon: LineChart,
       },
       { name: 'Lançamentos', id: 'lancamentos_financeiros', href: '/financial', icon: DollarSign },
-      {
-        name: 'Planilha Financeira',
-        id: 'planilha_financeira',
-        href: '/financeiro',
-        icon: FileSpreadsheet,
-      },
       { name: 'Orçamentos', id: 'orcamentos', href: '/quotes', icon: FileText },
       {
         name: 'Contratos',

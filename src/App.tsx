@@ -38,7 +38,6 @@ import TeamNew from './pages/TeamNew'
 import TeamEdit from './pages/TeamEdit'
 import Activities from './pages/Activities'
 import PendingReport from './pages/PendingReport'
-import Finance from './pages/Finance'
 import Quotes from './pages/Quotes'
 import ContractGenerator from './pages/ContractGenerator'
 import GestaoCentral from './pages/GestaoCentral'
@@ -162,7 +161,10 @@ const App = () => (
                     <Route path="/deadline-audit" element={<DeadlineAudit />} />
                     <Route path="/management/bank-accounts" element={<BankAccounts />} />
                     <Route path="/financial" element={<Financial />} />
-                    <Route path="/financeiro" element={<Finance />} />
+                    <Route
+                      path="/financeiro"
+                      element={<Navigate to="/financial-dashboard" replace />}
+                    />
                     <Route path="/schedule" element={<Gantt />} />
                     <Route path="/gantt" element={<Gantt />} />
                     <Route path="/calendar" element={<ProjectCalendar />} />

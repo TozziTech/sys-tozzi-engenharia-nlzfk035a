@@ -18,15 +18,7 @@ import {
   format,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import {
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  Download,
-  FileText,
-  Banknote,
-  AlertTriangle,
-} from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Download, FileText, Banknote } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { exportFinancialCSV } from '@/lib/export'
@@ -36,6 +28,8 @@ import {
   BarChart,
   Area,
   AreaChart,
+  Line,
+  LineChart,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -69,10 +63,13 @@ export default function FinancialDashboard() {
   const [distributions, setDistributions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<string>('monthly')
+  const [projectFilter, setProjectFilter] = useState<string>('all')
 
   const filteredFinancials = useMemo(() => {
     const now = new Date()
     return financials.filter((f) => {
+      if (projectFilter !== 'all' && f.project_id !== projectFilter) return false
+
       if (period === 'all') return true
       const date = new Date(f.date || f.created)
       if (period === 'weekly')
@@ -86,7 +83,7 @@ export default function FinancialDashboard() {
         return isWithinInterval(date, { start: startOfQuarter(now), end: endOfQuarter(now) })
       return true
     })
-  }, [financials, period])
+  }, [financials, period, projectFilter])
 
   const loadData = async () => {
     try {
@@ -112,19 +109,6 @@ export default function FinancialDashboard() {
   useRealtime('financial_records', () => loadData())
   useRealtime('projects', () => loadData())
   useRealtime('distribution_calculations', () => loadData())
-
-  const currentMonthDistributed = useMemo(() => {
-    const now = new Date()
-    const start = startOfMonth(now)
-    const end = endOfMonth(now)
-
-    return distributions
-      .filter((d) => {
-        const date = new Date(d.date || d.created)
-        return isWithinInterval(date, { start, end })
-      })
-      .reduce((sum, d) => sum + (d.total_amount || 0), 0)
-  }, [distributions])
 
   const { totalRevenue, totalExpenses, balance } = useMemo(() => {
     let rev = 0
@@ -199,6 +183,7 @@ export default function FinancialDashboard() {
   const activeProjectsFinancials = useMemo(() => {
     return projects
       .filter((p) => p.status !== 'Concluído' && p.budget > 0)
+      .filter((p) => projectFilter === 'all' || p.id === projectFilter)
       .map((p) => ({
         id: p.id,
         name: p.name,
@@ -207,7 +192,7 @@ export default function FinancialDashboard() {
         progress: p.progress || 0,
       }))
       .sort((a, b) => b.budget - a.budget)
-  }, [projects])
+  }, [projects, projectFilter])
 
   const { totalBudget, totalSpent } = useMemo(() => {
     return activeProjectsFinancials.reduce(
@@ -219,6 +204,69 @@ export default function FinancialDashboard() {
       { totalBudget: 0, totalSpent: 0 },
     )
   }, [activeProjectsFinancials])
+
+  const projectPerformance = useMemo(() => {
+    const perf: Record<
+      string,
+      { id: string; name: string; income: number; expense: number; profit: number }
+    > = {}
+
+    projects.forEach((p) => {
+      perf[p.id] = { id: p.id, name: p.name, income: 0, expense: 0, profit: 0 }
+    })
+
+    filteredFinancials.forEach((f) => {
+      if (f.project_id && perf[f.project_id]) {
+        const isExpense =
+          f.type?.toLowerCase().includes('saída') ||
+          f.type?.toLowerCase().includes('despesa') ||
+          f.amount < 0
+        const absAmount = Math.abs(f.amount)
+        if (isExpense) {
+          perf[f.project_id].expense += absAmount
+        } else {
+          perf[f.project_id].income += absAmount
+        }
+      }
+    })
+
+    return Object.values(perf)
+      .map((p) => ({ ...p, profit: p.income - p.expense }))
+      .filter((p) => p.income > 0 || p.expense > 0 || p.profit !== 0)
+      .sort((a, b) => b.profit - a.profit)
+  }, [filteredFinancials, projects])
+
+  const expenseEvolution = useMemo(() => {
+    const grouped: Record<string, { date: string; label: string; amount: number }> = {}
+
+    filteredFinancials.forEach((f) => {
+      const isExpense =
+        f.type?.toLowerCase().includes('saída') ||
+        f.type?.toLowerCase().includes('despesa') ||
+        f.amount < 0
+
+      if (isExpense) {
+        const date = new Date(f.date || f.created)
+        let key = ''
+        let label = ''
+
+        if (period === 'weekly' || period === 'monthly') {
+          key = format(date, 'yyyy-MM-dd')
+          label = format(date, 'dd/MM')
+        } else {
+          key = format(date, 'yyyy-MM')
+          label = format(date, 'MMM yy', { locale: ptBR })
+        }
+
+        if (!grouped[key]) {
+          grouped[key] = { date: key, label, amount: 0 }
+        }
+        grouped[key].amount += Math.abs(f.amount)
+      }
+    })
+
+    return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date))
+  }, [filteredFinancials, period])
 
   const handleProgressChange = async (id: string, newProgress: string) => {
     const val = parseFloat(newProgress)
@@ -257,66 +305,82 @@ export default function FinancialDashboard() {
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 animate-fade-in">
-      <Tabs defaultValue="overview" className="w-full space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Dashboard Financeiro</h2>
-            <p className="text-muted-foreground mt-1">
-              Visão detalhada da saúde financeira, custos de projetos e receitas.
-            </p>
-          </div>
-          <TabsList className="bg-muted p-1">
-            <TabsTrigger value="overview" className="py-2 px-4">
-              Visão Geral
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="py-2 px-4">
-              Relatórios
-            </TabsTrigger>
-          </TabsList>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard Financeiro</h2>
+          <p className="text-muted-foreground mt-1">
+            Visão detalhada da saúde financeira, custos de projetos e receitas.
+          </p>
         </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto">
+          <div className="w-full sm:w-40">
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Selecione o período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="weekly">Semanal</SelectItem>
+                <SelectItem value="monthly">Mensal</SelectItem>
+                <SelectItem value="quarterly">Trimestral</SelectItem>
+                <SelectItem value="all">Todo o Período</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full sm:w-48">
+            <Select value={projectFilter} onValueChange={setProjectFilter}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Todos os Projetos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Projetos</SelectItem>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-full sm:w-auto gap-2">
+            <Button
+              variant="outline"
+              onClick={() => exportFinancialCSV(filteredFinancials, period)}
+              className="flex-1 sm:flex-none bg-background shadow-sm"
+            >
+              <Download className="mr-2 h-4 w-4" /> CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                exportFinancialPDF(
+                  filteredFinancials,
+                  { revenue: totalRevenue, expenses: totalExpenses, balance },
+                  period,
+                  user?.name || user?.email || 'Usuário',
+                )
+              }
+              className="flex-1 sm:flex-none bg-background shadow-sm"
+            >
+              <FileText className="mr-2 h-4 w-4" /> PDF
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <Tabs defaultValue="overview" className="w-full space-y-6">
+        <TabsList className="bg-muted p-1 inline-flex h-10 items-center justify-center rounded-md text-muted-foreground w-full md:w-auto overflow-x-auto whitespace-nowrap">
+          <TabsTrigger value="overview" className="py-2 px-4 flex-1 md:flex-none">
+            Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="detailed" className="py-2 px-4 flex-1 md:flex-none">
+            Análise Detalhada
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="py-2 px-4 flex-1 md:flex-none">
+            Relatórios
+          </TabsTrigger>
+        </TabsList>
 
         <TabsContent value="overview" className="space-y-6 outline-none focus:outline-none m-0">
-          <div className="flex flex-col md:flex-row justify-end items-start md:items-center gap-2 w-full">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-2 w-full md:w-auto">
-              <div className="w-full md:w-48">
-                <Select value={period} onValueChange={setPeriod}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Selecione o período" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="weekly">Semanal</SelectItem>
-                    <SelectItem value="monthly">Mensal</SelectItem>
-                    <SelectItem value="quarterly">Trimestral</SelectItem>
-                    <SelectItem value="all">Todo o Período</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex w-full md:w-auto gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => exportFinancialCSV(filteredFinancials, period)}
-                  className="flex-1 md:flex-none bg-background shadow-sm"
-                >
-                  <Download className="mr-2 h-4 w-4" /> CSV
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    exportFinancialPDF(
-                      filteredFinancials,
-                      { revenue: totalRevenue, expenses: totalExpenses, balance },
-                      period,
-                      user?.name || user?.email || 'Usuário',
-                    )
-                  }
-                  className="flex-1 md:flex-none bg-background shadow-sm"
-                >
-                  <FileText className="mr-2 h-4 w-4" /> PDF
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -447,6 +511,101 @@ export default function FinancialDashboard() {
 
             <Card className="shadow-sm">
               <CardHeader>
+                <CardTitle>Atualização de Progresso</CardTitle>
+                <CardDescription>
+                  Acompanhe e atualize o progresso dos projetos ativos.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {activeProjectsFinancials.length === 0 ? (
+                    <div className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum projeto ativo disponível.
+                    </div>
+                  ) : (
+                    activeProjectsFinancials.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg bg-card"
+                      >
+                        <div>
+                          <h4 className="font-medium text-sm">{p.name}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            Orçamento: {formatCurrency(p.budget)} | Custo: {formatCurrency(p.spent)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium whitespace-nowrap">Progresso:</span>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              defaultValue={p.progress}
+                              onBlur={(e) => {
+                                if (e.target.value !== String(p.progress)) {
+                                  handleProgressChange(p.id, e.target.value)
+                                }
+                              }}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-muted-foreground">%</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="detailed" className="space-y-6 outline-none focus:outline-none m-0">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Evolução de Despesas</CardTitle>
+                <CardDescription>Tendência de gastos no período selecionado</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {expenseEvolution.length === 0 ? (
+                  <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                    Nenhum dado disponível.
+                  </div>
+                ) : (
+                  <ChartContainer
+                    config={{ amount: { label: 'Despesas', color: 'hsl(var(--destructive))' } }}
+                    className="h-[300px] w-full"
+                  >
+                    <LineChart
+                      data={expenseEvolution}
+                      margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                    >
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={10} />
+                      <YAxis
+                        tickFormatter={(v) => `R$ ${v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v}`}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Line
+                        type="monotone"
+                        dataKey="amount"
+                        stroke="var(--color-amount)"
+                        strokeWidth={2}
+                        dot={{ r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
                 <CardTitle>Despesas por Categoria</CardTitle>
                 <CardDescription>Distribuição dos gastos totais</CardDescription>
               </CardHeader>
@@ -491,13 +650,60 @@ export default function FinancialDashboard() {
 
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Financeiro dos Projetos Ativos</CardTitle>
+              <CardTitle>Performance de Projetos</CardTitle>
+              <CardDescription>Receitas, despesas e lucro por projeto</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {projectPerformance.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhum projeto com movimentação financeira no período.
+                </div>
+              ) : (
+                <div className="rounded-md border overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-muted/50 text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Projeto</th>
+                        <th className="px-4 py-3 font-medium text-right">Entradas</th>
+                        <th className="px-4 py-3 font-medium text-right">Saídas</th>
+                        <th className="px-4 py-3 font-medium text-right">Lucro</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {projectPerformance.map((p) => (
+                        <tr key={p.id} className="hover:bg-muted/50 transition-colors">
+                          <td className="px-4 py-3 font-medium">{p.name}</td>
+                          <td className="px-4 py-3 text-right text-emerald-600">
+                            {formatCurrency(p.income)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-rose-600">
+                            {formatCurrency(p.expense)}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right font-bold ${
+                              p.profit >= 0 ? 'text-primary' : 'text-destructive'
+                            }`}
+                          >
+                            {formatCurrency(p.profit)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle>Comparação de Projetos</CardTitle>
               <CardDescription>Comparativo de Orçamento vs Custo Realizado</CardDescription>
             </CardHeader>
             <CardContent>
               {activeProjectsFinancials.length === 0 ? (
                 <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                  Nenhum projeto com orçamento definido.
+                  Nenhum projeto ativo com orçamento.
                 </div>
               ) : (
                 <ChartContainer
@@ -542,57 +748,6 @@ export default function FinancialDashboard() {
                   </BarChart>
                 </ChartContainer>
               )}
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Atualização de Progresso</CardTitle>
-              <CardDescription>
-                Acompanhe e atualize o progresso dos projetos ativos diretamente do painel
-                financeiro.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {activeProjectsFinancials.length === 0 ? (
-                  <div className="text-sm text-muted-foreground text-center py-4">
-                    Nenhum projeto ativo disponível.
-                  </div>
-                ) : (
-                  activeProjectsFinancials.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg bg-card"
-                    >
-                      <div>
-                        <h4 className="font-medium text-sm">{p.name}</h4>
-                        <p className="text-xs text-muted-foreground">
-                          Orçamento: {formatCurrency(p.budget)} | Custo: {formatCurrency(p.spent)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium whitespace-nowrap">Progresso:</span>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            defaultValue={p.progress}
-                            onBlur={(e) => {
-                              if (e.target.value !== String(p.progress)) {
-                                handleProgressChange(p.id, e.target.value)
-                              }
-                            }}
-                            className="w-20"
-                          />
-                          <span className="text-sm text-muted-foreground">%</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -71,7 +71,13 @@ const getNavigationGroups = () => [
     id: 'gestao_projetos',
     items: [
       { name: 'Dashboard geral', id: 'dashboard_geral', href: '/dashboard', icon: LayoutDashboard },
-      { name: 'Todos os Projetos', id: 'projetos', href: '/projects', icon: FolderKanban },
+      {
+        name: 'Todos os Projetos',
+        id: 'projetos',
+        href: '/projects',
+        icon: FolderKanban,
+        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Cliente', 'Visitante'],
+      },
       {
         name: 'Painel do cliente',
         id: 'painel_cliente',
@@ -201,10 +207,12 @@ export function AppSidebar() {
           const visibleItems = group.items.filter((item) => {
             if (user?.role === 'Administrador') return true
 
+            if ((item as any).allowedRoles) {
+              if (!user?.role || !(item as any).allowedRoles.includes(user.role)) return false
+            }
+
             if ((item as any).id) {
               if (!canAccess((item as any).id)) return false
-            } else if ((item as any).allowedRoles) {
-              if (!user?.role || !(item as any).allowedRoles.includes(user.role)) return false
             }
 
             return true

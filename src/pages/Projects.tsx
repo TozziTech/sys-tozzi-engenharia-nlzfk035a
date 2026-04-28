@@ -30,6 +30,7 @@ import { ProjectTable } from '@/components/ProjectTable'
 import { ProjectCardList } from '@/components/ProjectCardList'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -80,31 +81,70 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
   const [requestModalProject, setRequestModalProject] = useState<any>(null)
   const [requestLevel, setRequestLevel] = useState('Leitura')
 
-  useEffect(() => {
-    if (user) {
-      usePreferencesStore.getState().loadPreferences(user)
+  const loadClients = useCallback(async () => {
+    try {
+      const clientsRes = await pb.collection('clients').getFullList()
+      setClients(clientsRes)
+    } catch {
+      /* intentionally ignored */
     }
-    if (!user || user.role === 'Administrador') return
-    const load = async () => {
+  }, [])
+
+  const loadAccesses = useCallback(async () => {
+    if (!user) return
+    if (user.role === 'Administrador' || user.role === 'Gerente de Projeto') {
       try {
-        const [accs, reqs, clientsRes] = await Promise.all([
-          pb.collection('user_project_access').getFullList({ filter: `user = '${user.id}'` }),
-          pb
-            .collection('access_requests')
-            .getFullList({ filter: `user = '${user.id}' && status = 'Pendente'` }),
-          pb.collection('clients').getFullList(),
-        ])
-        setClients(clientsRes)
-        const map: Record<string, string> = {}
-        accs.forEach((a) => (map[a.project] = a.access_level))
-        setMyAccesses(map)
+        const reqs = await pb
+          .collection('access_requests')
+          .getFullList({ filter: `user = '${user.id}' && status = 'Pendente'` })
         setPendingReqs(reqs.map((r) => r.project))
       } catch {
         /* intentionally ignored */
       }
+      return
     }
-    load()
+
+    try {
+      const [accs, reqs, myModules, myTasks] = await Promise.all([
+        pb.collection('user_project_access').getFullList({ filter: `user = '${user.id}'` }),
+        pb
+          .collection('access_requests')
+          .getFullList({ filter: `user = '${user.id}' && status = 'Pendente'` }),
+        pb
+          .collection('project_modules')
+          .getFullList({ filter: `responsible = '${user.id}' || designer = '${user.id}'` }),
+        pb.collection('tasks').getFullList({ filter: `responsible = '${user.id}'` }),
+      ])
+      const map: Record<string, string> = {}
+      accs.forEach((a) => {
+        if (a.project) map[a.project] = a.access_level
+      })
+      myModules.forEach((m) => {
+        if (m.project && !map[m.project]) map[m.project] = 'Indirect'
+      })
+      myTasks.forEach((t) => {
+        if (t.project && !map[t.project]) map[t.project] = 'Indirect'
+      })
+      setMyAccesses(map)
+      setPendingReqs(reqs.map((r) => r.project))
+    } catch {
+      /* intentionally ignored */
+    }
   }, [user])
+
+  useEffect(() => {
+    if (user) {
+      usePreferencesStore.getState().loadPreferences(user)
+      loadClients()
+      loadAccesses()
+    }
+  }, [user, loadClients, loadAccesses])
+
+  useRealtime('clients', loadClients)
+  useRealtime('user_project_access', loadAccesses)
+  useRealtime('access_requests', loadAccesses)
+  useRealtime('project_modules', loadAccesses)
+  useRealtime('tasks', loadAccesses)
 
   const isLinkedToUser = useCallback(
     (project: any) => user?.assigned_projects?.includes(project.id) || !!myAccesses[project.id],

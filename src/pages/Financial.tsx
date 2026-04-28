@@ -5,6 +5,7 @@ import { FinancialCategories } from '@/components/financial/FinancialCategories'
 import { TransactionModal } from '@/components/financial/TransactionModal'
 import { FinancialAlerts } from '@/components/financial/FinancialAlerts'
 import { DistributionCalculator } from '@/components/financial/DistributionCalculator'
+import { ServicosList } from '@/components/financial/ServicosList'
 import { Button } from '@/components/ui/button'
 import { Link, useNavigate } from 'react-router-dom'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -91,6 +92,9 @@ export default function Financial() {
           <TabsTrigger value="lancamentos" className="py-2">
             Lançamentos
           </TabsTrigger>
+          <TabsTrigger value="servicos" className="py-2">
+            Serviços Financeiros
+          </TabsTrigger>
           {hasCategoriesAccess && (
             <TabsTrigger value="categorias" className="py-2">
               Gestão de Categorias
@@ -106,6 +110,12 @@ export default function Financial() {
         <TabsContent value="lancamentos" className="outline-none focus:outline-none m-0">
           <ErrorBoundary>
             <FinancialTransactions />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="servicos" className="outline-none focus:outline-none m-0">
+          <ErrorBoundary>
+            <ServicosList />
           </ErrorBoundary>
         </TabsContent>
 

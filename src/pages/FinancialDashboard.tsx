@@ -16,9 +16,19 @@ import {
   endOfQuarter,
   isWithinInterval,
   format,
+  subDays,
+  isAfter,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { TrendingUp, TrendingDown, Wallet, Download, FileText, Banknote } from 'lucide-react'
+import {
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  Download,
+  FileText,
+  Banknote,
+  FilterX,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { exportFinancialCSV } from '@/lib/export'
@@ -75,6 +85,30 @@ export default function FinancialDashboard() {
   const [projectFilter, setProjectFilter] = useState<string>('all')
   const [comparisonSelectedProjects, setComparisonSelectedProjects] = useState<string[]>([])
 
+  const [advSelectedProject, setAdvSelectedProject] = useState<string>('all')
+  const [advSelectedMonth, setAdvSelectedMonth] = useState<string>('all')
+  const [advSelectedYear, setAdvSelectedYear] = useState<string>('all')
+  const [advSelectedType, setAdvSelectedType] = useState<string>('all')
+  const [advPeriodFilter, setAdvPeriodFilter] = useState<string>('all')
+
+  const months = useMemo(
+    () => [
+      { value: '01', label: 'Janeiro' },
+      { value: '02', label: 'Fevereiro' },
+      { value: '03', label: 'Março' },
+      { value: '04', label: 'Abril' },
+      { value: '05', label: 'Maio' },
+      { value: '06', label: 'Junho' },
+      { value: '07', label: 'Julho' },
+      { value: '08', label: 'Agosto' },
+      { value: '09', label: 'Setembro' },
+      { value: '10', label: 'Outubro' },
+      { value: '11', label: 'Novembro' },
+      { value: '12', label: 'Dezembro' },
+    ],
+    [],
+  )
+
   const toggleComparisonProject = (id: string) => {
     setComparisonSelectedProjects((prev) =>
       prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id],
@@ -101,13 +135,66 @@ export default function FinancialDashboard() {
     })
   }, [financials, period, projectFilter])
 
+  const advAvailableYears = useMemo(() => {
+    const years = new Set<string>()
+    years.add(new Date().getFullYear().toString())
+    financials.forEach((f) => {
+      const d = new Date(f.date || f.created)
+      if (!isNaN(d.getTime())) {
+        years.add(d.getUTCFullYear().toString())
+      }
+    })
+    return Array.from(years).sort().reverse()
+  }, [financials])
+
+  const advFilteredFinancials = useMemo(() => {
+    const now = new Date()
+    let limitDate: Date | null = null
+    if (advPeriodFilter === '7d') limitDate = subDays(now, 7)
+    else if (advPeriodFilter === '30d') limitDate = subDays(now, 30)
+    else if (advPeriodFilter === 'quarter') limitDate = subDays(now, 90)
+    else if (advPeriodFilter === 'year') limitDate = new Date(now.getFullYear(), 0, 1)
+
+    return financials.filter((f) => {
+      const d = new Date(f.date || f.created)
+      if (isNaN(d.getTime())) return false
+
+      const fYear = d.getUTCFullYear().toString()
+      const fMonth = (d.getUTCMonth() + 1).toString().padStart(2, '0')
+
+      const isExpense =
+        f.type?.toLowerCase().includes('saída') ||
+        f.type?.toLowerCase().includes('despesa') ||
+        f.amount < 0
+      const type = isExpense ? 'Saída' : 'Entrada'
+
+      if (advSelectedProject !== 'all' && f.project_id !== advSelectedProject) return false
+      if (advSelectedMonth !== 'all' && fMonth !== advSelectedMonth) return false
+      if (advSelectedYear !== 'all' && fYear !== advSelectedYear) return false
+      if (advSelectedType !== 'all' && type !== advSelectedType) return false
+
+      if (limitDate) {
+        if (!isAfter(d, limitDate)) return false
+      }
+
+      return true
+    })
+  }, [
+    financials,
+    advSelectedProject,
+    advSelectedMonth,
+    advSelectedYear,
+    advSelectedType,
+    advPeriodFilter,
+  ])
+
   const comparisonData = useMemo(() => {
     return comparisonSelectedProjects.map((projectId) => {
       const p = projects.find((proj) => proj.id === projectId)
       let actualSpent = 0
       let actualRevenue = 0
 
-      filteredFinancials.forEach((f) => {
+      advFilteredFinancials.forEach((f) => {
         if (f.project_id === projectId) {
           const isExpense =
             f.type?.toLowerCase().includes('saída') ||
@@ -129,7 +216,7 @@ export default function FinancialDashboard() {
         Receita: actualRevenue,
       }
     })
-  }, [comparisonSelectedProjects, projects, filteredFinancials])
+  }, [comparisonSelectedProjects, projects, advFilteredFinancials])
 
   const loadData = async () => {
     try {
@@ -178,7 +265,7 @@ export default function FinancialDashboard() {
 
   const categoryData = useMemo(() => {
     const cats: Record<string, { value: number; color: string }> = {}
-    filteredFinancials.forEach((f) => {
+    advFilteredFinancials.forEach((f) => {
       const isExpense =
         f.type?.toLowerCase().includes('saída') ||
         f.type?.toLowerCase().includes('despesa') ||
@@ -195,7 +282,7 @@ export default function FinancialDashboard() {
     return Object.entries(cats)
       .map(([name, data]) => ({ name, value: data.value, fill: data.color }))
       .sort((a, b) => b.value - a.value)
-  }, [filteredFinancials, categories])
+  }, [advFilteredFinancials, categories])
 
   const cashFlowData = useMemo(() => {
     const grouped: Record<
@@ -268,7 +355,7 @@ export default function FinancialDashboard() {
       perf[p.id] = { id: p.id, name: p.name, income: 0, expense: 0, profit: 0 }
     })
 
-    filteredFinancials.forEach((f) => {
+    advFilteredFinancials.forEach((f) => {
       if (f.project_id && perf[f.project_id]) {
         const isExpense =
           f.type?.toLowerCase().includes('saída') ||
@@ -287,12 +374,12 @@ export default function FinancialDashboard() {
       .map((p) => ({ ...p, profit: p.income - p.expense }))
       .filter((p) => p.income > 0 || p.expense > 0 || p.profit !== 0)
       .sort((a, b) => b.profit - a.profit)
-  }, [filteredFinancials, projects])
+  }, [advFilteredFinancials, projects])
 
   const expenseEvolution = useMemo(() => {
     const grouped: Record<string, { date: string; label: string; amount: number }> = {}
 
-    filteredFinancials.forEach((f) => {
+    advFilteredFinancials.forEach((f) => {
       const isExpense =
         f.type?.toLowerCase().includes('saída') ||
         f.type?.toLowerCase().includes('despesa') ||
@@ -303,7 +390,7 @@ export default function FinancialDashboard() {
         let key = ''
         let label = ''
 
-        if (period === 'weekly' || period === 'monthly') {
+        if (advPeriodFilter === '7d' || advPeriodFilter === '30d') {
           key = format(date, 'yyyy-MM-dd')
           label = format(date, 'dd/MM')
         } else {
@@ -319,7 +406,7 @@ export default function FinancialDashboard() {
     })
 
     return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date))
-  }, [filteredFinancials, period])
+  }, [advFilteredFinancials, advPeriodFilter])
 
   const handleProgressChange = async (id: string, newProgress: string) => {
     const val = parseFloat(newProgress)
@@ -342,6 +429,14 @@ export default function FinancialDashboard() {
 
   const formatCurrency = (v: number) =>
     `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+  const clearAdvFilters = () => {
+    setAdvSelectedProject('all')
+    setAdvSelectedMonth('all')
+    setAdvSelectedYear('all')
+    setAdvSelectedType('all')
+    setAdvPeriodFilter('all')
+  }
 
   const COLORS = [
     'hsl(var(--chart-1))',
@@ -426,7 +521,7 @@ export default function FinancialDashboard() {
             Visão Geral
           </TabsTrigger>
           <TabsTrigger value="detailed" className="py-2 px-4 flex-1 md:flex-none">
-            Análise Detalhada
+            Análise Avançada
           </TabsTrigger>
           <TabsTrigger value="reports" className="py-2 px-4 flex-1 md:flex-none">
             Relatórios
@@ -615,6 +710,89 @@ export default function FinancialDashboard() {
         </TabsContent>
 
         <TabsContent value="detailed" className="space-y-6 outline-none focus:outline-none m-0">
+          <div className="flex flex-col sm:flex-row gap-4 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+            <Select value={advSelectedProject} onValueChange={setAdvSelectedProject}>
+              <SelectTrigger className="w-full sm:w-[220px] bg-white dark:bg-slate-950">
+                <SelectValue placeholder="Filtrar por Projeto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Projetos</SelectItem>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={advSelectedMonth} onValueChange={setAdvSelectedMonth}>
+              <SelectTrigger className="w-full sm:w-[180px] bg-white dark:bg-slate-950">
+                <SelectValue placeholder="Filtrar por Mês" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Meses</SelectItem>
+                {months.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={advSelectedYear} onValueChange={setAdvSelectedYear}>
+              <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
+                <SelectValue placeholder="Filtrar por Ano" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Anos</SelectItem>
+                {advAvailableYears.map((y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={advSelectedType} onValueChange={setAdvSelectedType}>
+              <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
+                <SelectValue placeholder="Filtrar por Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Tipos</SelectItem>
+                <SelectItem value="Entrada">Entrada</SelectItem>
+                <SelectItem value="Saída">Saída</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={advPeriodFilter} onValueChange={setAdvPeriodFilter}>
+              <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todo Período</SelectItem>
+                <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                <SelectItem value="quarter">Trimestral</SelectItem>
+                <SelectItem value="year">Anual</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              onClick={clearAdvFilters}
+              className="w-full sm:w-auto ml-auto bg-white dark:bg-slate-950"
+              disabled={
+                advSelectedProject === 'all' &&
+                advSelectedMonth === 'all' &&
+                advSelectedYear === 'all' &&
+                advSelectedType === 'all' &&
+                advPeriodFilter === 'all'
+              }
+            >
+              <FilterX className="h-4 w-4 mr-2" /> Limpar
+            </Button>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="shadow-sm">
               <CardHeader>

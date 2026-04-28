@@ -231,87 +231,15 @@ export default function Finance() {
         </Alert>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-4 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-        <Select value={selectedProject} onValueChange={setSelectedProject}>
-          <SelectTrigger className="w-full sm:w-[220px] bg-white dark:bg-slate-950">
-            <SelectValue placeholder="Filtrar por Projeto" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Projetos</SelectItem>
-            {projects.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-white dark:bg-slate-950">
-            <SelectValue placeholder="Filtrar por Mês" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Meses</SelectItem>
-            {months.map((m) => (
-              <SelectItem key={m.value} value={m.value}>
-                {m.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
-            <SelectValue placeholder="Filtrar por Ano" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Anos</SelectItem>
-            {availableYears.map((y) => (
-              <SelectItem key={y} value={y}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedType} onValueChange={setSelectedType}>
-          <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
-            <SelectValue placeholder="Filtrar por Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Tipos</SelectItem>
-            <SelectItem value="Entrada">Entrada</SelectItem>
-            <SelectItem value="Saída">Saída</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={periodFilter} onValueChange={setPeriodFilter}>
-          <SelectTrigger className="w-full sm:w-[160px] bg-white dark:bg-slate-950">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todo Período</SelectItem>
-            <SelectItem value="30d">Mensal</SelectItem>
-            <SelectItem value="quarter">Trimestral</SelectItem>
-            <SelectItem value="year">Anual</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Button
-          variant="outline"
-          onClick={clearFilters}
-          className="w-full sm:w-auto ml-auto bg-white dark:bg-slate-950"
-          disabled={
-            selectedProject === 'all' &&
-            selectedMonth === 'all' &&
-            selectedYear === 'all' &&
-            selectedType === 'all' &&
-            periodFilter === 'all'
-          }
-        >
-          <FilterX className="h-4 w-4 mr-2" /> Limpar
-        </Button>
-      </div>
+      <Alert className="bg-primary/10 text-primary border-primary/20 mt-4">
+        <AlertTitle className="text-base font-semibold flex items-center gap-2">
+          Filtros Migrados
+        </AlertTitle>
+        <AlertDescription className="mt-1">
+          Os filtros avançados foram migrados para o módulo de "Análise Avançada" no Dashboard
+          Financeiro para uma experiência unificada.
+        </AlertDescription>
+      </Alert>
     </div>
   )
 }

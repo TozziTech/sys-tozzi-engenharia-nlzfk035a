@@ -82,26 +82,29 @@ export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const { user } = useAuth()
+  const { projects, deleteProject, timeLogs, users, tasks } = useProjectStore()
+  const store = useProjectStore() as any
+  const updateProject = store.updateProject
+  const { toast } = useToast()
+
   const [modules, setModules] = useState<any[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
+  const [isReady, setIsReady] = useState(false)
+  const [settings, setSettings] = useState<any>(null)
 
-  const loadModules = useCallback(async () => {
-    if (!id) return
-    try {
-      const res = await pb
-        .collection('project_modules')
-        .getFullList({ filter: `project = "${id}"` })
-      setModules(res)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setIsLoadingData(false)
-    }
-  }, [id])
-
-  useEffect(() => {
-    loadModules()
-  }, [loadModules])
+  const [tags, setTags] = useState<any[]>([])
+  const [specialtySort, setSpecialtySort] = useState<
+    'emphasis' | 'progressDesc' | 'progressAsc' | 'nameAsc'
+  >('emphasis')
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isEditingObservations, setIsEditingObservations] = useState(false)
+  const [observationText, setObservationText] = useState('')
+  const [pbDocuments, setPbDocuments] = useState<any[]>([])
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false)
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [reportsHistory, setReportsHistory] = useState<any[]>([])
 
   // Resolve console runtime warnings caused by vite-plugin-react-uid injecting data-uid into React.Fragment
   useEffect(() => {
@@ -122,40 +125,20 @@ export default function ProjectDetails() {
     }
   }, [])
 
-  useRealtime('project_modules', loadModules)
-  useRealtime('projects', () => {
-    // Keep projects in sync
-  })
-
-  const { user } = useAuth()
-  const { projects, deleteProject, timeLogs, users, tasks } = useProjectStore()
-  const [settings, setSettings] = useState<any>(null)
-
-  useEffect(() => {
-    pb.collection('company_settings')
-      .getFirstListItem('')
-      .then(setSettings)
-      .catch(() => {})
-  }, [])
-
-  const store = useProjectStore() as any
-  const updateProject = store.updateProject
-  const { toast } = useToast()
-
-  const [tags, setTags] = useState<any[]>([])
-  const [specialtySort, setSpecialtySort] = useState<
-    'emphasis' | 'progressDesc' | 'progressAsc' | 'nameAsc'
-  >('emphasis')
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isEditingObservations, setIsEditingObservations] = useState(false)
-  const [observationText, setObservationText] = useState('')
-  const [pbDocuments, setPbDocuments] = useState<any[]>([])
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false)
-  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const loadModules = useCallback(async () => {
+    if (!id || !pb.authStore.isValid) return
+    try {
+      const res = await pb
+        .collection('project_modules')
+        .getFullList({ filter: `project = "${id}"` })
+      setModules(res)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [id])
 
   const loadAuditLogs = useCallback(async () => {
-    if (!id) return
+    if (!id || !pb.authStore.isValid) return
     try {
       const records = await pb.collection('audit_logs').getFullList({
         filter: `resource = "user_project_access" && details ~ "${id}"`,
@@ -168,16 +151,8 @@ export default function ProjectDetails() {
     }
   }, [id])
 
-  useEffect(() => {
-    loadAuditLogs()
-  }, [loadAuditLogs])
-
-  useRealtime('audit_logs', loadAuditLogs)
-
-  const [reportsHistory, setReportsHistory] = useState<any[]>([])
-
   const loadReportsHistory = useCallback(async () => {
-    if (!id) return
+    if (!id || !pb.authStore.isValid) return
     try {
       const records = await pb.collection('project_reports_history').getFullList({
         filter: `project = "${id}"`,
@@ -189,14 +164,8 @@ export default function ProjectDetails() {
     }
   }, [id])
 
-  useEffect(() => {
-    loadReportsHistory()
-  }, [loadReportsHistory])
-
-  useRealtime('project_reports_history', loadReportsHistory)
-
   const loadDocuments = useCallback(async () => {
-    if (!id) return
+    if (!id || !pb.authStore.isValid) return
     try {
       const records = await pb
         .collection('project_documents')
@@ -207,13 +176,8 @@ export default function ProjectDetails() {
     }
   }, [id])
 
-  useEffect(() => {
-    loadDocuments()
-  }, [loadDocuments])
-
-  useRealtime('project_documents', loadDocuments)
-
   const loadTags = useCallback(async () => {
+    if (!pb.authStore.isValid) return
     try {
       const records = await pb.collection('tags').getFullList()
       setTags(records)
@@ -222,11 +186,64 @@ export default function ProjectDetails() {
     }
   }, [])
 
-  useEffect(() => {
-    loadTags()
-  }, [loadTags])
+  const loadSettings = useCallback(async () => {
+    if (!pb.authStore.isValid) return
+    try {
+      const s = await pb.collection('company_settings').getFirstListItem('')
+      setSettings(s)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [])
 
-  useRealtime('tags', loadTags)
+  useEffect(() => {
+    if (!id || !user?.id || !pb.authStore.isValid) return
+
+    let isMounted = true
+    setIsLoadingData(true)
+
+    Promise.allSettled([
+      loadModules(),
+      loadAuditLogs(),
+      loadReportsHistory(),
+      loadDocuments(),
+      loadTags(),
+      loadSettings(),
+    ]).finally(() => {
+      if (isMounted) {
+        setIsLoadingData(false)
+        setIsReady(true)
+      }
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [
+    id,
+    user?.id,
+    loadModules,
+    loadAuditLogs,
+    loadReportsHistory,
+    loadDocuments,
+    loadTags,
+    loadSettings,
+  ])
+
+  const enableSubscriptions = isReady && !!user?.id && pb.authStore.isValid
+
+  useRealtime('project_modules', loadModules, enableSubscriptions)
+  useRealtime(
+    'projects',
+    () => {
+      // Keep projects in sync
+    },
+    enableSubscriptions,
+  )
+  useRealtime('audit_logs', loadAuditLogs, enableSubscriptions)
+  useRealtime('project_reports_history', loadReportsHistory, enableSubscriptions)
+  useRealtime('project_documents', loadDocuments, enableSubscriptions)
+  useRealtime('tags', loadTags, enableSubscriptions)
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
 

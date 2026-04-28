@@ -262,50 +262,6 @@ export default function Finance() {
         </Alert>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Total de Entradas
-            </CardTitle>
-            <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              {formatCurrency(totalIn)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Total de Saídas
-            </CardTitle>
-            <ArrowDownRight className="h-4 w-4 text-rose-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
-              {formatCurrency(totalOut)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Saldo Atual
-            </CardTitle>
-            <Wallet className="h-4 w-4 text-indigo-500" />
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${balance > 0 ? 'text-emerald-600 dark:text-emerald-400' : balance < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-slate-100'}`}
-            >
-              {formatCurrency(balance)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       <div className="flex flex-col sm:flex-row gap-4 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
         <Select value={selectedProject} onValueChange={setSelectedProject}>
           <SelectTrigger className="w-full sm:w-[220px] bg-white dark:bg-slate-950">

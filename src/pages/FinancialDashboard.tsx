@@ -61,6 +61,7 @@ export default function FinancialDashboard() {
   const [financials, setFinancials] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [distributions, setDistributions] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<string>('monthly')
   const [projectFilter, setProjectFilter] = useState<string>('all')
@@ -87,14 +88,16 @@ export default function FinancialDashboard() {
 
   const loadData = async () => {
     try {
-      const [fins, projs, dists] = await Promise.all([
+      const [fins, projs, dists, cats] = await Promise.all([
         pb.collection('financial_records').getFullList({ sort: 'date' }),
         pb.collection('projects').getFullList(),
         pb.collection('distribution_calculations').getFullList(),
+        pb.collection('financial_categories').getFullList(),
       ])
       setFinancials(fins)
       setProjects(projs)
       setDistributions(dists)
+      setCategories(cats)
     } catch (e) {
       console.error(e)
     } finally {
@@ -109,6 +112,7 @@ export default function FinancialDashboard() {
   useRealtime('financial_records', () => loadData())
   useRealtime('projects', () => loadData())
   useRealtime('distribution_calculations', () => loadData())
+  useRealtime('financial_categories', () => loadData())
 
   const { totalRevenue, totalExpenses, balance } = useMemo(() => {
     let rev = 0
@@ -128,21 +132,25 @@ export default function FinancialDashboard() {
   }, [filteredFinancials])
 
   const categoryData = useMemo(() => {
-    const cats: Record<string, number> = {}
+    const cats: Record<string, { value: number; color: string }> = {}
     filteredFinancials.forEach((f) => {
       const isExpense =
         f.type?.toLowerCase().includes('saída') ||
         f.type?.toLowerCase().includes('despesa') ||
         f.amount < 0
       if (isExpense) {
-        const cat = f.category || 'Outros'
-        cats[cat] = (cats[cat] || 0) + Math.abs(f.amount)
+        const catName = f.category || 'Outros'
+        if (!cats[catName]) {
+          const dbCat = categories.find((c) => c.name === catName)
+          cats[catName] = { value: 0, color: dbCat?.color || '' }
+        }
+        cats[catName].value += Math.abs(f.amount)
       }
     })
     return Object.entries(cats)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, data]) => ({ name, value: data.value, fill: data.color }))
       .sort((a, b) => b.value - a.value)
-  }, [filteredFinancials])
+  }, [filteredFinancials, categories])
 
   const cashFlowData = useMemo(() => {
     const grouped: Record<
@@ -628,7 +636,10 @@ export default function FinancialDashboard() {
                           dataKey="value"
                         >
                           {categoryData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={entry.fill || COLORS[index % COLORS.length]}
+                            />
                           ))}
                         </Pie>
                         <RechartsTooltip
@@ -698,23 +709,23 @@ export default function FinancialDashboard() {
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Comparação de Projetos</CardTitle>
-              <CardDescription>Comparativo de Orçamento vs Custo Realizado</CardDescription>
+              <CardDescription>Comparativo de Receita Realizada vs Custo Realizado</CardDescription>
             </CardHeader>
             <CardContent>
-              {activeProjectsFinancials.length === 0 ? (
+              {projectPerformance.length === 0 ? (
                 <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                  Nenhum projeto ativo com orçamento.
+                  Nenhum projeto com movimentação financeira no período.
                 </div>
               ) : (
                 <ChartContainer
                   config={{
-                    budget: { label: 'Orçamento', color: 'hsl(var(--primary))' },
-                    spent: { label: 'Custo Realizado', color: 'hsl(var(--destructive))' },
+                    income: { label: 'Receita Realizada', color: 'hsl(var(--chart-2))' },
+                    expense: { label: 'Custo Realizado', color: 'hsl(var(--destructive))' },
                   }}
                   className="h-[400px] w-full"
                 >
                   <BarChart
-                    data={activeProjectsFinancials}
+                    data={projectPerformance}
                     layout="vertical"
                     margin={{ top: 10, right: 30, left: 50, bottom: 20 }}
                   >
@@ -734,21 +745,21 @@ export default function FinancialDashboard() {
                     />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar
-                      dataKey="budget"
-                      fill="var(--color-budget)"
+                      dataKey="income"
+                      fill="var(--color-income)"
                       radius={[0, 4, 4, 0]}
                       barSize={20}
                     />
                     <Bar
-                      dataKey="spent"
-                      fill="var(--color-spent)"
+                      dataKey="expense"
+                      fill="var(--color-expense)"
                       radius={[0, 4, 4, 0]}
                       barSize={20}
                     />
                   </BarChart>
                 </ChartContainer>
               )}
-            </CardContent>
+            </CardContent>{' '}
           </Card>
         </TabsContent>
 

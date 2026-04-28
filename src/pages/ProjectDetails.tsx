@@ -76,6 +76,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Badge } from '@/components/ui/badge'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function ProjectDetails() {

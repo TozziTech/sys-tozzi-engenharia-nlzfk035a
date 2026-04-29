@@ -51,11 +51,12 @@ import { useToast } from '@/hooks/use-toast'
 import { ExpandedPaymentRow } from './ExpandedPaymentRow'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { exportServicosFinanceirosCSV } from '@/lib/export'
-import { getNextServicoCode } from '@/services/servicos_financeiros'
+import { getNextServicoCode, checkServicoCodeExists } from '@/services/servicos_financeiros'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { usePermissions } from '@/hooks/use-permissions'
 import { AccessRestricted } from '@/components/auth/AccessRestricted'
+import { ClientCombobox } from '@/components/ClientCombobox'
 
 export function PlanilhaFinanceira() {
   const { user } = useAuth()
@@ -135,13 +136,24 @@ export function PlanilhaFinanceira() {
       isNaN(valorTotal) ||
       formData.valor_total === '' ||
       formData.valor_total === undefined ||
-      formData.valor_total === null
+      formData.valor_total === null ||
+      valorTotal < 0
     ) {
       toast({ title: 'O valor total deve ser um número válido.', variant: 'destructive' })
       return
     }
 
     try {
+      const exists = await checkServicoCodeExists(formData.codigo, formData.id)
+      if (exists) {
+        toast({
+          title: 'Código já utilizado.',
+          description: 'Por favor, informe um código único.',
+          variant: 'destructive',
+        })
+        return
+      }
+
       const data = { ...formData, user_id: user?.id, valor_total: valorTotal }
       if (formData.id) {
         await pb.collection('servicos_financeiros').update(formData.id, data)
@@ -585,10 +597,9 @@ export function PlanilhaFinanceira() {
             </div>
             <div className="space-y-2 col-span-2">
               <Label>Cliente</Label>
-              <Input
+              <ClientCombobox
                 value={formData.cliente || ''}
-                onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-                placeholder="Nome do cliente (opcional)"
+                onChange={(val) => setFormData({ ...formData, cliente: val })}
               />
             </div>
             <div className="space-y-2">

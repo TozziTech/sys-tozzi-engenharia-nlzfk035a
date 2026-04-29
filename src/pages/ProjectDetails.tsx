@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   ChartContainer,
   ChartTooltip,
@@ -140,6 +141,11 @@ export default function ProjectDetails() {
   })
   const [financialData, setFinancialData] = useState({ totalIn: 0, totalOut: 0, pendingOut: 0 })
 
+  const [reportSchedule, setReportSchedule] = useState<any>(null)
+  const [reportRecipients, setReportRecipients] = useState('')
+  const [isReportActive, setIsReportActive] = useState(false)
+  const [isSavingReport, setIsSavingReport] = useState(false)
+
   // Resolve console runtime warnings caused by vite-plugin-react-uid injecting data-uid into React.Fragment
   useEffect(() => {
     const originalConsoleError = console.error
@@ -230,6 +236,22 @@ export default function ProjectDetails() {
     }
   }, [])
 
+  const loadReportSchedule = useCallback(async () => {
+    if (!id || !pb.authStore.isValid) return
+    try {
+      const record = await pb
+        .collection('report_schedules')
+        .getFirstListItem(`project = "${id}" && frequency = "Semanal"`)
+      setReportSchedule(record)
+      setReportRecipients(record.recipients)
+      setIsReportActive(record.active)
+    } catch (e) {
+      setReportSchedule(null)
+      setReportRecipients('')
+      setIsReportActive(false)
+    }
+  }, [id])
+
   useEffect(() => {
     if (authLoading) return
     if (!id || !user?.id || !pb.authStore.isValid) return
@@ -244,6 +266,7 @@ export default function ProjectDetails() {
       loadDocuments(),
       loadTags(),
       loadSettings(),
+      loadReportSchedule(),
     ]).finally(() => {
       if (isMounted) {
         setIsLoadingData(false)
@@ -264,6 +287,7 @@ export default function ProjectDetails() {
     loadDocuments,
     loadTags,
     loadSettings,
+    loadReportSchedule,
   ])
 
   const enableSubscriptions = isReady && !!user?.id && pb.authStore.isValid
@@ -804,6 +828,33 @@ export default function ProjectDetails() {
 
   const handlePrintPriorityReport = () => {
     window.print()
+  }
+
+  const saveReportSchedule = async () => {
+    if (!id) return
+    setIsSavingReport(true)
+    try {
+      if (reportSchedule) {
+        await pb.collection('report_schedules').update(reportSchedule.id, {
+          recipients: reportRecipients,
+          active: isReportActive,
+          frequency: 'Semanal',
+        })
+      } else {
+        const record = await pb.collection('report_schedules').create({
+          project: id,
+          recipients: reportRecipients,
+          active: isReportActive,
+          frequency: 'Semanal',
+        })
+        setReportSchedule(record)
+      }
+      toast({ title: 'Configuração salva', description: 'Relatório automático atualizado.' })
+    } catch (e) {
+      toast({ title: 'Erro ao salvar', description: getErrorMessage(e), variant: 'destructive' })
+    } finally {
+      setIsSavingReport(false)
+    }
   }
 
   const handleExportPremiumReport = async () => {
@@ -1894,6 +1945,52 @@ export default function ProjectDetails() {
               <div className="w-full">
                 <ProjectComments projectId={project.id} enabled={enableSubscriptions} />
               </div>
+
+              {canEdit && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
+                      Relatórios Automáticos
+                    </CardTitle>
+                    <CardDescription>
+                      Configure o envio semanal do resumo executivo deste projeto.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="report-active" className="flex flex-col space-y-1">
+                        <span>Ativar Relatório</span>
+                        <span className="font-normal text-xs text-muted-foreground">
+                          Envio toda segunda-feira às 08:00
+                        </span>
+                      </Label>
+                      <Switch
+                        id="report-active"
+                        checked={isReportActive}
+                        onCheckedChange={setIsReportActive}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="report-recipients">Destinatários</Label>
+                      <Textarea
+                        id="report-recipients"
+                        placeholder="email1@exemplo.com, email2@exemplo.com"
+                        value={reportRecipients}
+                        onChange={(e) => setReportRecipients(e.target.value)}
+                        className="text-sm min-h-[80px]"
+                      />
+                    </div>
+                    <Button
+                      onClick={saveReportSchedule}
+                      disabled={isSavingReport}
+                      className="w-full"
+                    >
+                      {isSavingReport ? 'Salvando...' : 'Salvar Configuração'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </TabsContent>

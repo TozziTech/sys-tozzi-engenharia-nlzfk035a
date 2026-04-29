@@ -6,7 +6,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  RadialBarChart,
+  RadialBar,
+  PolarAngleAxis,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import {
   ChartContainer,
   ChartTooltip,
@@ -108,6 +130,15 @@ export default function ProjectDetails() {
   const [isUploadingDoc, setIsUploadingDoc] = useState(false)
   const [auditLogs, setAuditLogs] = useState<any[]>([])
   const [reportsHistory, setReportsHistory] = useState<any[]>([])
+
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+  const [reportOptions, setReportOptions] = useState({
+    overview: true,
+    financial: true,
+    schedule: true,
+    team: true,
+  })
+  const [financialData, setFinancialData] = useState({ totalIn: 0, totalOut: 0, pendingOut: 0 })
 
   // Resolve console runtime warnings caused by vite-plugin-react-uid injecting data-uid into React.Fragment
   useEffect(() => {
@@ -751,32 +782,49 @@ export default function ProjectDetails() {
     window.print()
   }
 
-  const handleExportPremiumReport = async () => {
-    let financeData = { totalIn: 0, totalOut: 0, pendingOut: 0 }
-    try {
-      const records = await pb
-        .collection('financial_records')
-        .getFullList({ filter: `project_id = "${project.id}"` })
-      financeData.totalIn = records
-        .filter((r) => r.type === 'Entrada')
-        .reduce((a, b) => a + b.amount, 0)
-      financeData.totalOut = records
-        .filter((r) => r.type === 'Saída' && r.is_approved)
-        .reduce((a, b) => a + b.amount, 0)
-      financeData.pendingOut = records
-        .filter((r) => r.type === 'Saída' && !r.is_approved)
-        .reduce((a, b) => a + b.amount, 0)
-    } catch (e) {
-      console.error(e)
+  useEffect(() => {
+    const fetchFinance = async () => {
+      if (!project?.id) return
+      try {
+        const records = await pb
+          .collection('financial_records')
+          .getFullList({ filter: `project_id = "${project.id}"` })
+        const totalIn = records
+          .filter((r) => r.type === 'Entrada')
+          .reduce((a, b) => a + b.amount, 0)
+        const totalOut = records
+          .filter((r) => r.type === 'Saída' && r.is_approved)
+          .reduce((a, b) => a + b.amount, 0)
+        const pendingOut = records
+          .filter((r) => r.type === 'Saída' && !r.is_approved)
+          .reduce((a, b) => a + b.amount, 0)
+        setFinancialData({ totalIn, totalOut, pendingOut })
+      } catch (e) {
+        console.error('Error fetching financial data', e)
+      }
     }
+    if (project?.id) fetchFinance()
+  }, [project?.id])
+
+  const handleExportPremiumReport = async () => {
     const { exportPremiumExecutivePDF } = await import('@/lib/exportPdf')
+
+    // Get unique team members from modules
+    const teamMembersMap = new Map()
+    modules.forEach((m) => {
+      if (m.expand?.responsible) teamMembersMap.set(m.expand.responsible.id, m.expand.responsible)
+      if (m.expand?.designer) teamMembersMap.set(m.expand.designer.id, m.expand.designer)
+    })
+
     exportPremiumExecutivePDF(
       project,
       modules,
-      financeData,
+      financialData,
       user?.name || user?.email || 'Usuário',
       settings,
+      { ...reportOptions, teamMembers: Array.from(teamMembersMap.values()) },
     )
+    setIsReportModalOpen(false)
   }
 
   return (
@@ -1077,7 +1125,7 @@ export default function ProjectDetails() {
               </div>
               <Button
                 size="sm"
-                onClick={handleExportPremiumReport}
+                onClick={() => setIsReportModalOpen(true)}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all gap-2 shrink-0"
               >
                 <FileText className="h-4 w-4" />
@@ -1138,22 +1186,105 @@ export default function ProjectDetails() {
             </CardContent>
           </Card>
 
-          {/* Progresso Tracking */}
-          <Card className="w-full print:hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Progresso/Conclusão</CardTitle>
-              <CardDescription>Percentual de conclusão atual do projeto</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-medium">
-                  <span>Conclusão</span>
-                  <span>{project.progress}%</span>
-                </div>
-                <Progress value={project.progress} className="h-2" />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full print:hidden">
+            {/* Operational Gauge Chart */}
+            <Card className="w-full flex flex-col">
+              <CardHeader className="pb-0 items-center">
+                <CardTitle className="text-lg">Saúde Operacional</CardTitle>
+                <CardDescription>Percentual de conclusão atual do projeto</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 pb-0">
+                <ChartContainer
+                  config={{
+                    progress: { label: 'Concluído', color: 'hsl(var(--primary))' },
+                  }}
+                  className="mx-auto aspect-square max-h-[250px]"
+                >
+                  <RadialBarChart
+                    data={[
+                      { name: 'Progresso', value: project.progress, fill: 'var(--color-progress)' },
+                    ]}
+                    startAngle={180}
+                    endAngle={0}
+                    innerRadius="70%"
+                    outerRadius="100%"
+                    barSize={20}
+                  >
+                    <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+                    <RadialBar
+                      background={{ fill: 'hsl(var(--muted))' }}
+                      dataKey="value"
+                      cornerRadius={10}
+                    />
+                    <text
+                      x="50%"
+                      y="50%"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="fill-foreground text-3xl font-bold"
+                    >
+                      {project.progress}%
+                    </text>
+                  </RadialBarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            {/* Financial Visualizer */}
+            <Card className="w-full flex flex-col">
+              <CardHeader className="pb-0 items-center">
+                <CardTitle className="text-lg">Saúde Financeira</CardTitle>
+                <CardDescription>Relação Orçamento vs Despesas</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 pb-0 flex items-center justify-center">
+                {project.budget && project.budget > 0 ? (
+                  <ChartContainer
+                    config={{
+                      budget: { label: 'Disponível', color: 'hsl(var(--primary))' },
+                      spent: { label: 'Gasto', color: 'hsl(var(--destructive))' },
+                    }}
+                    className="mx-auto aspect-square max-h-[250px]"
+                  >
+                    <PieChart>
+                      <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                      <Pie
+                        data={[
+                          {
+                            name: 'Disponível',
+                            value: Math.max(0, project.budget - financialData.totalOut),
+                            fill: 'var(--color-budget)',
+                          },
+                          {
+                            name: 'Gasto',
+                            value: financialData.totalOut,
+                            fill: 'var(--color-spent)',
+                          },
+                        ]}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                      />
+                      <text
+                        x="50%"
+                        y="50%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="fill-foreground text-lg font-bold"
+                      >
+                        {Math.round((financialData.totalOut / project.budget) * 100)}% Gasto
+                      </text>
+                    </PieChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground border border-dashed rounded-md w-full">
+                    Orçamento não definido
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Building Progress Chart */}
           {buildingProgress.length > 0 && (
@@ -1912,6 +2043,77 @@ export default function ProjectDetails() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Gerar Relatório Executivo</DialogTitle>
+            <DialogDescription>
+              Personalize o conteúdo do relatório em PDF. Selecione as seções que deseja incluir.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="opt-overview"
+                checked={reportOptions.overview}
+                onCheckedChange={(c) => setReportOptions((prev) => ({ ...prev, overview: !!c }))}
+              />
+              <Label
+                htmlFor="opt-overview"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Visão Geral do Projeto
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="opt-financial"
+                checked={reportOptions.financial}
+                onCheckedChange={(c) => setReportOptions((prev) => ({ ...prev, financial: !!c }))}
+              />
+              <Label
+                htmlFor="opt-financial"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Resumo Financeiro (Receitas e Despesas)
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="opt-schedule"
+                checked={reportOptions.schedule}
+                onCheckedChange={(c) => setReportOptions((prev) => ({ ...prev, schedule: !!c }))}
+              />
+              <Label
+                htmlFor="opt-schedule"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Cronograma de Atividades (Disciplinas)
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="opt-team"
+                checked={reportOptions.team}
+                onCheckedChange={(c) => setReportOptions((prev) => ({ ...prev, team: !!c }))}
+              />
+              <Label
+                htmlFor="opt-team"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Equipe do Projeto
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReportModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleExportPremiumReport}>Exportar PDF</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

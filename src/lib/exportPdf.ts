@@ -10,6 +10,13 @@ export function exportPremiumExecutivePDF(
   finance: { totalIn: number; totalOut: number; pendingOut: number },
   currentUser: string,
   settings: any = null,
+  options?: {
+    overview?: boolean
+    financial?: boolean
+    schedule?: boolean
+    team?: boolean
+    teamMembers?: any[]
+  },
 ) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
@@ -26,6 +33,8 @@ export function exportPremiumExecutivePDF(
   const budget = project.budget || 0
   const totalModules = modules.length
   const completedModules = modules.filter((m) => m.status === 'Concluído').length
+
+  const opts = options || { overview: true, financial: true, schedule: true, team: false }
 
   const html = `
     <!DOCTYPE html>
@@ -76,6 +85,7 @@ export function exportPremiumExecutivePDF(
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
           }
           .card-title {
             font-size: 14px;
@@ -158,6 +168,9 @@ export function exportPremiumExecutivePDF(
             </div>
           </div>
 
+          ${
+            !options || options.overview
+              ? `
           <div class="grid-2">
             <div class="card">
               <div class="card-title">Resumo do Progresso</div>
@@ -185,7 +198,13 @@ export function exportPremiumExecutivePDF(
               </div>
             </div>
           </div>
+          `
+              : ''
+          }
 
+          ${
+            !options || options.financial
+              ? `
           <div class="grid-4">
             <div class="kpi-box">
               <div class="kpi-value">${formatCurrency(budget)}</div>
@@ -204,7 +223,13 @@ export function exportPremiumExecutivePDF(
               <div class="kpi-label">Resultado Líquido</div>
             </div>
           </div>
+          `
+              : ''
+          }
 
+          ${
+            !options || options.schedule
+              ? `
           <div class="card" style="margin-bottom: 30px;">
             <div class="card-title">Situação das Disciplinas (Top 10)</div>
             <table>
@@ -253,6 +278,41 @@ export function exportPremiumExecutivePDF(
               </tbody>
             </table>
           </div>
+          `
+              : ''
+          }
+
+          ${
+            options?.team && options.teamMembers && options.teamMembers.length > 0
+              ? `
+          <div class="card" style="margin-bottom: 30px;">
+            <div class="card-title">Equipe do Projeto</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Função</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${options.teamMembers
+                  .map(
+                    (member) => `
+                  <tr>
+                    <td style="font-weight: 600; color: #1e293b;">${member.name || '-'}</td>
+                    <td>${member.email || '-'}</td>
+                    <td>${member.role || '-'}</td>
+                  </tr>
+                `,
+                  )
+                  .join('')}
+              </tbody>
+            </table>
+          </div>
+          `
+              : ''
+          }
 
           <div class="footer">
             Este relatório contém informações confidenciais do projeto e é destinado apenas para uso executivo.<br>

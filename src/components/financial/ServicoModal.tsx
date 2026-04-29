@@ -90,7 +90,7 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
       if (exists) {
         toast({
           title: 'Aviso',
-          description: 'Este código já foi lançado. Por favor, utilize um código exclusivo.',
+          description: 'Código já lançado. Por favor, utilize um código único.',
           variant: 'destructive',
         })
         setLoading(false)
@@ -139,13 +139,13 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
         ) : (
           <Button className="gap-2">
             <Plus className="h-4 w-4" />
-            Novo Serviço
+            Novo Lançamento
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{servico ? 'Editar Serviço' : 'Lançar Novo Serviço'}</DialogTitle>
+          <DialogTitle>{servico ? 'Editar Serviço' : 'Novo Lançamento'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

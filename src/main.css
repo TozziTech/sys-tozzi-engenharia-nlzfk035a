@@ -5,9 +5,44 @@
 @tailwind utilities;
 
 @layer base {
-  :root,
-  .dark,
-  [data-theme-color] {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 38 92% 50%;
+    --radius: 0.75rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 38 92% 50%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 38 92% 50%;
+
+    --chart-1: 38 92% 50%;
+    --chart-2: 38 92% 40%;
+    --chart-3: 240 3.7% 15.9%;
+    --chart-4: 240 5% 64.9%;
+    --chart-5: 240 5.9% 10%;
+  }
+
+  .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     --card: 240 5.9% 10%;
@@ -27,7 +62,6 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 38 92% 50%;
-    --radius: 0.75rem;
     --sidebar-background: 240 10% 3.9%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 38 92% 50%;
@@ -36,17 +70,13 @@
     --sidebar-accent-foreground: 38 92% 50%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 38 92% 50%;
-
-    --chart-1: 38 92% 50%;
-    --chart-2: 38 92% 40%;
-    --chart-3: 240 3.7% 15.9%;
-    --chart-4: 240 5% 64.9%;
-    --chart-5: 240 5.9% 10%;
   }
 
   body {
-    @apply bg-zinc-950 font-sans antialiased text-zinc-100 transition-colors duration-300 min-h-screen;
-    background-color: #09090b;
+    @apply bg-background font-sans antialiased text-foreground transition-colors duration-300 min-h-screen;
+  }
+
+  .dark body {
     background-image:
       radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.05) 0%, transparent 50%),
       radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.03) 0%, transparent 50%);

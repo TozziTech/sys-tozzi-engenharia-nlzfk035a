@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T20:40:00.955Z",
+  "generatedAt": "2026-04-29T20:58:27.218Z",
   "collections": [
     {
       "name": "users",
@@ -1679,6 +1679,13 @@
           "required": false,
           "system": false,
           "collectionRef": "projects"
+        },
+        {
+          "name": "template_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Executivo", "Técnico", "Focado em Gráficos"]
         }
       ],
       "indexes": []

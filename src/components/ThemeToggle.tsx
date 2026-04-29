@@ -13,9 +13,27 @@ import {
 import { useThemeColor } from './ThemeProvider'
 import { cn } from '@/lib/utils'
 
+import { useAuth } from '@/hooks/use-auth'
+import pb from '@/lib/pocketbase/client'
+
 export function ThemeToggle() {
   const { setTheme, theme } = useTheme()
   const { themeColor, setThemeColor } = useThemeColor()
+  const { user } = useAuth()
+
+  const handleSetTheme = async (newTheme: string) => {
+    setTheme(newTheme)
+    if (user) {
+      try {
+        const prefs = user.ui_preferences || {}
+        await pb.collection('users').update(user.id, {
+          ui_preferences: { ...prefs, theme: newTheme },
+        })
+      } catch (e) {
+        console.error('Failed to save theme preference', e)
+      }
+    }
+  }
 
   const colors = [
     { name: 'Zinc', value: 'zinc', colorClass: 'bg-zinc-900 dark:bg-zinc-100' },
@@ -41,17 +59,17 @@ export function ThemeToggle() {
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel>Modo</DropdownMenuLabel>
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => setTheme('light')} className="cursor-pointer">
+          <DropdownMenuItem onClick={() => handleSetTheme('light')} className="cursor-pointer">
             <Sun className="mr-2 h-4 w-4" />
             Claro
             {theme === 'light' && <Check className="ml-auto h-4 w-4" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setTheme('dark')} className="cursor-pointer">
+          <DropdownMenuItem onClick={() => handleSetTheme('dark')} className="cursor-pointer">
             <Moon className="mr-2 h-4 w-4" />
             Escuro
             {theme === 'dark' && <Check className="ml-auto h-4 w-4" />}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setTheme('system')} className="cursor-pointer">
+          <DropdownMenuItem onClick={() => handleSetTheme('system')} className="cursor-pointer">
             <Monitor className="mr-2 h-4 w-4" />
             Sistema
             {theme === 'system' && <Check className="ml-auto h-4 w-4" />}

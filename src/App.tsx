@@ -54,6 +54,7 @@ import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
 import { AuthProvider, useAuth } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
 import { ThemeColorInjector } from './components/ThemeColorInjector'
+import { ThemeSync } from './components/ThemeSync'
 import { ModuleGuard } from './components/auth/ModuleGuard'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
@@ -90,6 +91,7 @@ const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
     <AuthProvider>
       <ThemeColorInjector />
+      <ThemeSync />
       <ProjectProvider>
         <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
           <TooltipProvider>

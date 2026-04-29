@@ -144,6 +144,7 @@ export default function ProjectDetails() {
   const [reportSchedule, setReportSchedule] = useState<any>(null)
   const [reportRecipients, setReportRecipients] = useState('')
   const [isReportActive, setIsReportActive] = useState(false)
+  const [reportTemplateType, setReportTemplateType] = useState('Executivo')
   const [isSavingReport, setIsSavingReport] = useState(false)
 
   // Resolve console runtime warnings caused by vite-plugin-react-uid injecting data-uid into React.Fragment
@@ -245,10 +246,12 @@ export default function ProjectDetails() {
       setReportSchedule(record)
       setReportRecipients(record.recipients)
       setIsReportActive(record.active)
+      setReportTemplateType(record.template_type || 'Executivo')
     } catch (e) {
       setReportSchedule(null)
       setReportRecipients('')
       setIsReportActive(false)
+      setReportTemplateType('Executivo')
     }
   }, [id])
 
@@ -839,6 +842,7 @@ export default function ProjectDetails() {
           recipients: reportRecipients,
           active: isReportActive,
           frequency: 'Semanal',
+          template_type: reportTemplateType,
         })
       } else {
         const record = await pb.collection('report_schedules').create({
@@ -846,6 +850,7 @@ export default function ProjectDetails() {
           recipients: reportRecipients,
           active: isReportActive,
           frequency: 'Semanal',
+          template_type: reportTemplateType,
         })
         setReportSchedule(record)
       }
@@ -1970,6 +1975,21 @@ export default function ProjectDetails() {
                         checked={isReportActive}
                         onCheckedChange={setIsReportActive}
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="report-template">Layout do Relatório</Label>
+                      <Select value={reportTemplateType} onValueChange={setReportTemplateType}>
+                        <SelectTrigger id="report-template">
+                          <SelectValue placeholder="Selecione o modelo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Executivo">Executivo (Financeiro e Geral)</SelectItem>
+                          <SelectItem value="Técnico">Técnico (Tarefas e Prazos)</SelectItem>
+                          <SelectItem value="Focado em Gráficos">
+                            Focado em Gráficos (Visual)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="report-recipients">Destinatários</Label>

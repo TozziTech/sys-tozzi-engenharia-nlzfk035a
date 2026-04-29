@@ -30,6 +30,16 @@ export function ClientDocumentUpload({ projectId }: { projectId: string }) {
 
   const handleUpload = async () => {
     if (!file) return
+
+    if (file.size > 104857600) {
+      toast({
+        title: 'Arquivo muito grande',
+        description: 'O tamanho do arquivo não pode exceder 100MB.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsUploading(true)
 
     try {
@@ -80,13 +90,23 @@ export function ClientDocumentUpload({ projectId }: { projectId: string }) {
             >
               <UploadCloud className="w-8 h-8 text-muted-foreground" />
               {file ? (
-                <span className="text-sm font-medium text-primary truncate max-w-full px-4">
-                  {file.name}
-                </span>
+                <div className="flex flex-col items-center">
+                  <span className="text-sm font-medium text-primary truncate max-w-full px-4">
+                    {file.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground mt-1">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                </div>
               ) : (
-                <span className="text-sm text-muted-foreground text-center">
-                  Clique para selecionar um arquivo
-                </span>
+                <div className="flex flex-col items-center">
+                  <span className="text-sm text-muted-foreground text-center">
+                    Clique para selecionar um arquivo
+                  </span>
+                  <span className="text-xs text-muted-foreground/70 mt-1">
+                    Tamanho máximo: 100MB
+                  </span>
+                </div>
               )}
             </div>
             <input

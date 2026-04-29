@@ -62,7 +62,7 @@ export function ProjectFinanceTab({ project }: { project: any }) {
     (canAccess && canAccess('financeiro') && can && can('view', 'financeiro'))
 
   const loadRecords = useCallback(async () => {
-    if (!project?.id) return
+    if (!project?.id || !pb.authStore.isValid) return
     setLoading(true)
     try {
       let filterStr = `project_id = "${project.id}"`
@@ -182,12 +182,20 @@ export function ProjectFinanceTab({ project }: { project: any }) {
   }, [project?.id, periodFilter])
 
   useEffect(() => {
-    loadRecords()
-  }, [loadRecords])
+    if (user?.id && pb.authStore.isValid) {
+      loadRecords()
+    }
+  }, [loadRecords, user?.id])
 
-  useRealtime('financial_records', () => {
-    loadRecords()
-  })
+  const enableSubscriptions = !!user?.id && pb.authStore.isValid
+
+  useRealtime(
+    'financial_records',
+    () => {
+      loadRecords()
+    },
+    enableSubscriptions,
+  )
 
   if (!canViewFinance) {
     return (

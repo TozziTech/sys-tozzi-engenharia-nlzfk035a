@@ -112,6 +112,7 @@ export function ProjectModules({
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
   const loadData = async () => {
+    if (!pb.authStore.isValid) return
     try {
       const [modulesData, tasksData, tagsData] = await Promise.all([
         getProjectModules(projectId),
@@ -130,31 +131,35 @@ export function ProjectModules({
   }
 
   useEffect(() => {
-    loadData()
-  }, [projectId])
+    if (user?.id && pb.authStore.isValid) {
+      loadData()
+    }
+  }, [projectId, user?.id])
 
   const isDraggingOrReordering = !!draggedModule || isReordering
+
+  const enableSubs = enabled && !!user?.id && pb.authStore.isValid
 
   useRealtime(
     'project_modules',
     () => {
       if (!isDraggingOrReordering) loadData()
     },
-    enabled,
+    enableSubs,
   )
   useRealtime(
     'tasks',
     () => {
       if (!isDraggingOrReordering) loadData()
     },
-    enabled,
+    enableSubs,
   )
   useRealtime(
     'tags',
     () => {
       if (!isDraggingOrReordering) loadData()
     },
-    enabled,
+    enableSubs,
   )
 
   const getStatusColor = (status: string) => {

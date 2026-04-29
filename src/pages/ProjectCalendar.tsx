@@ -210,6 +210,7 @@ export default function ProjectCalendar({
   }, [])
 
   const loadData = async () => {
+    if (!pb.authStore.isValid) return
     try {
       const [tasksRes, modulesRes, projectsRes] = await Promise.all([
         pb.collection('tasks').getFullList({
@@ -290,12 +291,16 @@ export default function ProjectCalendar({
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (user?.id && pb.authStore.isValid) {
+      loadData()
+    }
+  }, [user?.id])
 
-  useRealtime('tasks', () => loadData())
-  useRealtime('project_modules', () => loadData())
-  useRealtime('projects', () => loadData())
+  const enableSubscriptions = !!user?.id && pb.authStore.isValid
+
+  useRealtime('tasks', () => loadData(), enableSubscriptions)
+  useRealtime('project_modules', () => loadData(), enableSubscriptions)
+  useRealtime('projects', () => loadData(), enableSubscriptions)
 
   const uniqueStatuses = useMemo(
     () => Array.from(new Set(events.map((e) => e.status).filter(Boolean))),

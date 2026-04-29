@@ -60,6 +60,8 @@ import { ProjectComments } from '@/components/ProjectComments'
 import { ProjectModules } from '@/components/ProjectModules'
 import { ProjectFinanceTab } from '@/components/ProjectFinanceTab'
 import { NoteCard } from '@/components/NoteCard'
+import { ProjectTimeline } from '@/components/ProjectTimeline'
+import ProjectCalendar from '@/pages/ProjectCalendar'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -250,9 +252,27 @@ export default function ProjectDetails() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
+      const validFiles = []
+      for (const file of Array.from(e.target.files)) {
+        if (file.size > 100 * 1024 * 1024) {
+          toast({
+            title: 'Arquivo muito grande',
+            description: `O arquivo ${file.name} excede o limite de 100MB.`,
+            variant: 'destructive',
+          })
+          continue
+        }
+        validFiles.push(file)
+      }
+
+      if (validFiles.length === 0) {
+        if (e.target) e.target.value = ''
+        return
+      }
+
       setIsUploadingDoc(true)
       try {
-        for (const file of Array.from(e.target.files)) {
+        for (const file of validFiles) {
           const formData = new FormData()
           formData.append('project', id!)
           formData.append('name', file.name)
@@ -262,7 +282,7 @@ export default function ProjectDetails() {
         }
         toast({
           title: 'Documentos anexados',
-          description: `${e.target.files.length} arquivo(s) adicionado(s) com sucesso.`,
+          description: `${validFiles.length} arquivo(s) adicionado(s) com sucesso.`,
         })
       } catch (err) {
         console.error(err)
@@ -1142,615 +1162,640 @@ export default function ProjectDetails() {
         </Card>
       )}
 
-      {/* Main Content Layout */}
-      <div className="w-full mb-6 print:hidden">
-        <ProjectModules projectId={project.id} enabled={enableSubscriptions} />
-      </div>
+      <Tabs defaultValue="gestao" className="w-full print:hidden mt-6">
+        <TabsList
+          className={cn(
+            'flex flex-wrap w-full h-auto gap-1 p-1',
+            canAccessFinance ? 'sm:grid sm:grid-cols-6' : 'sm:grid sm:grid-cols-5',
+          )}
+        >
+          <TabsTrigger value="gestao" className="flex-1 min-w-[120px]">
+            Gestão/Gerencial
+          </TabsTrigger>
+          <TabsTrigger value="operacional" className="flex-1 min-w-[120px]">
+            Operacional
+          </TabsTrigger>
+          <TabsTrigger value="cronograma" className="flex-1 min-w-[120px]">
+            Cronograma
+          </TabsTrigger>
+          <TabsTrigger value="agenda" className="flex-1 min-w-[120px]">
+            Agenda
+          </TabsTrigger>
+          <TabsTrigger value="documentos" className="flex-1 min-w-[120px]">
+            Documentos
+          </TabsTrigger>
+          {canAccessFinance && (
+            <TabsTrigger value="financeiro" className="flex-1 min-w-[120px]">
+              Financeiro
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-      <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass} print:hidden`}>
-        <div className={`md:col-span-2 ${gapClass}`}>
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
-              <CardTitle className="text-lg">Observações</CardTitle>
-              {!isEditingObservations && canEdit && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-2 text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    setObservationText(project.description || project.observations || '')
-                    setIsEditingObservations(true)
-                  }}
-                >
-                  <Edit2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Editar</span>
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              {isEditingObservations ? (
-                <div className="space-y-3 animate-in fade-in duration-200">
-                  <div className="space-y-2">
-                    <Textarea
-                      value={observationText}
-                      onChange={(e) => setObservationText(e.target.value)}
-                      placeholder="Adicione observações e descrições do projeto... (Suporta Markdown: **negrito**, *itálico*, - listas, [link](url))"
-                      className="min-h-[160px] resize-y font-mono text-sm"
-                      autoFocus
-                    />
-                    <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                      <div className="flex flex-wrap gap-x-3 gap-y-1">
-                        <span>
-                          <strong className="font-bold">**</strong>negrito
-                          <strong className="font-bold">**</strong>
-                        </span>
-                        <span>
-                          <em className="italic">*</em>itálico<em className="italic">*</em>
-                        </span>
-                        <span>[link](url)</span>
-                        <span>- lista</span>
-                      </div>
-                      <span className="shrink-0">Suporta Markdown</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
+        <TabsContent value="gestao" className={cn('mt-6 space-y-6 outline-none')}>
+          <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass}`}>
+            <div className={`md:col-span-2 ${gapClass}`}>
+              <Card>
+                <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
+                  <CardTitle className="text-lg">Observações</CardTitle>
+                  {!isEditingObservations && canEdit && (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      onClick={() => setIsEditingObservations(false)}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        try {
-                          await pb
-                            .collection('projects')
-                            .update(project.id, { description: observationText })
-                          if (typeof updateProject === 'function') {
-                            updateProject(project.id, {
-                              description: observationText,
-                              observations: observationText,
-                            })
-                          } else {
-                            window.location.reload()
-                          }
-                          setIsEditingObservations(false)
-                          toast({
-                            title: 'Sucesso',
-                            description: 'Observações atualizadas com êxito.',
-                          })
-                        } catch (err) {
-                          console.error(err)
-                          toast({
-                            title: 'Erro',
-                            description: `Ocorreu um erro ao salvar as observações. ${getErrorMessage(err)}`,
-                            variant: 'destructive',
-                          })
-                        }
+                      className="h-8 gap-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setObservationText(project.description || project.observations || '')
+                        setIsEditingObservations(true)
                       }}
                     >
-                      Salvar
+                      <Edit2 className="h-4 w-4" />
+                      <span className="hidden sm:inline">Editar</span>
                     </Button>
-                  </div>
-                </div>
-              ) : project.description || project.observations ? (
-                <div className="bg-muted/50 p-4 rounded-lg border border-border group relative">
-                  <MarkdownRenderer content={project.description || project.observations || ''} />
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">
-                  Nenhuma observação detalhada foi registrada para este projeto.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="w-full">
-            <NoteCard projectId={project.id} />
-          </div>
-
-          <div className={gapClass}>
-            <div className={`grid grid-cols-1 md:grid-cols-2 ${gridGapClass}`}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Controle de Horas (Performance)</CardTitle>
-                  <CardDescription>
-                    Comparativo de horas estimadas e horas reais apontadas.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center">
-                  <div className="w-full h-[250px]">
-                    <ChartContainer
-                      config={{
-                        estimated: { label: 'Horas Estimadas', color: 'hsl(var(--chart-1))' },
-                        actual: { label: 'Horas Reais', color: 'hsl(var(--chart-2))' },
-                      }}
-                      className="w-full h-full"
-                    >
-                      <BarChart
-                        data={[
-                          {
-                            name: 'Horas do Projeto',
-                            estimated: estimatedHours,
-                            actual: totalActualHours,
-                          },
-                        ]}
-                        margin={{ top: 20, right: 30, left: -20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="name" hide />
-                        <YAxis tickLine={false} axisLine={false} fontSize={12} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <ChartLegend content={<ChartLegendContent />} />
-                        <Bar
-                          dataKey="estimated"
-                          name="Horas Estimadas"
-                          fill="var(--color-estimated)"
-                          radius={[4, 4, 0, 0]}
-                          barSize={60}
-                        />
-                        <Bar
-                          dataKey="actual"
-                          name="Horas Reais"
-                          fill="var(--color-actual)"
-                          radius={[4, 4, 0, 0]}
-                          barSize={60}
-                        />
-                      </BarChart>
-                    </ChartContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Indicadores de Esforço</CardTitle>
+                  )}
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                          Horas Estimadas
-                        </p>
-                        <p className="text-3xl font-bold">{estimatedHours}h</p>
+                  {isEditingObservations ? (
+                    <div className="space-y-3 animate-in fade-in duration-200">
+                      <div className="space-y-2">
+                        <Textarea
+                          value={observationText}
+                          onChange={(e) => setObservationText(e.target.value)}
+                          placeholder="Adicione observações e descrições do projeto... (Suporta Markdown: **negrito**, *itálico*, - listas, [link](url))"
+                          className="min-h-[160px] resize-y font-mono text-sm"
+                          autoFocus
+                        />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                          <div className="flex flex-wrap gap-x-3 gap-y-1">
+                            <span>
+                              <strong className="font-bold">**</strong>negrito
+                              <strong className="font-bold">**</strong>
+                            </span>
+                            <span>
+                              <em className="italic">*</em>itálico<em className="italic">*</em>
+                            </span>
+                            <span>[link](url)</span>
+                            <span>- lista</span>
+                          </div>
+                          <span className="shrink-0">Suporta Markdown</span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-                          Horas Reais
-                        </p>
-                        <p className="text-3xl font-bold">{totalActualHours}h</p>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsEditingObservations(false)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await pb
+                                .collection('projects')
+                                .update(project.id, { description: observationText })
+                              if (typeof updateProject === 'function') {
+                                updateProject(project.id, {
+                                  description: observationText,
+                                  observations: observationText,
+                                })
+                              } else {
+                                window.location.reload()
+                              }
+                              setIsEditingObservations(false)
+                              toast({
+                                title: 'Sucesso',
+                                description: 'Observações atualizadas com êxito.',
+                              })
+                            } catch (err) {
+                              console.error(err)
+                              toast({
+                                title: 'Erro',
+                                description: `Ocorreu um erro ao salvar as observações. ${getErrorMessage(err)}`,
+                                variant: 'destructive',
+                              })
+                            }
+                          }}
+                        >
+                          Salvar
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm font-medium">
-                        <span>Esforço Consumido</span>
-                        <span>
-                          {estimatedHours > 0
-                            ? Math.round((totalActualHours / estimatedHours) * 100)
-                            : 0}
-                          %
-                        </span>
-                      </div>
-                      <Progress
-                        value={estimatedHours > 0 ? (totalActualHours / estimatedHours) * 100 : 0}
-                        className={`h-2 ${totalActualHours > estimatedHours ? 'bg-red-100 [&>div]:bg-red-500' : totalActualHours > estimatedHours * 0.8 ? 'bg-amber-100 [&>div]:bg-amber-500' : ''}`}
+                  ) : project.description || project.observations ? (
+                    <div className="bg-muted/50 p-4 rounded-lg border border-border group relative">
+                      <MarkdownRenderer
+                        content={project.description || project.observations || ''}
                       />
                     </div>
-
-                    {totalActualHours > estimatedHours && (
-                      <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-sm font-medium rounded-md border border-red-200 dark:border-red-900 flex items-start gap-2">
-                        <AlertTriangle className="h-5 w-5 shrink-0" />
-                        <p>
-                          Atenção: O projeto ultrapassou a estimativa de horas planejada em{' '}
-                          {totalActualHours - estimatedHours}h. Considere revisar o escopo ou
-                          negociar aditivos com o cliente.
-                        </p>
-                      </div>
-                    )}
-                    {totalActualHours <= estimatedHours && (
-                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium rounded-md border border-emerald-200 dark:border-emerald-900 flex items-start gap-2">
-                        <TrendingUp className="h-5 w-5 shrink-0" />
-                        <p>O projeto está sendo executado dentro do tempo estimado.</p>
-                      </div>
-                    )}
-                  </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      Nenhuma observação detalhada foi registrada para este projeto.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
+
+              <div className="w-full">
+                <NoteCard projectId={project.id} />
+              </div>
+
+              <div className={gapClass}>
+                <div className={`grid grid-cols-1 md:grid-cols-2 ${gridGapClass}`}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Controle de Horas (Performance)</CardTitle>
+                      <CardDescription>
+                        Comparativo de horas estimadas e horas reais apontadas.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col items-center justify-center">
+                      <div className="w-full h-[250px]">
+                        <ChartContainer
+                          config={{
+                            estimated: { label: 'Horas Estimadas', color: 'hsl(var(--chart-1))' },
+                            actual: { label: 'Horas Reais', color: 'hsl(var(--chart-2))' },
+                          }}
+                          className="w-full h-full"
+                        >
+                          <BarChart
+                            data={[
+                              {
+                                name: 'Horas do Projeto',
+                                estimated: estimatedHours,
+                                actual: totalActualHours,
+                              },
+                            ]}
+                            margin={{ top: 20, right: 30, left: -20, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="name" hide />
+                            <YAxis tickLine={false} axisLine={false} fontSize={12} />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <ChartLegend content={<ChartLegendContent />} />
+                            <Bar
+                              dataKey="estimated"
+                              name="Horas Estimadas"
+                              fill="var(--color-estimated)"
+                              radius={[4, 4, 0, 0]}
+                              barSize={60}
+                            />
+                            <Bar
+                              dataKey="actual"
+                              name="Horas Reais"
+                              fill="var(--color-actual)"
+                              radius={[4, 4, 0, 0]}
+                              barSize={60}
+                            />
+                          </BarChart>
+                        </ChartContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Indicadores de Esforço</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
+                              Horas Estimadas
+                            </p>
+                            <p className="text-3xl font-bold">{estimatedHours}h</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
+                              Horas Reais
+                            </p>
+                            <p className="text-3xl font-bold">{totalActualHours}h</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm font-medium">
+                            <span>Esforço Consumido</span>
+                            <span>
+                              {estimatedHours > 0
+                                ? Math.round((totalActualHours / estimatedHours) * 100)
+                                : 0}
+                              %
+                            </span>
+                          </div>
+                          <Progress
+                            value={
+                              estimatedHours > 0 ? (totalActualHours / estimatedHours) * 100 : 0
+                            }
+                            className={`h-2 ${totalActualHours > estimatedHours ? 'bg-red-100 [&>div]:bg-red-500' : totalActualHours > estimatedHours * 0.8 ? 'bg-amber-100 [&>div]:bg-amber-500' : ''}`}
+                          />
+                        </div>
+
+                        {totalActualHours > estimatedHours && (
+                          <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-sm font-medium rounded-md border border-red-200 dark:border-red-900 flex items-start gap-2">
+                            <AlertTriangle className="h-5 w-5 shrink-0" />
+                            <p>
+                              Atenção: O projeto ultrapassou a estimativa de horas planejada em{' '}
+                              {totalActualHours - estimatedHours}h. Considere revisar o escopo ou
+                              negociar aditivos com o cliente.
+                            </p>
+                          </div>
+                        )}
+                        {totalActualHours <= estimatedHours && (
+                          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium rounded-md border border-emerald-200 dark:border-emerald-900 flex items-start gap-2">
+                            <TrendingUp className="h-5 w-5 shrink-0" />
+                            <p>O projeto está sendo executado dentro do tempo estimado.</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <CardTitle className="text-lg">Histórico de Horas</CardTitle>
+                      <CardDescription>
+                        Registro detalhado de horas apontadas neste projeto.
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        Exportar CSV
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Exportar PDF
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {projectTimeLogs.length > 0 ? (
+                      <div className="rounded-md border overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Data</TableHead>
+                              <TableHead>Membro</TableHead>
+                              <TableHead>Atividade</TableHead>
+                              <TableHead className="text-right">Horas</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {projectTimeLogs
+                              .sort(
+                                (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+                              )
+                              .map((log) => (
+                                <TableRow key={log.id}>
+                                  <TableCell className="whitespace-nowrap">
+                                    {format(new Date(log.date), 'dd/MM/yyyy')}
+                                  </TableCell>
+                                  <TableCell>{log.user.name}</TableCell>
+                                  <TableCell>{log.task?.name || 'N/A'}</TableCell>
+                                  <TableCell className="text-right font-medium">
+                                    {log.hours}h
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
+                        Nenhuma hora registrada para este projeto ainda.
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-4 text-center">
+                      Nota: Os dados exportados refletem o estado local da sessão atual.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-6 mt-6">
+                <Card>
+                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <CardTitle className="text-lg">Histórico de Alterações</CardTitle>
+                      <CardDescription>
+                        Registro de alterações de acesso e atribuições de membros na equipe do
+                        projeto.
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => exportAuditLogsCSV(auditLogs)}
+                        className="flex-1 sm:flex-none"
+                      >
+                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                        CSV
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          exportAuditLogsPDF(
+                            auditLogs,
+                            user?.name || user?.email || 'Usuário',
+                            null,
+                          )
+                        }
+                        className="flex-1 sm:flex-none"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        PDF
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {auditLogs.length > 0 ? (
+                      <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6">
+                        {auditLogs.map((log) => {
+                          const targetUser = users.find((u) => u.id === log.details?.target_user)
+                          const actionLabelMap: Record<string, string> = {
+                            access_granted: 'Acesso Concedido',
+                            access_updated: 'Acesso Atualizado',
+                            access_revoked: 'Acesso Revogado',
+                            assignment_added: 'Membro Atribuído',
+                            assignment_removed: 'Membro Removido',
+                          }
+                          const actionLabel = actionLabelMap[log.action] || 'Ação Desconhecida'
+
+                          let message = ''
+                          if (log.action === 'access_granted') {
+                            message = `Acesso de ${log.details?.access_level || 'Leitura'} concedido a ${targetUser?.name || 'Usuário'}`
+                          } else if (log.action === 'access_updated') {
+                            message = `Acesso de ${targetUser?.name || 'Usuário'} alterado para ${log.details?.access_level || 'Leitura'}`
+                          } else if (log.action === 'access_revoked') {
+                            message = `Acesso de ${targetUser?.name || 'Usuário'} revogado`
+                          } else if (log.action === 'assignment_added') {
+                            message = `${targetUser?.name || 'Usuário'} atribuído como ${log.details?.role} na disciplina "${log.details?.module_name}"`
+                          } else if (log.action === 'assignment_removed') {
+                            message = `${targetUser?.name || 'Usuário'} removido da função de ${log.details?.role} na disciplina "${log.details?.module_name}"`
+                          } else {
+                            message = `Ação: ${log.action}`
+                          }
+
+                          return (
+                            <div key={log.id} className="pl-6 relative">
+                              <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
+                              <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 mb-1">
+                                <span className="font-medium text-sm">{actionLabel}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(log.created).toLocaleString('pt-BR')} por{' '}
+                                  {log.expand?.user_id?.name || 'Sistema'}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{message}</p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
+                        Nenhum histórico registrado para a equipe deste projeto.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Histórico de Relatórios</CardTitle>
+                    <CardDescription>
+                      Instantâneos do progresso do projeto salvos ao exportar relatórios gerenciais.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {reportsHistory.length > 0 ? (
+                      <div className="space-y-3">
+                        {reportsHistory.map((report) => (
+                          <div
+                            key={report.id}
+                            className="flex items-center justify-between p-4 border rounded-lg bg-muted/10"
+                          >
+                            <div>
+                              <p className="font-medium text-sm flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                Relatório de Especialidades
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(report.created).toLocaleString('pt-BR')}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-6">
+                              <div className="hidden sm:block text-right">
+                                <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                  Módulos
+                                </p>
+                                <p className="font-medium text-sm">
+                                  {report.snapshot_data?.totalModules || 0}
+                                </p>
+                              </div>
+                              <div className="hidden md:block text-right">
+                                <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                  Concluídos
+                                </p>
+                                <p className="font-medium text-sm text-emerald-600 dark:text-emerald-400">
+                                  {report.snapshot_data?.modulesByStatus?.['Concluído'] || 0}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                  Progresso
+                                </p>
+                                <p className="font-bold text-base text-primary">
+                                  {report.total_progress}%
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20 text-sm">
+                        Nenhum relatório exportado para este projeto ainda.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
-            <Card>
-              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="text-lg">Histórico de Horas</CardTitle>
-                  <CardDescription>
-                    Registro detalhado de horas apontadas neste projeto.
-                  </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Exportar CSV
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleExportPDF}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Exportar PDF
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {projectTimeLogs.length > 0 ? (
-                  <div className="rounded-md border overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Membro</TableHead>
-                          <TableHead>Atividade</TableHead>
-                          <TableHead className="text-right">Horas</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {projectTimeLogs
-                          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                          .map((log) => (
-                            <TableRow key={log.id}>
-                              <TableCell className="whitespace-nowrap">
-                                {format(new Date(log.date), 'dd/MM/yyyy')}
-                              </TableCell>
-                              <TableCell>{log.user.name}</TableCell>
-                              <TableCell>{log.task?.name || 'N/A'}</TableCell>
-                              <TableCell className="text-right font-medium">{log.hours}h</TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
-                    Nenhuma hora registrada para este projeto ainda.
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground mt-4 text-center">
-                  Nota: Os dados exportados refletem o estado local da sessão atual.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Tabs defaultValue="documents" className="w-full">
-            <TabsList
-              className={cn(
-                'flex flex-wrap w-full h-auto gap-1 p-1',
-                canAccessFinance ? 'sm:grid sm:grid-cols-3' : 'sm:grid sm:grid-cols-2',
-              )}
-            >
-              <TabsTrigger value="documents" className="flex-1">
-                Documentos
-              </TabsTrigger>
-              {canAccessFinance && (
-                <TabsTrigger value="finance" className="flex-1">
-                  Financeiro
-                </TabsTrigger>
-              )}
-              <TabsTrigger value="history" className="flex-1">
-                Histórico
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="documents" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Documentos do Projeto</CardTitle>
-                  <CardDescription>
-                    Repositório centralizado para contratos, especificações técnicas e plantas.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div
-                    className={`border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-8 flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${isUploadingDoc ? 'opacity-50 bg-slate-50 dark:bg-slate-900/50' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
-                    onClick={() =>
-                      !isUploadingDoc && document.getElementById('file-upload')?.click()
-                    }
-                  >
-                    <div className="p-3 bg-primary/10 rounded-full mb-4">
-                      <UploadCloud className="h-6 w-6 text-primary" />
-                    </div>
-                    <h3 className="text-sm font-semibold mb-1">
-                      {isUploadingDoc
-                        ? 'Enviando arquivos...'
-                        : 'Clique ou arraste arquivos para cá'}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      PDF, DOCX, DWG, Imagens (Max 10MB)
-                    </p>
-                    <input
-                      type="file"
-                      id="file-upload"
-                      className="hidden"
-                      multiple
-                      disabled={isUploadingDoc}
-                      onChange={handleFileUpload}
-                    />
-                  </div>
-
-                  {pbDocuments.length > 0 ? (
-                    <div className="rounded-md border overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Nome do Arquivo</TableHead>
-                            <TableHead>Categoria</TableHead>
-                            <TableHead>Data de Adição</TableHead>
-                            <TableHead className="w-[100px] text-right">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {pbDocuments.map((doc) => (
-                            <TableRow key={doc.id}>
-                              <TableCell className="font-medium">
-                                <a
-                                  href={pb.files.getUrl(doc, doc.file)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 whitespace-nowrap hover:text-primary hover:underline"
-                                >
-                                  <File className="h-4 w-4 text-muted-foreground" />
-                                  {doc.name}
-                                </a>
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap">
-                                <Select
-                                  value={doc.type}
-                                  onValueChange={(val) => handleDocTypeChange(doc.id, val)}
-                                >
-                                  <SelectTrigger className="h-8 w-[130px] text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Contract">Contrato</SelectItem>
-                                    <SelectItem value="Technical">Técnico/Planta</SelectItem>
-                                    <SelectItem value="Other">Outros</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap">
-                                {new Date(doc.created).toLocaleDateString('pt-BR')}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteDoc(doc.id)}
-                                  className="hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
-                      Nenhum documento anexado ainda.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="history" className="mt-4 space-y-6">
-              <Card>
-                <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div>
-                    <CardTitle className="text-lg">Histórico de Alterações</CardTitle>
-                    <CardDescription>
-                      Registro de alterações de acesso e atribuições de membros na equipe do
-                      projeto.
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => exportAuditLogsCSV(auditLogs)}
-                      className="flex-1 sm:flex-none"
-                    >
-                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      CSV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        exportAuditLogsPDF(auditLogs, user?.name || user?.email || 'Usuário', null)
-                      }
-                      className="flex-1 sm:flex-none"
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      PDF
-                    </Button>
-                  </div>
+            {/* Sidebar Info */}
+            <div className="space-y-6">
+              <Card className="border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2 text-red-600 dark:text-red-400">
+                    <AlertTriangle className="h-5 w-5" />
+                    Painel de Crise (48h)
+                  </CardTitle>
+                  <CardDescription>Vencimentos críticos e tarefas atrasadas.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {auditLogs.length > 0 ? (
-                    <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6">
-                      {auditLogs.map((log) => {
-                        const targetUser = users.find((u) => u.id === log.details?.target_user)
-                        const actionLabelMap: Record<string, string> = {
-                          access_granted: 'Acesso Concedido',
-                          access_updated: 'Acesso Atualizado',
-                          access_revoked: 'Acesso Revogado',
-                          assignment_added: 'Membro Atribuído',
-                          assignment_removed: 'Membro Removido',
-                        }
-                        const actionLabel = actionLabelMap[log.action] || 'Ação Desconhecida'
-
-                        let message = ''
-                        if (log.action === 'access_granted') {
-                          message = `Acesso de ${log.details?.access_level || 'Leitura'} concedido a ${targetUser?.name || 'Usuário'}`
-                        } else if (log.action === 'access_updated') {
-                          message = `Acesso de ${targetUser?.name || 'Usuário'} alterado para ${log.details?.access_level || 'Leitura'}`
-                        } else if (log.action === 'access_revoked') {
-                          message = `Acesso de ${targetUser?.name || 'Usuário'} revogado`
-                        } else if (log.action === 'assignment_added') {
-                          message = `${targetUser?.name || 'Usuário'} atribuído como ${log.details?.role} na disciplina "${log.details?.module_name}"`
-                        } else if (log.action === 'assignment_removed') {
-                          message = `${targetUser?.name || 'Usuário'} removido da função de ${log.details?.role} na disciplina "${log.details?.module_name}"`
-                        } else {
-                          message = `Ação: ${log.action}`
-                        }
-
-                        return (
-                          <div key={log.id} className="pl-6 relative">
-                            <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
-                            <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 mb-1">
-                              <span className="font-medium text-sm">{actionLabel}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(log.created).toLocaleString('pt-BR')} por{' '}
-                                {log.expand?.user_id?.name || 'Sistema'}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{message}</p>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
-                      Nenhum histórico registrado para a equipe deste projeto.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Histórico de Relatórios</CardTitle>
-                  <CardDescription>
-                    Instantâneos do progresso do projeto salvos ao exportar relatórios gerenciais.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {reportsHistory.length > 0 ? (
+                  {crisisModules.length > 0 ? (
                     <div className="space-y-3">
-                      {reportsHistory.map((report) => (
+                      {crisisModules.map((mod) => (
                         <div
-                          key={report.id}
-                          className="flex items-center justify-between p-4 border rounded-lg bg-muted/10"
+                          key={mod.id}
+                          className="flex flex-col gap-1 p-3 bg-white dark:bg-slate-950 border border-red-100 dark:border-red-900/50 rounded-md shadow-sm"
                         >
-                          <div>
-                            <p className="font-medium text-sm flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-muted-foreground" />
-                              Relatório de Especialidades
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(report.created).toLocaleString('pt-BR')}
-                            </p>
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-semibold text-sm">{mod.name}</span>
+                            <Badge
+                              variant="destructive"
+                              className="text-[10px] px-1.5 py-0 h-4 bg-red-500"
+                            >
+                              {getCountdown(mod.deadline!)}
+                            </Badge>
                           </div>
-                          <div className="flex items-center gap-6">
-                            <div className="hidden sm:block text-right">
-                              <p className="text-[10px] text-muted-foreground uppercase font-semibold">
-                                Módulos
-                              </p>
-                              <p className="font-medium text-sm">
-                                {report.snapshot_data?.totalModules || 0}
-                              </p>
-                            </div>
-                            <div className="hidden md:block text-right">
-                              <p className="text-[10px] text-muted-foreground uppercase font-semibold">
-                                Concluídos
-                              </p>
-                              <p className="font-medium text-sm text-emerald-600 dark:text-emerald-400">
-                                {report.snapshot_data?.modulesByStatus?.['Concluído'] || 0}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[10px] text-muted-foreground uppercase font-semibold">
-                                Progresso
-                              </p>
-                              <p className="font-bold text-base text-primary">
-                                {report.total_progress}%
-                              </p>
-                            </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                            <span>{mod.edificacao || 'Sem Edificação'}</span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(mod.deadline!).toLocaleDateString('pt-BR')}
+                            </span>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20 text-sm">
-                      Nenhum relatório exportado para este projeto ainda.
+                    <div className="text-sm text-muted-foreground bg-white/50 dark:bg-slate-950/50 p-4 rounded-md border border-dashed text-center">
+                      Nenhum vencimento crítico nas próximas 48h.
                     </div>
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            {canAccessFinance && (
-              <TabsContent value="finance" className="mt-4 space-y-6">
-                <div className="w-full">
-                  <ProjectFinanceTab project={project} />
-                </div>
-              </TabsContent>
-            )}
-          </Tabs>
-        </div>
+              <div className="w-full">
+                <ProjectComments projectId={project.id} enabled={enableSubscriptions} />
+              </div>
+            </div>
+          </div>
+        </TabsContent>
 
-        {/* Sidebar Info */}
-        <div className="space-y-6 print:hidden">
-          <Card className="border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2 text-red-600 dark:text-red-400">
-                <AlertTriangle className="h-5 w-5" />
-                Painel de Crise (48h)
-              </CardTitle>
-              <CardDescription>Vencimentos críticos e tarefas atrasadas.</CardDescription>
+        <TabsContent value="operacional" className="mt-6 outline-none">
+          <ProjectModules projectId={project.id} enabled={enableSubscriptions} />
+        </TabsContent>
+
+        <TabsContent value="cronograma" className="mt-6 outline-none">
+          <ProjectTimeline modules={modules} project={project} />
+        </TabsContent>
+
+        <TabsContent
+          value="agenda"
+          className="mt-6 bg-card border rounded-xl overflow-hidden shadow-sm outline-none"
+        >
+          <ProjectCalendar projectId={project.id} embedded />
+        </TabsContent>
+
+        <TabsContent value="documentos" className="mt-6 space-y-6 outline-none">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Documentos do Projeto</CardTitle>
+              <CardDescription>
+                Repositório centralizado para contratos, especificações técnicas e plantas.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {crisisModules.length > 0 ? (
-                <div className="space-y-3">
-                  {crisisModules.map((mod) => (
-                    <div
-                      key={mod.id}
-                      className="flex flex-col gap-1 p-3 bg-white dark:bg-slate-950 border border-red-100 dark:border-red-900/50 rounded-md shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="font-semibold text-sm">{mod.name}</span>
-                        <Badge
-                          variant="destructive"
-                          className="text-[10px] px-1.5 py-0 h-4 bg-red-500"
-                        >
-                          {getCountdown(mod.deadline!)}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
-                        <span>{mod.edificacao || 'Sem Edificação'}</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {new Date(mod.deadline!).toLocaleDateString('pt-BR')}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+            <CardContent className="space-y-6">
+              <div
+                className={`border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-8 flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${isUploadingDoc ? 'opacity-50 bg-slate-50 dark:bg-slate-900/50' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                onClick={() => !isUploadingDoc && document.getElementById('file-upload')?.click()}
+              >
+                <div className="p-3 bg-primary/10 rounded-full mb-4">
+                  <UploadCloud className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1">
+                  {isUploadingDoc ? 'Enviando arquivos...' : 'Clique ou arraste arquivos para cá'}
+                </h3>
+                <p className="text-xs text-muted-foreground">PDF, DOCX, DWG, Imagens (Max 100MB)</p>
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  multiple
+                  disabled={isUploadingDoc}
+                  onChange={handleFileUpload}
+                />
+              </div>
+
+              {pbDocuments.length > 0 ? (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome do Arquivo</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Data de Adição</TableHead>
+                        <TableHead className="w-[100px] text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pbDocuments.map((doc) => (
+                        <TableRow key={doc.id}>
+                          <TableCell className="font-medium">
+                            <a
+                              href={pb.files.getUrl(doc, doc.file)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 whitespace-nowrap hover:text-primary hover:underline"
+                            >
+                              <File className="h-4 w-4 text-muted-foreground" />
+                              {doc.name}
+                            </a>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Select
+                              value={doc.type}
+                              onValueChange={(val) => handleDocTypeChange(doc.id, val)}
+                            >
+                              <SelectTrigger className="h-8 w-[130px] text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Contract">Contrato</SelectItem>
+                                <SelectItem value="Technical">Técnico/Planta</SelectItem>
+                                <SelectItem value="Other">Outros</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {new Date(doc.created).toLocaleDateString('pt-BR')}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteDoc(doc.id)}
+                              className="hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground bg-white/50 dark:bg-slate-950/50 p-4 rounded-md border border-dashed text-center">
-                  Nenhum vencimento crítico nas próximas 48h.
+                <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
+                  Nenhum documento anexado ainda.
                 </div>
               )}
             </CardContent>
           </Card>
+        </TabsContent>
 
-          <div className="w-full">
-            <ProjectComments projectId={project.id} enabled={enableSubscriptions} />
-          </div>
-        </div>
-      </div>
+        {canAccessFinance && (
+          <TabsContent value="financeiro" className="mt-6 outline-none">
+            <ProjectFinanceTab project={project} />
+          </TabsContent>
+        )}
+      </Tabs>
 
       <EditProjectModal
         project={project}

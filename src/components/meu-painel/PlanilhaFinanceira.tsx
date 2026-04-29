@@ -51,6 +51,7 @@ import { useToast } from '@/hooks/use-toast'
 import { ExpandedPaymentRow } from './ExpandedPaymentRow'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { exportServicosFinanceirosCSV } from '@/lib/export'
+import { getNextServicoCode } from '@/services/servicos_financeiros'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -114,8 +115,34 @@ export function PlanilhaFinanceira() {
   useRealtime('pagamentos_servicos', loadData)
 
   const handleSave = async () => {
+    if (!formData.codigo || !String(formData.codigo).trim()) {
+      toast({ title: 'O código do serviço é obrigatório.', variant: 'destructive' })
+      return
+    }
+
+    if (!formData.projeto_servico || !String(formData.projeto_servico).trim()) {
+      toast({ title: 'A descrição ou projeto do serviço é obrigatória.', variant: 'destructive' })
+      return
+    }
+
+    if (!formData.data_inicio) {
+      toast({ title: 'A data de início é obrigatória.', variant: 'destructive' })
+      return
+    }
+
+    const valorTotal = Number(formData.valor_total)
+    if (
+      isNaN(valorTotal) ||
+      formData.valor_total === '' ||
+      formData.valor_total === undefined ||
+      formData.valor_total === null
+    ) {
+      toast({ title: 'O valor total deve ser um número válido.', variant: 'destructive' })
+      return
+    }
+
     try {
-      const data = { ...formData, user_id: user?.id, valor_total: Number(formData.valor_total) }
+      const data = { ...formData, user_id: user?.id, valor_total: valorTotal }
       if (formData.id) {
         await pb.collection('servicos_financeiros').update(formData.id, data)
         toast({ title: 'Serviço atualizado com sucesso!' })
@@ -124,8 +151,13 @@ export function PlanilhaFinanceira() {
         toast({ title: 'Serviço registrado com sucesso!' })
       }
       setIsOpen(false)
-    } catch (e) {
-      toast({ title: 'Erro ao salvar o serviço', variant: 'destructive' })
+    } catch (e: any) {
+      console.error(e)
+      toast({
+        title: 'Erro ao salvar o serviço',
+        description: e?.message || 'Verifique se os dados estão corretos.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -144,10 +176,26 @@ export function PlanilhaFinanceira() {
     }
   }
 
-  const openForm = (item?: any) => {
-    setFormData(
-      item || { status: 'Pendente', data_inicio: new Date().toISOString().substring(0, 10) },
-    )
+  const openForm = async (item?: any) => {
+    if (item) {
+      setFormData(item)
+    } else {
+      try {
+        const nextCode = await getNextServicoCode()
+        setFormData({
+          codigo: nextCode,
+          status: 'Pendente',
+          data_inicio: new Date().toISOString().substring(0, 10),
+        })
+      } catch (error) {
+        console.error('Erro ao buscar próximo código:', error)
+        setFormData({
+          status: 'Pendente',
+          data_inicio: new Date().toISOString().substring(0, 10),
+        })
+        toast({ title: 'Erro ao gerar código automático', variant: 'destructive' })
+      }
+    }
     setIsOpen(true)
   }
 

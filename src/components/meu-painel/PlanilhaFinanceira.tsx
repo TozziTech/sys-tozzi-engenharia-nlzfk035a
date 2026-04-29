@@ -244,6 +244,30 @@ export function PlanilhaFinanceira() {
         : 0
       : ((totalCurrentMonth - totalPrevMonth) / totalPrevMonth) * 100
 
+  const totalPending = servicos
+    .filter((s) => s.status === 'Pendente' || s.status === 'Em Andamento')
+    .reduce((acc, s) => acc + (s.valor_total || 0), 0)
+
+  const totalCompleted = servicos
+    .filter((s) => s.status === 'Concluído')
+    .reduce((acc, s) => acc + (s.valor_total || 0), 0)
+
+  const grandTotal = servicos
+    .filter((s) => s.status !== 'Cancelado')
+    .reduce((acc, s) => acc + (s.valor_total || 0), 0)
+
+  const clientsMap: Record<string, number> = {}
+  servicos.forEach((s) => {
+    if (s.status !== 'Cancelado') {
+      const clientName = s.cliente || 'Não Informado'
+      clientsMap[clientName] = (clientsMap[clientName] || 0) + (s.valor_total || 0)
+    }
+  })
+  const topClients = Object.entries(clientsMap)
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5)
+
   const totalAReceber = filteredServicos
     .filter((s) => s.status !== 'Cancelado')
     .reduce((acc, s) => {
@@ -324,96 +348,122 @@ export function PlanilhaFinanceira() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-              Recebido (Mês Atual)
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-              {formatCurrency(totalCurrentMonth)}
-            </div>
-            <div className="text-xs mt-1 flex items-center gap-1.5">
-              {growthPercent > 0 ? (
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              ) : growthPercent < 0 ? (
-                <TrendingDown className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-              ) : (
-                <Minus className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-              )}
-              <span
-                className={`font-medium ${growthPercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : growthPercent < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}
-              >
-                {growthPercent > 0 ? '+' : ''}
-                {growthPercent.toFixed(1)}%
-              </span>
-              <span className="text-emerald-600/80 dark:text-emerald-400/80">
-                em relação ao mês anterior
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-4 md:grid-cols-3 mb-4">
         <Card className="bg-amber-50/50 border-amber-100 dark:bg-amber-950/20 dark:border-amber-900/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-amber-800 dark:text-amber-300">
-              A Receber
+              Total Pendente
             </CardTitle>
             <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">
-              {formatCurrency(totalAReceber)}
+              {formatCurrency(totalPending)}
             </div>
             <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-1">
-              Saldo pendente de serviços ativos
+              Serviços Pendentes ou Em Andamento
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+              Total Recebido / Concluído
+            </CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+              {formatCurrency(totalCompleted)}
+            </div>
+            <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-1">
+              Serviços com status Concluído
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total em Serviços</CardTitle>
+            <CardTitle className="text-sm font-medium">Volume Total</CardTitle>
             <Briefcase className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{formatCurrency(totalGeral)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Valor global (exclui cancelados)</p>
+            <div className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Soma de todos os serviços (exclui cancelados)
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">
-            Evolução de Recebimentos (Últimos 6 meses)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer
-            config={{ total: { label: 'Recebido', color: 'hsl(var(--primary))' } }}
-            className="h-[300px] w-full"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={last6Months} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={10} />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(value) => `R$ ${value}`}
-                  width={80}
-                />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dashed" />} />
-                <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2 mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">
+              Evolução de Recebimentos (Últimos 6 meses)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{ total: { label: 'Recebido', color: 'hsl(var(--primary))' } }}
+              className="h-[250px] w-full"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={last6Months} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tickMargin={10} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(value) => `R$ ${value}`}
+                    width={80}
+                  />
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="dashed" />}
+                  />
+                  <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">Top Clientes por Volume</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 scrollbar-thin">
+              {topClients.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Nenhum dado disponível.
+                </p>
+              ) : (
+                topClients.map((client, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/50 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+                        {i + 1}
+                      </div>
+                      <span className="font-medium text-sm truncate max-w-[150px] sm:max-w-[200px]">
+                        {client.name}
+                      </span>
+                    </div>
+                    <span className="font-bold text-sm text-primary">
+                      {formatCurrency(client.total)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="border rounded-md bg-card overflow-x-auto shadow-sm w-full">
         <Table className="w-full">

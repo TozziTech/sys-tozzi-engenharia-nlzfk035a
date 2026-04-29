@@ -143,15 +143,14 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
             setDragOverId(null)
           }}
           className={cn(
-            'overflow-hidden shadow-sm relative transition-all duration-200',
+            'overflow-hidden shadow-sm relative transition-all duration-200 bg-card text-card-foreground',
             isTrashView
-              ? 'border-slate-200 opacity-80'
+              ? 'border-border opacity-80'
               : isCritical(project)
-                ? 'border-red-300 bg-red-50/10 hover:border-red-400'
-                : 'border-slate-200 hover:border-slate-300 hover:shadow-md cursor-grab active:cursor-grabbing',
+                ? 'border-destructive/30 bg-destructive/5 hover:border-destructive/50'
+                : 'border-border hover:border-primary/50 hover:shadow-md cursor-grab active:cursor-grabbing',
             draggedId === project.id && 'opacity-50 scale-95 z-50 ring-2 ring-primary/50',
-            dragOverId === project.id &&
-              'ring-2 ring-primary ring-offset-2 scale-105 bg-slate-50/80 dark:bg-slate-800/80',
+            dragOverId === project.id && 'ring-2 ring-primary ring-offset-2 scale-105 bg-muted/80',
           )}
         >
           {!isTrashView && (
@@ -164,14 +163,14 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
             </Link>
           )}
           <CardHeader
-            className={`pb-3 ${isCritical(project) && !isTrashView ? 'bg-red-50/50' : 'bg-slate-50/50'}`}
+            className={`pb-3 ${isCritical(project) && !isTrashView ? 'bg-destructive/10' : 'bg-muted/30'}`}
           >
             <div className="flex justify-between items-start gap-4">
               <div className="flex flex-col gap-1 w-full">
                 <div className="flex items-center gap-2 w-full">
                   {!isTrashView && (
                     <div
-                      className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 transition-colors z-20"
+                      className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors z-20"
                       title="Arraste para reordenar"
                     >
                       <GripHorizontal className="h-4 w-4" />
@@ -190,12 +189,12 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                           )
                           .catch(console.error)
                       }}
-                      className={`focus:outline-none transition-colors z-20 relative ${project.is_priority ? 'text-yellow-500 hover:text-yellow-600' : 'text-slate-300 hover:text-yellow-400'}`}
+                      className={`focus:outline-none transition-colors z-20 relative ${project.is_priority ? 'text-primary hover:text-primary/80' : 'text-muted-foreground hover:text-primary/60'}`}
                     >
                       <Star className={`h-5 w-5 ${project.is_priority ? 'fill-current' : ''}`} />
                     </button>
                   )}
-                  <CardTitle className="text-lg font-bold text-slate-900 leading-tight z-20 relative flex-1 line-clamp-1">
+                  <CardTitle className="text-lg font-bold leading-tight z-20 relative flex-1 line-clamp-1">
                     {isTrashView ? (
                       project.name
                     ) : (
@@ -209,7 +208,7 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                 {isCritical(project) && !isTrashView && (
                   <Badge
                     variant="destructive"
-                    className="w-fit h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-red-500 hover:bg-red-600 mt-1 z-20 relative"
+                    className="w-fit h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider mt-1 z-20 relative"
                   >
                     <AlertCircle className="w-3 h-3 mr-1" />
                     Crítico
@@ -220,7 +219,7 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-green-600 hover:text-green-700 border-green-200 bg-green-50 hover:bg-green-100"
+                      className="h-8"
                       onClick={(e) => {
                         e.preventDefault()
                         restoreProject(project.id)
@@ -237,7 +236,7 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 px-2 text-xs"
+                        className="h-7 px-2 text-xs hover:bg-muted"
                         onClick={(e) => {
                           e.preventDefault()
                           setProjectToEdit(project)
@@ -248,7 +247,7 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 px-2 text-xs text-red-600 hover:text-red-700"
+                        className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 border-destructive/20 hover:text-destructive"
                         onClick={(e) => {
                           e.preventDefault()
                           e.stopPropagation()
@@ -265,18 +264,18 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
           </CardHeader>
           <CardContent className="pt-4 grid gap-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="flex items-center gap-2 text-slate-600">
-                <Layers className="h-4 w-4 text-slate-400" />
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Layers className="h-4 w-4" />
                 <span className="truncate">{project.discipline}</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <User className="h-4 w-4 text-slate-400" />
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <User className="h-4 w-4" />
                 <span className="truncate">{project.client}</span>
               </div>
 
               {!isTrashView ? (
-                <div className="flex items-center gap-2 text-slate-600 col-span-2">
-                  <CalendarDays className="h-4 w-4 text-slate-400 shrink-0" />
+                <div className="flex items-center gap-2 text-muted-foreground col-span-2">
+                  <CalendarDays className="h-4 w-4 shrink-0" />
                   <span>
                     {format(new Date(project.startDate), 'dd/MM/yyyy')} -{' '}
                     {format(new Date(project.endDate), 'dd/MM/yyyy')}
@@ -285,14 +284,14 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
               ) : (
                 <div className="flex flex-col gap-1 col-span-2 mt-2">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500">Excluído em:</span>
-                    <span className="font-medium text-slate-700">
+                    <span className="text-muted-foreground">Excluído em:</span>
+                    <span className="font-medium text-foreground">
                       {project.deletedAt ? format(new Date(project.deletedAt), 'dd/MM/yyyy') : '-'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500">Exclusão permanente em:</span>
-                    <span className="font-bold text-red-600">
+                    <span className="text-muted-foreground">Exclusão permanente em:</span>
+                    <span className="font-bold text-destructive">
                       {project.deletedAt
                         ? Math.max(
                             0,
@@ -308,7 +307,7 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
 
             {!isTrashView && (
               <div className="space-y-1.5">
-                <div className="text-xs font-medium text-slate-700">Progresso</div>
+                <div className="text-xs font-medium text-foreground">Progresso</div>
                 <AnimatedProgress value={project.progress} />
               </div>
             )}
@@ -340,7 +339,7 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               Mover para Lixeira
             </AlertDialogAction>

@@ -353,9 +353,7 @@ export function EditProjectModal({ project, open, onOpenChange }: EditProjectMod
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                Salvar Alterações
-              </Button>
+              <Button type="submit">Salvar Alterações</Button>
             </DialogFooter>
           </form>
         </Form>

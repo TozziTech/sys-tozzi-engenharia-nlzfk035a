@@ -318,7 +318,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
     <div className="w-full mx-auto py-8 px-4 md:px-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
             {filterOnlyMine ? 'Meus Projetos' : 'Lista de Projetos'}
           </h1>
           <p className="text-muted-foreground">
@@ -329,18 +329,18 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
           <div className="relative w-full sm:w-64 md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar projeto, cliente ou código..."
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
-              className="pl-9 bg-white dark:bg-zinc-900"
+              className="pl-9 bg-background"
             />
             {globalSearch && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-slate-500"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
                 onClick={() => setGlobalSearch('')}
               >
                 <XCircle className="h-4 w-4" />
@@ -351,7 +351,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             type="single"
             value={viewMode}
             onValueChange={(v) => v && setViewMode(v as 'grid' | 'table', user?.id)}
-            className="border rounded-md flex shrink-0 bg-white dark:bg-zinc-900"
+            className="border rounded-md flex shrink-0 bg-background"
           >
             <ToggleGroupItem value="table" aria-label="Ver em Tabela">
               <ListIcon className="h-4 w-4" />
@@ -409,39 +409,39 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <Card className="shadow-sm border-slate-200">
+        <Card className="shadow-sm border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-700">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Projetos em Andamento
             </CardTitle>
-            <Activity className="h-4 w-4 text-blue-500" />
+            <Activity className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{inProgressCount}</div>
+            <div className="text-2xl font-bold text-foreground">{inProgressCount}</div>
             <p className="text-xs text-muted-foreground mt-1">Projetos ativos no momento</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-slate-200">
+        <Card className="shadow-sm border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-700">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Concluídos {filterMonth !== 'all' ? 'no Período' : 'neste Mês'}
             </CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{finishedThisMonthCount}</div>
+            <div className="text-2xl font-bold text-foreground">{finishedThisMonthCount}</div>
             <p className="text-xs text-muted-foreground mt-1">Projetos entregues</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-slate-200">
+        <Card className="shadow-sm border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-700">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Valor de Contrato em Aberto
             </CardTitle>
-            <Briefcase className="h-4 w-4 text-slate-500" />
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-2xl font-bold text-foreground">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                 totalOpenContracts,
               )}
@@ -451,13 +451,13 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         </Card>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col xl:flex-row gap-4 items-start xl:items-center">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 shrink-0">
+      <div className="bg-card p-4 rounded-xl border border-border shadow-sm mb-6 flex flex-col xl:flex-row gap-4 items-start xl:items-center">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground shrink-0">
           <Filter className="h-4 w-4" /> Filtros:
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full">
           <Select value={filterMonth} onValueChange={setFilterMonth}>
-            <SelectTrigger className="w-full bg-slate-50 border-transparent">
+            <SelectTrigger className="w-full bg-background border-input">
               <SelectValue placeholder="Mês" />
             </SelectTrigger>
             <SelectContent>
@@ -470,7 +470,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             </SelectContent>
           </Select>
           <Select value={filterYear} onValueChange={setFilterYear}>
-            <SelectTrigger className="w-full bg-slate-50 border-transparent">
+            <SelectTrigger className="w-full bg-background border-input">
               <SelectValue placeholder="Ano" />
             </SelectTrigger>
             <SelectContent>
@@ -483,7 +483,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             </SelectContent>
           </Select>
           <Select value={discipline} onValueChange={setDiscipline}>
-            <SelectTrigger className="w-full bg-slate-50 border-transparent">
+            <SelectTrigger className="w-full bg-background border-input">
               <SelectValue placeholder="Disciplina" />
             </SelectTrigger>
             <SelectContent>
@@ -496,7 +496,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full bg-slate-50 border-transparent">
+            <SelectTrigger className="w-full bg-background border-input">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -508,7 +508,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             </SelectContent>
           </Select>
           <Select value={client} onValueChange={setClient}>
-            <SelectTrigger className="w-full bg-slate-50 border-transparent">
+            <SelectTrigger className="w-full bg-background border-input">
               <SelectValue placeholder="Cliente" />
             </SelectTrigger>
             <SelectContent>
@@ -521,7 +521,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             </SelectContent>
           </Select>
           <Select value={engineer} onValueChange={setEngineer}>
-            <SelectTrigger className="w-full bg-slate-50 border-transparent">
+            <SelectTrigger className="w-full bg-background border-input">
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
             <SelectContent>
@@ -538,7 +538,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
           <Button
             variant="ghost"
             onClick={clearFilters}
-            className="text-slate-500 hover:text-slate-900 shrink-0 w-full xl:w-auto mt-2 xl:mt-0"
+            className="text-muted-foreground hover:text-foreground shrink-0 w-full xl:w-auto mt-2 xl:mt-0"
           >
             <XCircle className="h-4 w-4 mr-2" /> Limpar
           </Button>
@@ -552,7 +552,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             alt="No projects"
             className="w-64 h-64 object-cover rounded-full mb-6 opacity-80"
           />
-          <h3 className="text-xl font-semibold text-slate-900 mb-2">
+          <h3 className="text-xl font-semibold text-foreground mb-2">
             {showTrash ? 'Lixeira vazia' : 'Nenhum projeto encontrado'}
           </h3>
           <p className="text-muted-foreground max-w-md">
@@ -573,7 +573,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         </>
       ) : (
         <Tabs defaultValue="with-access" className="w-full">
-          <TabsList className="mb-4 bg-slate-100 dark:bg-zinc-900 p-1">
+          <TabsList className="mb-4 bg-muted p-1">
             <TabsTrigger value="with-access">
               Meus Acessos ({projectsWithAccess.length})
             </TabsTrigger>
@@ -600,27 +600,22 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {projectsWithoutAccess.map((p) => (
-                  <Card
-                    key={p.id}
-                    className="border-amber-500/20 bg-white dark:bg-zinc-900/40 backdrop-blur-md shadow-sm"
-                  >
+                  <Card key={p.id} className="border-border bg-card shadow-sm">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-lg text-amber-600 dark:text-amber-500">
-                        {p.name}
-                      </CardTitle>
-                      <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                      <CardTitle className="text-lg text-foreground">{p.name}</CardTitle>
+                      <p className="text-xs text-muted-foreground mt-1">
                         {p.client} • {p.discipline}
                       </p>
                     </CardHeader>
                     <CardContent>
                       {isPending(p.id) ? (
-                        <Badge className="w-full justify-center py-1.5 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-500 border-amber-300 dark:border-amber-500/30 font-medium text-sm hover:bg-amber-100 dark:hover:bg-amber-500/20">
+                        <Badge className="w-full justify-center py-1.5 bg-primary/10 text-primary border-primary/20 font-medium text-sm hover:bg-primary/20">
                           Solicitação Pendente
                         </Badge>
                       ) : (
                         <Button
                           variant="outline"
-                          className="w-full border-amber-500/50 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10"
+                          className="w-full border-primary/50 text-primary hover:bg-primary/10"
                           onClick={() => setRequestModalProject(p)}
                         >
                           Solicitar Acesso
@@ -639,54 +634,33 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         open={!!requestModalProject}
         onOpenChange={(open) => !open && setRequestModalProject(null)}
       >
-        <DialogContent className="bg-white dark:bg-zinc-950 border-amber-500/20 shadow-2xl dark:shadow-black/80">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-amber-600 dark:text-amber-500">
-              Solicitar Acesso
-            </DialogTitle>
-            <DialogDescription className="text-slate-500 dark:text-zinc-400">
+            <DialogTitle>Solicitar Acesso</DialogTitle>
+            <DialogDescription>
               Selecione o nível de acesso desejado para o projeto{' '}
               <strong>{requestModalProject?.name}</strong>.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-zinc-300">Nível de Acesso</Label>
+              <Label>Nível de Acesso</Label>
               <Select value={requestLevel} onValueChange={setRequestLevel}>
-                <SelectTrigger className="bg-slate-50 dark:bg-zinc-900/80 border-amber-500/30 text-amber-600 dark:text-amber-500 focus:ring-amber-500">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-zinc-900 border-amber-500/20">
-                  <SelectItem
-                    value="Leitura"
-                    className="focus:bg-amber-50 dark:focus:bg-amber-500/20 focus:text-amber-600 dark:focus:text-amber-500"
-                  >
-                    Leitura
-                  </SelectItem>
-                  <SelectItem
-                    value="Edição"
-                    className="focus:bg-amber-50 dark:focus:bg-amber-500/20 focus:text-amber-600 dark:focus:text-amber-500"
-                  >
-                    Edição
-                  </SelectItem>
+                <SelectContent>
+                  <SelectItem value="Leitura">Leitura</SelectItem>
+                  <SelectItem value="Edição">Edição</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <DialogFooter className="border-t border-slate-200 dark:border-amber-500/20 pt-4">
-            <Button
-              variant="ghost"
-              onClick={() => setRequestModalProject(null)}
-              className="text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800"
-            >
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRequestModalProject(null)}>
               Cancelar
             </Button>
-            <Button
-              onClick={handleRequestAccess}
-              className="bg-amber-500 text-white dark:text-zinc-950 hover:bg-amber-600 shadow-md dark:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-            >
-              Enviar Solicitação
-            </Button>
+            <Button onClick={handleRequestAccess}>Enviar Solicitação</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

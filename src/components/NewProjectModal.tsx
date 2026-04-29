@@ -227,9 +227,7 @@ export function NewProjectModal() {
               <Button type="button" variant="ghost" onClick={() => setNewProjectModalOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                Salvar
-              </Button>
+              <Button type="submit">Salvar</Button>
             </DialogFooter>
           </form>
         </Form>

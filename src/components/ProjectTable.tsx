@@ -65,25 +65,23 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-white shadow-sm overflow-x-auto animate-fade-in-up">
+    <div className="rounded-xl border bg-card text-card-foreground shadow-sm overflow-x-auto animate-fade-in-up">
       <Table>
-        <TableHeader className="bg-slate-50/50">
+        <TableHeader className="bg-muted/50">
           <TableRow className="hover:bg-transparent">
-            <TableHead className="font-semibold text-slate-900">Nome do Projeto</TableHead>
-            <TableHead className="font-semibold text-slate-900">Cliente</TableHead>
-            <TableHead className="font-semibold text-slate-900">Início</TableHead>
-            <TableHead className="font-semibold text-slate-900">Entrega</TableHead>
+            <TableHead className="font-semibold">Nome do Projeto</TableHead>
+            <TableHead className="font-semibold">Cliente</TableHead>
+            <TableHead className="font-semibold">Início</TableHead>
+            <TableHead className="font-semibold">Entrega</TableHead>
             {isTrashView ? (
               <>
-                <TableHead className="font-semibold text-slate-900">Excluído em</TableHead>
-                <TableHead className="font-semibold text-slate-900 w-[200px]">
-                  Dias Restantes
-                </TableHead>
+                <TableHead className="font-semibold">Excluído em</TableHead>
+                <TableHead className="font-semibold w-[200px]">Dias Restantes</TableHead>
               </>
             ) : (
               <>
-                <TableHead className="font-semibold text-slate-900">Status</TableHead>
-                <TableHead className="font-semibold text-slate-900 w-[200px]">Progresso</TableHead>
+                <TableHead className="font-semibold">Status</TableHead>
+                <TableHead className="font-semibold w-[200px]">Progresso</TableHead>
               </>
             )}
             <TableHead className="text-right"></TableHead>
@@ -93,10 +91,10 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
           {projects.map((project) => (
             <TableRow
               key={project.id}
-              className={`group transition-colors ${!isTrashView ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50' : 'hover:bg-slate-50'} ${isCritical(project) ? 'bg-red-50/30 hover:bg-red-50/50' : ''}`}
+              className={`group transition-colors ${!isTrashView ? 'cursor-pointer hover:bg-muted/50' : 'hover:bg-muted/50'} ${isCritical(project) ? 'bg-destructive/5 hover:bg-destructive/10' : ''}`}
               onClick={() => !isTrashView && navigate(`/projects/${project.id}`)}
             >
-              <TableCell className="font-medium text-slate-900">
+              <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
                   {!isTrashView && (
                     <button
@@ -111,7 +109,7 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                           )
                           .catch(console.error)
                       }}
-                      className={`focus:outline-none transition-colors ${project.is_priority ? 'text-yellow-500 hover:text-yellow-600' : 'text-slate-300 hover:text-yellow-400'}`}
+                      className={`focus:outline-none transition-colors ${project.is_priority ? 'text-primary hover:text-primary/80' : 'text-muted-foreground hover:text-primary/60'}`}
                       title={project.is_priority ? 'Remover prioridade' : 'Marcar como prioridade'}
                     >
                       <Star className={`h-4 w-4 ${project.is_priority ? 'fill-current' : ''}`} />
@@ -121,31 +119,33 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                   {isCritical(project) && (
                     <Badge
                       variant="destructive"
-                      className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-red-500 hover:bg-red-600"
+                      className="h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider"
                     >
                       Crítico
                     </Badge>
                   )}
                 </div>
               </TableCell>
-              <TableCell className="text-slate-600">{project.client}</TableCell>
-              <TableCell className="text-slate-600">
+              <TableCell className="text-muted-foreground">{project.client}</TableCell>
+              <TableCell className="text-muted-foreground">
                 {format(new Date(project.startDate), 'dd MMM yyyy', { locale: ptBR })}
               </TableCell>
-              <TableCell className="text-slate-600">
+              <TableCell className="text-muted-foreground">
                 {format(new Date(project.endDate), 'dd MMM yyyy', { locale: ptBR })}
               </TableCell>
-
               {isTrashView ? (
                 <>
-                  <TableCell className="text-slate-600">
+                  <TableCell className="text-muted-foreground">
                     {project.deletedAt
                       ? format(new Date(project.deletedAt), 'dd MMM yyyy', { locale: ptBR })
                       : '-'}
                   </TableCell>
                   <TableCell>
                     {project.deletedAt ? (
-                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                      <Badge
+                        variant="outline"
+                        className="bg-destructive/10 text-destructive border-destructive/20"
+                      >
                         {Math.max(
                           0,
                           30 - differenceInDays(new Date(), new Date(project.deletedAt)),
@@ -167,14 +167,13 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                   </TableCell>
                 </>
               )}
-
               <TableCell className="text-right">
                 <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity gap-1">
                   {isTrashView ? (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-green-600 hover:text-green-700 border-green-200 bg-green-50 hover:bg-green-100"
+                      className="h-8"
                       onClick={(e) => {
                         e.stopPropagation()
                         restoreProject(project.id)
@@ -191,7 +190,7 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
                         onClick={(e) => {
                           e.stopPropagation()
                           navigate(`/projects/${project.id}`)
@@ -203,7 +202,7 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
                           onClick={(e) => {
                             e.stopPropagation()
                             setProjectToEdit(project)
@@ -216,7 +215,7 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-500 hover:text-red-600"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation()
                             setProjectToDelete(project)
@@ -228,7 +227,7 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                     </>
                   )}
                 </div>
-              </TableCell>
+              </TableCell>{' '}
             </TableRow>
           ))}
         </TableBody>
@@ -258,7 +257,7 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               Mover para Lixeira
             </AlertDialogAction>

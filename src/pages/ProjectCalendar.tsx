@@ -183,7 +183,7 @@ export default function ProjectCalendar({
   const [projectFilter, setProjectFilter] = useState<string[]>([])
   const [tagFilter, setTagFilter] = useState<string[]>([])
 
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
   const [settings, setSettings] = useState<any>(null)
   const navigate = useNavigate()
@@ -291,10 +291,11 @@ export default function ProjectCalendar({
   }
 
   useEffect(() => {
+    if (authLoading) return
     if (user?.id && pb.authStore.isValid) {
       loadData()
     }
-  }, [user?.id])
+  }, [user?.id, authLoading])
 
   const enableSubscriptions = !!user?.id && pb.authStore.isValid
 

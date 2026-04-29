@@ -81,7 +81,7 @@ export function ProjectModules({
   projectId: string
   enabled?: boolean
 }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { toast } = useToast()
   const { viewMode, setViewMode } = usePreferencesStore()
   const [modules, setModules] = useState<ProjectModule[]>([])
@@ -131,10 +131,11 @@ export function ProjectModules({
   }
 
   useEffect(() => {
+    if (authLoading) return
     if (user?.id && pb.authStore.isValid) {
       loadData()
     }
-  }, [projectId, user?.id])
+  }, [projectId, user?.id, authLoading])
 
   const isDraggingOrReordering = !!draggedModule || isReordering
 
@@ -554,7 +555,7 @@ export function ProjectModules({
         </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {loading || authLoading ? (
           <div className="space-y-6">
             <div className="flex items-center gap-2">
               <Skeleton className="h-6 w-32" />

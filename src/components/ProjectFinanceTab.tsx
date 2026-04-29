@@ -44,7 +44,7 @@ const formatCurrency = (value?: number) => {
 
 export function ProjectFinanceTab({ project }: { project: any }) {
   const { categories } = useFinancialCategories()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const effectiveRole = user?.role
   const { can, canAccess } = usePermissions()
 
@@ -182,10 +182,11 @@ export function ProjectFinanceTab({ project }: { project: any }) {
   }, [project?.id, periodFilter])
 
   useEffect(() => {
+    if (authLoading) return
     if (user?.id && pb.authStore.isValid) {
       loadRecords()
     }
-  }, [loadRecords, user?.id])
+  }, [loadRecords, user?.id, authLoading])
 
   const enableSubscriptions = !!user?.id && pb.authStore.isValid
 
@@ -196,6 +197,8 @@ export function ProjectFinanceTab({ project }: { project: any }) {
     },
     enableSubscriptions,
   )
+
+  if (authLoading) return null
 
   if (!canViewFinance) {
     return (

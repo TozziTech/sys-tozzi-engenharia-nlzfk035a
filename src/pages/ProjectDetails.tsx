@@ -85,7 +85,7 @@ export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { projects, deleteProject, timeLogs, users, tasks } = useProjectStore()
   const store = useProjectStore() as any
   const updateProject = store.updateProject
@@ -200,6 +200,7 @@ export default function ProjectDetails() {
   }, [])
 
   useEffect(() => {
+    if (authLoading) return
     if (!id || !user?.id || !pb.authStore.isValid) return
 
     let isMounted = true
@@ -225,6 +226,7 @@ export default function ProjectDetails() {
   }, [
     id,
     user?.id,
+    authLoading,
     loadModules,
     loadAuditLogs,
     loadReportsHistory,
@@ -630,7 +632,7 @@ export default function ProjectDetails() {
     return filtered
   }, [modules, priorityMode])
 
-  if (isLoadingData) {
+  if (isLoadingData || authLoading) {
     return (
       <div className={`w-full ${pClass} ${gapClass}`}>
         <div className="flex items-center justify-between">
@@ -957,241 +959,245 @@ export default function ProjectDetails() {
         </CardContent>
       </Card>
 
-      {/* Project Metrics Dashboard / Visão Geral do Projeto */}
-      <Card className="w-full print:hidden">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <PieChart className="h-5 w-5 text-primary" />
-            Visão Geral do Projeto
-          </CardTitle>
-          <CardDescription>
-            Progresso consolidado baseado nas disciplinas e seus status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {totalModules > 0 ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-3 bg-muted/30 rounded-lg border flex flex-col items-center justify-center text-center">
-                  <span className="text-2xl font-bold text-foreground">{totalModules}</span>
-                  <span className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
-                    Disciplinas
-                  </span>
-                </div>
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-lg flex flex-col items-center justify-center text-center">
-                  <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                    {modulesByStatus['Concluído'] || 0}
-                  </span>
-                  <span className="text-xs text-emerald-600/80 dark:text-emerald-400/80 uppercase tracking-wider mt-1">
-                    Concluídas
-                  </span>
-                </div>
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50 rounded-lg flex flex-col items-center justify-center text-center">
-                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {modulesByStatus['Em Andamento'] || 0}
-                  </span>
-                  <span className="text-xs text-blue-600/80 dark:text-blue-400/80 uppercase tracking-wider mt-1">
-                    Em Andamento
-                  </span>
-                </div>
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 rounded-lg flex flex-col items-center justify-center text-center">
-                  <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                    {(modulesByStatus['Pendente'] || 0) + (modulesByStatus['Pausado'] || 0)}
-                  </span>
-                  <span className="text-xs text-amber-600/80 dark:text-amber-400/80 uppercase tracking-wider mt-1">
-                    Pend./Paus.
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-medium">
-                  <span>Progresso Geral (Média das Disciplinas)</span>
-                  <span>{overallProgress}%</span>
-                </div>
-                <Progress value={overallProgress} className="h-3" />
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground text-center py-6 bg-muted/20 rounded-lg border border-dashed">
-              Nenhuma disciplina registrada para este projeto. Adicione disciplinas para acompanhar
-              o progresso.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Progresso Tracking */}
-      <Card className="w-full print:hidden">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Progresso/Conclusão</CardTitle>
-          <CardDescription>Percentual de conclusão atual do projeto</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm font-medium">
-              <span>Conclusão</span>
-              <span>{project.progress}%</span>
-            </div>
-            <Progress value={project.progress} className="h-2" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Building Progress Chart */}
-      {buildingProgress.length > 0 && (
-        <Card className="w-full print:hidden">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
-              Progresso por Edificação
-            </CardTitle>
-            <CardDescription>
-              Média de conclusão das disciplinas agrupadas por edificação
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full">
-              <ChartContainer
-                config={{
-                  averageProgress: { label: 'Progresso (%)', color: 'hsl(var(--primary))' },
-                }}
-                className="w-full h-full"
-              >
-                <BarChart
-                  data={buildingProgress}
-                  margin={{ top: 20, right: 30, left: -20, bottom: 5 }}
-                  layout="vertical"
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" domain={[0, 100]} hide />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    axisLine={false}
-                    tickLine={false}
-                    width={140}
-                    fontSize={12}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
-                    dataKey="averageProgress"
-                    name="Progresso Médio"
-                    fill="var(--color-averageProgress)"
-                    radius={[0, 4, 4, 0]}
-                    barSize={24}
-                  />
-                </BarChart>
-              </ChartContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Specialty Progress Dashboard */}
-      {subDisciplineStats.length > 0 && (
-        <Card className="w-full print:hidden">
-          <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Layers className="h-5 w-5 text-primary" />
-                Progresso por Especialidade (Sub-disciplinas)
-              </CardTitle>
-              <CardDescription>
-                Média de conclusão e quantidade de módulos por área técnica
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Select value={specialtySort} onValueChange={(v: any) => setSpecialtySort(v)}>
-                <SelectTrigger className="w-[180px] h-9">
-                  <SelectValue placeholder="Ordenar por" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="emphasis">Destaque (Emphasis)</SelectItem>
-                  <SelectItem value="progressDesc">Maior Progresso</SelectItem>
-                  <SelectItem value="progressAsc">Menor Progresso</SelectItem>
-                  <SelectItem value="nameAsc">Ordem Alfabética</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportSpecialtiesPDF}
-                className="h-9"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Exportar Relatório
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {subDisciplineStats.map((stat) => (
-                <div
-                  key={stat.name}
-                  className={cn(
-                    'flex flex-col p-3 border rounded-lg space-y-2 transition-all',
-                    stat.is_emphasized ? 'bg-primary/5 border-primary/40 shadow-sm' : 'bg-muted/10',
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: stat.color }}
-                      />
-                      <span className="font-medium text-sm flex items-center gap-1">
-                        {stat.name}
-                        {stat.is_emphasized && (
-                          <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                        )}
-                      </span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{stat.count} mód.</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Progress value={stat.averageProgress} className="h-2 flex-1" />
-                    <span className="text-xs font-semibold w-8 text-right">
-                      {stat.averageProgress}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <Tabs defaultValue="gestao" className="w-full print:hidden mt-6">
-        <TabsList
-          className={cn(
-            'flex flex-wrap w-full h-auto gap-1 p-1',
-            canAccessFinance ? 'sm:grid sm:grid-cols-6' : 'sm:grid sm:grid-cols-5',
-          )}
-        >
-          <TabsTrigger value="gestao" className="flex-1 min-w-[120px]">
-            Gestão/Gerencial
-          </TabsTrigger>
-          <TabsTrigger value="operacional" className="flex-1 min-w-[120px]">
-            Operacional
-          </TabsTrigger>
-          <TabsTrigger value="cronograma" className="flex-1 min-w-[120px]">
-            Cronograma
-          </TabsTrigger>
-          <TabsTrigger value="agenda" className="flex-1 min-w-[120px]">
-            Agenda
-          </TabsTrigger>
-          <TabsTrigger value="documentos" className="flex-1 min-w-[120px]">
-            Documentos
-          </TabsTrigger>
-          {canAccessFinance && (
-            <TabsTrigger value="financeiro" className="flex-1 min-w-[120px]">
-              Financeiro
+        <div className="overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TabsList
+            className={cn(
+              'inline-flex w-max sm:w-full h-auto gap-1 p-1 min-w-full',
+              canAccessFinance ? 'sm:grid sm:grid-cols-6' : 'sm:grid sm:grid-cols-5',
+            )}
+          >
+            <TabsTrigger value="gestao" className="flex-1 min-w-[140px] sm:min-w-[120px]">
+              Gestão/Gerencial
             </TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="operacional" className="flex-1 min-w-[140px] sm:min-w-[120px]">
+              Operacional
+            </TabsTrigger>
+            <TabsTrigger value="cronograma" className="flex-1 min-w-[140px] sm:min-w-[120px]">
+              Cronograma
+            </TabsTrigger>
+            <TabsTrigger value="agenda" className="flex-1 min-w-[140px] sm:min-w-[120px]">
+              Agenda
+            </TabsTrigger>
+            <TabsTrigger value="documentos" className="flex-1 min-w-[140px] sm:min-w-[120px]">
+              Documentos
+            </TabsTrigger>
+            {canAccessFinance && (
+              <TabsTrigger value="financeiro" className="flex-1 min-w-[140px] sm:min-w-[120px]">
+                Financeiro
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         <TabsContent value="gestao" className={cn('mt-6 space-y-6 outline-none')}>
+          {/* Project Metrics Dashboard / Visão Geral do Projeto */}
+          <Card className="w-full print:hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <PieChart className="h-5 w-5 text-primary" />
+                Visão Geral do Projeto
+              </CardTitle>
+              <CardDescription>
+                Progresso consolidado baseado nas disciplinas e seus status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {totalModules > 0 ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-3 bg-muted/30 rounded-lg border flex flex-col items-center justify-center text-center">
+                      <span className="text-2xl font-bold text-foreground">{totalModules}</span>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
+                        Disciplinas
+                      </span>
+                    </div>
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-lg flex flex-col items-center justify-center text-center">
+                      <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        {modulesByStatus['Concluído'] || 0}
+                      </span>
+                      <span className="text-xs text-emerald-600/80 dark:text-emerald-400/80 uppercase tracking-wider mt-1">
+                        Concluídas
+                      </span>
+                    </div>
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50 rounded-lg flex flex-col items-center justify-center text-center">
+                      <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        {modulesByStatus['Em Andamento'] || 0}
+                      </span>
+                      <span className="text-xs text-blue-600/80 dark:text-blue-400/80 uppercase tracking-wider mt-1">
+                        Em Andamento
+                      </span>
+                    </div>
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 rounded-lg flex flex-col items-center justify-center text-center">
+                      <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                        {(modulesByStatus['Pendente'] || 0) + (modulesByStatus['Pausado'] || 0)}
+                      </span>
+                      <span className="text-xs text-amber-600/80 dark:text-amber-400/80 uppercase tracking-wider mt-1">
+                        Pend./Paus.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span>Progresso Geral (Média das Disciplinas)</span>
+                      <span>{overallProgress}%</span>
+                    </div>
+                    <Progress value={overallProgress} className="h-3" />
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground text-center py-6 bg-muted/20 rounded-lg border border-dashed">
+                  Nenhuma disciplina registrada para este projeto. Adicione disciplinas para
+                  acompanhar o progresso.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Progresso Tracking */}
+          <Card className="w-full print:hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Progresso/Conclusão</CardTitle>
+              <CardDescription>Percentual de conclusão atual do projeto</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Conclusão</span>
+                  <span>{project.progress}%</span>
+                </div>
+                <Progress value={project.progress} className="h-2" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Building Progress Chart */}
+          {buildingProgress.length > 0 && (
+            <Card className="w-full print:hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Progresso por Edificação
+                </CardTitle>
+                <CardDescription>
+                  Média de conclusão das disciplinas agrupadas por edificação
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  <ChartContainer
+                    config={{
+                      averageProgress: { label: 'Progresso (%)', color: 'hsl(var(--primary))' },
+                    }}
+                    className="w-full h-full"
+                  >
+                    <BarChart
+                      data={buildingProgress}
+                      margin={{ top: 20, right: 30, left: -20, bottom: 5 }}
+                      layout="vertical"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                      <XAxis type="number" domain={[0, 100]} hide />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        axisLine={false}
+                        tickLine={false}
+                        width={140}
+                        fontSize={12}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar
+                        dataKey="averageProgress"
+                        name="Progresso Médio"
+                        fill="var(--color-averageProgress)"
+                        radius={[0, 4, 4, 0]}
+                        barSize={24}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Specialty Progress Dashboard */}
+          {subDisciplineStats.length > 0 && (
+            <Card className="w-full print:hidden">
+              <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Layers className="h-5 w-5 text-primary" />
+                    Progresso por Especialidade (Sub-disciplinas)
+                  </CardTitle>
+                  <CardDescription>
+                    Média de conclusão e quantidade de módulos por área técnica
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={specialtySort} onValueChange={(v: any) => setSpecialtySort(v)}>
+                    <SelectTrigger className="w-[180px] h-9">
+                      <SelectValue placeholder="Ordenar por" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="emphasis">Destaque (Emphasis)</SelectItem>
+                      <SelectItem value="progressDesc">Maior Progresso</SelectItem>
+                      <SelectItem value="progressAsc">Menor Progresso</SelectItem>
+                      <SelectItem value="nameAsc">Ordem Alfabética</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportSpecialtiesPDF}
+                    className="h-9"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Exportar Relatório
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {subDisciplineStats.map((stat) => (
+                    <div
+                      key={stat.name}
+                      className={cn(
+                        'flex flex-col p-3 border rounded-lg space-y-2 transition-all',
+                        stat.is_emphasized
+                          ? 'bg-primary/5 border-primary/40 shadow-sm'
+                          : 'bg-muted/10',
+                      )}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ backgroundColor: stat.color }}
+                          />
+                          <span className="font-medium text-sm flex items-center gap-1">
+                            {stat.name}
+                            {stat.is_emphasized && (
+                              <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                            )}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{stat.count} mód.</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Progress value={stat.averageProgress} className="h-2 flex-1" />
+                        <span className="text-xs font-semibold w-8 text-right">
+                          {stat.averageProgress}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass}`}>
             <div className={`md:col-span-2 ${gapClass}`}>
               <Card>

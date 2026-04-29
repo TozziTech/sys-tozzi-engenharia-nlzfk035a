@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T06:08:47.492Z",
+  "generatedAt": "2026-04-29T06:29:14.907Z",
   "collections": [
     {
       "name": "users",
@@ -322,9 +322,15 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE UNIQUE INDEX `idx_equipments_code` ON `equipments` (code)"]
     },
     {
       "name": "projects",

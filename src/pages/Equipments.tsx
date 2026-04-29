@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Wrench, HandPlatter, Undo2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Wrench, HandPlatter, Undo2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import {
@@ -41,6 +41,7 @@ export default function Equipments() {
   const [modalOpen, setModalOpen] = useState(false)
   const [loanModalOpen, setLoanModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const [loanForm, setLoanForm] = useState({
     equipment_id: '',
@@ -49,6 +50,7 @@ export default function Equipments() {
   })
 
   const [form, setForm] = useState({
+    code: '',
     name: '',
     category: '',
     status: 'Disponível',
@@ -192,6 +194,7 @@ export default function Equipments() {
     if (eq) {
       setEditingId(eq.id)
       setForm({
+        code: eq.code || '',
         name: eq.name || '',
         category: eq.category || '',
         status: eq.status || 'Disponível',
@@ -205,6 +208,7 @@ export default function Equipments() {
     } else {
       setEditingId(null)
       setForm({
+        code: '',
         name: '',
         category: '',
         status: 'Disponível',
@@ -279,12 +283,24 @@ export default function Equipments() {
         </Button>
       </div>
 
+      <div className="flex items-center mb-4">
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar equipamento por nome ou código..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
       <div className="border rounded-md bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Categoria</TableHead>
+              <TableHead className="w-[100px]">Código</TableHead>
+              <TableHead>Nome</TableHead> <TableHead>Categoria</TableHead>
               <TableHead>Condição</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Próx. Manutenção</TableHead>
@@ -294,94 +310,103 @@ export default function Equipments() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center h-32">
+                <TableCell colSpan={7} className="text-center h-32">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : equipments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center h-32">
+                <TableCell colSpan={7} className="text-center h-32">
                   Nenhum equipamento encontrado.
                 </TableCell>
               </TableRow>
             ) : (
-              equipments.map((eq) => (
-                <TableRow key={eq.id}>
-                  <TableCell className="font-medium">
-                    <div>{eq.name}</div>
-                    {eq.responsible && eq.status === 'Emprestado' && (
-                      <div className="text-xs text-purple-600 font-semibold mt-0.5">
-                        Com: {eq.responsible}
-                      </div>
-                    )}
-                    {eq.responsible && eq.status !== 'Emprestado' && (
-                      <div className="text-xs text-muted-foreground">Resp: {eq.responsible}</div>
-                    )}
-                  </TableCell>
-                  <TableCell>{eq.category || '-'}</TableCell>
-                  <TableCell>{getConditionBadge(eq.condition)}</TableCell>
-                  <TableCell>{getStatusBadge(eq.status)}</TableCell>
-                  <TableCell>
-                    {eq.next_maintenance ? (
-                      <span
-                        className={
-                          new Date(eq.next_maintenance) < new Date()
-                            ? 'text-destructive font-semibold flex items-center'
-                            : ''
-                        }
-                      >
-                        {eq.next_maintenance.substring(0, 10).split('-').reverse().join('/')}
-                      </span>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {eq.status === 'Disponível' && (
+              equipments
+                .filter(
+                  (eq) =>
+                    eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (eq.code && eq.code.toLowerCase().includes(searchTerm.toLowerCase())),
+                )
+                .map((eq) => (
+                  <TableRow key={eq.id}>
+                    <TableCell className="font-mono text-sm text-muted-foreground">
+                      {eq.code || '-'}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div>{eq.name}</div>
+                      {eq.responsible && eq.status === 'Emprestado' && (
+                        <div className="text-xs text-purple-600 font-semibold mt-0.5">
+                          Com: {eq.responsible}
+                        </div>
+                      )}
+                      {eq.responsible && eq.status !== 'Emprestado' && (
+                        <div className="text-xs text-muted-foreground">Resp: {eq.responsible}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>{eq.category || '-'}</TableCell>
+                    <TableCell>{getConditionBadge(eq.condition)}</TableCell>
+                    <TableCell>{getStatusBadge(eq.status)}</TableCell>
+                    <TableCell>
+                      {eq.next_maintenance ? (
+                        <span
+                          className={
+                            new Date(eq.next_maintenance) < new Date()
+                              ? 'text-destructive font-semibold flex items-center'
+                              : ''
+                          }
+                        >
+                          {eq.next_maintenance.substring(0, 10).split('-').reverse().join('/')}
+                        </span>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {eq.status === 'Disponível' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openLoanModal(eq)}
+                          title="Emprestar"
+                          className="text-purple-600 hover:bg-purple-100"
+                        >
+                          <HandPlatter className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {eq.status === 'Emprestado' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleReturn(eq)}
+                          title="Devolver"
+                          className="text-emerald-600 hover:bg-emerald-100"
+                        >
+                          <Undo2 className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => openLoanModal(eq)}
-                        title="Emprestar"
-                        className="text-purple-600 hover:bg-purple-100"
+                        onClick={() => handleQuickMaintenance(eq)}
+                        title="Finalizar Manutenção"
+                        className="text-blue-600 hover:bg-blue-100"
                       >
-                        <HandPlatter className="w-4 h-4" />
+                        <Wrench className="w-4 h-4" />
                       </Button>
-                    )}
-                    {eq.status === 'Emprestado' && (
+                      <Button variant="ghost" size="icon" onClick={() => openModal(eq)}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleReturn(eq)}
-                        title="Devolver"
-                        className="text-emerald-600 hover:bg-emerald-100"
+                        onClick={() => handleDelete(eq.id)}
+                        className="text-destructive hover:bg-destructive/10"
                       >
-                        <Undo2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleQuickMaintenance(eq)}
-                      title="Finalizar Manutenção"
-                      className="text-blue-600 hover:bg-blue-100"
-                    >
-                      <Wrench className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => openModal(eq)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(eq.id)}
-                      className="text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+                  </TableRow>
+                ))
             )}
           </TableBody>
         </Table>
@@ -436,7 +461,15 @@ export default function Equipments() {
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
-              <Label>Nome</Label>
+              <Label>Código</Label>
+              <Input
+                value={editingId ? form.code : 'Gerado automaticamente'}
+                disabled
+                className="bg-muted font-mono text-muted-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome</Label>{' '}
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}

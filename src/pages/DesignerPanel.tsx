@@ -42,7 +42,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from 'recharts'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell, ReferenceLine } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { exportDesignerDashboardPDF } from '@/lib/exportPdf'
 import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
@@ -93,6 +93,9 @@ const getPriorityColor = (priority: string) => {
   }
 }
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+
 export default function DesignerPanel() {
   const { user } = useAuth()
   const { canAccess } = usePermissions()
@@ -101,6 +104,7 @@ export default function DesignerPanel() {
   const [myProjects, setMyProjects] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
   const [urgentTasks, setUrgentTasks] = useState<any[]>([])
+  const [revenueData, setRevenueData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const [calendarMonth, setCalendarMonth] = useState(new Date())
@@ -136,7 +140,7 @@ export default function DesignerPanel() {
           .getFullList({ filter: `user_id = "${user.id}"` })
         const pgs = await pb
           .collection('pagamentos_servicos')
-          .getFullList({ filter: `servico_id.user_id = "${user.id}"` })
+          .getFullList({ filter: `servico_id.user_id = "${user.id}" && status = "Pago"` })
 
         const totalGeral = servicos
           .filter((s) => s.status !== 'Cancelado')
@@ -217,12 +221,31 @@ export default function DesignerPanel() {
     }
   }
 
+  const loadRevenue = async () => {
+    if (!user || !hasFinanceAccess) return
+    try {
+      const pgs = await pb.collection('pagamentos_servicos').getFullList({
+        filter: `servico_id.user_id = "${user.id}" && status = "Pago"`,
+        sort: '-data_pagamento',
+      })
+      setRevenueData(pgs)
+    } catch (err) {
+      console.error('Failed to load revenue', err)
+    }
+  }
+
   useEffect(() => {
     loadData()
   }, [user])
+
+  useEffect(() => {
+    loadRevenue()
+  }, [user, hasFinanceAccess])
+
   useRealtime('projects', loadData, !!user?.id)
   useRealtime('clients', loadData, !!user?.id)
   useRealtime('tasks', loadData, !!user?.id)
+  useRealtime('pagamentos_servicos', loadRevenue, !!user?.id && hasFinanceAccess)
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id)
@@ -306,6 +329,36 @@ export default function DesignerPanel() {
       },
     ]
   }, [weeklyProjects])
+
+  const monthlyRevenue = useMemo(() => {
+    const now = new Date()
+    const months = []
+
+    for (let i = 2; i >= 0; i--) {
+      const d = subMonths(now, i)
+      months.push({
+        month: format(d, 'MMM/yy', { locale: ptBR }),
+        monthIndex: d.getMonth(),
+        year: d.getFullYear(),
+        total: 0,
+      })
+    }
+
+    revenueData.forEach((p) => {
+      if (!p.data_pagamento) return
+      const d = new Date(p.data_pagamento)
+      const m = months.find((x) => x.monthIndex === d.getMonth() && x.year === d.getFullYear())
+      if (m) m.total += p.valor
+    })
+
+    return months
+  }, [revenueData])
+
+  const averageRevenue = useMemo(() => {
+    if (!monthlyRevenue.length) return 0
+    const sum = monthlyRevenue.reduce((acc, m) => acc + m.total, 0)
+    return sum / monthlyRevenue.length
+  }, [monthlyRevenue])
 
   const filteredProjects = useMemo(() => {
     return myProjects
@@ -457,6 +510,82 @@ export default function DesignerPanel() {
                   </ChartContainer>
                 </CardContent>
               </Card>
+
+              {hasFinanceAccess && (
+                <Card className="border-zinc-800/50 bg-zinc-950/50 md:col-span-2">
+                  <CardHeader className="pb-3 border-b border-zinc-800/50 flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-emerald-500" />
+                        Receita Mensal (Últimos 3 Meses)
+                      </CardTitle>
+                      <CardDescription className="mt-1 flex items-center gap-2">
+                        Média mensal calculada:{' '}
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                        >
+                          {formatCurrency(averageRevenue)}
+                        </Badge>
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="py-6">
+                    <ChartContainer
+                      config={{
+                        total: { label: 'Receita', color: 'hsl(142 71% 45%)' },
+                      }}
+                      className="h-[200px] w-full"
+                    >
+                      <BarChart
+                        data={monthlyRevenue}
+                        margin={{ top: 20, right: 0, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          vertical={false}
+                          stroke="hsl(var(--border))"
+                        />
+                        <XAxis
+                          dataKey="month"
+                          axisLine={false}
+                          tickLine={false}
+                          fontSize={12}
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                          dy={10}
+                        />
+                        <YAxis
+                          tickFormatter={(val) => `R$ ${val}`}
+                          axisLine={false}
+                          tickLine={false}
+                          fontSize={12}
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                          width={80}
+                        />
+                        <ChartTooltip
+                          cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
+                          content={
+                            <ChartTooltipContent
+                              formatter={(val) => formatCurrency(val as number)}
+                            />
+                          }
+                        />
+                        <Bar
+                          dataKey="total"
+                          fill="var(--color-total)"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                        />
+                        <ReferenceLine
+                          y={averageRevenue}
+                          stroke="hsl(var(--muted-foreground))"
+                          strokeDasharray="3 3"
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="md:col-span-2">
                 <MyTasksList />

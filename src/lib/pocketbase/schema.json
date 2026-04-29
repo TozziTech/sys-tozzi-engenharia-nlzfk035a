@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T03:25:27.085Z",
+  "generatedAt": "2026-04-29T03:34:10.805Z",
   "collections": [
     {
       "name": "users",
@@ -1960,7 +1960,7 @@
         {
           "name": "data_pagamento",
           "type": "date",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -1982,6 +1982,19 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "data_vencimento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Pendente", "Pago"]
         }
       ],
       "indexes": ["CREATE INDEX idx_pagamentos_servico_id ON pagamentos_servicos (servico_id)"]

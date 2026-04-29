@@ -496,6 +496,30 @@ export default function ProjectDetails() {
     }
   }, [id])
 
+  useEffect(() => {
+    const fetchFinance = async () => {
+      if (!project?.id) return
+      try {
+        const records = await pb
+          .collection('financial_records')
+          .getFullList({ filter: `project_id = "${project.id}"` })
+        const totalIn = records
+          .filter((r) => r.type === 'Entrada')
+          .reduce((a, b) => a + b.amount, 0)
+        const totalOut = records
+          .filter((r) => r.type === 'Saída' && r.is_approved)
+          .reduce((a, b) => a + b.amount, 0)
+        const pendingOut = records
+          .filter((r) => r.type === 'Saída' && !r.is_approved)
+          .reduce((a, b) => a + b.amount, 0)
+        setFinancialData({ totalIn, totalOut, pendingOut })
+      } catch (e) {
+        console.error('Error fetching financial data', e)
+      }
+    }
+    if (project?.id) fetchFinance()
+  }, [project?.id])
+
   const handleExportSpecialtiesPDF = useCallback(async () => {
     if (!project) return
 
@@ -781,30 +805,6 @@ export default function ProjectDetails() {
   const handlePrintPriorityReport = () => {
     window.print()
   }
-
-  useEffect(() => {
-    const fetchFinance = async () => {
-      if (!project?.id) return
-      try {
-        const records = await pb
-          .collection('financial_records')
-          .getFullList({ filter: `project_id = "${project.id}"` })
-        const totalIn = records
-          .filter((r) => r.type === 'Entrada')
-          .reduce((a, b) => a + b.amount, 0)
-        const totalOut = records
-          .filter((r) => r.type === 'Saída' && r.is_approved)
-          .reduce((a, b) => a + b.amount, 0)
-        const pendingOut = records
-          .filter((r) => r.type === 'Saída' && !r.is_approved)
-          .reduce((a, b) => a + b.amount, 0)
-        setFinancialData({ totalIn, totalOut, pendingOut })
-      } catch (e) {
-        console.error('Error fetching financial data', e)
-      }
-    }
-    if (project?.id) fetchFinance()
-  }, [project?.id])
 
   const handleExportPremiumReport = async () => {
     const { exportPremiumExecutivePDF } = await import('@/lib/exportPdf')

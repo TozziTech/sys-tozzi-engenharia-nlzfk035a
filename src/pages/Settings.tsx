@@ -23,6 +23,7 @@ import { Sun, Moon, Monitor } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
+import { hexToHslObject, getForegroundHsl } from '@/components/ThemeColorInjector'
 
 export default function Settings() {
   const { user } = useAuth()
@@ -176,8 +177,68 @@ export default function Settings() {
     }
   }
 
+  const getLivePreviewStyles = () => {
+    let css = ''
+    if (companyForm.primary_color) {
+      const { h, s, l } = hexToHslObject(companyForm.primary_color)
+      if (l !== undefined) {
+        const fgHsl = getForegroundHsl(companyForm.primary_color)
+        const darkPrimaryL = Math.max(0, l - 5)
+        css += `
+          :root, [data-theme-color] {
+            --primary: ${h} ${s}% ${l}%;
+            --primary-foreground: ${fgHsl};
+            --ring: ${h} ${s}% ${l}%;
+          }
+          .dark, .dark[data-theme-color] {
+            --primary: ${h} ${s}% ${darkPrimaryL}%;
+            --primary-foreground: ${fgHsl};
+            --ring: ${h} ${s}% ${darkPrimaryL}%;
+          }
+        `
+      }
+    }
+
+    if (companyForm.background_color) {
+      const { h, s, l } = hexToHslObject(companyForm.background_color)
+      if (l !== undefined) {
+        const fgL_light = l < 50 ? 98 : 10
+        const cardL_light = Math.max(0, l - 2)
+        const borderL_light = Math.max(0, l - 10)
+
+        const darkL = Math.min(12, l * 0.2)
+        const fgL_dark = 98
+        const cardL_dark = Math.min(100, darkL + 3)
+        const borderL_dark = Math.min(100, darkL + 12)
+
+        css += `
+          :root, [data-theme-color] {
+            --background: ${h} ${s}% ${l}%;
+            --foreground: ${h} ${s}% ${fgL_light}%;
+            --card: ${h} ${s}% ${cardL_light}%;
+            --card-foreground: ${h} ${s}% ${fgL_light}%;
+            --popover: ${h} ${s}% ${cardL_light}%;
+            --popover-foreground: ${h} ${s}% ${fgL_light}%;
+            --border: ${h} ${s}% ${borderL_light}%;
+          }
+          .dark, .dark[data-theme-color] {
+            --background: ${h} ${s}% ${darkL}%;
+            --foreground: ${h} ${s}% ${fgL_dark}%;
+            --card: ${h} ${s}% ${cardL_dark}%;
+            --card-foreground: ${h} ${s}% ${fgL_dark}%;
+            --popover: ${h} ${s}% ${cardL_dark}%;
+            --popover-foreground: ${h} ${s}% ${fgL_dark}%;
+            --border: ${h} ${s}% ${borderL_dark}%;
+          }
+        `
+      }
+    }
+    return css
+  }
+
   return (
     <div className="container max-w-5xl mx-auto py-8 px-4 animate-fade-in-up">
+      <style>{getLivePreviewStyles()}</style>
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mb-2">
           Configurações do Sistema
@@ -225,6 +286,50 @@ export default function Settings() {
                   value={companyForm.phone}
                   onChange={(e) => setCompanyForm({ ...companyForm, phone: e.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Cor Primária da Empresa</Label>
+                <div className="flex gap-3">
+                  <Input
+                    type="color"
+                    className="w-14 h-10 p-1 cursor-pointer"
+                    value={companyForm.primary_color}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, primary_color: e.target.value })
+                    }
+                  />
+                  <Input
+                    type="text"
+                    value={companyForm.primary_color}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, primary_color: e.target.value })
+                    }
+                    className="flex-1 uppercase font-mono"
+                    placeholder="#D4AF37"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Cor de Fundo (Opcional)</Label>
+                <div className="flex gap-3">
+                  <Input
+                    type="color"
+                    className="w-14 h-10 p-1 cursor-pointer"
+                    value={companyForm.background_color || '#ffffff'}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, background_color: e.target.value })
+                    }
+                  />
+                  <Input
+                    type="text"
+                    value={companyForm.background_color}
+                    onChange={(e) =>
+                      setCompanyForm({ ...companyForm, background_color: e.target.value })
+                    }
+                    className="flex-1 uppercase font-mono"
+                    placeholder="#FFFFFF"
+                  />
+                </div>
               </div>
               <div className="space-y-2 col-span-2">
                 <Label>Logotipo</Label>

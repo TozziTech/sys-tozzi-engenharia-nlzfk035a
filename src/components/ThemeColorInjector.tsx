@@ -126,43 +126,70 @@ export function ThemeColorInjector() {
   let customCss = ''
 
   if (primaryColor) {
-    const hsl = hexToHsl(primaryColor)
+    const { h, s, l } = hexToHslObject(primaryColor)
     const fgHsl = getForegroundHsl(primaryColor)
-    if (hsl) {
-      customCss += `
-        :root, .dark, [data-theme-color] {
-          --primary: ${hsl} !important;
-          --primary-foreground: ${fgHsl} !important;
-          --ring: ${hsl} !important;
-          --chart-1: ${hsl} !important;
-        }
-      `
-    }
+    const darkPrimaryL = Math.max(0, l - 5)
+
+    customCss += `
+      :root, [data-theme-color] {
+        --primary: ${h} ${s}% ${l}%;
+        --primary-foreground: ${fgHsl};
+        --ring: ${h} ${s}% ${l}%;
+        --chart-1: ${h} ${s}% ${l}%;
+      }
+      .dark, .dark[data-theme-color] {
+        --primary: ${h} ${s}% ${darkPrimaryL}%;
+        --primary-foreground: ${fgHsl};
+        --ring: ${h} ${s}% ${darkPrimaryL}%;
+        --chart-1: ${h} ${s}% ${darkPrimaryL}%;
+      }
+    `
   }
 
   if (bgColor) {
     const { h, s, l } = hexToHslObject(bgColor)
-    const isDark = l < 50
-    const fgL = isDark ? 98 : 10
-    const cardL = isDark ? Math.min(100, l + 2) : Math.max(0, l - 2)
-    const mutedL = isDark ? Math.min(100, l + 8) : Math.max(0, l - 5)
-    const borderL = isDark ? Math.min(100, l + 12) : Math.max(0, l - 10)
+
+    const fgL_light = l < 50 ? 98 : 10
+    const cardL_light = Math.max(0, l - 2)
+    const mutedL_light = Math.max(0, l - 5)
+    const borderL_light = Math.max(0, l - 10)
+
+    const darkL = Math.min(12, l * 0.2)
+    const fgL_dark = 98
+    const cardL_dark = Math.min(100, darkL + 3)
+    const mutedL_dark = Math.min(100, darkL + 8)
+    const borderL_dark = Math.min(100, darkL + 12)
 
     customCss += `
-      :root, .dark, [data-theme-color] {
-        --background: ${h} ${s}% ${l}% !important;
-        --foreground: ${h} ${s}% ${fgL}% !important;
-        --card: ${h} ${s}% ${cardL}% !important;
-        --card-foreground: ${h} ${s}% ${fgL}% !important;
-        --popover: ${h} ${s}% ${cardL}% !important;
-        --popover-foreground: ${h} ${s}% ${fgL}% !important;
-        --muted: ${h} ${s}% ${mutedL}% !important;
-        --muted-foreground: ${h} ${s}% ${isDark ? 70 : 40}% !important;
-        --border: ${h} ${s}% ${borderL}% !important;
-        --input: ${h} ${s}% ${borderL}% !important;
-        --sidebar-background: ${h} ${s}% ${cardL}% !important;
-        --sidebar-foreground: ${h} ${s}% ${fgL}% !important;
-        --sidebar-border: ${h} ${s}% ${borderL}% !important;
+      :root, [data-theme-color] {
+        --background: ${h} ${s}% ${l}%;
+        --foreground: ${h} ${s}% ${fgL_light}%;
+        --card: ${h} ${s}% ${cardL_light}%;
+        --card-foreground: ${h} ${s}% ${fgL_light}%;
+        --popover: ${h} ${s}% ${cardL_light}%;
+        --popover-foreground: ${h} ${s}% ${fgL_light}%;
+        --muted: ${h} ${s}% ${mutedL_light}%;
+        --muted-foreground: ${h} ${s}% 40%;
+        --border: ${h} ${s}% ${borderL_light}%;
+        --input: ${h} ${s}% ${borderL_light}%;
+        --sidebar-background: ${h} ${s}% ${cardL_light}%;
+        --sidebar-foreground: ${h} ${s}% ${fgL_light}%;
+        --sidebar-border: ${h} ${s}% ${borderL_light}%;
+      }
+      .dark, .dark[data-theme-color] {
+        --background: ${h} ${s}% ${darkL}%;
+        --foreground: ${h} ${s}% ${fgL_dark}%;
+        --card: ${h} ${s}% ${cardL_dark}%;
+        --card-foreground: ${h} ${s}% ${fgL_dark}%;
+        --popover: ${h} ${s}% ${cardL_dark}%;
+        --popover-foreground: ${h} ${s}% ${fgL_dark}%;
+        --muted: ${h} ${s}% ${mutedL_dark}%;
+        --muted-foreground: ${h} ${s}% 70%;
+        --border: ${h} ${s}% ${borderL_dark}%;
+        --input: ${h} ${s}% ${borderL_dark}%;
+        --sidebar-background: ${h} ${s}% ${cardL_dark}%;
+        --sidebar-foreground: ${h} ${s}% ${fgL_dark}%;
+        --sidebar-border: ${h} ${s}% ${borderL_dark}%;
       }
     `
   }

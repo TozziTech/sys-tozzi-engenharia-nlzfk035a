@@ -11,16 +11,33 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Trash2, Plus } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Trash2, Plus, Pencil } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export function ExpandedPaymentRow({ servico }: { servico: any }) {
   const { toast } = useToast()
   const [pagamentos, setPagamentos] = useState<any[]>([])
+
+  // Create form state
   const [novoPagamento, setNovoPagamento] = useState({
     descricao: '',
     valor: '',
     data_pagamento: new Date().toISOString().substring(0, 10),
+  })
+
+  // Edit form state
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({
+    descricao: '',
+    valor: '',
+    data_pagamento: '',
   })
 
   const loadPagamentos = async () => {
@@ -50,6 +67,12 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
       toast({ title: 'Preencha valor e data', variant: 'destructive' })
       return
     }
+
+    if (Number(novoPagamento.valor) <= 0) {
+      toast({ title: 'O valor deve ser maior que zero', variant: 'destructive' })
+      return
+    }
+
     try {
       await pb.collection('pagamentos_servicos').create({
         servico_id: servico.id,
@@ -65,6 +88,39 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
       toast({ title: 'Pagamento registrado com sucesso!' })
     } catch (e) {
       toast({ title: 'Erro ao registrar pagamento', variant: 'destructive' })
+    }
+  }
+
+  const startEdit = (p: any) => {
+    setEditingId(p.id)
+    setEditForm({
+      descricao: p.descricao || '',
+      valor: p.valor.toString(),
+      data_pagamento: p.data_pagamento.substring(0, 10),
+    })
+  }
+
+  const handleUpdate = async () => {
+    if (!editForm.valor || !editForm.data_pagamento) {
+      toast({ title: 'Preencha valor e data', variant: 'destructive' })
+      return
+    }
+
+    if (Number(editForm.valor) <= 0) {
+      toast({ title: 'O valor deve ser maior que zero', variant: 'destructive' })
+      return
+    }
+
+    try {
+      await pb.collection('pagamentos_servicos').update(editingId!, {
+        valor: Number(editForm.valor),
+        data_pagamento: editForm.data_pagamento,
+        descricao: editForm.descricao,
+      })
+      setEditingId(null)
+      toast({ title: 'Pagamento atualizado com sucesso!' })
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar pagamento', variant: 'destructive' })
     }
   }
 
@@ -139,7 +195,7 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
           <Input
             type="number"
             step="0.01"
-            min="0"
+            min="0.01"
             className="h-9"
             value={novoPagamento.valor}
             onChange={(e) => setNovoPagamento({ ...novoPagamento, valor: e.target.value })}
@@ -159,7 +215,7 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
                 <TableHead className="w-[120px]">Data</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="w-[60px]"></TableHead>
+                <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -170,15 +226,27 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
                   <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-500">
                     {formatCurrency(p.valor)}
                   </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
-                      onClick={() => handleDelete(p.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => startEdit(p)}
+                        title="Editar pagamento"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                        onClick={() => handleDelete(p.id)}
+                        title="Excluir pagamento"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -192,6 +260,49 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
           </p>
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingId} onOpenChange={(open) => !open && setEditingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Pagamento</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Descrição</label>
+              <Input
+                value={editForm.descricao}
+                onChange={(e) => setEditForm({ ...editForm, descricao: e.target.value })}
+                placeholder="Ex: Parcela 01, Sinal..."
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data</label>
+              <Input
+                type="date"
+                value={editForm.data_pagamento}
+                onChange={(e) => setEditForm({ ...editForm, data_pagamento: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Valor (R$)</label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={editForm.valor}
+                onChange={(e) => setEditForm({ ...editForm, valor: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingId(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdate}>Salvar Alterações</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

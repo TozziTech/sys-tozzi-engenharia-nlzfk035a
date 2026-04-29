@@ -57,9 +57,11 @@ import { ImageMarkupEditor } from '@/components/ImageMarkupEditor'
 export function ProjectComments({
   projectId,
   projectType = 'projects',
+  enabled = true,
 }: {
   projectId: string
   projectType?: 'projects' | 'projetos_cliente'
+  enabled?: boolean
 }) {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -133,44 +135,52 @@ export function ProjectComments({
     }
   }, [projectId])
 
-  useRealtime('comentarios_projeto', (e) => {
-    if (e.record[filterField] === projectId) {
-      loadData()
-      if (e.action === 'create' && e.record.autor !== user?.id) {
-        const authorId = e.record.autor
-        pb.collection('users')
-          .getOne(authorId)
-          .then((author) => {
-            toast({
-              title: `Novo comentário de ${author.name || 'Usuário'}`,
-              description:
-                e.record.mensagem.length > 50
-                  ? e.record.mensagem.substring(0, 50) + '...'
-                  : e.record.mensagem,
+  useRealtime(
+    'comentarios_projeto',
+    (e) => {
+      if (e.record[filterField] === projectId) {
+        loadData()
+        if (e.action === 'create' && e.record.autor !== user?.id) {
+          const authorId = e.record.autor
+          pb.collection('users')
+            .getOne(authorId)
+            .then((author) => {
+              toast({
+                title: `Novo comentário de ${author.name || 'Usuário'}`,
+                description:
+                  e.record.mensagem.length > 50
+                    ? e.record.mensagem.substring(0, 50) + '...'
+                    : e.record.mensagem,
+              })
             })
-          })
-          .catch(console.error)
+            .catch(console.error)
+        }
       }
-    }
-  })
+    },
+    enabled,
+  )
 
-  useRealtime('project_presence', (e) => {
-    if (e.record.project === projectId && e.record.user !== user?.id) {
-      if (e.action === 'update' || e.action === 'create') {
-        if (e.record.is_typing) {
-          setTypingUsers((prev) => {
-            if (prev.find((u) => u.id === e.record.user)) return prev
-            const u = users.find((usr) => usr.id === e.record.user) || e.record.expand?.user
-            return u ? [...prev, u] : prev
-          })
-        } else {
+  useRealtime(
+    'project_presence',
+    (e) => {
+      if (e.record.project === projectId && e.record.user !== user?.id) {
+        if (e.action === 'update' || e.action === 'create') {
+          if (e.record.is_typing) {
+            setTypingUsers((prev) => {
+              if (prev.find((u) => u.id === e.record.user)) return prev
+              const u = users.find((usr) => usr.id === e.record.user) || e.record.expand?.user
+              return u ? [...prev, u] : prev
+            })
+          } else {
+            setTypingUsers((prev) => prev.filter((u) => u.id !== e.record.user))
+          }
+        } else if (e.action === 'delete') {
           setTypingUsers((prev) => prev.filter((u) => u.id !== e.record.user))
         }
-      } else if (e.action === 'delete') {
-        setTypingUsers((prev) => prev.filter((u) => u.id !== e.record.user))
       }
-    }
-  })
+    },
+    enabled,
+  )
 
   const updateTypingStatus = async (isTyping: boolean) => {
     if (!user) return
@@ -755,7 +765,9 @@ export function ProjectComments({
                 </Button>
               </PopoverContent>
             </Popover>
-            {projectType === 'projects' && <ProjectPresence projectId={projectId} />}
+            {projectType === 'projects' && (
+              <ProjectPresence projectId={projectId} enabled={enabled} />
+            )}
           </div>
         </div>
 

@@ -1146,7 +1146,7 @@ export default function ProjectDetails() {
 
       {/* Main Content Layout */}
       <div className="w-full mb-6 print:hidden">
-        <ProjectModules projectId={project.id} />
+        <ProjectModules projectId={project.id} enabled={enableSubscriptions} />
       </div>
 
       <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass} print:hidden`}>
@@ -1749,7 +1749,7 @@ export default function ProjectDetails() {
           </Card>
 
           <div className="w-full">
-            <ProjectComments projectId={project.id} />
+            <ProjectComments projectId={project.id} enabled={enableSubscriptions} />
           </div>
         </div>
       </div>

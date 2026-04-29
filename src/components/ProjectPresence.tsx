@@ -5,7 +5,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useRealtime } from '@/hooks/use-realtime'
 
-export function ProjectPresence({ projectId }: { projectId: string }) {
+export function ProjectPresence({
+  projectId,
+  enabled = true,
+}: {
+  projectId: string
+  enabled?: boolean
+}) {
   const { user } = useAuth()
   const [onlineUsers, setOnlineUsers] = useState<any[]>([])
 
@@ -32,11 +38,15 @@ export function ProjectPresence({ projectId }: { projectId: string }) {
     loadPresence()
   }, [loadPresence])
 
-  useRealtime('project_presence', (e) => {
-    if (e.record.project === projectId) {
-      loadPresence()
-    }
-  })
+  useRealtime(
+    'project_presence',
+    (e) => {
+      if (e.record.project === projectId) {
+        loadPresence()
+      }
+    },
+    enabled,
+  )
 
   useEffect(() => {
     if (!user || !projectId) return

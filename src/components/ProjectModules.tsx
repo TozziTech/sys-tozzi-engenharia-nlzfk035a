@@ -74,7 +74,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 
-export function ProjectModules({ projectId }: { projectId: string }) {
+export function ProjectModules({
+  projectId,
+  enabled = true,
+}: {
+  projectId: string
+  enabled?: boolean
+}) {
   const { user } = useAuth()
   const { toast } = useToast()
   const { viewMode, setViewMode } = usePreferencesStore()
@@ -126,15 +132,27 @@ export function ProjectModules({ projectId }: { projectId: string }) {
     loadData()
   }, [projectId])
 
-  useRealtime('project_modules', () => {
-    loadData()
-  })
-  useRealtime('tasks', () => {
-    loadData()
-  })
-  useRealtime('tags', () => {
-    loadData()
-  })
+  useRealtime(
+    'project_modules',
+    () => {
+      loadData()
+    },
+    enabled,
+  )
+  useRealtime(
+    'tasks',
+    () => {
+      loadData()
+    },
+    enabled,
+  )
+  useRealtime(
+    'tags',
+    () => {
+      loadData()
+    },
+    enabled,
+  )
 
   const getStatusColor = (status: string) => {
     switch (status) {

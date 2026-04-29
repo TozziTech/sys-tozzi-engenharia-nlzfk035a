@@ -4,6 +4,274 @@ import { format } from 'date-fns'
 
 const getPrimaryColor = (settings: any) => settings?.primary_color || '#1f2937'
 
+export function exportPremiumExecutivePDF(
+  project: any,
+  modules: any[],
+  finance: { totalIn: number; totalOut: number; pendingOut: number },
+  currentUser: string,
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+
+  const progress = project.progress || 0
+  const budget = project.budget || 0
+  const totalModules = modules.length
+  const completedModules = modules.filter((m) => m.status === 'Concluído').length
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório Executivo Premium - ${project.name}</title>
+        <style>
+          @page { margin: 15mm; size: A4; }
+          * { box-sizing: border-box; }
+          body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #1f2937; 
+            margin: 0; 
+            padding: 0;
+            background-color: #f8fafc;
+          }
+          .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 40px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 25px;
+            border-bottom: 3px solid ${primaryColor};
+            margin-bottom: 30px;
+          }
+          .header-left { display: flex; align-items: center; gap: 20px; }
+          .header-logo { max-height: 70px; object-fit: contain; }
+          .header-title { margin: 0; font-size: 28px; color: #111827; font-weight: 800; letter-spacing: -0.5px; }
+          .header-subtitle { margin: 4px 0 0; font-size: 14px; color: #6b7280; text-transform: uppercase; font-weight: 600; letter-spacing: 1px; }
+          .header-meta { text-align: right; font-size: 12px; color: #6b7280; }
+          .header-meta strong { color: #374151; }
+
+          .grid-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; margin-bottom: 30px; }
+          .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+          .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+
+          .card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          }
+          .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .card-title::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: ${primaryColor};
+          }
+
+          .kpi-box {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #f1f5f9;
+          }
+          .kpi-value { font-size: 24px; font-weight: 800; color: ${primaryColor}; margin-bottom: 4px; }
+          .kpi-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; }
+
+          .donut-container { display: flex; align-items: center; justify-content: center; gap: 20px; }
+          .donut-info { text-align: center; }
+          .donut-info h4 { margin: 0; font-size: 32px; color: #1e293b; line-height: 1; }
+          .donut-info p { margin: 5px 0 0; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+
+          .progress-bar-wrap { width: 100%; background: #e2e8f0; border-radius: 99px; height: 8px; overflow: hidden; margin-top: 8px; }
+          .progress-bar-fill { height: 100%; background: ${primaryColor}; border-radius: 99px; }
+
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+          th { font-weight: 700; color: #475569; background: #f8fafc; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+          tr:last-child td { border-bottom: none; }
+          .status-badge { display: inline-block; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+          
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 11px;
+            color: #94a3b8;
+          }
+
+          @media print {
+            body { background: #fff; padding: 0; margin: 0; }
+            .container { box-shadow: none; padding: 0; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 12px; text-align: center; margin-bottom: 20px; border-radius: 6px; font-size: 14px; font-weight: 500;">
+          A impressão iniciará automaticamente. Para melhor qualidade, marque "Gráficos de plano de fundo".
+        </div>
+
+        <div class="container">
+          <div class="header">
+            <div class="header-left">
+              ${logoUrl ? `<img src="${logoUrl}" class="header-logo" />` : ''}
+              <div>
+                <h1 class="header-title">${project.name}</h1>
+                <p class="header-subtitle">Relatório Executivo de Projeto</p>
+              </div>
+            </div>
+            <div class="header-meta">
+              <p style="margin: 0 0 4px;"><strong>Gerado por:</strong> ${currentUser}</p>
+              <p style="margin: 0 0 4px;"><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+              <p style="margin: 0;"><strong>Cliente:</strong> ${project.client || 'N/A'}</p>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">Resumo do Progresso</div>
+              <div class="donut-container">
+                <svg width="120" height="120" viewBox="0 0 36 36">
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" stroke-width="3.5" />
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${primaryColor}" stroke-width="3.5" stroke-dasharray="${progress}, 100" stroke-linecap="round" />
+                  <text x="18" y="20.5" font-size="8" font-weight="bold" fill="#1e293b" text-anchor="middle">${progress}%</text>
+                </svg>
+                <div class="donut-info">
+                  <h4>${completedModules}/${totalModules}</h4>
+                  <p>Módulos Concluídos</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Informações Gerais</div>
+              <div style="font-size: 13px; color: #475569; line-height: 2;">
+                <div><strong>Engenheiro Resp.:</strong> ${project.engineer || 'N/A'}</div>
+                <div><strong>Disciplina Principal:</strong> ${project.discipline || 'N/A'}</div>
+                <div><strong>Data Início:</strong> ${project.startDate ? new Date(project.startDate).toLocaleDateString('pt-BR') : 'N/A'}</div>
+                <div><strong>Previsão Término:</strong> ${project.endDate ? new Date(project.endDate).toLocaleDateString('pt-BR') : 'N/A'}</div>
+                <div><strong>Status:</strong> <span style="color: ${primaryColor}; font-weight: 600;">${project.status}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-4">
+            <div class="kpi-box">
+              <div class="kpi-value">${formatCurrency(budget)}</div>
+              <div class="kpi-label">Orçamento Previsto</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-value" style="color: #dc2626;">${formatCurrency(finance.totalOut)}</div>
+              <div class="kpi-label">Custo Realizado</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-value" style="color: #059669;">${formatCurrency(finance.totalIn)}</div>
+              <div class="kpi-label">Faturamento</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-value" style="color: ${finance.totalIn - finance.totalOut >= 0 ? '#059669' : '#dc2626'};">${formatCurrency(finance.totalIn - finance.totalOut)}</div>
+              <div class="kpi-label">Resultado Líquido</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom: 30px;">
+            <div class="card-title">Situação das Disciplinas (Top 10)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Disciplina</th>
+                  <th>Status</th>
+                  <th>Prazo</th>
+                  <th style="width: 30%;">Progresso</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${modules
+                  .slice(0, 10)
+                  .map((m) => {
+                    let bg = '#f1f5f9',
+                      color = '#475569'
+                    if (m.status === 'Concluído') {
+                      bg = '#dcfce7'
+                      color = '#059669'
+                    } else if (m.status === 'Em Andamento') {
+                      bg = '#dbeafe'
+                      color = '#2563eb'
+                    } else if (m.status === 'Pausado') {
+                      bg = '#fef3c7'
+                      color = '#d97706'
+                    }
+
+                    return `
+                    <tr>
+                      <td style="font-weight: 600; color: #1e293b;">${m.name}</td>
+                      <td><span class="status-badge" style="background: ${bg}; color: ${color};">${m.status}</span></td>
+                      <td>${m.deadline ? new Date(m.deadline).toLocaleDateString('pt-BR') : '-'}</td>
+                      <td>
+                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 600; margin-bottom: 4px;">
+                          <span>${m.progress || 0}%</span>
+                        </div>
+                        <div class="progress-bar-wrap">
+                          <div class="progress-bar-fill" style="width: ${m.progress || 0}%;"></div>
+                        </div>
+                      </td>
+                    </tr>
+                  `
+                  })
+                  .join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+            Este relatório contém informações confidenciais do projeto e é destinado apenas para uso executivo.<br>
+            Sistema de Gestão Integrada &bull; ${new Date().getFullYear()}
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 500)
+}
+
 export function exportSpecialtiesPDF(
   project: any,
   groupedStats: { groupName: string; stats: any[] }[],

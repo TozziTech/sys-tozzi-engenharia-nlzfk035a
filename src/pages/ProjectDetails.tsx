@@ -715,6 +715,70 @@ export default function ProjectDetails() {
     window.print()
   }
 
+  const handleExportPremiumReport = async () => {
+    let financeData = { totalIn: 0, totalOut: 0, pendingOut: 0 }
+    try {
+      const records = await pb
+        .collection('financial_records')
+        .getFullList({ filter: `project_id = "${project.id}"` })
+      financeData.totalIn = records
+        .filter((r) => r.type === 'Entrada')
+        .reduce((a, b) => a + b.amount, 0)
+      financeData.totalOut = records
+        .filter((r) => r.type === 'Saída' && r.is_approved)
+        .reduce((a, b) => a + b.amount, 0)
+      financeData.pendingOut = records
+        .filter((r) => r.type === 'Saída' && !r.is_approved)
+        .reduce((a, b) => a + b.amount, 0)
+    } catch (e) {
+      console.error(e)
+    }
+    const { exportPremiumExecutivePDF } = await import('@/lib/exportPdf')
+    exportPremiumExecutivePDF(
+      project,
+      modules,
+      financeData,
+      user?.name || user?.email || 'Usuário',
+      settings,
+    )
+  }
+
+  const checkAgendaAlerts = useCallback(async () => {
+    if (!project?.id) return
+    const now = new Date()
+    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000)
+
+    crisisModules.forEach((mod) => {
+      const isOverdue = new Date(mod.deadline!) < now
+      toast({
+        title: isOverdue ? 'Módulo Atrasado' : 'Módulo Próximo do Prazo',
+        description: `${mod.name} - Prazo: ${new Date(mod.deadline!).toLocaleDateString('pt-BR')}`,
+        variant: isOverdue ? 'destructive' : 'default',
+        className: !isOverdue ? 'bg-amber-500 text-white border-amber-600' : '',
+      })
+    })
+
+    try {
+      const projectTasks = await pb.collection('tasks').getFullList({
+        filter: `project = "${project.id}" && status != "Concluído" && due_date != ""`,
+      })
+      projectTasks.forEach((t) => {
+        const dueDate = new Date(t.due_date)
+        if (dueDate <= in48h) {
+          const isOverdue = dueDate < now
+          toast({
+            title: isOverdue ? 'Tarefa Atrasada' : 'Tarefa Próxima do Prazo',
+            description: `${t.title} - Prazo: ${dueDate.toLocaleDateString('pt-BR')}`,
+            variant: isOverdue ? 'destructive' : 'default',
+            className: !isOverdue ? 'bg-amber-500 text-white border-amber-600' : '',
+          })
+        }
+      })
+    } catch (e) {
+      console.error('Error fetching tasks for alerts', e)
+    }
+  }, [project?.id, crisisModules, toast])
+
   return (
     <div className={`w-full ${pClass} ${gapClass} print:m-0 print:p-0 print:max-w-none`}>
       {/* Print-only Priority Report */}
@@ -959,7 +1023,15 @@ export default function ProjectDetails() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="gestao" className="w-full print:hidden mt-6">
+      <Tabs
+        defaultValue="gestao"
+        className="w-full print:hidden mt-6"
+        onValueChange={(val) => {
+          if (val === 'agenda') {
+            checkAgendaAlerts()
+          }
+        }}
+      >
         <div className="overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <TabsList
             className={cn(
@@ -993,14 +1065,25 @@ export default function ProjectDetails() {
         <TabsContent value="gestao" className={cn('mt-6 space-y-6 outline-none')}>
           {/* Project Metrics Dashboard / Visão Geral do Projeto */}
           <Card className="w-full print:hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <PieChart className="h-5 w-5 text-primary" />
-                Visão Geral do Projeto
-              </CardTitle>
-              <CardDescription>
-                Progresso consolidado baseado nas disciplinas e seus status
-              </CardDescription>
+            <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <PieChart className="h-5 w-5 text-primary" />
+                  Visão Geral do Projeto
+                </CardTitle>
+                <CardDescription>
+                  Progresso consolidado baseado nas disciplinas e seus status
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleExportPremiumReport}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all gap-2 shrink-0"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Gerar Relatório Executivo</span>
+                <span className="sm:hidden">Relatório PDF</span>
+              </Button>
             </CardHeader>
             <CardContent>
               {totalModules > 0 ? (

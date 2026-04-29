@@ -78,17 +78,23 @@ const getNavigationGroups = () => [
         icon: FolderKanban,
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Cliente', 'Visitante'],
       },
+      { name: 'Diagnóstico', id: 'diagnostico', href: '/diagnostics', icon: AlertTriangle },
+      { name: 'Performance', id: 'performance', href: '/performance', icon: Activity },
+      { name: 'Cronograma', id: 'cronograma', href: '/schedule', icon: CalendarDays },
+      { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
+      { name: 'Calendário', id: 'calendario', href: '/calendar', icon: CalendarIcon },
+    ],
+  },
+  {
+    label: 'Painel do Cliente',
+    id: 'grupo_painel_cliente',
+    items: [
       {
         name: 'Painel do cliente',
         id: 'painel_cliente',
         href: '/gestao/painel-cliente',
         icon: LayoutDashboard,
       },
-      { name: 'Diagnóstico', id: 'diagnostico', href: '/diagnostics', icon: AlertTriangle },
-      { name: 'Performance', id: 'performance', href: '/performance', icon: Activity },
-      { name: 'Cronograma', id: 'cronograma', href: '/schedule', icon: CalendarDays },
-      { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
-      { name: 'Calendário', id: 'calendario', href: '/calendar', icon: CalendarIcon },
     ],
   },
   {

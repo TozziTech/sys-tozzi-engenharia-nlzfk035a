@@ -85,6 +85,7 @@ export function ProjectModules({
   const { toast } = useToast()
   const { viewMode, setViewMode } = usePreferencesStore()
   const [modules, setModules] = useState<ProjectModule[]>([])
+  const [originalModules, setOriginalModules] = useState<ProjectModule[]>([])
   const [tags, setTags] = useState<any[]>([])
 
   const [priorityMode, setPriorityMode] = useState(() => {
@@ -107,7 +108,6 @@ export function ProjectModules({
   const [loading, setLoading] = useState(true)
   const [isReordering, setIsReordering] = useState(false)
   const [draggedModule, setDraggedModule] = useState<ProjectModule | null>(null)
-  const [dragOverModule, setDragOverModule] = useState<ProjectModule | null>(null)
 
   const canEdit = user?.role === 'Administrador' || user?.role === 'Gerente de Projeto'
 
@@ -119,6 +119,7 @@ export function ProjectModules({
         pb.collection('tags').getFullList(),
       ])
       setModules(modulesData)
+      setOriginalModules(modulesData)
       setTasks(tasksData)
       setTags(tagsData)
     } catch (err) {
@@ -132,24 +133,26 @@ export function ProjectModules({
     loadData()
   }, [projectId])
 
+  const isDraggingOrReordering = !!draggedModule || isReordering
+
   useRealtime(
     'project_modules',
     () => {
-      loadData()
+      if (!isDraggingOrReordering) loadData()
     },
     enabled,
   )
   useRealtime(
     'tasks',
     () => {
-      loadData()
+      if (!isDraggingOrReordering) loadData()
     },
     enabled,
   )
   useRealtime(
     'tags',
     () => {
-      loadData()
+      if (!isDraggingOrReordering) loadData()
     },
     enabled,
   )
@@ -175,88 +178,66 @@ export function ProjectModules({
 
   const sortedModules = [...modules].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
 
+  const isDraggable =
+    canEdit && selectedSubDisciplines.length === 0 && !priorityMode && groupBy === 'none'
+
   const handleDragStart = (e: React.DragEvent, mod: ProjectModule) => {
-    if (isReordering || selectedSubDisciplines.length > 0 || priorityMode) {
+    if (isReordering || !isDraggable) {
       e.preventDefault()
       return
     }
     setDraggedModule(mod)
     e.dataTransfer.effectAllowed = 'move'
+
+    setTimeout(() => {
+      // The CSS class will handle opacity reduction on the dragged original
+    }, 0)
   }
 
   const handleDragOver = (e: React.DragEvent, mod: ProjectModule) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    if (draggedModule && draggedModule.id !== mod.id && dragOverModule?.id !== mod.id) {
-      setDragOverModule(mod)
-    }
+
+    if (!draggedModule || draggedModule.id === mod.id) return
+
+    setModules((prev) => {
+      const fromIndex = prev.findIndex((m) => m.id === draggedModule.id)
+      const toIndex = prev.findIndex((m) => m.id === mod.id)
+
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return prev
+
+      const newModules = [...prev]
+      const [removed] = newModules.splice(fromIndex, 1)
+      newModules.splice(toIndex, 0, removed)
+
+      // Automatically re-assign ordems visually
+      return newModules.map((m, i) => ({ ...m, ordem: i + 1 }))
+    })
   }
 
-  const handleDrop = async (
-    e: React.DragEvent,
-    targetMod: ProjectModule,
-    currentGroup: ProjectModule[],
-  ) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
-    setDragOverModule(null)
+  }
 
-    if (!draggedModule || draggedModule.id === targetMod.id) {
-      setDraggedModule(null)
-      return
-    }
+  const handleDragEnd = async () => {
+    if (!draggedModule) return
+    setDraggedModule(null)
 
-    const fromIndex = currentGroup.findIndex((m) => m.id === draggedModule.id)
-    const toIndex = currentGroup.findIndex((m) => m.id === targetMod.id)
+    const hasChanges = modules.some((m) => {
+      const orig = originalModules.find((o) => o.id === m.id)
+      return !orig || orig.ordem !== m.ordem
+    })
 
-    if (fromIndex === -1 || toIndex === -1) {
-      setDraggedModule(null)
-      return
-    }
+    if (!hasChanges) return
 
     setIsReordering(true)
-
-    // Ensure sequential ordems for clean logic
-    let baseModules = [...modules].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
-    baseModules = baseModules.map((m, i) => {
-      const expected = i + 1
-      if (m.ordem !== expected) {
-        return { ...m, ordem: expected }
-      }
-      return m
-    })
-
-    const cleanGroup = currentGroup.map((cg) => baseModules.find((b) => b.id === cg.id)!)
-
-    const newGroup = [...cleanGroup]
-    const [removed] = newGroup.splice(fromIndex, 1)
-    newGroup.splice(toIndex, 0, removed)
-
-    const groupOrdems = cleanGroup.map((m) => m.ordem!).sort((a, b) => a - b)
-
-    const finalModules = baseModules.map((m) => {
-      const groupIdx = newGroup.findIndex((ng) => ng.id === m.id)
-      if (groupIdx !== -1) {
-        const newOrdem = groupOrdems[groupIdx]
-        if (m.ordem !== newOrdem) {
-          return { ...m, ordem: newOrdem }
-        }
-      }
-      return m
-    })
-
-    const allUpdates = finalModules
-      .filter((fm) => {
-        const orig = modules.find((om) => om.id === fm.id)
-        return !orig || orig.ordem !== fm.ordem
-      })
-      .map((fm) => ({ id: fm.id, ordem: fm.ordem! }))
-
-    setModules(finalModules)
+    const updates = modules.map((m) => ({ id: m.id, ordem: m.ordem! }))
 
     try {
       await Promise.all(
-        allUpdates.map((u) => pb.collection('project_modules').update(u.id, { ordem: u.ordem })),
+        updates.map((u) => pb.collection('project_modules').update(u.id, { ordem: u.ordem })),
       )
+      setOriginalModules([...modules])
       toast({ title: 'Sucesso', description: 'Ordem das disciplinas atualizada com êxito.' })
     } catch (err) {
       toast({
@@ -264,16 +245,10 @@ export function ProjectModules({
         description: `Não foi possível atualizar a disciplina. ${getErrorMessage(err)}`,
         variant: 'destructive',
       })
-      loadData()
+      setModules([...originalModules])
     } finally {
       setIsReordering(false)
-      setDraggedModule(null)
     }
-  }
-
-  const handleDragEnd = () => {
-    setDraggedModule(null)
-    setDragOverModule(null)
   }
 
   const handlePriorityModeChange = (checked: boolean) => {
@@ -634,9 +609,7 @@ export function ProjectModules({
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            {canEdit && selectedSubDisciplines.length === 0 && !priorityMode && (
-                              <TableHead className="w-8 p-0"></TableHead>
-                            )}
+                            {isDraggable && <TableHead className="w-8 p-0"></TableHead>}
                             <TableHead>Disciplina / Edificação</TableHead>
                             <TableHead>Sub-disciplinas</TableHead>
                             <TableHead>Equipe</TableHead>
@@ -649,28 +622,23 @@ export function ProjectModules({
                           {groupModules.map((mod) => (
                             <TableRow
                               key={mod.id}
-                              draggable={
-                                canEdit && selectedSubDisciplines.length === 0 && !priorityMode
-                              }
+                              draggable={isDraggable}
                               onDragStart={(e) => handleDragStart(e, mod)}
                               onDragOver={(e) => handleDragOver(e, mod)}
-                              onDrop={(e) => handleDrop(e, mod, groupModules)}
+                              onDrop={handleDrop}
                               onDragEnd={handleDragEnd}
                               className={cn(
                                 priorityMode ? 'bg-amber-50/50 dark:bg-amber-950/20' : '',
-                                dragOverModule?.id === mod.id
-                                  ? 'bg-primary/10 ring-1 ring-inset ring-primary'
-                                  : '',
                                 draggedModule?.id === mod.id
                                   ? 'opacity-30 bg-muted'
-                                  : 'transition-all duration-200',
+                                  : 'transition-transform duration-200',
                               )}
                             >
-                              {canEdit && selectedSubDisciplines.length === 0 && !priorityMode && (
+                              {isDraggable && (
                                 <TableCell className="w-8 px-2 text-center text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing">
                                   <GripVertical className="h-4 w-4 inline-block" />
                                 </TableCell>
-                              )}
+                              )}{' '}
                               <TableCell
                                 className={priorityMode ? 'border-l-4 border-l-amber-500' : ''}
                               >
@@ -835,26 +803,21 @@ export function ProjectModules({
                       {groupModules.map((mod) => (
                         <Card
                           key={mod.id}
-                          draggable={
-                            canEdit && selectedSubDisciplines.length === 0 && !priorityMode
-                          }
+                          draggable={isDraggable}
                           onDragStart={(e) => handleDragStart(e, mod)}
                           onDragOver={(e) => handleDragOver(e, mod)}
-                          onDrop={(e) => handleDrop(e, mod, groupModules)}
+                          onDrop={handleDrop}
                           onDragEnd={handleDragEnd}
                           className={cn(
                             'overflow-hidden transition-all duration-200 group relative',
                             priorityMode
                               ? 'border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/50 bg-amber-50/10 dark:bg-amber-950/10'
                               : '',
-                            dragOverModule?.id === mod.id
-                              ? 'border-primary ring-2 ring-primary scale-[1.02] shadow-lg z-10'
-                              : '',
                             draggedModule?.id === mod.id ? 'opacity-40 scale-[0.98]' : '',
                           )}
                         >
                           <div className="p-4 relative">
-                            {canEdit && selectedSubDisciplines.length === 0 && !priorityMode && (
+                            {isDraggable && (
                               <div className="absolute top-2 right-2 p-1.5 text-muted-foreground/30 hover:text-foreground cursor-grab active:cursor-grabbing rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                 <GripVertical className="h-4 w-4" />
                               </div>

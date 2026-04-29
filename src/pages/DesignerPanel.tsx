@@ -45,6 +45,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -145,6 +152,8 @@ export default function DesignerPanel() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
   const [exportingDocs, setExportingDocs] = useState(false)
+  const [hasShownDailySummary, setHasShownDailySummary] = useState(false)
+  const [showDailySummary, setShowDailySummary] = useState(false)
 
   const hasFinanceAccess = canAccess('planilha_financeira') || user?.role === 'Administrador'
 
@@ -233,6 +242,7 @@ export default function DesignerPanel() {
       pb.collection('pagamentos_servicos').getFullList({
         filter: `servico_id.user_id = "${user?.id}"`,
         sort: '-data_pagamento',
+        expand: 'servico_id',
       }),
     { enabled: !!user && hasFinanceAccess },
   )
@@ -241,6 +251,42 @@ export default function DesignerPanel() {
     () => allPagamentos.filter((p: any) => p.status === 'Pago'),
     [allPagamentos],
   )
+
+  const urgentPayments = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const filtered = allPagamentos.filter((p: any) => {
+      if (p.status !== 'Pendente' || !p.data_vencimento) return false
+      const venc = new Date(p.data_vencimento)
+      venc.setHours(12, 0, 0, 0)
+      venc.setHours(0, 0, 0, 0)
+      return venc <= today
+    })
+
+    return filtered
+      .map((p: any) => {
+        const venc = new Date(p.data_vencimento)
+        venc.setHours(12, 0, 0, 0)
+        venc.setHours(0, 0, 0, 0)
+        return {
+          ...p,
+          isOverdue: venc < today,
+          isDueToday: venc.getTime() === today.getTime(),
+        }
+      })
+      .sort(
+        (a: any, b: any) =>
+          new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime(),
+      )
+  }, [allPagamentos])
+
+  useEffect(() => {
+    if (hasFinanceAccess && urgentPayments.length > 0 && !hasShownDailySummary) {
+      setShowDailySummary(true)
+      setHasShownDailySummary(true)
+    }
+  }, [urgentPayments, hasShownDailySummary, hasFinanceAccess])
 
   const { overdueCount, dueSoonCount } = useMemo(() => {
     let overdue = 0
@@ -948,6 +994,66 @@ export default function DesignerPanel() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showDailySummary} onOpenChange={setShowDailySummary}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Resumo Diário de Pendências</DialogTitle>
+            <DialogDescription>
+              Você possui pagamentos que exigem sua atenção hoje.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2 mt-2">
+            {urgentPayments.map((p: any) => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  setSearchParams({ tab: 'financeiro' })
+                  setShowDailySummary(false)
+                }}
+                className="flex flex-col gap-1 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/50 text-left hover:border-amber-500/50 transition-colors w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <div className="flex justify-between items-start w-full">
+                  <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 pr-2">
+                    {p.expand?.servico_id?.projeto_servico || 'Serviço não especificado'}
+                  </span>
+                  {p.isOverdue ? (
+                    <Badge
+                      variant="destructive"
+                      className="bg-rose-500 hover:bg-rose-600 text-white whitespace-nowrap"
+                    >
+                      Atrasado
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-amber-500 hover:bg-amber-600 text-amber-950 whitespace-nowrap">
+                      Urgente
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex justify-between items-center text-sm text-zinc-500 mt-1 w-full">
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency(p.valor)}
+                  </span>
+                  <span>
+                    Vencimento:{' '}
+                    {format(
+                      new Date(new Date(p.data_vencimento).getTime() + 12 * 60 * 60 * 1000),
+                      'dd/MM/yyyy',
+                    )}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <Button onClick={() => setShowDailySummary(false)} className="w-full sm:w-auto">
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

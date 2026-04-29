@@ -51,7 +51,7 @@ import {
   FileSpreadsheet,
   FileText,
   AlertTriangle,
-  PieChart,
+  PieChart as PieChartIcon,
   Star,
   Layers,
   Building2,
@@ -1116,7 +1116,7 @@ export default function ProjectDetails() {
             <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <PieChart className="h-5 w-5 text-primary" />
+                  <PieChartIcon className="h-5 w-5 text-primary" />
                   Visão Geral do Projeto
                 </CardTitle>
                 <CardDescription>

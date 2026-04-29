@@ -612,7 +612,7 @@ export default function ProjectDetails() {
 
   if (isLoadingData) {
     return (
-      <div className={`container mx-auto ${pClass} max-w-[95%] xl:max-w-screen-2xl ${gapClass}`}>
+      <div className={`w-full ${pClass} ${gapClass}`}>
         <div className="flex items-center justify-between">
           <Skeleton className="h-9 w-24" />
           <div className="flex gap-2">
@@ -694,9 +694,7 @@ export default function ProjectDetails() {
   }
 
   return (
-    <div
-      className={`container mx-auto ${pClass} max-w-[95%] xl:max-w-screen-2xl ${gapClass} print:m-0 print:p-0 print:max-w-none`}
-    >
+    <div className={`w-full ${pClass} ${gapClass} print:m-0 print:p-0 print:max-w-none`}>
       {/* Print-only Priority Report */}
       <div className="hidden print:block text-black bg-white p-8">
         <h1 className="text-3xl font-bold mb-2">Resumo de Prioridades</h1>
@@ -1033,7 +1031,7 @@ export default function ProjectDetails() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] w-full max-w-3xl">
+            <div className="h-[300px] w-full">
               <ChartContainer
                 config={{
                   averageProgress: { label: 'Progresso (%)', color: 'hsl(var(--primary))' },

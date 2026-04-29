@@ -632,6 +632,42 @@ export default function ProjectDetails() {
     return filtered
   }, [modules, priorityMode])
 
+  const checkAgendaAlerts = useCallback(async () => {
+    if (!project?.id) return
+    const now = new Date()
+    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000)
+
+    crisisModules.forEach((mod) => {
+      const isOverdue = new Date(mod.deadline!) < now
+      toast({
+        title: isOverdue ? 'Módulo Atrasado' : 'Módulo Próximo do Prazo',
+        description: `${mod.name} - Prazo: ${new Date(mod.deadline!).toLocaleDateString('pt-BR')}`,
+        variant: isOverdue ? 'destructive' : 'default',
+        className: !isOverdue ? 'bg-amber-500 text-white border-amber-600' : '',
+      })
+    })
+
+    try {
+      const projectTasks = await pb.collection('tasks').getFullList({
+        filter: `project = "${project.id}" && status != "Concluído" && due_date != ""`,
+      })
+      projectTasks.forEach((t) => {
+        const dueDate = new Date(t.due_date)
+        if (dueDate <= in48h) {
+          const isOverdue = dueDate < now
+          toast({
+            title: isOverdue ? 'Tarefa Atrasada' : 'Tarefa Próxima do Prazo',
+            description: `${t.title} - Prazo: ${dueDate.toLocaleDateString('pt-BR')}`,
+            variant: isOverdue ? 'destructive' : 'default',
+            className: !isOverdue ? 'bg-amber-500 text-white border-amber-600' : '',
+          })
+        }
+      })
+    } catch (e) {
+      console.error('Error fetching tasks for alerts', e)
+    }
+  }, [project?.id, crisisModules, toast])
+
   if (isLoadingData || authLoading) {
     return (
       <div className={`w-full ${pClass} ${gapClass}`}>
@@ -742,42 +778,6 @@ export default function ProjectDetails() {
       settings,
     )
   }
-
-  const checkAgendaAlerts = useCallback(async () => {
-    if (!project?.id) return
-    const now = new Date()
-    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000)
-
-    crisisModules.forEach((mod) => {
-      const isOverdue = new Date(mod.deadline!) < now
-      toast({
-        title: isOverdue ? 'Módulo Atrasado' : 'Módulo Próximo do Prazo',
-        description: `${mod.name} - Prazo: ${new Date(mod.deadline!).toLocaleDateString('pt-BR')}`,
-        variant: isOverdue ? 'destructive' : 'default',
-        className: !isOverdue ? 'bg-amber-500 text-white border-amber-600' : '',
-      })
-    })
-
-    try {
-      const projectTasks = await pb.collection('tasks').getFullList({
-        filter: `project = "${project.id}" && status != "Concluído" && due_date != ""`,
-      })
-      projectTasks.forEach((t) => {
-        const dueDate = new Date(t.due_date)
-        if (dueDate <= in48h) {
-          const isOverdue = dueDate < now
-          toast({
-            title: isOverdue ? 'Tarefa Atrasada' : 'Tarefa Próxima do Prazo',
-            description: `${t.title} - Prazo: ${dueDate.toLocaleDateString('pt-BR')}`,
-            variant: isOverdue ? 'destructive' : 'default',
-            className: !isOverdue ? 'bg-amber-500 text-white border-amber-600' : '',
-          })
-        }
-      })
-    } catch (e) {
-      console.error('Error fetching tasks for alerts', e)
-    }
-  }, [project?.id, crisisModules, toast])
 
   return (
     <div className={`w-full ${pClass} ${gapClass} print:m-0 print:p-0 print:max-w-none`}>

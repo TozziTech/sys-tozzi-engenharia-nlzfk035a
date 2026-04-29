@@ -83,6 +83,34 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
     e.preventDefault()
     if (!user) return
 
+    if (!formData.codigo.trim()) {
+      toast({
+        title: 'Erro',
+        description: 'O código do serviço não pode ficar em branco.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!formData.projeto_servico.trim()) {
+      toast({
+        title: 'Erro',
+        description: 'O campo Projeto / Serviço é obrigatório.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const numericValue = parseFloat(formData.valor_total)
+    if (isNaN(numericValue) || numericValue <= 0) {
+      toast({
+        title: 'Erro',
+        description: 'Informe um valor total válido e maior que zero.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     try {
       setLoading(true)
 
@@ -104,7 +132,7 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
         cliente: formData.cliente,
         data_inicio: new Date(formData.data_inicio).toISOString(),
         status: formData.status as any,
-        valor_total: parseFloat(formData.valor_total) || 0,
+        valor_total: numericValue,
         observacoes: formData.observacoes,
       }
 

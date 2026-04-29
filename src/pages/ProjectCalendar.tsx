@@ -166,7 +166,13 @@ const FilterPopover = ({
   )
 }
 
-export default function ProjectCalendar() {
+export default function ProjectCalendar({
+  projectId,
+  embedded,
+}: {
+  projectId?: string
+  embedded?: boolean
+}) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'timeline'>('month')
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -208,14 +214,14 @@ export default function ProjectCalendar() {
       const [tasksRes, modulesRes, projectsRes] = await Promise.all([
         pb.collection('tasks').getFullList({
           expand: 'project,module,tags',
-          filter: 'due_date != ""',
+          filter: `due_date != ""` + (projectId ? ` && project = "${projectId}"` : ''),
         }),
         pb.collection('project_modules').getFullList({
           expand: 'project',
-          filter: 'deadline != ""',
+          filter: `deadline != ""` + (projectId ? ` && project = "${projectId}"` : ''),
         }),
         pb.collection('projects').getFullList({
-          filter: 'end_date != ""',
+          filter: `end_date != ""` + (projectId ? ` && id = "${projectId}"` : ''),
         }),
       ])
 
@@ -573,17 +579,21 @@ export default function ProjectCalendar() {
   }
 
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 animate-fade-in">
+    <div className={cn('flex-1 space-y-6 animate-fade-in', embedded ? 'p-0' : 'p-4 md:p-8 pt-6')}>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <CalendarIcon className="h-8 w-8 text-primary" />
-            Calendário de Entregas
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            Visão unificada de prazos de projetos, disciplinas e tarefas.
-          </p>
-        </div>
+        {!embedded ? (
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <CalendarIcon className="h-8 w-8 text-primary" />
+              Calendário de Entregas
+            </h2>
+            <p className="text-muted-foreground mt-1">
+              Visão unificada de prazos de projetos, disciplinas e tarefas.
+            </p>
+          </div>
+        ) : (
+          <div />
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <Dialog open={isNewActivityOpen} onOpenChange={setIsNewActivityOpen}>
             <DialogTrigger asChild>
@@ -1067,12 +1077,14 @@ export default function ProjectCalendar() {
               selected={priorityFilter}
               onChange={setPriorityFilter}
             />
-            <FilterPopover
-              title="Projeto"
-              options={uniqueProjects}
-              selected={projectFilter}
-              onChange={setProjectFilter}
-            />
+            {!projectId && (
+              <FilterPopover
+                title="Projeto"
+                options={uniqueProjects}
+                selected={projectFilter}
+                onChange={setProjectFilter}
+              />
+            )}
             <FilterPopover
               title="Categoria/Tags"
               options={uniqueTags}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import pb from '@/lib/pocketbase/client'
 import type { RecordSubscription } from 'pocketbase'
 
@@ -14,46 +14,25 @@ export function useRealtime(
   enabled: boolean = true,
 ) {
   const callbackRef = useRef(callback)
-
-  // Ensure the latest callback is always used without re-triggering subscriptions
-  useEffect(() => {
-    callbackRef.current = callback
-  }, [callback])
-
-  // Track the authentication token to properly handle connection drops and re-authentication
-  const [token, setToken] = useState(pb.authStore.token)
+  callbackRef.current = callback
 
   useEffect(() => {
-    return pb.authStore.onChange((newToken) => {
-      setToken(newToken)
-    })
-  }, [])
-
-  useEffect(() => {
-    // Only proceed if subscriptions are enabled and there is a valid auth context
-    if (!enabled || !pb.authStore.isValid) return
+    if (!enabled) return
 
     let unsubscribeFn: (() => Promise<void>) | undefined
     let cancelled = false
 
-    const subscribe = async () => {
-      try {
-        const fn = await pb.collection(collectionName).subscribe('*', (e) => {
-          if (callbackRef.current) {
-            callbackRef.current(e)
-          }
-        })
+    pb.collection(collectionName)
+      .subscribe('*', (e) => {
+        callbackRef.current(e)
+      })
+      .then((fn) => {
         if (cancelled) {
           fn().catch(() => {})
         } else {
           unsubscribeFn = fn
         }
-      } catch (err) {
-        console.warn(`Failed to subscribe to realtime for ${collectionName}:`, err)
-      }
-    }
-
-    subscribe()
+      })
 
     return () => {
       cancelled = true
@@ -61,7 +40,7 @@ export function useRealtime(
         unsubscribeFn().catch(() => {})
       }
     }
-  }, [collectionName, enabled, token]) // Restart subscription if the auth token changes
+  }, [collectionName, enabled])
 }
 
 export default useRealtime

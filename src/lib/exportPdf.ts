@@ -595,6 +595,122 @@ export function exportBankAccountsPDF(accounts: any[], currentUser: string, sett
   setTimeout(() => printWindow.print(), 250)
 }
 
+export function exportFinancialPlanilhaPDF(
+  servicos: any[],
+  pagamentos: any[],
+  currentUser: string,
+  settings: any = null,
+  periodLabel: string,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Serviços Financeiros</title>
+        <style>
+          @page { margin: 20mm; }
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            line-height: 1.5; 
+            color: #374151; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 3px solid ${primaryColor};
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header img { max-height: 60px; margin-bottom: 10px; }
+          .header h1 { margin: 0; color: #1f2937; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+          .header p { margin: 5px 0 0; color: #6b7280; font-size: 14px; }
+          
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td {
+            text-align: left;
+            padding: 10px;
+            font-size: 14px;
+            vertical-align: middle;
+          }
+          th { font-weight: 600; color: #ffffff; background-color: ${primaryColor}; font-size: 12px; text-transform: uppercase; border: none; }
+          td { border-bottom: 1px solid #e5e7eb; }
+          tr:nth-child(even) td { background-color: #f9fafb; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+      
+        <div class="header">
+          ${logoUrl ? `<img src="${logoUrl}" />` : ''}
+          <h1>Relatório de Serviços Financeiros</h1>
+          <p><strong>Período:</strong> ${periodLabel}</p>
+          <p>Gerado por: ${currentUser} em ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Projeto/Serviço</th>
+              <th class="text-right">Valor da Parcela</th>
+              <th class="text-center">Status</th>
+              <th>Data de Vencimento</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${pagamentos
+              .map((p: any) => {
+                const s = servicos.find((x) => x.id === p.servico_id)
+                if (!s) return ''
+                return `
+                <tr>
+                  <td>${s.cliente || '-'}</td>
+                  <td>${s.projeto_servico || '-'}</td>
+                  <td class="text-right">${formatCurrency(p.valor)}</td>
+                  <td class="text-center">${p.status || 'Pendente'}</td>
+                  <td>${p.data_vencimento ? new Date(p.data_vencimento).toLocaleDateString('pt-BR') : '-'}</td>
+                </tr>
+              `
+              })
+              .join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
 export function exportFinancialPDF(
   records: any[],
   totals: { revenue: number; expenses: number; balance: number },

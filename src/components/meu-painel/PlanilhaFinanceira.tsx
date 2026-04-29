@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -50,7 +50,8 @@ import { ptBR } from 'date-fns/locale'
 import { useToast } from '@/hooks/use-toast'
 import { ExpandedPaymentRow } from './ExpandedPaymentRow'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { exportServicosFinanceirosCSV } from '@/lib/export'
+import { exportPlanilhaCSV } from '@/lib/export'
+import { exportFinancialPlanilhaPDF } from '@/lib/exportPdf'
 import { getNextServicoCode, checkServicoCodeExists } from '@/services/servicos_financeiros'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
@@ -58,7 +59,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { AccessRestricted } from '@/components/auth/AccessRestricted'
 import { ClientCombobox } from '@/components/ClientCombobox'
 
-export function PlanilhaFinanceira() {
+export function PlanilhaFinanceira({ dateRange }: { dateRange?: { from: Date; to: Date } }) {
   const { user } = useAuth()
   const { toast } = useToast()
   const { canAccess, canWrite } = usePermissions()
@@ -93,14 +94,8 @@ export function PlanilhaFinanceira() {
         }),
       ])
 
-      const pagamentosMap: Record<string, number> = {}
-      pgs.forEach((p: any) => {
-        pagamentosMap[p.servico_id] = (pagamentosMap[p.servico_id] || 0) + (p.valor || 0)
-      })
-
       setServicos(records)
       setPagamentos(pgs)
-      setPagamentosPorServico(pagamentosMap)
     } catch (e) {
       console.error(e)
     } finally {
@@ -211,7 +206,39 @@ export function PlanilhaFinanceira() {
     setIsOpen(true)
   }
 
-  const filteredServicos = servicos.filter((s) => {
+  const pagamentosFiltradosRange = useMemo(() => {
+    if (!dateRange) return pagamentos
+    return pagamentos.filter((p) => {
+      if (!p.data_vencimento) return false
+      const d = new Date(p.data_vencimento)
+      d.setHours(d.getHours() + 12)
+      return d >= dateRange.from && d <= dateRange.to
+    })
+  }, [pagamentos, dateRange])
+
+  const servicosFiltradosRange = useMemo(() => {
+    if (!dateRange) return servicos
+    const pgsInRangeIds = new Set(pagamentosFiltradosRange.map((p) => p.servico_id))
+    return servicos.filter((s) => {
+      if (pgsInRangeIds.has(s.id)) return true
+      if (s.data_inicio) {
+        const d = new Date(s.data_inicio)
+        d.setHours(12)
+        return d >= dateRange.from && d <= dateRange.to
+      }
+      return false
+    })
+  }, [servicos, dateRange, pagamentosFiltradosRange])
+
+  useEffect(() => {
+    const pagamentosMap: Record<string, number> = {}
+    pagamentosFiltradosRange.forEach((p: any) => {
+      pagamentosMap[p.servico_id] = (pagamentosMap[p.servico_id] || 0) + (p.valor || 0)
+    })
+    setPagamentosPorServico(pagamentosMap)
+  }, [pagamentosFiltradosRange])
+
+  const filteredServicos = servicosFiltradosRange.filter((s) => {
     const statusMatch = statusFilter === 'Todos' || s.status === statusFilter
     const totalPago = pagamentosPorServico[s.id] || 0
     const isFullyPaid = totalPago >= (s.valor_total || 0) && (s.valor_total || 0) > 0
@@ -224,16 +251,18 @@ export function PlanilhaFinanceira() {
   })
 
   const filteredServicosIds = new Set(filteredServicos.map((s) => s.id))
-  const filteredPagamentos = pagamentos.filter((p) => filteredServicosIds.has(p.servico_id))
+  const filteredPagamentos = pagamentosFiltradosRange.filter((p) =>
+    filteredServicosIds.has(p.servico_id),
+  )
 
   const currentMonthPrefix = format(new Date(), 'yyyy-MM')
   const prevMonthPrefix = format(subMonths(new Date(), 1), 'yyyy-MM')
 
-  const totalCurrentMonth = filteredPagamentos
+  const totalCurrentMonth = pagamentos
     .filter((p) => p.data_pagamento?.startsWith(currentMonthPrefix))
     .reduce((acc, p) => acc + (p.valor || 0), 0)
 
-  const totalPrevMonth = filteredPagamentos
+  const totalPrevMonth = pagamentos
     .filter((p) => p.data_pagamento?.startsWith(prevMonthPrefix))
     .reduce((acc, p) => acc + (p.valor || 0), 0)
 
@@ -244,20 +273,20 @@ export function PlanilhaFinanceira() {
         : 0
       : ((totalCurrentMonth - totalPrevMonth) / totalPrevMonth) * 100
 
-  const totalPending = servicos
+  const totalPending = filteredServicos
     .filter((s) => s.status === 'Pendente' || s.status === 'Em Andamento')
     .reduce((acc, s) => acc + (s.valor_total || 0), 0)
 
-  const totalCompleted = servicos
+  const totalCompleted = filteredServicos
     .filter((s) => s.status === 'Concluído')
     .reduce((acc, s) => acc + (s.valor_total || 0), 0)
 
-  const grandTotal = servicos
+  const grandTotal = filteredServicos
     .filter((s) => s.status !== 'Cancelado')
     .reduce((acc, s) => acc + (s.valor_total || 0), 0)
 
   const clientsMap: Record<string, number> = {}
-  servicos.forEach((s) => {
+  filteredServicos.forEach((s) => {
     if (s.status !== 'Cancelado') {
       const clientName = s.cliente || 'Não Informado'
       clientsMap[clientName] = (clientsMap[clientName] || 0) + (s.valor_total || 0)
@@ -267,18 +296,6 @@ export function PlanilhaFinanceira() {
     .map(([name, total]) => ({ name, total }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 5)
-
-  const totalAReceber = filteredServicos
-    .filter((s) => s.status !== 'Cancelado')
-    .reduce((acc, s) => {
-      const totalPago = pagamentosPorServico[s.id] || 0
-      const restante = (s.valor_total || 0) - totalPago
-      return acc + (restante > 0 ? restante : 0)
-    }, 0)
-
-  const totalGeral = filteredServicos
-    .filter((s) => s.status !== 'Cancelado')
-    .reduce((acc, s) => acc + (s.valor_total || 0), 0)
 
   const now = new Date()
   const last6Months = Array.from({ length: 6 }).map((_, i) => {
@@ -290,7 +307,7 @@ export function PlanilhaFinanceira() {
     }
   })
 
-  filteredPagamentos.forEach((p) => {
+  pagamentos.forEach((p) => {
     if (!p.data_pagamento) return
     const month = p.data_pagamento.substring(0, 7)
     const monthData = last6Months.find((m) => m.month === month)
@@ -301,6 +318,30 @@ export function PlanilhaFinanceira() {
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+
+  const handleExportCSV = () => {
+    exportPlanilhaCSV(filteredServicos, filteredPagamentos)
+  }
+
+  const handleExportPDF = async () => {
+    let settings = null
+    try {
+      settings = await pb.collection('company_settings').getFirstListItem('')
+    } catch {
+      /* intentionally ignored */
+    }
+
+    const periodLabel = dateRange
+      ? `${format(dateRange.from, 'dd/MM/yyyy')} a ${format(dateRange.to, 'dd/MM/yyyy')}`
+      : 'Todos os tempos'
+    exportFinancialPlanilhaPDF(
+      filteredServicos,
+      filteredPagamentos,
+      user?.name || '',
+      settings,
+      periodLabel,
+    )
+  }
 
   if (!canAccess('planilha_financeira') && user?.role !== 'Administrador') {
     return <AccessRestricted />
@@ -333,11 +374,19 @@ export function PlanilhaFinanceira() {
           <div className="flex w-full sm:w-auto gap-2">
             <Button
               variant="outline"
-              onClick={() => exportServicosFinanceirosCSV(filteredServicos, pagamentosPorServico)}
+              onClick={handleExportCSV}
               disabled={filteredServicos.length === 0}
               className="flex-1 sm:flex-none"
             >
-              <Download className="w-4 h-4 mr-2" /> Exportar para CSV
+              <Download className="w-4 h-4 mr-2" /> Exportar CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportPDF}
+              disabled={filteredServicos.length === 0}
+              className="flex-1 sm:flex-none"
+            >
+              <Download className="w-4 h-4 mr-2" /> Exportar PDF
             </Button>
             {canWritePlanilha && (
               <Button onClick={() => openForm()} className="flex-1 sm:flex-none">
@@ -361,7 +410,7 @@ export function PlanilhaFinanceira() {
               {formatCurrency(totalPending)}
             </div>
             <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-1">
-              Serviços Pendentes ou Em Andamento
+              Serviços Pendentes ou Em Andamento no período
             </p>
           </CardContent>
         </Card>
@@ -378,7 +427,7 @@ export function PlanilhaFinanceira() {
               {formatCurrency(totalCompleted)}
             </div>
             <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-1">
-              Serviços com status Concluído
+              Serviços com status Concluído no período
             </p>
           </CardContent>
         </Card>
@@ -391,7 +440,7 @@ export function PlanilhaFinanceira() {
           <CardContent>
             <div className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Soma de todos os serviços (exclui cancelados)
+              Soma de todos os serviços filtrados (exclui cancelados)
             </p>
           </CardContent>
         </Card>
@@ -401,7 +450,7 @@ export function PlanilhaFinanceira() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base font-semibold">
-              Evolução de Recebimentos (Últimos 6 meses)
+              Evolução de Recebimentos (Últimos 6 meses globais)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -432,7 +481,9 @@ export function PlanilhaFinanceira() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Top Clientes por Volume</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              Top Clientes por Volume no Período
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 scrollbar-thin">
@@ -490,7 +541,7 @@ export function PlanilhaFinanceira() {
             ) : filteredServicos.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  Nenhum serviço financeiro encontrado.
+                  Nenhum registro encontrado para este período.
                 </TableCell>
               </TableRow>
             ) : (

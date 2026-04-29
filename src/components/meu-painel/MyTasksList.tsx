@@ -39,7 +39,7 @@ const getTaskStatusColor = (status: string) => {
   }
 }
 
-export function MyTasksList() {
+export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date } }) {
   const { user } = useAuth()
   const { toast } = useToast()
   const [tasks, setTasks] = useState<any[]>([])
@@ -83,11 +83,42 @@ export function MyTasksList() {
   }, [user])
   useRealtime('tasks', loadTasks)
 
+  const filteredTasks = useMemo(() => {
+    if (!dateRange) return tasks
+    const matchingIds = new Set<string>()
+
+    tasks.forEach((t) => {
+      let matches = false
+      if (t.due_date) {
+        const d = new Date(t.due_date)
+        d.setHours(d.getHours() + 12)
+        if (d >= dateRange.from && d <= dateRange.to) matches = true
+      }
+      if (t.completed_at) {
+        const d = new Date(t.completed_at)
+        d.setHours(d.getHours() + 12)
+        if (d >= dateRange.from && d <= dateRange.to) matches = true
+      }
+
+      if (matches) {
+        matchingIds.add(t.id)
+        let curr = t
+        while (curr.parent_task) {
+          matchingIds.add(curr.parent_task)
+          curr = tasks.find((x) => x.id === curr.parent_task) || curr
+          if (curr.id === t.id) break
+        }
+      }
+    })
+
+    return tasks.filter((t) => matchingIds.has(t.id))
+  }, [tasks, dateRange])
+
   const tree = useMemo(() => {
     const map = new Map()
-    tasks.forEach((t) => map.set(t.id, { ...t, children: [] }))
+    filteredTasks.forEach((t) => map.set(t.id, { ...t, children: [] }))
     const roots: any[] = []
-    tasks.forEach((t) => {
+    filteredTasks.forEach((t) => {
       if (t.parent_task && map.has(t.parent_task)) {
         map.get(t.parent_task).children.push(map.get(t.id))
       } else {
@@ -102,7 +133,7 @@ export function MyTasksList() {
     }
     roots.forEach(sortChildren)
     return roots
-  }, [tasks])
+  }, [filteredTasks])
 
   const visibleIds = useMemo(() => {
     const ids: string[] = []
@@ -176,6 +207,7 @@ export function MyTasksList() {
         status: 'Pendente',
         responsible: user?.id,
         ordem: Date.now() / 1000,
+        due_date: dateRange ? dateRange.to.toISOString() : undefined,
       })
       setInlineCreateTitle('')
       setInlineCreateId(null)
@@ -245,7 +277,6 @@ export function MyTasksList() {
 
     let position: 'before' | 'after' | 'inside' = 'inside'
 
-    // If dragging slightly to the right, favor creating a subtask (inside)
     if (x > 40) {
       position = 'inside'
     } else {
@@ -497,7 +528,7 @@ export function MyTasksList() {
             <div className="py-8 text-center text-slate-500 text-sm">Carregando tarefas...</div>
           ) : tree.length === 0 && inlineCreateId !== 'root' ? (
             <div className="py-8 text-center text-slate-500 text-sm">
-              Nenhuma tarefa atribuída a você no momento.
+              Nenhum registro encontrado para este período.
             </div>
           ) : (
             <div className="py-2">{tree.map((node) => renderNode(node, 0))}</div>

@@ -27,6 +27,9 @@ import {
   isToday,
   addMonths,
   subMonths,
+  startOfYear,
+  endOfYear,
+  eachMonthOfInterval,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -37,6 +40,13 @@ import { Progress } from '@/components/ui/progress'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -97,6 +107,24 @@ const getPriorityColor = (priority: string) => {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
+type DatePreset = 'Este Mês' | 'Últimos 3 Meses' | 'Últimos 6 Meses' | 'Este Ano' | 'Customizado'
+
+const getPresetRange = (preset: DatePreset) => {
+  const now = new Date()
+  switch (preset) {
+    case 'Este Mês':
+      return { from: startOfMonth(now), to: endOfMonth(now) }
+    case 'Últimos 3 Meses':
+      return { from: startOfMonth(subMonths(now, 2)), to: endOfMonth(now) }
+    case 'Últimos 6 Meses':
+      return { from: startOfMonth(subMonths(now, 5)), to: endOfMonth(now) }
+    case 'Este Ano':
+      return { from: startOfYear(now), to: endOfYear(now) }
+    default:
+      return { from: startOfMonth(now), to: endOfMonth(now) }
+  }
+}
+
 export default function DesignerPanel() {
   const { user } = useAuth()
   const { canAccess } = usePermissions()
@@ -104,13 +132,18 @@ export default function DesignerPanel() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = searchParams.get('tab') || 'gerenciamento'
 
+  const [datePreset, setDatePreset] = useState<DatePreset>('Este Mês')
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(() =>
+    getPresetRange('Este Mês'),
+  )
+
   const [myProjects, setMyProjects] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
   const [urgentTasks, setUrgentTasks] = useState<any[]>([])
   const [revenueData, setRevenueData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [calendarMonth, setCalendarMonth] = useState(new Date())
+  const [calendarMonth, setCalendarMonth] = useState(dateRange.from)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
   const [exportingDocs, setExportingDocs] = useState(false)
@@ -186,12 +219,11 @@ export default function DesignerPanel() {
       })
       setMyProjects(projectsRes)
 
-      const next24h = new Date()
-      next24h.setHours(next24h.getHours() + 24)
-      const filterDate = next24h.toISOString().replace('T', ' ')
+      const filterFrom = format(dateRange.from, 'yyyy-MM-dd 00:00:00.000Z')
+      const filterTo = format(dateRange.to, 'yyyy-MM-dd 23:59:59.999Z')
 
       const tasksRes = await pb.collection('tasks').getFullList({
-        filter: `responsible = "${user.id}" && status != "Concluído" && due_date != "" && due_date <= "${filterDate}"`,
+        filter: `responsible = "${user.id}" && status != "Concluído" && due_date >= "${filterFrom}" && due_date <= "${filterTo}"`,
         expand: 'project',
         sort: 'due_date',
       })
@@ -223,38 +255,38 @@ export default function DesignerPanel() {
 
   useEffect(() => {
     loadData()
-  }, [user])
+  }, [user, dateRange])
 
   useEffect(() => {
     loadRevenue()
   }, [user, hasFinanceAccess])
+
+  useEffect(() => {
+    setCalendarMonth(dateRange.from)
+  }, [dateRange.from])
 
   useRealtime('projects', loadData, !!user?.id)
   useRealtime('clients', loadData, !!user?.id)
   useRealtime('tasks', loadData, !!user?.id)
   useRealtime('pagamentos_servicos', loadRevenue, !!user?.id && hasFinanceAccess)
 
-  const weeklyProjects = useMemo(() => {
-    const now = new Date()
-    const start = startOfWeek(now, { weekStartsOn: 0 })
-    const end = endOfWeek(now, { weekStartsOn: 0 })
-
+  const periodProjects = useMemo(() => {
     return myProjects.filter((p) => {
       const pStart = p.start_date ? new Date(p.start_date) : new Date(0)
       const pEnd = p.end_date ? new Date(p.end_date) : new Date(8640000000000000)
-      return isBefore(pStart, end) && isAfter(pEnd, start)
+      return isBefore(pStart, dateRange.to) && isAfter(pEnd, dateRange.from)
     })
-  }, [myProjects])
+  }, [myProjects, dateRange])
 
   const chartData = useMemo(() => {
     const counts = { Pendente: 0, 'Em Andamento': 0, Concluído: 0 }
-    weeklyProjects.forEach((p) => {
+    periodProjects.forEach((p) => {
       if (p.status === 'Concluído') counts['Concluído']++
       else if (p.status === 'Em Andamento' || p.status === 'Em Execução') counts['Em Andamento']++
       else counts['Pendente']++
     })
 
-    const total = weeklyProjects.length || 1
+    const total = periodProjects.length || 1
 
     return [
       {
@@ -276,31 +308,35 @@ export default function DesignerPanel() {
         fill: 'var(--color-concluido)',
       },
     ]
-  }, [weeklyProjects])
+  }, [periodProjects])
 
   const monthlyRevenue = useMemo(() => {
-    const now = new Date()
-    const months = []
-
-    for (let i = 2; i >= 0; i--) {
-      const d = subMonths(now, i)
-      months.push({
+    const monthsMap = new Map()
+    const interval = eachMonthOfInterval({ start: dateRange.from, end: dateRange.to })
+    interval.forEach((d) => {
+      const key = format(d, 'yyyy-MM')
+      monthsMap.set(key, {
         month: format(d, 'MMM/yy', { locale: ptBR }),
         monthIndex: d.getMonth(),
         year: d.getFullYear(),
         total: 0,
       })
-    }
+    })
 
     revenueData.forEach((p) => {
       if (!p.data_pagamento) return
       const d = new Date(p.data_pagamento)
-      const m = months.find((x) => x.monthIndex === d.getMonth() && x.year === d.getFullYear())
-      if (m) m.total += p.valor
+      d.setHours(d.getHours() + 12)
+      if (d >= dateRange.from && d <= dateRange.to) {
+        const key = format(d, 'yyyy-MM')
+        if (monthsMap.has(key)) {
+          monthsMap.get(key).total += p.valor
+        }
+      }
     })
 
-    return months
-  }, [revenueData])
+    return Array.from(monthsMap.values())
+  }, [revenueData, dateRange])
 
   const averageRevenue = useMemo(() => {
     if (!monthlyRevenue.length) return 0
@@ -356,10 +392,58 @@ export default function DesignerPanel() {
             Olá, {user?.name}. Acompanhe o progresso dos seus projetos, cronogramas e prazos.
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap md:flex-nowrap">
+        <div className="flex flex-col items-end gap-2">
+          {/* Global Filter */}
+          <div className="flex items-center gap-2 bg-zinc-900/50 p-2 rounded-lg border border-zinc-800 w-full md:w-auto">
+            <Select
+              value={datePreset}
+              onValueChange={(val: DatePreset) => {
+                setDatePreset(val)
+                if (val !== 'Customizado') setDateRange(getPresetRange(val))
+              }}
+            >
+              <SelectTrigger className="w-[160px] bg-zinc-950 border-zinc-800">
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Este Mês">Este Mês</SelectItem>
+                <SelectItem value="Últimos 3 Meses">Últimos 3 Meses</SelectItem>
+                <SelectItem value="Últimos 6 Meses">Últimos 6 Meses</SelectItem>
+                <SelectItem value="Este Ano">Este Ano</SelectItem>
+                <SelectItem value="Customizado">Customizado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-zinc-800 bg-zinc-950 text-zinc-100 flex gap-2"
+                >
+                  <CalendarIcon className="h-4 w-4 text-zinc-400" />
+                  {format(dateRange.from, 'dd/MM/yy')} - {format(dateRange.to, 'dd/MM/yy')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range: any) => {
+                    if (range?.from && range?.to) {
+                      setDateRange({ from: range.from, to: range.to })
+                      setDatePreset('Customizado')
+                    }
+                  }}
+                  initialFocus
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <Button
             variant="default"
-            className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-md"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-md w-full md:w-auto"
             onClick={handleExportDashboard}
             disabled={exportingDocs}
           >
@@ -407,13 +491,13 @@ export default function DesignerPanel() {
           <div className="space-y-4">
             <h3 className="text-lg font-bold flex items-center gap-2 text-zinc-100">
               <AlertCircle className="h-5 w-5 text-rose-500" />
-              Atividades do Dia (Urgentes)
+              Atividades do Período
             </h3>
             {urgentTasks.length === 0 ? (
               <div className="text-center py-8 bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-3 opacity-50" />
                 <p className="text-sm text-zinc-400">
-                  Tudo em dia! Nenhuma atividade urgente para as próximas 24 horas.
+                  Nenhum registro encontrado para este período.
                 </p>
               </div>
             ) : (
@@ -457,10 +541,10 @@ export default function DesignerPanel() {
             </h3>
             <Card className="border-zinc-800/50 bg-zinc-950/50">
               <CardHeader className="pb-3 border-b border-zinc-800/50">
-                <CardTitle className="text-lg">Semana Atual</CardTitle>
+                <CardTitle className="text-lg">Período Selecionado</CardTitle>
                 <CardDescription>
-                  Distribuição de status (%) dos {weeklyProjects.length} projetos com atividades
-                  nesta semana
+                  Distribuição de status (%) dos {periodProjects.length} projetos com atividades
+                  neste período
                 </CardDescription>
               </CardHeader>
               <CardContent className="py-6">
@@ -508,7 +592,7 @@ export default function DesignerPanel() {
             </Card>
           </div>
 
-          <MyTasksList />
+          <MyTasksList dateRange={dateRange} />
         </TabsContent>
 
         {hasFinanceAccess && (
@@ -547,7 +631,7 @@ export default function DesignerPanel() {
                   <div>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <TrendingUp className="h-5 w-5 text-emerald-500" />
-                      Receita Mensal (Últimos 3 Meses)
+                      Receita Mensal (Período Selecionado)
                     </CardTitle>
                     <CardDescription className="mt-1 flex items-center gap-2">
                       Média mensal calculada:{' '}
@@ -561,62 +645,70 @@ export default function DesignerPanel() {
                   </div>
                 </CardHeader>
                 <CardContent className="py-6">
-                  <ChartContainer
-                    config={{
-                      total: { label: 'Receita', color: 'hsl(142 71% 45%)' },
-                    }}
-                    className="h-[180px] w-full"
-                  >
-                    <BarChart
-                      data={monthlyRevenue}
-                      margin={{ top: 20, right: 0, left: 0, bottom: 0 }}
+                  {monthlyRevenue.length === 0 ? (
+                    <div className="h-[180px] flex items-center justify-center text-sm text-zinc-500">
+                      Nenhum registro encontrado para este período.
+                    </div>
+                  ) : (
+                    <ChartContainer
+                      config={{
+                        total: { label: 'Receita', color: 'hsl(142 71% 45%)' },
+                      }}
+                      className="h-[180px] w-full"
                     >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        vertical={false}
-                        stroke="hsl(var(--border))"
-                      />
-                      <XAxis
-                        dataKey="month"
-                        axisLine={false}
-                        tickLine={false}
-                        fontSize={12}
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                        dy={10}
-                      />
-                      <YAxis
-                        tickFormatter={(val) => `R$ ${val}`}
-                        axisLine={false}
-                        tickLine={false}
-                        fontSize={12}
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                        width={80}
-                      />
-                      <ChartTooltip
-                        cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
-                        content={
-                          <ChartTooltipContent formatter={(val) => formatCurrency(val as number)} />
-                        }
-                      />
-                      <Bar
-                        dataKey="total"
-                        fill="var(--color-total)"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={40}
-                      />
-                      <ReferenceLine
-                        y={averageRevenue}
-                        stroke="hsl(var(--muted-foreground))"
-                        strokeDasharray="3 3"
-                      />
-                    </BarChart>
-                  </ChartContainer>
+                      <BarChart
+                        data={monthlyRevenue}
+                        margin={{ top: 20, right: 0, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          vertical={false}
+                          stroke="hsl(var(--border))"
+                        />
+                        <XAxis
+                          dataKey="month"
+                          axisLine={false}
+                          tickLine={false}
+                          fontSize={12}
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                          dy={10}
+                        />
+                        <YAxis
+                          tickFormatter={(val) => `R$ ${val}`}
+                          axisLine={false}
+                          tickLine={false}
+                          fontSize={12}
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                          width={80}
+                        />
+                        <ChartTooltip
+                          cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
+                          content={
+                            <ChartTooltipContent
+                              formatter={(val) => formatCurrency(val as number)}
+                            />
+                          }
+                        />
+                        <Bar
+                          dataKey="total"
+                          fill="var(--color-total)"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                        />
+                        <ReferenceLine
+                          y={averageRevenue}
+                          stroke="hsl(var(--muted-foreground))"
+                          strokeDasharray="3 3"
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
             <div className="border border-zinc-800 rounded-xl bg-zinc-950/30 overflow-hidden shadow-lg p-4 md:p-6">
-              <PlanilhaFinanceira />
+              <PlanilhaFinanceira dateRange={dateRange} />
             </div>
           </TabsContent>
         )}

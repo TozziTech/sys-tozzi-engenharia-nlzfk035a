@@ -230,6 +230,32 @@ export function exportTeamCSV(users: any[]) {
 export function exportServicosFinanceirosCSV(data: any[]) {
   genericExport(data, 'servicos_financeiros')
 }
+
+export function exportPlanilhaCSV(servicos: any[], pagamentos: any[]) {
+  const headers = ['Cliente', 'Projeto/Serviço', 'Valor da Parcela', 'Status', 'Data de Vencimento']
+
+  const rows: string[] = []
+
+  pagamentos.forEach((p) => {
+    const s = servicos.find((x) => x.id === p.servico_id)
+    if (s) {
+      rows.push(
+        [
+          escapeCSV(s.cliente || '-'),
+          escapeCSV(s.projeto_servico || '-'),
+          escapeCSV(p.valor),
+          escapeCSV(p.status || 'Pendente'),
+          escapeCSV(
+            p.data_vencimento ? new Date(p.data_vencimento).toLocaleDateString('pt-BR') : '-',
+          ),
+        ].join(';'),
+      )
+    }
+  })
+
+  const csvContent = [headers.join(';'), ...rows].join('\n')
+  downloadCSV(csvContent, `financeiro_designer_${new Date().toISOString().split('T')[0]}.csv`)
+}
 export function exportDistributionCSV(data: any[]) {
   genericExport(data, 'distribuicao')
 }

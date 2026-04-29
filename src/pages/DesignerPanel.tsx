@@ -219,8 +219,8 @@ export default function DesignerPanel() {
       })
       setMyProjects(projectsRes)
 
-      const filterFrom = format(dateRange.from, 'yyyy-MM-dd 00:00:00.000Z')
-      const filterTo = format(dateRange.to, 'yyyy-MM-dd 23:59:59.999Z')
+      const filterFrom = format(dateRange.from, "yyyy-MM-dd 00:00:00.000'Z'")
+      const filterTo = format(dateRange.to, "yyyy-MM-dd 23:59:59.999'Z'")
 
       const tasksRes = await pb.collection('tasks').getFullList({
         filter: `responsible = "${user.id}" && status != "Concluído" && due_date >= "${filterFrom}" && due_date <= "${filterTo}"`,

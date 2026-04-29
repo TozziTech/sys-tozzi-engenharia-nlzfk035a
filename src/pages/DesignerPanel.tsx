@@ -13,7 +13,11 @@ import {
   TrendingUp,
   FileText,
   Info,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { useQuery, queryClient } from '@/hooks/use-query'
 import {
   format,
   isAfter,
@@ -137,12 +141,6 @@ export default function DesignerPanel() {
     getPresetRange('Este Mês'),
   )
 
-  const [myProjects, setMyProjects] = useState<any[]>([])
-  const [clients, setClients] = useState<any[]>([])
-  const [urgentTasks, setUrgentTasks] = useState<any[]>([])
-  const [revenueData, setRevenueData] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
   const [calendarMonth, setCalendarMonth] = useState(dateRange.from)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
@@ -190,21 +188,18 @@ export default function DesignerPanel() {
     }
   }
 
-  const loadData = async () => {
-    if (!user) return
-    try {
-      setLoading(true)
-      const [upaRes, clientsRes] = await Promise.all([
-        pb.collection('user_project_access').getFullList({
-          filter: `user = "${user.id}"`,
-        }),
-        pb.collection('clients').getFullList(),
-      ])
+  const filterFrom = format(dateRange.from, "yyyy-MM-dd 00:00:00.000'Z'")
+  const filterTo = format(dateRange.to, "yyyy-MM-dd 23:59:59.999'Z'")
 
-      setClients(clientsRes)
-
-      let assignedProjectIds = user.assigned_projects || []
-      const accessProjectIds = upaRes.map((u) => u.project)
+  const { data: myProjects = [], refetch: refetchProjects } = useQuery(
+    `designer_projects_${user?.id}`,
+    async () => {
+      if (!user) return []
+      const upaRes = await pb.collection('user_project_access').getFullList({
+        filter: `user = "${user.id}"`,
+      })
+      const assignedProjectIds = user.assigned_projects || []
+      const accessProjectIds = upaRes.map((u: any) => u.project)
       const allProjectIds = Array.from(new Set([...assignedProjectIds, ...accessProjectIds]))
 
       let projectFilter = `engineer ~ "${user.name}" || engineer = "${user.id}"`
@@ -213,62 +208,67 @@ export default function DesignerPanel() {
         projectFilter = `(${projectFilter}) || (${idsFilter})`
       }
 
-      const projectsRes = await pb.collection('projects').getFullList({
+      return pb.collection('projects').getFullList({
         filter: projectFilter,
         sort: '-created',
       })
-      setMyProjects(projectsRes)
+    },
+    { enabled: !!user },
+  )
 
-      const filterFrom = format(dateRange.from, "yyyy-MM-dd 00:00:00.000'Z'")
-      const filterTo = format(dateRange.to, "yyyy-MM-dd 23:59:59.999'Z'")
-
-      const tasksRes = await pb.collection('tasks').getFullList({
-        filter: `responsible = "${user.id}" && status != "Concluído" && due_date >= "${filterFrom}" && due_date <= "${filterTo}"`,
+  const { data: urgentTasks = [], refetch: refetchTasks } = useQuery(
+    `designer_urgent_tasks_${user?.id}_${filterFrom}_${filterTo}`,
+    () =>
+      pb.collection('tasks').getFullList({
+        filter: `responsible = "${user?.id}" && status != "Concluído" && due_date >= "${filterFrom}" && due_date <= "${filterTo}"`,
         expand: 'project',
         sort: 'due_date',
-      })
-      setUrgentTasks(tasksRes)
-    } catch (err) {
-      console.error(err)
-      toast({
-        title: 'Erro ao carregar',
-        description: 'Não foi possível carregar seus dados',
-        variant: 'destructive',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
+      }),
+    { enabled: !!user },
+  )
 
-  const loadRevenue = async () => {
-    if (!user || !hasFinanceAccess) return
-    try {
-      const pgs = await pb.collection('pagamentos_servicos').getFullList({
-        filter: `servico_id.user_id = "${user.id}" && status = "Pago"`,
+  const { data: allPagamentos = [], refetch: refetchPagamentos } = useQuery(
+    `pagamentos_user_all_${user?.id}`,
+    () =>
+      pb.collection('pagamentos_servicos').getFullList({
+        filter: `servico_id.user_id = "${user?.id}"`,
         sort: '-data_pagamento',
-      })
-      setRevenueData(pgs)
-    } catch (err) {
-      console.error('Failed to load revenue', err)
-    }
-  }
+      }),
+    { enabled: !!user && hasFinanceAccess },
+  )
 
-  useEffect(() => {
-    loadData()
-  }, [user, dateRange])
+  const revenueData = useMemo(
+    () => allPagamentos.filter((p: any) => p.status === 'Pago'),
+    [allPagamentos],
+  )
 
-  useEffect(() => {
-    loadRevenue()
-  }, [user, hasFinanceAccess])
+  const { overdueCount, dueSoonCount } = useMemo(() => {
+    let overdue = 0
+    let dueSoon = 0
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const in3Days = new Date(today)
+    in3Days.setDate(today.getDate() + 3)
+
+    allPagamentos.forEach((p: any) => {
+      if (p.status === 'Pendente' && p.data_vencimento) {
+        const venc = new Date(p.data_vencimento)
+        venc.setHours(12, 0, 0, 0)
+        if (venc < today) overdue++
+        else if (venc <= in3Days) dueSoon++
+      }
+    })
+    return { overdueCount: overdue, dueSoonCount: dueSoon }
+  }, [allPagamentos])
 
   useEffect(() => {
     setCalendarMonth(dateRange.from)
   }, [dateRange.from])
 
-  useRealtime('projects', loadData, !!user?.id)
-  useRealtime('clients', loadData, !!user?.id)
-  useRealtime('tasks', loadData, !!user?.id)
-  useRealtime('pagamentos_servicos', loadRevenue, !!user?.id && hasFinanceAccess)
+  useRealtime('projects', refetchProjects, !!user?.id)
+  useRealtime('user_project_access', refetchProjects, !!user?.id)
+  useRealtime('tasks', refetchTasks, !!user?.id)
+  useRealtime('pagamentos_servicos', refetchPagamentos, !!user?.id && hasFinanceAccess)
 
   const periodProjects = useMemo(() => {
     return myProjects.filter((p) => {
@@ -442,6 +442,17 @@ export default function DesignerPanel() {
           </div>
 
           <Button
+            variant="outline"
+            className="border-zinc-800 bg-zinc-950 text-zinc-100 hidden md:flex shadow-sm"
+            onClick={() => {
+              queryClient().invalidateQueries('')
+            }}
+          >
+            <RefreshCw className="w-4 h-4 mr-2 text-zinc-400" />
+            Atualizar
+          </Button>
+
+          <Button
             variant="default"
             className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-md w-full md:w-auto"
             onClick={handleExportDashboard}
@@ -488,6 +499,38 @@ export default function DesignerPanel() {
         </div>
 
         <TabsContent value="gerenciamento" className="space-y-6 outline-none">
+          {hasFinanceAccess && (overdueCount > 0 || dueSoonCount > 0) && (
+            <div className="grid gap-3 md:grid-cols-2 mb-2">
+              {overdueCount > 0 && (
+                <Alert
+                  variant="destructive"
+                  className="bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900"
+                >
+                  <AlertCircle className="h-5 w-5 !text-rose-600 dark:!text-rose-400" />
+                  <AlertTitle className="font-semibold text-rose-800 dark:text-rose-300">
+                    Pagamentos Atrasados
+                  </AlertTitle>
+                  <AlertDescription className="text-rose-700 dark:text-rose-400 mt-1">
+                    Você tem {overdueCount} parcela{overdueCount > 1 ? 's' : ''} de serviço
+                    financeiro em atraso.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {dueSoonCount > 0 && (
+                <Alert className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900">
+                  <AlertTriangle className="h-5 w-5 !text-amber-600 dark:!text-amber-400" />
+                  <AlertTitle className="font-semibold text-amber-800 dark:text-amber-300">
+                    Pagamentos Vencendo
+                  </AlertTitle>
+                  <AlertDescription className="text-amber-700 dark:text-amber-400 mt-1">
+                    Você tem {dueSoonCount} parcela{dueSoonCount > 1 ? 's' : ''} de serviço
+                    financeiro vencendo nos próximos 3 dias.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
           <div className="space-y-4">
             <h3 className="text-lg font-bold flex items-center gap-2 text-zinc-100">
               <AlertCircle className="h-5 w-5 text-rose-500" />

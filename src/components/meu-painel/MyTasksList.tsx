@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent } from '@/components/ui/card'
+import { useQuery, queryClient } from '@/hooks/use-query'
 
 const getTaskStatusColor = (status: string) => {
   switch (status) {
@@ -42,7 +43,6 @@ const getTaskStatusColor = (status: string) => {
 export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date } }) {
   const { user } = useAuth()
   const { toast } = useToast()
-  const [tasks, setTasks] = useState<any[]>([])
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
@@ -59,29 +59,23 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
   // Inline Editing State
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
 
-  const loadTasks = async () => {
-    if (!user) return
-    setIsLoading(true)
-    try {
-      const data = await pb.collection('tasks').getFullList({
-        filter: `responsible = "${user.id}"`,
+  const {
+    data: tasks = [],
+    isLoading,
+    refetch,
+  } = useQuery(
+    `tasks_my_list_${user?.id}`,
+    () =>
+      pb.collection('tasks').getFullList({
+        filter: `responsible = "${user?.id}"`,
         sort: 'ordem',
         expand: 'project,parent_task',
-      })
-      setTasks(data)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+      }),
+    { enabled: !!user },
+  )
 
-  useEffect(() => {
-    loadTasks()
-  }, [user])
-  useRealtime('tasks', loadTasks)
+  useRealtime('tasks', refetch)
 
   const filteredTasks = useMemo(() => {
     if (!dateRange) return tasks
@@ -180,6 +174,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
       await Promise.all(
         Array.from(selectedIds).map((id) => pb.collection('tasks').update(id, { status })),
       )
+      queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
+      queryClient().invalidateQueries(`designer_urgent_tasks_`)
       toast({ title: 'Status atualizados com sucesso' })
       setSelectedIds(new Set())
     } catch (e) {
@@ -191,6 +187,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     if (!confirm('Excluir as tarefas selecionadas?')) return
     try {
       await Promise.all(Array.from(selectedIds).map((id) => pb.collection('tasks').delete(id)))
+      queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
+      queryClient().invalidateQueries(`designer_urgent_tasks_`)
       toast({ title: 'Tarefas excluídas com sucesso' })
       setSelectedIds(new Set())
     } catch (e) {
@@ -209,6 +207,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
         ordem: Date.now() / 1000,
         due_date: dateRange ? dateRange.to.toISOString() : undefined,
       })
+      queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
+      queryClient().invalidateQueries(`designer_urgent_tasks_`)
       setInlineCreateTitle('')
       setInlineCreateId(null)
       if (inlineCreateId !== 'root') {
@@ -241,6 +241,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
 
     try {
       await pb.collection('tasks').update(editingId, { title: newTitle })
+      queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
       setEditingId(null)
     } catch (e) {
       toast({ title: 'Erro ao salvar', variant: 'destructive' })
@@ -257,6 +258,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
       await pb.collection('tasks').update(id, {
         due_date: dateStr ? `${dateStr} 12:00:00.000Z` : '',
       })
+      queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
+      queryClient().invalidateQueries(`designer_urgent_tasks_`)
       toast({ title: 'Data atualizada' })
     } catch (e) {
       toast({ title: 'Erro ao atualizar data', variant: 'destructive' })
@@ -321,6 +324,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
         parent_task: newParent || '',
         ordem: newOrdem,
       })
+      queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
     } catch (err) {
       console.error(err)
     }

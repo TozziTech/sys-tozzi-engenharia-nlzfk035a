@@ -29,10 +29,10 @@ import { Badge } from '@/components/ui/badge'
 import { Trash2, Plus, Pencil, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { isBefore, addDays, startOfDay } from 'date-fns'
+import { useQuery, queryClient } from '@/hooks/use-query'
 
 export function ExpandedPaymentRow({ servico }: { servico: any }) {
   const { toast } = useToast()
-  const [pagamentos, setPagamentos] = useState<any[]>([])
 
   // Create form state
   const [novoPagamento, setNovoPagamento] = useState({
@@ -52,25 +52,19 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
     status: 'Pendente',
   })
 
-  const loadPagamentos = async () => {
-    try {
-      const records = await pb.collection('pagamentos_servicos').getFullList({
+  const { data: pagamentos = [], refetch } = useQuery(
+    `pagamentos_servico_${servico.id}`,
+    () =>
+      pb.collection('pagamentos_servicos').getFullList({
         filter: `servico_id = "${servico.id}"`,
         sort: 'data_vencimento',
-      })
-      setPagamentos(records)
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  useEffect(() => {
-    loadPagamentos()
-  }, [servico.id])
+      }),
+    { enabled: !!servico.id },
+  )
 
   useRealtime('pagamentos_servicos', (e) => {
     if (e.record?.servico_id === servico.id) {
-      loadPagamentos()
+      refetch()
     }
   })
 
@@ -100,6 +94,8 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
         data_vencimento: new Date().toISOString().substring(0, 10),
         status: 'Pendente',
       })
+      queryClient().invalidateQueries(`pagamentos_servico_${servico.id}`)
+      queryClient().invalidateQueries(`pagamentos_user_all_`)
       toast({ title: 'Parcela registrada com sucesso!' })
     } catch (e) {
       toast({ title: 'Erro ao registrar parcela', variant: 'destructive' })
@@ -138,6 +134,8 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
         descricao: editForm.descricao,
       })
       setEditingId(null)
+      queryClient().invalidateQueries(`pagamentos_servico_${servico.id}`)
+      queryClient().invalidateQueries(`pagamentos_user_all_`)
       toast({ title: 'Parcela atualizada com sucesso!' })
     } catch (e) {
       toast({ title: 'Erro ao atualizar parcela', variant: 'destructive' })
@@ -148,6 +146,8 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
     if (!window.confirm('Tem certeza que deseja excluir esta parcela?')) return
     try {
       await pb.collection('pagamentos_servicos').delete(id)
+      queryClient().invalidateQueries(`pagamentos_servico_${servico.id}`)
+      queryClient().invalidateQueries(`pagamentos_user_all_`)
       toast({ title: 'Parcela excluída!' })
     } catch (e) {
       toast({ title: 'Erro ao excluir parcela', variant: 'destructive' })
@@ -189,7 +189,7 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
     } else if (isBefore(venc, in3Days) || venc.getTime() === in3Days.getTime()) {
       return (
         <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-500/20">
-          <Clock className="w-3 h-3 mr-1" /> Próximo
+          <Clock className="w-3 h-3 mr-1" /> Vencendo
         </Badge>
       )
     }

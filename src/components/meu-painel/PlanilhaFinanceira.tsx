@@ -44,7 +44,9 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  AlertCircle,
 } from 'lucide-react'
+import { useQuery } from '@/hooks/use-query'
 import { format, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useToast } from '@/hooks/use-toast'
@@ -65,8 +67,6 @@ export function PlanilhaFinanceira({ dateRange }: { dateRange?: { from: Date; to
   const { canAccess, canWrite } = usePermissions()
 
   const canWritePlanilha = canWrite('planilha_financeira') || user?.role === 'Administrador'
-  const [servicos, setServicos] = useState<any[]>([])
-  const [pagamentos, setPagamentos] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState<any>({})
   const [statusFilter, setStatusFilter] = useState<string>('Todos')
@@ -78,37 +78,38 @@ export function PlanilhaFinanceira({ dateRange }: { dateRange?: { from: Date; to
   }
 
   const [pagamentosPorServico, setPagamentosPorServico] = useState<Record<string, number>>({})
-  const [isLoading, setIsLoading] = useState(true)
 
-  const loadData = async () => {
-    if (!user) return
-    setIsLoading(true)
-    try {
-      const [records, pgs] = await Promise.all([
-        pb.collection('servicos_financeiros').getFullList({
-          filter: `user_id = "${user.id}"`,
-          sort: '-created',
-        }),
-        pb.collection('pagamentos_servicos').getFullList({
-          filter: `servico_id.user_id = "${user.id}"`,
-        }),
-      ])
+  const {
+    data: servicos = [],
+    isLoading: isLoadingServicos,
+    refetch: refetchServicos,
+  } = useQuery(
+    `servicos_${user?.id}`,
+    () =>
+      pb.collection('servicos_financeiros').getFullList({
+        filter: `user_id = "${user?.id}"`,
+        sort: '-created',
+      }),
+    { enabled: !!user },
+  )
 
-      setServicos(records)
-      setPagamentos(pgs)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const {
+    data: pagamentos = [],
+    isLoading: isLoadingPagamentos,
+    refetch: refetchPagamentos,
+  } = useQuery(
+    `pagamentos_user_all_${user?.id}`,
+    () =>
+      pb.collection('pagamentos_servicos').getFullList({
+        filter: `servico_id.user_id = "${user?.id}"`,
+      }),
+    { enabled: !!user },
+  )
 
-  useEffect(() => {
-    loadData()
-  }, [user])
+  const isLoading = isLoadingServicos || isLoadingPagamentos
 
-  useRealtime('servicos_financeiros', loadData)
-  useRealtime('pagamentos_servicos', loadData)
+  useRealtime('servicos_financeiros', refetchServicos)
+  useRealtime('pagamentos_servicos', refetchPagamentos)
 
   const handleSave = async () => {
     if (!formData.codigo || !String(formData.codigo).trim()) {
@@ -249,6 +250,26 @@ export function PlanilhaFinanceira({ dateRange }: { dateRange?: { from: Date; to
 
     return statusMatch && paymentMatch
   })
+
+  const servicoAlerts = useMemo(() => {
+    const alerts: Record<string, { overdue: number; dueSoon: number }> = {}
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const in3Days = new Date(today)
+    in3Days.setDate(today.getDate() + 3)
+
+    pagamentos.forEach((p: any) => {
+      if (p.status === 'Pendente' && p.data_vencimento) {
+        const venc = new Date(p.data_vencimento)
+        venc.setHours(12, 0, 0, 0)
+        if (!alerts[p.servico_id]) alerts[p.servico_id] = { overdue: 0, dueSoon: 0 }
+
+        if (venc < today) alerts[p.servico_id].overdue++
+        else if (venc <= in3Days) alerts[p.servico_id].dueSoon++
+      }
+    })
+    return alerts
+  }, [pagamentos])
 
   const filteredServicosIds = new Set(filteredServicos.map((s) => s.id))
   const filteredPagamentos = pagamentosFiltradosRange.filter((p) =>
@@ -576,7 +597,28 @@ export function PlanilhaFinanceira({ dateRange }: { dateRange?: { from: Date; to
                       {s.codigo}
                     </TableCell>
                     <TableCell className="font-medium whitespace-nowrap">
-                      {s.projeto_servico}
+                      <div className="flex items-center gap-2">
+                        <span>{s.projeto_servico}</span>
+                        {(servicoAlerts[s.id]?.overdue || 0) > 0 && (
+                          <Badge
+                            variant="outline"
+                            className="bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20"
+                            title={`${servicoAlerts[s.id].overdue} parcela(s) em atraso`}
+                          >
+                            <AlertCircle className="w-3 h-3 mr-1" /> Atrasado
+                          </Badge>
+                        )}
+                        {(servicoAlerts[s.id]?.dueSoon || 0) > 0 &&
+                          (servicoAlerts[s.id]?.overdue || 0) === 0 && (
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20"
+                              title={`${servicoAlerts[s.id].dueSoon} parcela(s) vencendo`}
+                            >
+                              <Clock className="w-3 h-3 mr-1" /> Vencendo
+                            </Badge>
+                          )}
+                      </div>
                     </TableCell>
                     <TableCell
                       className="text-muted-foreground min-w-[300px] w-full"

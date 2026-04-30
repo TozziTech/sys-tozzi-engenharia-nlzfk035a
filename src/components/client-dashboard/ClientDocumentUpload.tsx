@@ -25,6 +25,7 @@ export function ClientDocumentUpload({ projectId }: { projectId: string }) {
   const [isUploading, setIsUploading] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [type, setType] = useState('Outros')
+  const [categoria, setCategoria] = useState('Outros')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
@@ -47,6 +48,7 @@ export function ClientDocumentUpload({ projectId }: { projectId: string }) {
       formData.append('projeto_id', projectId)
       formData.append('nome_arquivo', file.name)
       formData.append('tipo', type)
+      formData.append('categoria', categoria)
       formData.append('arquivo', file)
 
       await pb.collection('documentos_projeto').create(formData)
@@ -58,6 +60,7 @@ export function ClientDocumentUpload({ projectId }: { projectId: string }) {
       setIsOpen(false)
       setFile(null)
       setType('Outros')
+      setCategoria('Outros')
     } catch (error: any) {
       toast({
         title: 'Erro ao enviar',
@@ -116,20 +119,39 @@ export function ClientDocumentUpload({ projectId }: { projectId: string }) {
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
           </div>
-          <div className="grid gap-2">
-            <Label>Tipo de Documento</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Prancha">Prancha</SelectItem>
-                <SelectItem value="Relatório">Relatório</SelectItem>
-                <SelectItem value="Contrato">Contrato</SelectItem>
-                <SelectItem value="Memorial">Memorial</SelectItem>
-                <SelectItem value="Outros">Outros</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Tipo de Documento</Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Prancha">Prancha</SelectItem>
+                  <SelectItem value="Relatório">Relatório</SelectItem>
+                  <SelectItem value="Contrato">Contrato</SelectItem>
+                  <SelectItem value="Memorial">Memorial</SelectItem>
+                  <SelectItem value="Outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Categoria</Label>
+              <Select value={categoria} onValueChange={setCategoria}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Legal">Legal</SelectItem>
+                  <SelectItem value="Arquitetura">Arquitetura</SelectItem>
+                  <SelectItem value="Engenharia">Engenharia</SelectItem>
+                  <SelectItem value="Financeiro">Financeiro</SelectItem>
+                  <SelectItem value="Relatórios">Relatórios</SelectItem>
+                  <SelectItem value="Contratos">Contratos</SelectItem>
+                  <SelectItem value="Outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
         <DialogFooter>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T00:39:45.465Z",
+  "generatedAt": "2026-04-30T00:51:31.209Z",
   "collections": [
     {
       "name": "users",
@@ -2980,6 +2980,21 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Legal",
+            "Arquitetura",
+            "Engenharia",
+            "Financeiro",
+            "Relatórios",
+            "Contratos",
+            "Outros"
+          ]
         }
       ],
       "indexes": []

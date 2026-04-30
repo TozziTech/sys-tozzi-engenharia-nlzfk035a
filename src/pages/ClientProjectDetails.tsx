@@ -59,6 +59,7 @@ import { ManagePhasesModal } from '@/components/client-dashboard/admin/ManagePha
 import { PaymentFormModal } from '@/components/client-dashboard/admin/PaymentFormModal'
 import { useToast } from '@/hooks/use-toast'
 import { useParams, useNavigate } from 'react-router-dom'
+import { FilePreviewModal, PreviewFile } from '@/components/FilePreviewModal'
 import {
   Dialog,
   DialogContent,
@@ -118,7 +119,9 @@ export default function ClientProjectDetails() {
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [paymentFilter, setPaymentFilter] = useState('Todos')
+  const [documentCategoryFilter, setDocumentCategoryFilter] = useState('Todas')
   const [localSimulatedRole, setLocalSimulatedRole] = useState<string | null>(null)
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null)
   const { toast } = useToast()
 
   const isOriginalAdmin = user?.role === 'Administrador'
@@ -194,6 +197,10 @@ export default function ClientProjectDetails() {
 
   const filteredPayments = payments.filter(
     (p) => paymentFilter === 'Todos' || p.status === paymentFilter,
+  )
+
+  const filteredDocuments = documents.filter(
+    (d) => documentCategoryFilter === 'Todas' || d.categoria === documentCategoryFilter,
   )
 
   const handleDeletePayment = async (id: string) => {
@@ -439,6 +446,8 @@ export default function ClientProjectDetails() {
         )}
       </div>
 
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -592,30 +601,47 @@ export default function ClientProjectDetails() {
           )}
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 space-y-0">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" /> Arquivos do Projeto
               </CardTitle>
-              {canUploadDocs && <ClientDocumentUpload projectId={project.id} />}
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <Select value={documentCategoryFilter} onValueChange={setDocumentCategoryFilter}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filtrar por Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Todas">Todas as Categorias</SelectItem>
+                    <SelectItem value="Legal">Legal</SelectItem>
+                    <SelectItem value="Arquitetura">Arquitetura</SelectItem>
+                    <SelectItem value="Engenharia">Engenharia</SelectItem>
+                    <SelectItem value="Financeiro">Financeiro</SelectItem>
+                    <SelectItem value="Relatórios">Relatórios</SelectItem>
+                    <SelectItem value="Contratos">Contratos</SelectItem>
+                    <SelectItem value="Outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
+                {canUploadDocs && <ClientDocumentUpload projectId={project.id} />}
+              </div>
             </CardHeader>
             <CardContent>
-              {documents.length === 0 ? (
+              {filteredDocuments.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground border-2 border-dashed rounded-lg">
                   Nenhum arquivo anexado ao projeto.
                 </div>
               ) : (
-                <div className="rounded-md border bg-card">
+                <div className="rounded-md border bg-card overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nome do Arquivo</TableHead>
-                        <TableHead>Tipo</TableHead>
+                        <TableHead>Categoria</TableHead>
                         <TableHead>Data de Envio</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {documents.map((doc) => (
+                      {filteredDocuments.map((doc) => (
                         <TableRow key={doc.id}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
@@ -629,8 +655,11 @@ export default function ClientProjectDetails() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="font-normal">
-                              {doc.tipo}
+                            <Badge
+                              variant="outline"
+                              className="font-normal text-amber-700 border-amber-500/30 bg-amber-500/5"
+                            >
+                              {doc.categoria || doc.tipo || 'Outros'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
@@ -638,6 +667,22 @@ export default function ClientProjectDetails() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
+                              {doc.arquivo && doc.arquivo.toLowerCase().endsWith('.pdf') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Visualizar PDF"
+                                  onClick={() =>
+                                    setPreviewFile({
+                                      url: pb.files.getUrl(doc, doc.arquivo),
+                                      name: doc.nome_arquivo,
+                                      type: 'pdf',
+                                    })
+                                  }
+                                >
+                                  <Eye className="w-4 h-4 text-primary" />
+                                </Button>
+                              )}
                               {doc.arquivo && (
                                 <a
                                   href={pb.files.getUrl(doc, doc.arquivo)}

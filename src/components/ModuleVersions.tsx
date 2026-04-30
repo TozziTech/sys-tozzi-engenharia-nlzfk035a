@@ -2,7 +2,16 @@ import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { useAuth } from '@/hooks/use-auth'
 import { ptBR } from 'date-fns/locale'
-import { Download, Plus, AlertTriangle, CheckCircle, Clock, History, Printer } from 'lucide-react'
+import {
+  Download,
+  Plus,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  History,
+  Printer,
+  Edit2,
+} from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
@@ -40,6 +49,7 @@ export function ModuleVersions({ module }: { module: any }) {
   const [versions, setVersions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [historyOpen, setHistoryOpen] = useState<string | null>(null)
   const [versionHistory, setVersionHistory] = useState<any[]>([])
@@ -75,6 +85,34 @@ export function ModuleVersions({ module }: { module: any }) {
 
   useRealtime('project_versions', loadVersions)
 
+  const handleOpenChange = (val: boolean) => {
+    setOpen(val)
+    if (!val) {
+      setEditingId(null)
+      setFormData({
+        version_label: '',
+        revision: '',
+        description: '',
+        status: 'Pendente',
+        is_critical: false,
+        file: null,
+      })
+    }
+  }
+
+  const openEdit = (version: any) => {
+    setEditingId(version.id)
+    setFormData({
+      version_label: version.version_label || '',
+      revision: version.revision || '',
+      description: version.description || '',
+      status: version.status || 'Pendente',
+      is_critical: version.is_critical || false,
+      file: null,
+    })
+    setOpen(true)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.version_label.trim()) {
@@ -93,7 +131,9 @@ export function ModuleVersions({ module }: { module: any }) {
       data.append('module', moduleId)
       data.append('version_label', formData.version_label.trim())
       if (formData.revision) data.append('revision', formData.revision.trim())
+      else data.append('revision', '')
       if (formData.description) data.append('description', formData.description.trim())
+      else data.append('description', '')
       data.append('status', formData.status)
       data.append('is_critical', formData.is_critical.toString())
 
@@ -101,23 +141,20 @@ export function ModuleVersions({ module }: { module: any }) {
         data.append('file', formData.file)
       }
 
-      await pb.collection('project_versions').create(data)
+      if (editingId) {
+        await pb.collection('project_versions').update(editingId, data)
+        toast({ title: 'Sucesso', description: 'Versão atualizada com sucesso.' })
+      } else {
+        await pb.collection('project_versions').create(data)
+        toast({ title: 'Sucesso', description: 'Nova versão registrada com sucesso.' })
+      }
 
-      toast({ title: 'Sucesso', description: 'Nova versão registrada com sucesso.' })
-      setOpen(false)
-      setFormData({
-        version_label: '',
-        revision: '',
-        description: '',
-        status: 'Pendente',
-        is_critical: false,
-        file: null,
-      })
+      handleOpenChange(false)
     } catch (err: any) {
       console.error(err)
       toast({
         title: 'Erro',
-        description: err.message || 'Falha ao registrar versão.',
+        description: err.message || 'Falha ao salvar versão.',
         variant: 'destructive',
       })
     } finally {
@@ -211,9 +248,23 @@ export function ModuleVersions({ module }: { module: any }) {
               <span className="sm:hidden">Exportar</span>
             </Button>
             {canEdit && (
-              <Dialog open={open} onOpenChange={setOpen}>
+              <Dialog open={open} onOpenChange={handleOpenChange}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="gap-1">
+                  <Button
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => {
+                      setEditingId(null)
+                      setFormData({
+                        version_label: '',
+                        revision: '',
+                        description: '',
+                        status: 'Pendente',
+                        is_critical: false,
+                        file: null,
+                      })
+                    }}
+                  >
                     <Plus className="h-4 w-4" />
                     <span className="hidden sm:inline">Nova Versão</span>
                     <span className="sm:hidden">Nova</span>
@@ -221,9 +272,13 @@ export function ModuleVersions({ module }: { module: any }) {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader>
-                    <DialogTitle>Registrar Nova Versão</DialogTitle>
+                    <DialogTitle>
+                      {editingId ? 'Editar Versão' : 'Registrar Nova Versão'}
+                    </DialogTitle>
                     <DialogDescription>
-                      Adicione uma nova versão ou revisão para esta disciplina.
+                      {editingId
+                        ? 'Atualize os dados da versão.'
+                        : 'Adicione uma nova versão ou revisão para esta disciplina.'}
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-4">
@@ -315,11 +370,19 @@ export function ModuleVersions({ module }: { module: any }) {
                     </div>
 
                     <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleOpenChange(false)}
+                      >
                         Cancelar
                       </Button>
                       <Button type="submit" disabled={uploading}>
-                        {uploading ? 'Salvando...' : 'Salvar Versão'}
+                        {uploading
+                          ? 'Salvando...'
+                          : editingId
+                            ? 'Salvar Alterações'
+                            : 'Salvar Versão'}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -380,6 +443,16 @@ export function ModuleVersions({ module }: { module: any }) {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(version)}
+                        title="Editar Versão"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"

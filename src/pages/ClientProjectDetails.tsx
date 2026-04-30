@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -179,6 +179,28 @@ export default function ClientProjectDetails() {
   useRealtime('documentos_projeto', loadData)
   useRealtime('comentarios_projeto', loadData)
 
+  const documentGroups = useMemo(() => {
+    const groups: Record<string, any[]> = {}
+
+    documents.forEach((doc) => {
+      const rootId = doc.parent_id || doc.id
+      if (!groups[rootId]) groups[rootId] = []
+      groups[rootId].push(doc)
+    })
+
+    Object.values(groups).forEach((group) => {
+      group.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+    })
+
+    return Object.values(groups).sort(
+      (a, b) => new Date(b[0].created).getTime() - new Date(a[0].created).getTime(),
+    )
+  }, [documents])
+
+  const activeHistoryGroup = useMemo(() => {
+    return documentGroups.find((g) => g[g.length - 1].id === historyRootId) || null
+  }, [documentGroups, historyRootId])
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[50vh]">
@@ -202,32 +224,10 @@ export default function ClientProjectDetails() {
     (p) => paymentFilter === 'Todos' || p.status === paymentFilter,
   )
 
-  const documentGroups = useMemo(() => {
-    const groups: Record<string, any[]> = {}
-
-    documents.forEach((doc) => {
-      const rootId = doc.parent_id || doc.id
-      if (!groups[rootId]) groups[rootId] = []
-      groups[rootId].push(doc)
-    })
-
-    Object.values(groups).forEach((group) => {
-      group.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
-    })
-
-    return Object.values(groups).sort(
-      (a, b) => new Date(b[0].created).getTime() - new Date(a[0].created).getTime(),
-    )
-  }, [documents])
-
   const filteredDocumentGroups = documentGroups.filter((group) => {
     const latest = group[0]
     return documentCategoryFilter === 'Todas' || latest.categoria === documentCategoryFilter
   })
-
-  const activeHistoryGroup = useMemo(() => {
-    return documentGroups.find((g) => g[g.length - 1].id === historyRootId) || null
-  }, [documentGroups, historyRootId])
 
   const handleDeletePayment = async (id: string) => {
     if (!confirm('Deseja excluir este pagamento?')) return

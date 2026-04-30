@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   Check,
   X,
+  History,
+  FileUp,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -122,6 +124,7 @@ export default function ClientProjectDetails() {
   const [documentCategoryFilter, setDocumentCategoryFilter] = useState('Todas')
   const [localSimulatedRole, setLocalSimulatedRole] = useState<string | null>(null)
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null)
+  const [historyRootId, setHistoryRootId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const isOriginalAdmin = user?.role === 'Administrador'
@@ -199,9 +202,32 @@ export default function ClientProjectDetails() {
     (p) => paymentFilter === 'Todos' || p.status === paymentFilter,
   )
 
-  const filteredDocuments = documents.filter(
-    (d) => documentCategoryFilter === 'Todas' || d.categoria === documentCategoryFilter,
-  )
+  const documentGroups = useMemo(() => {
+    const groups: Record<string, any[]> = {}
+
+    documents.forEach((doc) => {
+      const rootId = doc.parent_id || doc.id
+      if (!groups[rootId]) groups[rootId] = []
+      groups[rootId].push(doc)
+    })
+
+    Object.values(groups).forEach((group) => {
+      group.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+    })
+
+    return Object.values(groups).sort(
+      (a, b) => new Date(b[0].created).getTime() - new Date(a[0].created).getTime(),
+    )
+  }, [documents])
+
+  const filteredDocumentGroups = documentGroups.filter((group) => {
+    const latest = group[0]
+    return documentCategoryFilter === 'Todas' || latest.categoria === documentCategoryFilter
+  })
+
+  const activeHistoryGroup = useMemo(() => {
+    return documentGroups.find((g) => g[g.length - 1].id === historyRootId) || null
+  }, [documentGroups, historyRootId])
 
   const handleDeletePayment = async (id: string) => {
     if (!confirm('Deseja excluir este pagamento?')) return
@@ -213,8 +239,17 @@ export default function ClientProjectDetails() {
     }
   }
 
-  const handleDeleteDoc = async (id: string) => {
-    if (!confirm('Deseja excluir este arquivo?')) return
+  const handleDeleteDoc = async (id: string, isRootWithHistory: boolean = false) => {
+    if (isRootWithHistory) {
+      if (
+        !confirm(
+          'Atenção: Este é o arquivo original. Excluí-lo removerá TAMBÉM todo o histórico de versões. Deseja continuar?',
+        )
+      )
+        return
+    } else {
+      if (!confirm('Deseja excluir este arquivo?')) return
+    }
     try {
       await deleteProjectDocument(id)
       toast({ title: 'Sucesso', description: 'Arquivo excluído.' })
@@ -625,7 +660,7 @@ export default function ClientProjectDetails() {
               </div>
             </CardHeader>
             <CardContent>
-              {filteredDocuments.length === 0 ? (
+              {filteredDocumentGroups.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground border-2 border-dashed rounded-lg">
                   Nenhum arquivo anexado ao projeto.
                 </div>
@@ -641,74 +676,133 @@ export default function ClientProjectDetails() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredDocuments.map((doc) => (
-                        <TableRow key={doc.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <File className="w-4 h-4 text-primary shrink-0" />
-                              <span
-                                className="truncate max-w-[200px] sm:max-w-[300px]"
-                                title={doc.nome_arquivo}
+                      {filteredDocumentGroups.map((group) => {
+                        const latest = group[0]
+                        const root = group[group.length - 1]
+                        const hasHistory = group.length > 1
+                        const isPdf = latest.arquivo?.toLowerCase().endsWith('.pdf')
+                        const isRootWithHistory = latest.id === root.id && hasHistory
+
+                        return (
+                          <TableRow key={latest.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center gap-2">
+                                  <File className="w-4 h-4 text-primary shrink-0" />
+                                  <span
+                                    className="truncate max-w-[200px] sm:max-w-[300px]"
+                                    title={latest.nome_arquivo}
+                                  >
+                                    {latest.nome_arquivo}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 ml-6">
+                                  {hasHistory && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px] h-4 px-1.5 flex items-center gap-1 cursor-pointer hover:bg-secondary/80 transition-colors"
+                                      onClick={() => setHistoryRootId(root.id)}
+                                      title="Ver histórico de versões"
+                                    >
+                                      <History className="w-3 h-3" />
+                                      {group.length} versões
+                                    </Badge>
+                                  )}
+                                  {latest.version_label && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] h-4 px-1.5 bg-primary/5 border-primary/20 text-primary"
+                                    >
+                                      {latest.version_label}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className="font-normal text-amber-700 border-amber-500/30 bg-amber-500/5"
                               >
-                                {doc.nome_arquivo}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className="font-normal text-amber-700 border-amber-500/30 bg-amber-500/5"
-                            >
-                              {doc.categoria || doc.tipo || 'Outros'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {formatDate(doc.created)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {doc.arquivo && doc.arquivo.toLowerCase().endsWith('.pdf') && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Visualizar PDF"
-                                  onClick={() =>
-                                    setPreviewFile({
-                                      url: pb.files.getUrl(doc, doc.arquivo),
-                                      name: doc.nome_arquivo,
-                                      type: 'pdf',
-                                    })
-                                  }
-                                >
-                                  <Eye className="w-4 h-4 text-primary" />
-                                </Button>
-                              )}
-                              {doc.arquivo && (
-                                <a
-                                  href={pb.files.getUrl(doc, doc.arquivo)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  download
-                                >
-                                  <Button variant="ghost" size="icon" title="Baixar arquivo">
-                                    <Download className="w-4 h-4" />
+                                {latest.categoria || latest.tipo || 'Outros'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {formatDate(latest.created)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {hasHistory && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Histórico de Versões"
+                                    onClick={() => setHistoryRootId(root.id)}
+                                  >
+                                    <History className="w-4 h-4 text-primary" />
                                   </Button>
-                                </a>
-                              )}
-                              {canDeleteDocs && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Excluir arquivo"
-                                  onClick={() => handleDeleteDoc(doc.id)}
-                                >
-                                  <Trash2 className="w-4 h-4 text-destructive" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                )}
+                                {canUploadDocs && (
+                                  <ClientDocumentUpload
+                                    projectId={project.id}
+                                    parentId={root.id}
+                                    isVersion={true}
+                                    defaultCategory={latest.categoria}
+                                    defaultType={latest.tipo}
+                                    trigger={
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title="Enviar Nova Versão"
+                                      >
+                                        <FileUp className="w-4 h-4 text-emerald-600" />
+                                      </Button>
+                                    }
+                                  />
+                                )}
+                                {isPdf && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Visualizar PDF"
+                                    onClick={() =>
+                                      setPreviewFile({
+                                        url: pb.files.getUrl(latest, latest.arquivo),
+                                        name: latest.nome_arquivo,
+                                        type: 'pdf',
+                                      })
+                                    }
+                                  >
+                                    <Eye className="w-4 h-4 text-primary" />
+                                  </Button>
+                                )}
+                                {latest.arquivo && (
+                                  <a
+                                    href={pb.files.getUrl(latest, latest.arquivo)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download
+                                  >
+                                    <Button variant="ghost" size="icon" title="Baixar arquivo">
+                                      <Download className="w-4 h-4" />
+                                    </Button>
+                                  </a>
+                                )}
+                                {canDeleteDocs && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Excluir arquivo"
+                                    onClick={() => handleDeleteDoc(latest.id, isRootWithHistory)}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -716,6 +810,114 @@ export default function ClientProjectDetails() {
             </CardContent>
           </Card>
         </div>
+
+        <Dialog
+          open={!!activeHistoryGroup}
+          onOpenChange={(open) => !open && setHistoryRootId(null)}
+        >
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Histórico de Versões</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto rounded-md border mt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Versão</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Arquivo</TableHead>
+                    <TableHead>Notas</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activeHistoryGroup?.map((doc: any, idx: number) => {
+                    const isPdf = doc.arquivo?.toLowerCase().endsWith('.pdf')
+                    const isRootWithHistory =
+                      doc.id === activeHistoryGroup[activeHistoryGroup.length - 1].id &&
+                      activeHistoryGroup.length > 1
+
+                    return (
+                      <TableRow key={doc.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={idx === 0 ? 'default' : 'secondary'}>
+                              {doc.version_label ||
+                                (idx === activeHistoryGroup.length - 1
+                                  ? 'Original'
+                                  : `v${activeHistoryGroup.length - idx}`)}
+                            </Badge>
+                            {idx === 0 && (
+                              <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                                (Atual)
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatDate(doc.created)}
+                        </TableCell>
+                        <TableCell className="max-w-[150px] truncate" title={doc.nome_arquivo}>
+                          {doc.nome_arquivo}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate" title={doc.version_notes}>
+                          {doc.version_notes || '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {isPdf && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="Visualizar PDF"
+                                onClick={() =>
+                                  setPreviewFile({
+                                    url: pb.files.getUrl(doc, doc.arquivo),
+                                    name: doc.nome_arquivo,
+                                    type: 'pdf',
+                                  })
+                                }
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <a
+                              href={pb.files.getUrl(doc, doc.arquivo)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download
+                            >
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="Baixar arquivo"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </a>
+                            {canDeleteDocs && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 hover:text-destructive"
+                                title="Excluir versão"
+                                onClick={() => handleDeleteDoc(doc.id, isRootWithHistory)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="space-y-6">
           {canViewComments && (

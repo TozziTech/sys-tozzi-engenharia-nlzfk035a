@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T00:51:31.209Z",
+  "generatedAt": "2026-04-30T00:56:14.133Z",
   "collections": [
     {
       "name": "users",
@@ -2995,6 +2995,25 @@
             "Contratos",
             "Outros"
           ]
+        },
+        {
+          "name": "parent_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "documentos_projeto"
+        },
+        {
+          "name": "version_label",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "version_notes",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

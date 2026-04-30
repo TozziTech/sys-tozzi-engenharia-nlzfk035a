@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   Clock,
   MessageSquare,
+  Download,
 } from 'lucide-react'
+import { exportClientDashboardPDF } from '@/lib/exportPdf'
 import { useNavigate } from 'react-router-dom'
 import {
   getClientProjects,
@@ -41,6 +43,7 @@ export default function ClientDashboard() {
   const [payments, setPayments] = useState<any[]>([])
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
 
   const loadData = async () => {
     if (!user) return
@@ -127,7 +130,7 @@ export default function ClientDashboard() {
       {/* Hero Section */}
       <div className="relative rounded-3xl overflow-hidden bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-elevation">
         <div className="absolute inset-0 bg-[url('https://img.usecurling.com/p/800/400?q=modern%20architecture&color=gray')] opacity-[0.03] dark:opacity-10 bg-cover bg-center mix-blend-overlay" />
-        <div className="relative p-8 md:p-12 backdrop-blur-sm flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="relative p-8 md:p-12 backdrop-blur-sm flex flex-col md:flex-row justify-between items-start gap-6">
           <div>
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-zinc-900 dark:text-zinc-50 animate-fade-in-up">
               Bem-vindo(a),{' '}
@@ -142,31 +145,60 @@ export default function ClientDashboard() {
             </p>
           </div>
           <div
-            className="hidden md:flex w-32 h-32 relative flex-shrink-0 animate-fade-in-up"
+            className="flex flex-col items-end gap-6 animate-fade-in-up"
             style={{ animationDelay: '150ms' }}
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={progressData}
-                  innerRadius={40}
-                  outerRadius={60}
-                  startAngle={90}
-                  endAngle={-270}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {progressData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <RechartsTooltip formatter={(value: number) => `${value}%`} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex items-center justify-center flex-col">
-              <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                {avgProgress}%
-              </span>
+            <Button
+              onClick={async () => {
+                setIsExporting(true)
+                try {
+                  let settings = null
+                  try {
+                    settings = await pb.collection('company_settings').getFirstListItem('')
+                  } catch {
+                    /* intentionally ignored */
+                  }
+                  exportClientDashboardPDF(user, projects, phases, payments, comments, settings)
+                } catch (err) {
+                  console.error('Error exporting PDF:', err)
+                } finally {
+                  setIsExporting(false)
+                }
+              }}
+              disabled={isExporting}
+              className="bg-[#D4AF37] hover:bg-[#B5952F] text-white font-medium shadow-md transition-all"
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Exportar Relatório (PDF)
+            </Button>
+            <div className="hidden md:flex w-32 h-32 relative flex-shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={progressData}
+                    innerRadius={40}
+                    outerRadius={60}
+                    startAngle={90}
+                    endAngle={-270}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {progressData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip formatter={(value: number) => `${value}%`} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex items-center justify-center flex-col">
+                <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
+                  {avgProgress}%
+                </span>
+              </div>
             </div>
           </div>
         </div>

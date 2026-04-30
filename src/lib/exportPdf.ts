@@ -332,6 +332,220 @@ export function exportPremiumExecutivePDF(
   }, 500)
 }
 
+export function exportClientDashboardPDF(
+  user: any,
+  projects: any[],
+  phases: any[],
+  payments: any[],
+  comments: any[],
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings) || '#D4AF37'
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+
+  const avgProgress =
+    projects.length > 0
+      ? Math.round(projects.reduce((acc, p) => acc + (p.progresso_total || 0), 0) / projects.length)
+      : 0
+
+  const phaseStats = phases.reduce(
+    (acc, p) => {
+      const st = p.status || 'Pendente'
+      acc[st] = (acc[st] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+
+  const totalPago = payments
+    .filter((p) => p.status === 'Pago')
+    .reduce((sum, p) => sum + (p.valor || 0), 0)
+  const totalPendente = payments
+    .filter((p) => p.status === 'Pendente' || p.status === 'Atrasado')
+    .reduce((sum, p) => sum + (p.valor || 0), 0)
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório do Painel do Cliente</title>
+        <style>
+          @page { margin: 20mm; }
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            line-height: 1.5; 
+            color: #27272a; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #ffffff;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid ${primaryColor};
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header img { max-height: 60px; margin-bottom: 10px; }
+          .header h1 { margin: 0; color: #18181b; font-size: 24px; }
+          .header p { margin: 5px 0 0; color: #52525b; font-size: 14px; }
+          
+          .summary-grid {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+          }
+          .summary-card {
+            background: #fafafa;
+            border: 1px solid #e4e4e7;
+            padding: 15px;
+            border-radius: 8px;
+            flex: 1;
+            border-top: 4px solid ${primaryColor};
+          }
+          .summary-card h3 { margin: 0 0 5px 0; font-size: 12px; color: #52525b; text-transform: uppercase; }
+          .summary-card p { margin: 0; font-size: 24px; font-weight: bold; color: #18181b; }
+          
+          .section { margin-bottom: 30px; }
+          .section-title { font-size: 18px; color: ${primaryColor}; border-bottom: 1px solid #e4e4e7; padding-bottom: 5px; margin-bottom: 15px; font-weight: bold; }
+          
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+          th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e4e4e7; font-size: 14px; }
+          th { background-color: #fafafa; color: #3f3f46; font-size: 12px; text-transform: uppercase; font-weight: 600; }
+          
+          .comment { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #f4f4f5; }
+          .comment-header { font-size: 12px; color: #52525b; margin-bottom: 4px; }
+          .comment-header strong { color: #18181b; font-size: 14px; }
+          .comment-body { font-size: 14px; color: #3f3f46; }
+          
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+      
+        <div class="header">
+          ${logoUrl ? `<img src="${logoUrl}" />` : ''}
+          <h1>Relatório de Status do Projeto</h1>
+          <p><strong>Cliente:</strong> ${user?.name || 'N/A'}</p>
+          <p>Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+        </div>
+        
+        <div class="summary-grid">
+          <div class="summary-card">
+            <h3>Progresso Médio</h3>
+            <p>${avgProgress}%</p>
+          </div>
+          <div class="summary-card">
+            <h3>Total Pago</h3>
+            <p style="color: #059669;">${formatCurrency(totalPago)}</p>
+          </div>
+          <div class="summary-card">
+            <h3>Pendente / Atrasado</h3>
+            <p style="color: #dc2626;">${formatCurrency(totalPendente)}</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Status dos Projetos</div>
+          ${
+            projects.length === 0
+              ? '<p style="color: #52525b;">Nenhum projeto ativo.</p>'
+              : `
+          <table>
+            <thead>
+              <tr>
+                <th>Projeto</th>
+                <th>Início</th>
+                <th>Progresso</th>
+                <th>Status Geral</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${projects
+                .map(
+                  (p) => `
+                <tr>
+                  <td style="font-weight: 500;">${p.nome_projeto}</td>
+                  <td>${p.data_inicio ? new Date(p.data_inicio).toLocaleDateString('pt-BR') : '-'}</td>
+                  <td>${p.progresso_total || 0}%</td>
+                  <td>${p.status_geral}</td>
+                </tr>
+              `,
+                )
+                .join('')}
+            </tbody>
+          </table>
+          `
+          }
+        </div>
+
+        <div class="section">
+          <div class="section-title">Resumo de Fases</div>
+          <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            ${Object.entries(phaseStats)
+              .map(
+                ([status, count]) => `
+              <div style="background: #f4f4f5; padding: 8px 15px; border-radius: 4px; font-size: 14px;">
+                <strong>${status}:</strong> ${count}
+              </div>
+            `,
+              )
+              .join('')}
+          </div>
+          ${Object.keys(phaseStats).length === 0 ? '<p style="color: #52525b;">Nenhuma fase registrada.</p>' : ''}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Atividades Recentes</div>
+          ${
+            comments.length === 0
+              ? '<p style="color: #52525b;">Nenhuma atividade recente.</p>'
+              : comments
+                  .slice(0, 10)
+                  .map(
+                    (c) => `
+            <div class="comment">
+              <div class="comment-header">
+                <strong>${c.expand?.autor?.name || 'Equipe'}</strong> em ${new Date(c.created).toLocaleString('pt-BR')}
+                ${c.expand?.projeto_id?.nome_projeto ? ` &bull; <em>Projeto: ${c.expand.projeto_id.nome_projeto}</em>` : ''}
+              </div>
+              <div class="comment-body">
+                ${c.mensagem}
+              </div>
+            </div>
+          `,
+                  )
+                  .join('')
+          }
+        </div>
+      </body>
+    </html>
+  `
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+
+  setTimeout(() => {
+    printWindow.print()
+  }, 250)
+}
+
 export function exportSpecialtiesPDF(
   project: any,
   groupedStats: { groupName: string; stats: any[] }[],

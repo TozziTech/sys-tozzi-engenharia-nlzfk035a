@@ -67,6 +67,19 @@ const getNavigationGroups = () => [
     ],
   },
   {
+    label: 'PAINEL DO CLIENTE',
+    id: 'grupo_painel_cliente',
+    items: [
+      {
+        name: 'Painel do cliente',
+        id: 'painel_cliente',
+        href: '/gestao/painel-cliente',
+        icon: LayoutDashboard,
+        allowedRoles: ['Administrador', 'Cliente', 'Visitante'],
+      },
+    ],
+  },
+  {
     label: 'Gestão de Projetos',
     id: 'gestao_projetos',
     items: [
@@ -83,18 +96,6 @@ const getNavigationGroups = () => [
       { name: 'Cronograma', id: 'cronograma', href: '/schedule', icon: CalendarDays },
       { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
       { name: 'Calendário', id: 'calendario', href: '/calendar', icon: CalendarIcon },
-    ],
-  },
-  {
-    label: 'Painel do Cliente',
-    id: 'grupo_painel_cliente',
-    items: [
-      {
-        name: 'Painel do cliente',
-        id: 'painel_cliente',
-        href: '/gestao/painel-cliente',
-        icon: LayoutDashboard,
-      },
     ],
   },
   {

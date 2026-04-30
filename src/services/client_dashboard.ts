@@ -37,6 +37,27 @@ export const getProjectComments = async (projectId: string) => {
   })
 }
 
+export const getClientPayments = async (clientId: string) => {
+  return pb.collection('pagamentos_projeto').getFullList({
+    filter: `projeto_id.cliente = '${clientId}'`,
+    sort: 'data_vencimento',
+  })
+}
+
+export const getClientComments = async (clientId: string) => {
+  return pb.collection('comentarios_projeto').getFullList({
+    filter: `projeto_id.cliente = '${clientId}'`,
+    sort: '-created',
+    expand: 'autor,projeto_id',
+  })
+}
+
+export const getClientPhases = async (clientId: string) => {
+  return pb.collection('fases_projeto').getFullList({
+    filter: `projeto_id.cliente = '${clientId}'`,
+  })
+}
+
 export const createComment = async (projectId: string, mensagem: string, autorId: string) => {
   return pb.collection('comentarios_projeto').create({
     projeto_id: projectId,

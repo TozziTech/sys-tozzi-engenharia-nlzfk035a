@@ -40,7 +40,8 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 
 export function ModuleVersions({ module }: { module: any }) {
-  const { effectiveRole } = useAuth()
+  const { user } = useAuth()
+  const effectiveRole = user?.role
   const canEdit =
     effectiveRole === 'Administrador' ||
     effectiveRole === 'Gerente de Projeto' ||
@@ -119,6 +120,15 @@ export function ModuleVersions({ module }: { module: any }) {
       toast({
         title: 'Atenção',
         description: 'O campo Versão é obrigatório',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!formData.status) {
+      toast({
+        title: 'Atenção',
+        description: 'O status é obrigatório',
         variant: 'destructive',
       })
       return

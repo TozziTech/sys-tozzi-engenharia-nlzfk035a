@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,42 +32,48 @@ export function NoteCard({ projectId }: { projectId?: string }) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  const loadNote = useCallback(async () => {
-    if (!user) return
-    try {
-      const filter = `user = "${user.id}" && project ${projectId ? `= "${projectId}"` : `= ""`}`
-      const result = await pb.collection('user_notes').getList(1, 1, { filter })
+  const isFocusedRef = useRef(false)
 
-      if (result.items && result.items.length > 0) {
-        const note = result.items[0]
-        setNoteId(note.id)
-        setContent(note.content || '')
-        setInitialContent(note.content || '')
-        setCategory(note.category || 'Geral')
-        setInitialCategory(note.category || 'Geral')
-      } else {
-        setNoteId(null)
-        setContent('')
-        setInitialContent('')
-        setCategory('Geral')
-        setInitialCategory('Geral')
+  const loadNote = useCallback(
+    async (force = false) => {
+      if (!user) return
+      if (isFocusedRef.current && !force) return // skip loading if user is editing
+      try {
+        const filter = `user = "${user.id}" && project ${projectId ? `= "${projectId}"` : `= ""`}`
+        const result = await pb.collection('user_notes').getList(1, 1, { filter })
+
+        if (result.items && result.items.length > 0) {
+          const note = result.items[0]
+          setNoteId(note.id)
+          setContent(note.content || '')
+          setInitialContent(note.content || '')
+          setCategory(note.category || 'Geral')
+          setInitialCategory(note.category || 'Geral')
+        } else {
+          setNoteId(null)
+          setContent('')
+          setInitialContent('')
+          setCategory('Geral')
+          setInitialCategory('Geral')
+        }
+        setIsLoaded(true)
+      } catch (err) {
+        console.error('Error loading note:', err)
+        setIsLoaded(true)
       }
-      setIsLoaded(true)
-    } catch (err) {
-      console.error('Error loading note:', err)
-      setIsLoaded(true)
-    }
-  }, [user, projectId])
+    },
+    [user, projectId],
+  )
 
   useEffect(() => {
-    loadNote()
+    loadNote(true)
   }, [loadNote])
 
   useRealtime('user_notes', (e) => {
     if (e.record.user === user?.id) {
       const eProject = e.record.project || undefined
       const isMatch = projectId ? eProject === projectId : !eProject
-      if (isMatch) {
+      if (isMatch && !isFocusedRef.current) {
         loadNote()
       }
     }
@@ -178,6 +184,12 @@ export function NoteCard({ projectId }: { projectId?: string }) {
             <RichTextEditor
               value={content}
               onChange={setContent}
+              onFocus={() => {
+                isFocusedRef.current = true
+              }}
+              onBlur={() => {
+                isFocusedRef.current = false
+              }}
               className="flex-1 overflow-hidden h-full"
             />
           </CardContent>
@@ -199,6 +211,12 @@ export function NoteCard({ projectId }: { projectId?: string }) {
               <RichTextEditor
                 value={content}
                 onChange={setContent}
+                onFocus={() => {
+                  isFocusedRef.current = true
+                }}
+                onBlur={() => {
+                  isFocusedRef.current = false
+                }}
                 className="border-0 rounded-none h-full"
               />
             </div>

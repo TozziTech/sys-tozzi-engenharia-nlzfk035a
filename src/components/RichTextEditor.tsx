@@ -26,6 +26,8 @@ import {
 interface RichTextEditorProps {
   value: string
   onChange: (value: string) => void
+  onFocus?: () => void
+  onBlur?: () => void
   onImageUpload?: (file: File) => Promise<string>
   disabled?: boolean
   className?: string
@@ -37,11 +39,14 @@ let globalActiveEditor: HTMLDivElement | null = null
 export function RichTextEditor({
   value,
   onChange,
+  onFocus,
+  onBlur,
   onImageUpload,
   disabled,
   className = '',
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
+  const initialValueRef = useRef(value)
 
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
@@ -292,13 +297,17 @@ export function RichTextEditor({
           saveSelection()
           onChange(e.currentTarget.innerHTML)
         }}
+        onFocus={() => {
+          if (onFocus) onFocus()
+        }}
         onBlur={(e) => {
           saveSelection()
           onChange(e.currentTarget.innerHTML)
+          if (onBlur) onBlur()
         }}
         onMouseUp={saveSelection}
         onKeyUp={saveSelection}
-        dangerouslySetInnerHTML={{ __html: value }}
+        dangerouslySetInnerHTML={{ __html: initialValueRef.current }}
         style={{ minHeight: '200px' }}
       />
     </div>

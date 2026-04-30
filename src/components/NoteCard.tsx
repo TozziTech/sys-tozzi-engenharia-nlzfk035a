@@ -27,6 +27,10 @@ export function NoteCard({ projectId }: { projectId?: string }) {
   const [category, setCategory] = useState('Geral')
   const [initialCategory, setInitialCategory] = useState('Geral')
 
+  const [lastEditor, setLastEditor] = useState<string | null>(null)
+  const [creatorName, setCreatorName] = useState<string | null>(null)
+  const [lastEditDate, setLastEditDate] = useState<Date | null>(null)
+
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -39,8 +43,15 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       if (!user) return
       if (isFocusedRef.current && !force) return // skip loading if user is editing
       try {
-        const filter = `user = "${user.id}" && project ${projectId ? `= "${projectId}"` : `= ""`}`
-        const result = await pb.collection('user_notes').getList(1, 1, { filter })
+        const filter = projectId
+          ? `project = "${projectId}"`
+          : `user = "${user.id}" && project = ""`
+
+        const result = await pb.collection('user_notes').getList(1, 1, {
+          filter,
+          sort: 'created',
+          expand: 'last_editor,user',
+        })
 
         if (result.items && result.items.length > 0) {
           const note = result.items[0]
@@ -49,12 +60,19 @@ export function NoteCard({ projectId }: { projectId?: string }) {
           setInitialContent(note.content || '')
           setCategory(note.category || 'Geral')
           setInitialCategory(note.category || 'Geral')
+
+          setLastEditor(note.expand?.last_editor?.name || null)
+          setCreatorName(note.expand?.user?.name || null)
+          setLastEditDate(note.updated ? new Date(note.updated) : null)
         } else {
           setNoteId(null)
           setContent('')
           setInitialContent('')
           setCategory('Geral')
           setInitialCategory('Geral')
+          setLastEditor(null)
+          setCreatorName(null)
+          setLastEditDate(null)
         }
         setIsLoaded(true)
       } catch (err) {
@@ -70,12 +88,11 @@ export function NoteCard({ projectId }: { projectId?: string }) {
   }, [loadNote])
 
   useRealtime('user_notes', (e) => {
-    if (e.record.user === user?.id) {
-      const eProject = e.record.project || undefined
-      const isMatch = projectId ? eProject === projectId : !eProject
-      if (isMatch && !isFocusedRef.current) {
-        loadNote()
-      }
+    const eProject = e.record.project || undefined
+    const isMatch = projectId ? eProject === projectId : !eProject && e.record.user === user?.id
+
+    if (isMatch && !isFocusedRef.current) {
+      loadNote()
     }
   })
 
@@ -92,12 +109,23 @@ export function NoteCard({ projectId }: { projectId?: string }) {
           ...(projectId ? { project: projectId } : { project: null }),
         }
 
-        if (noteId) {
-          await pb.collection('user_notes').update(noteId, data)
-        } else {
-          const record = await pb.collection('user_notes').create(data)
-          setNoteId(record.id)
+        const saveData = {
+          ...data,
+          last_editor: user?.id,
         }
+
+        if (noteId) {
+          // Prevent overwriting the original creator on update
+          delete saveData.user
+          await pb.collection('user_notes').update(noteId, saveData)
+        } else {
+          const record = await pb.collection('user_notes').create(saveData)
+          setNoteId(record.id)
+          setCreatorName(user?.name || null)
+        }
+
+        setLastEditor(user?.name || null)
+        setLastEditDate(new Date())
 
         setInitialContent(content)
         setInitialCategory(category)
@@ -180,7 +208,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
           <EditorHeader />
         </CardHeader>
         {!isFullscreen && (
-          <CardContent className="flex-1 flex flex-col min-h-[300px] overflow-hidden">
+          <CardContent className="flex-1 flex flex-col min-h-[300px] overflow-hidden gap-2">
             <RichTextEditor
               value={content}
               onChange={setContent}
@@ -192,11 +220,29 @@ export function NoteCard({ projectId }: { projectId?: string }) {
               }}
               className="flex-1 overflow-hidden h-full"
             />
+            {(noteId || lastEditor || creatorName) && (
+              <div className="text-xs text-muted-foreground pt-2 border-t mt-auto text-left">
+                {lastEditor ? (
+                  <>
+                    Última edição por:{' '}
+                    <span className="font-medium text-foreground/80">{lastEditor}</span>
+                  </>
+                ) : creatorName ? (
+                  <>
+                    Criado por:{' '}
+                    <span className="font-medium text-foreground/80">{creatorName}</span>
+                  </>
+                ) : null}
+                {lastEditDate &&
+                  ` em ${lastEditDate.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`}
+              </div>
+            )}
           </CardContent>
         )}
       </Card>
 
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+        {' '}
         <DialogContent
           className="max-w-[95vw] w-full h-[95vh] p-0 flex flex-col gap-0 border-none shadow-2xl overflow-hidden rounded-xl"
           aria-describedby="fullscreen-editor"
@@ -217,11 +263,28 @@ export function NoteCard({ projectId }: { projectId?: string }) {
                 onBlur={() => {
                   isFocusedRef.current = false
                 }}
-                className="border-0 rounded-none h-full"
+                className="flex-1 border-0 rounded-none h-full overflow-hidden"
               />
+              {(noteId || lastEditor || creatorName) && (
+                <div className="text-xs text-muted-foreground py-2 px-4 border-t bg-muted/5 shrink-0">
+                  {lastEditor ? (
+                    <>
+                      Última edição por:{' '}
+                      <span className="font-medium text-foreground/80">{lastEditor}</span>
+                    </>
+                  ) : creatorName ? (
+                    <>
+                      Criado por:{' '}
+                      <span className="font-medium text-foreground/80">{creatorName}</span>
+                    </>
+                  ) : null}
+                  {lastEditDate &&
+                    ` em ${lastEditDate.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`}
+                </div>
+              )}
             </div>
           )}
-        </DialogContent>
+        </DialogContent>{' '}
       </Dialog>
     </div>
   )

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T23:37:13.677Z",
+  "generatedAt": "2026-04-30T23:47:29.806Z",
   "collections": [
     {
       "name": "users",
@@ -3022,10 +3022,10 @@
       "name": "user_notes",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && user = @request.auth.id",
-        "view": "@request.auth.id != '' && user = @request.auth.id",
+        "list": "@request.auth.id != '' && (user = @request.auth.id || @request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto' || (project != '' && project.user_project_access_via_project.user ?= @request.auth.id))",
+        "view": "@request.auth.id != '' && (user = @request.auth.id || @request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto' || (project != '' && project.user_project_access_via_project.user ?= @request.auth.id))",
         "create": "@request.auth.id != '' && user = @request.auth.id",
-        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "update": "@request.auth.id != '' && (user = @request.auth.id || @request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto' || (project != '' && project.user_project_access_via_project.user ?= @request.auth.id))",
         "delete": "@request.auth.id != '' && user = @request.auth.id"
       },
       "fields": [
@@ -3068,6 +3068,13 @@
           "required": false,
           "system": false,
           "collectionRef": "projects"
+        },
+        {
+          "name": "last_editor",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": []

@@ -207,10 +207,10 @@ export default function ClientProjectDetails() {
   }
 
   const handleDeleteDoc = async (id: string) => {
-    if (!confirm('Deseja excluir este documento?')) return
+    if (!confirm('Deseja excluir este arquivo?')) return
     try {
       await deleteProjectDocument(id)
-      toast({ title: 'Sucesso', description: 'Documento excluído.' })
+      toast({ title: 'Sucesso', description: 'Arquivo excluído.' })
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     }
@@ -594,61 +594,80 @@ export default function ClientProjectDetails() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" /> Central de Documentos
+                <FileText className="w-5 h-5 text-primary" /> Arquivos do Projeto
               </CardTitle>
               {canUploadDocs && <ClientDocumentUpload projectId={project.id} />}
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {documents.length === 0 ? (
-                  <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
-                    Nenhum documento anexado ao projeto.
-                  </div>
-                ) : (
-                  documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary/50 transition-colors bg-muted/20"
-                    >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="bg-primary/10 p-2 rounded-md shrink-0">
-                          <File className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="overflow-hidden">
-                          <p className="text-sm font-medium truncate" title={doc.nome_arquivo}>
-                            {doc.nome_arquivo}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{doc.tipo}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {doc.arquivo && (
-                          <a
-                            href={pb.files.getUrl(doc, doc.arquivo)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            download
-                          >
-                            <Button variant="ghost" size="icon" title="Baixar documento">
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          </a>
-                        )}
-                        {canDeleteDocs && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Excluir documento"
-                            onClick={() => handleDeleteDoc(doc.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              {documents.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground border-2 border-dashed rounded-lg">
+                  Nenhum arquivo anexado ao projeto.
+                </div>
+              ) : (
+                <div className="rounded-md border bg-card">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome do Arquivo</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Data de Envio</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {documents.map((doc) => (
+                        <TableRow key={doc.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <File className="w-4 h-4 text-primary shrink-0" />
+                              <span
+                                className="truncate max-w-[200px] sm:max-w-[300px]"
+                                title={doc.nome_arquivo}
+                              >
+                                {doc.nome_arquivo}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="font-normal">
+                              {doc.tipo}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {formatDate(doc.created)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {doc.arquivo && (
+                                <a
+                                  href={pb.files.getUrl(doc, doc.arquivo)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                >
+                                  <Button variant="ghost" size="icon" title="Baixar arquivo">
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                </a>
+                              )}
+                              {canDeleteDocs && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Excluir arquivo"
+                                  onClick={() => handleDeleteDoc(doc.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

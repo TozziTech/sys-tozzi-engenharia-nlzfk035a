@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { FileText, Building2, Droplets, Zap, Paintbrush, Send } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { FileText, Building2, Droplets, Zap, Paintbrush, Send, CalendarDays } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } fro
 import { format } from 'date-fns'
 import pb from '@/lib/pocketbase/client'
 import { createComment } from '@/services/client_dashboard'
+import { Calendar } from '@/components/ui/calendar'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 const iconMap: Record<string, React.ElementType> = {
   FileText,
@@ -20,61 +23,196 @@ const iconMap: Record<string, React.ElementType> = {
 
 export function TimelineView({ phases, progress }: { phases: any[]; progress: number }) {
   return (
-    <div className="w-full overflow-x-auto pb-6 scrollbar-hide">
-      <div className="relative flex justify-between w-full min-w-[700px] px-8">
-        <div className="absolute top-6 left-8 right-8 h-1 bg-secondary -z-10 rounded-full" />
-        <div
-          className="absolute top-6 left-8 h-1 bg-primary -z-10 rounded-full transition-all duration-1000 ease-in-out"
-          style={{ width: `${progress}%` }}
-        />
-        {phases.map((phase) => {
-          const Icon = iconMap[phase.icone] || FileText
-          const isCompleted = phase.status === 'Concluído'
-          const isInProgress = phase.status === 'Em Andamento'
+    <div className="relative border-l-2 border-muted ml-3 md:ml-6 space-y-6 pb-4 pt-2">
+      {phases.map((phase, index) => {
+        const Icon = iconMap[phase.icone] || FileText
+        const isCompleted = phase.status === 'Concluído'
+        const isInProgress = phase.status === 'Em Andamento'
+        const isApproved = phase.status === 'Aprovado'
 
-          return (
-            <div key={phase.id} className="flex flex-col items-center gap-3 relative group">
-              <div className="bg-card px-2">
-                <div
-                  className={cn(
-                    'w-12 h-12 rounded-full flex items-center justify-center border-4 z-10 transition-all duration-300',
-                    isCompleted
-                      ? 'bg-primary border-primary text-primary-foreground shadow-sm'
-                      : isInProgress
-                        ? 'bg-blue-500 border-blue-200 text-white dark:border-blue-900 shadow-md scale-110'
-                        : 'bg-secondary border-muted text-muted-foreground',
-                  )}
-                >
-                  <Icon className="w-5 h-5" />
+        const statusColor =
+          isCompleted || isApproved
+            ? 'text-emerald-600 dark:text-emerald-500'
+            : isInProgress
+              ? 'text-primary'
+              : 'text-muted-foreground'
+        const bgColor =
+          isCompleted || isApproved ? 'bg-emerald-500' : isInProgress ? 'bg-primary' : 'bg-muted'
+
+        return (
+          <div key={phase.id} className="relative pl-6 md:pl-8 group">
+            {/* Timeline dot */}
+            <div
+              className={cn(
+                'absolute -left-[11px] top-1.5 w-5 h-5 rounded-full border-4 border-background shadow-sm transition-colors duration-300',
+                bgColor,
+                isInProgress && 'animate-pulse',
+              )}
+            />
+
+            <div
+              className={cn(
+                'p-4 rounded-lg border bg-card shadow-sm transition-all duration-300 hover:shadow-md',
+                isInProgress && 'border-primary/50 shadow-primary/5',
+              )}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn('p-2.5 rounded-md bg-muted/50 transition-colors', statusColor)}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-foreground leading-none mb-1.5">
+                      {phase.nome_fase}
+                    </h4>
+                    {phase.data_conclusao_estimada ? (
+                      <span className="inline-flex items-center text-xs text-muted-foreground font-medium">
+                        <CalendarDays className="w-3.5 h-3.5 mr-1" />
+                        Prev: {format(new Date(phase.data_conclusao_estimada), 'dd/MM/yyyy')}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Data não definida</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="text-center w-28">
-                <p
+
+                <Badge
+                  variant={
+                    isCompleted || isApproved ? 'default' : isInProgress ? 'secondary' : 'outline'
+                  }
                   className={cn(
-                    'text-sm font-semibold transition-colors duration-300 line-clamp-1',
-                    isCompleted || isInProgress ? 'text-foreground' : 'text-muted-foreground',
-                  )}
-                >
-                  {phase.nome_fase}
-                </p>
-                <p
-                  className={cn(
-                    'text-xs uppercase tracking-wider mt-1 font-medium',
-                    isCompleted
-                      ? 'text-primary'
+                    'w-fit',
+                    isCompleted || isApproved
+                      ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
                       : isInProgress
-                        ? 'text-blue-500'
-                        : 'text-muted-foreground',
+                        ? 'bg-primary/10 text-primary hover:bg-primary/20 border-transparent'
+                        : '',
                   )}
                 >
                   {phase.status}
-                </p>
+                </Badge>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      'h-full transition-all duration-1000 ease-out',
+                      isCompleted || isApproved ? 'bg-emerald-500' : 'bg-primary',
+                    )}
+                    style={{ width: `${phase.progresso || 0}%` }}
+                  />
+                </div>
+                <span className="text-xs font-bold w-12 text-right text-muted-foreground">
+                  {phase.progresso || 0}%
+                </span>
               </div>
             </div>
-          )
-        })}
-      </div>
+          </div>
+        )
+      })}
     </div>
+  )
+}
+
+export function ClientProjectCalendar({ phases, payments }: { phases: any[]; payments: any[] }) {
+  const [date, setDate] = useState<Date | undefined>(new Date())
+
+  const events = useMemo(() => {
+    const evs: any[] = []
+    phases.forEach((p) => {
+      if (p.data_conclusao_estimada) {
+        evs.push({
+          date: new Date(p.data_conclusao_estimada),
+          title: `Fase: ${p.nome_fase}`,
+          type: 'phase',
+          status: p.status,
+        })
+      }
+    })
+    payments.forEach((p) => {
+      if (p.data_vencimento) {
+        evs.push({
+          date: new Date(p.data_vencimento),
+          title: `Pagamento: ${p.descricao}`,
+          type: 'payment',
+          status: p.status,
+        })
+      }
+    })
+    return evs
+  }, [phases, payments])
+
+  const selectedEvents = useMemo(() => {
+    if (!date) return []
+    return events.filter((e) => e.date.toDateString() === date.toDateString())
+  }, [date, events])
+
+  const eventDates = events.map((e) => e.date)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CalendarDays className="w-5 h-5 text-primary" /> Calendário do Projeto
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={setDate}
+          modifiers={{ hasEvent: eventDates }}
+          modifiersStyles={{
+            hasEvent: {
+              fontWeight: 'bold',
+              textDecoration: 'underline',
+              textDecorationColor: 'hsl(var(--primary))',
+              textUnderlineOffset: '4px',
+            },
+          }}
+          className="rounded-md border shadow-sm w-full max-w-[320px] flex justify-center bg-card"
+        />
+        <div className="w-full mt-4 space-y-3">
+          <h4 className="text-sm font-semibold border-b pb-1">
+            {date ? format(date, 'dd/MM/yyyy') : 'Selecione uma data'}
+          </h4>
+          {selectedEvents.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-2">
+              Nenhum evento nesta data.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {selectedEvents.map((ev, i) => (
+                <div key={i} className="flex flex-col p-2.5 rounded-md border bg-muted/30 text-sm">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-semibold text-foreground line-clamp-1" title={ev.title}>
+                      {ev.title}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Status: {ev.status}</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-[10px] h-5 px-1.5 font-medium',
+                        ev.type === 'payment'
+                          ? 'border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-500/10'
+                          : 'border-primary text-primary bg-primary/5',
+                      )}
+                    >
+                      {ev.type === 'payment' ? 'Pagamento' : 'Fase'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -100,7 +238,7 @@ export function CommentsFeed({
     }
   }
 
-  const formatDate = (dateStr: string) => {
+  const formatDateStr = (dateStr: string) => {
     if (!dateStr) return ''
     return format(new Date(dateStr), 'dd/MM/yyyy HH:mm')
   }
@@ -123,7 +261,9 @@ export function CommentsFeed({
             <div className="bg-muted p-3 rounded-lg text-sm flex-1">
               <div className="flex justify-between items-center mb-1">
                 <span className="font-semibold">{comment.expand?.autor?.name || 'Usuário'}</span>
-                <span className="text-xs text-muted-foreground">{formatDate(comment.created)}</span>
+                <span className="text-xs text-muted-foreground">
+                  {formatDateStr(comment.created)}
+                </span>
               </div>
               <p className="text-muted-foreground">{comment.mensagem}</p>
             </div>

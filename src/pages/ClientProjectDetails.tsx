@@ -36,7 +36,11 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import pb from '@/lib/pocketbase/client'
 import { format } from 'date-fns'
-import { TimelineView, EvolutionChart } from '@/components/client-dashboard/ClientWidgets'
+import {
+  TimelineView,
+  EvolutionChart,
+  ClientProjectCalendar,
+} from '@/components/client-dashboard/ClientWidgets'
 import { exportProjectProgressPDF } from '@/lib/exportPdf'
 import { ClientComments } from '@/components/client-dashboard/ClientComments'
 import { ClientDocumentUpload } from '@/components/client-dashboard/ClientDocumentUpload'
@@ -660,6 +664,9 @@ export default function ClientProjectDetails() {
               </CardContent>
             </Card>
           )}
+
+          <ClientProjectCalendar phases={phases} payments={payments} />
+
           <Card>
             <CardHeader>
               <CardTitle>Evolução do Progresso</CardTitle>

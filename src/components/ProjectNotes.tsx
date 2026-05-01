@@ -110,8 +110,12 @@ export function ProjectNotes({ projectId, enabled }: { projectId: string; enable
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-      <div className="space-y-6">
+    <div className="flex flex-col gap-6 w-full">
+      <div className="w-full">
+        <ProjectInternalChecklist projectId={projectId} enabled={enabled} />
+      </div>
+
+      <div className="space-y-6 w-full">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-medium">Anotações do Projeto</h3>
           {!isCreating && (
@@ -244,9 +248,6 @@ export function ProjectNotes({ projectId, enabled }: { projectId: string; enable
             ))}
           </div>
         )}
-      </div>
-      <div className="lg:sticky lg:top-6">
-        <ProjectInternalChecklist projectId={projectId} enabled={enabled} />
       </div>
     </div>
   )

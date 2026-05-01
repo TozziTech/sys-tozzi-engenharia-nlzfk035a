@@ -227,7 +227,7 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                     </>
                   )}
                 </div>
-              </TableCell>{' '}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

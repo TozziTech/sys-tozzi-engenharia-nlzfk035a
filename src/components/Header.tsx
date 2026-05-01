@@ -4,7 +4,6 @@ import {
   Plus,
   Check,
   AlertTriangle,
-  Activity,
   Database,
   FolderGit2,
   CheckSquare,
@@ -400,16 +399,6 @@ export function Header() {
           </Popover>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Link to="/performance">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden md:flex gap-2 text-muted-foreground hover:text-foreground"
-            >
-              <Activity className="h-4 w-4" />
-              <span>Performance</span>
-            </Button>
-          </Link>
           <DensityToggle />
           <ThemeToggle />
           <Popover>

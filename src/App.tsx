@@ -11,7 +11,6 @@ import ExecutiveDashboard from './pages/ExecutiveDashboard'
 import DeadlineAudit from './pages/DeadlineAudit'
 import DesignerPanel from './pages/DesignerPanel'
 import MeuPainel from './pages/MeuPainel'
-import Performance from './pages/Performance'
 import { ThemeProvider } from './components/ThemeProvider'
 import Projects from './pages/Projects'
 import { useEffect } from 'react'
@@ -159,7 +158,6 @@ const App = () => (
                     <Route path="/financial-dashboard" element={<FinancialDashboard />} />
                     <Route path="/diagnostics" element={<Bottlenecks />} />
                     <Route path="/bottlenecks" element={<Bottlenecks />} />
-                    <Route path="/performance" element={<Performance />} />
                     <Route path="/deadline-audit" element={<DeadlineAudit />} />
                     <Route path="/management/bank-accounts" element={<BankAccounts />} />
                     <Route path="/financial" element={<Financial />} />

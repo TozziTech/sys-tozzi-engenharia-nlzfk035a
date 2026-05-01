@@ -12,7 +12,7 @@ import { RichTextEditor } from '@/components/RichTextEditor'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
-import { FileText, CheckCircle2, Maximize2, Minimize2 } from 'lucide-react'
+import { FileText, Maximize2, Minimize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -24,78 +24,38 @@ export function NoteCard({ projectId }: { projectId?: string }) {
   const { toast } = useToast()
 
   const [noteId, setNoteId] = useState<string | null>(null)
-
-  const [serverContent, setServerContent] = useState('')
-  const [initialContent, setInitialContent] = useState('')
+  const [editorContent, setEditorContent] = useState('')
   const localContentRef = useRef('')
 
   const [category, setCategory] = useState('Geral')
-  const [initialCategory, setInitialCategory] = useState('Geral')
-  const categoryRef = useRef(category)
 
   const [lastEditor, setLastEditor] = useState<string | null>(null)
   const [creatorName, setCreatorName] = useState<string | null>(null)
   const [lastEditDate, setLastEditDate] = useState<Date | null>(null)
 
   const [isSaving, setIsSaving] = useState(false)
-  const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  const [isDirtyState, setIsDirtyState] = useState(false)
-
   const isFocusedRef = useRef(false)
-  const isDirtyRef = useRef(false)
-  const isSavingRef = useRef(false)
-  const dirtyTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const hasUnsavedChangesRef = useRef(false)
 
-  useEffect(() => {
-    categoryRef.current = category
-  }, [category])
+  const handleEditorChange = useCallback((val: string) => {
+    localContentRef.current = val
+    hasUnsavedChangesRef.current = true
+  }, [])
 
-  const evaluateDirty = useCallback(() => {
-    const dirty =
-      localContentRef.current !== initialContent || categoryRef.current !== initialCategory
-    setIsDirtyState(dirty)
-    isDirtyRef.current = dirty
-  }, [initialContent, initialCategory])
-
-  const handleEditorChange = useCallback(
-    (val: string) => {
-      localContentRef.current = val
-      if (dirtyTimerRef.current) clearTimeout(dirtyTimerRef.current)
-      dirtyTimerRef.current = setTimeout(() => {
-        evaluateDirty()
-      }, 500)
-    },
-    [evaluateDirty],
-  )
-
-  const handleCategoryChange = useCallback(
-    (val: string) => {
-      setCategory(val)
-      categoryRef.current = val
-      evaluateDirty()
-    },
-    [evaluateDirty],
-  )
-
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirtyRef.current) {
-        e.preventDefault()
-        e.returnValue = ''
-      }
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  const handleCategoryChange = useCallback((val: string) => {
+    setCategory(val)
+    hasUnsavedChangesRef.current = true
   }, [])
 
   const loadNote = useCallback(
     async (force = false) => {
       if (!user) return
       if (isFocusedRef.current && !force) return
-      if (isDirtyRef.current && !force) return
+      if (hasUnsavedChangesRef.current && !force) return
+
       try {
         const filter = projectId
           ? `project = "${projectId}"`
@@ -108,41 +68,32 @@ export function NoteCard({ projectId }: { projectId?: string }) {
         })
 
         if (isFocusedRef.current && !force) return
-        if (isDirtyRef.current && !force) return
+        if (hasUnsavedChangesRef.current && !force) return
 
         if (result.items && result.items.length > 0) {
           const note = result.items[0]
           const newContent = note.content || ''
           setNoteId(note.id)
-          setServerContent(newContent)
-          setInitialContent(newContent)
+          setEditorContent(newContent)
           localContentRef.current = newContent
 
           const newCat = note.category || 'Geral'
           setCategory(newCat)
-          setInitialCategory(newCat)
-          categoryRef.current = newCat
 
           setLastEditor(note.expand?.last_editor?.name || null)
           setCreatorName(note.expand?.user?.name || null)
           setLastEditDate(note.updated ? new Date(note.updated) : null)
         } else {
           setNoteId(null)
-          setServerContent('')
-          setInitialContent('')
+          setEditorContent('')
           localContentRef.current = ''
-
           setCategory('Geral')
-          setInitialCategory('Geral')
-          categoryRef.current = 'Geral'
-
           setLastEditor(null)
           setCreatorName(null)
           setLastEditDate(null)
         }
         setIsLoaded(true)
-        setIsDirtyState(false)
-        isDirtyRef.current = false
+        hasUnsavedChangesRef.current = false
       } catch (err) {
         console.error('Error loading note:', err)
         setIsLoaded(true)
@@ -172,61 +123,51 @@ export function NoteCard({ projectId }: { projectId?: string }) {
     const isMatch = projectId ? eProject === projectId : !eProject && e.record.user === user?.id
 
     if (isMatch) {
-      if (isSavingRef.current) return
+      if (isSaving) return
 
       const isOwnUpdate = e.record.last_editor === user?.id
       if (isOwnUpdate) return
 
       if (isFocusedRef.current) return
-      if (isDirtyRef.current) return
+      if (hasUnsavedChangesRef.current) return
 
       const newContent = e.record.content || ''
       setNoteId(e.record.id)
-      setServerContent(newContent)
-      setInitialContent(newContent)
+      setEditorContent(newContent)
       localContentRef.current = newContent
 
       const newCat = e.record.category || 'Geral'
       setCategory(newCat)
-      setInitialCategory(newCat)
-      categoryRef.current = newCat
 
       setLastEditDate(e.record.updated ? new Date(e.record.updated) : null)
 
       fetchEditorNames(e.record)
-      setIsDirtyState(false)
-      isDirtyRef.current = false
+      hasUnsavedChangesRef.current = false
     }
   })
 
   const handleSave = async () => {
-    if (!isLoaded || !isDirtyRef.current) return
+    if (!isLoaded) return
 
     setIsSaving(true)
-    isSavingRef.current = true
     try {
       const payloadContent = localContentRef.current
-      const payloadCategory = categoryRef.current
+      const payloadCategory = category
 
       const data = {
         user: user?.id,
         content: payloadContent,
         category: payloadCategory,
         ...(projectId ? { project: projectId } : { project: null }),
-      }
-
-      const saveData = {
-        ...data,
         last_editor: user?.id,
       }
 
       let record
       if (noteId) {
-        // Prevent overwriting the original creator on update
-        delete saveData.user
-        record = await pb.collection('user_notes').update(noteId, saveData)
+        delete data.user
+        record = await pb.collection('user_notes').update(noteId, data)
       } else {
-        record = await pb.collection('user_notes').create(saveData)
+        record = await pb.collection('user_notes').create(data)
         setNoteId(record.id)
         setCreatorName(user?.name || null)
       }
@@ -234,17 +175,8 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       setLastEditor(user?.name || null)
       setLastEditDate(new Date())
 
-      // Only update the reference baseline for what was actually saved.
-      // We do not overwrite localContentRef.current so we don't lose typing during the save request.
-      setServerContent(payloadContent)
-      setInitialContent(payloadContent)
-      setInitialCategory(payloadCategory)
-      setLastSaved(new Date())
-
-      const isStillDirty =
-        localContentRef.current !== payloadContent || categoryRef.current !== payloadCategory
-      setIsDirtyState(isStillDirty)
-      isDirtyRef.current = isStillDirty
+      setEditorContent(payloadContent)
+      hasUnsavedChangesRef.current = false
 
       toast({
         title: 'Anotação salva',
@@ -259,7 +191,6 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       })
     } finally {
       setIsSaving(false)
-      isSavingRef.current = false
     }
   }
 
@@ -278,7 +209,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
         <div className="text-sm text-muted-foreground">
           {projectId
             ? 'Suas anotações privadas para este projeto.'
-            : 'Anotações gerais e rascunhos salvos automaticamente.'}
+            : 'Anotações gerais e rascunhos.'}
         </div>
       </div>
       <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -295,31 +226,12 @@ export function NoteCard({ projectId }: { projectId?: string }) {
         </Select>
 
         <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground whitespace-nowrap w-[150px] shrink-0 flex justify-end items-center">
-            {isSaving ? (
-              <span className="flex items-center gap-1.5 text-blue-500">
-                <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-                Salvando...
-              </span>
-            ) : isDirtyState ? (
-              <span className="flex items-center gap-1.5 text-amber-500">
-                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                Alterações pendentes
-              </span>
-            ) : lastSaved ? (
-              <span className="flex items-center gap-1.5 text-emerald-500">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Salvo
-              </span>
-            ) : null}
-          </div>
-
           <Button
             variant="outline"
             size="sm"
             className="h-8 gap-2"
             onClick={handleSave}
-            disabled={isSaving || !isDirtyState}
+            disabled={isSaving}
           >
             Salvar
           </Button>
@@ -347,7 +259,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
         {!isFullscreen && (
           <CardContent className="flex-1 flex flex-col min-h-[300px] overflow-hidden gap-2">
             <RichTextEditor
-              value={serverContent}
+              value={editorContent}
               onChange={handleEditorChange}
               onFocus={() => {
                 isFocusedRef.current = true
@@ -378,7 +290,6 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       </Card>
 
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        {' '}
         <DialogContent
           className="max-w-[95vw] w-full h-[95vh] p-0 flex flex-col gap-0 border-none shadow-2xl overflow-hidden rounded-xl"
           aria-describedby="fullscreen-editor"
@@ -391,7 +302,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
           {isFullscreen && (
             <div className="flex-1 overflow-hidden flex flex-col p-0">
               <RichTextEditor
-                value={serverContent}
+                value={editorContent}
                 onChange={handleEditorChange}
                 onFocus={() => {
                   isFocusedRef.current = true
@@ -419,7 +330,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
               )}
             </div>
           )}
-        </DialogContent>{' '}
+        </DialogContent>
       </Dialog>
     </div>
   )

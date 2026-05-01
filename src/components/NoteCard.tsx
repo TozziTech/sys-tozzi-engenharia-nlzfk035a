@@ -40,10 +40,22 @@ export function NoteCard({ projectId }: { projectId?: string }) {
 
   const isFocusedRef = useRef(false)
   const isDirtyRef = useRef(false)
+  const isDirty = content !== initialContent || category !== initialCategory
 
   useEffect(() => {
-    isDirtyRef.current = content !== initialContent || category !== initialCategory
-  }, [content, initialContent, category, initialCategory])
+    isDirtyRef.current = isDirty
+  }, [isDirty])
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirtyRef.current) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
 
   const loadNote = useCallback(
     async (force = false) => {
@@ -132,50 +144,51 @@ export function NoteCard({ projectId }: { projectId?: string }) {
     }
   })
 
-  useEffect(() => {
-    if (!isLoaded || (content === initialContent && category === initialCategory)) return
+  const handleSave = async () => {
+    if (!isLoaded || !isDirty) return
 
-    const timeoutId = setTimeout(async () => {
-      setIsSaving(true)
-      try {
-        const data = {
-          user: user?.id,
-          content,
-          category,
-          ...(projectId ? { project: projectId } : { project: null }),
-        }
-
-        const saveData = {
-          ...data,
-          last_editor: user?.id,
-        }
-
-        if (noteId) {
-          // Prevent overwriting the original creator on update
-          delete saveData.user
-          await pb.collection('user_notes').update(noteId, saveData)
-        } else {
-          const record = await pb.collection('user_notes').create(saveData)
-          setNoteId(record.id)
-          setCreatorName(user?.name || null)
-        }
-
-        setLastEditor(user?.name || null)
-        setLastEditDate(new Date())
-
-        setInitialContent(content)
-        setInitialCategory(category)
-        setLastSaved(new Date())
-      } catch (err) {
-        console.error('Error saving note:', err)
-        toast({ title: 'Erro ao salvar anotação', variant: 'destructive' })
-      } finally {
-        setIsSaving(false)
+    setIsSaving(true)
+    try {
+      const data = {
+        user: user?.id,
+        content,
+        category,
+        ...(projectId ? { project: projectId } : { project: null }),
       }
-    }, 1500)
 
-    return () => clearTimeout(timeoutId)
-  }, [content, initialContent, category, initialCategory, noteId, user, isLoaded, projectId, toast])
+      const saveData = {
+        ...data,
+        last_editor: user?.id,
+      }
+
+      if (noteId) {
+        // Prevent overwriting the original creator on update
+        delete saveData.user
+        await pb.collection('user_notes').update(noteId, saveData)
+      } else {
+        const record = await pb.collection('user_notes').create(saveData)
+        setNoteId(record.id)
+        setCreatorName(user?.name || null)
+      }
+
+      setLastEditor(user?.name || null)
+      setLastEditDate(new Date())
+
+      setInitialContent(content)
+      setInitialCategory(category)
+      setLastSaved(new Date())
+
+      toast({
+        title: 'Anotação salva',
+        description: 'Suas alterações foram salvas com sucesso.',
+      })
+    } catch (err) {
+      console.error('Error saving note:', err)
+      toast({ title: 'Erro ao salvar anotação', variant: 'destructive' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const EditorHeader = ({ inDialog }: { inDialog?: boolean }) => (
     <div
@@ -215,10 +228,10 @@ export function NoteCard({ projectId }: { projectId?: string }) {
                 <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                 Salvando...
               </span>
-            ) : content !== initialContent || category !== initialCategory ? (
+            ) : isDirty ? (
               <span className="flex items-center gap-1.5 justify-end text-amber-500">
                 <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                Aguardando...
+                Alterações pendentes
               </span>
             ) : lastSaved ? (
               <span className="flex items-center gap-1.5 justify-end text-emerald-500">
@@ -227,6 +240,16 @@ export function NoteCard({ projectId }: { projectId?: string }) {
               </span>
             ) : null}
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-2"
+            onClick={handleSave}
+            disabled={isSaving || !isDirty}
+          >
+            Salvar
+          </Button>
 
           <Button
             variant="ghost"

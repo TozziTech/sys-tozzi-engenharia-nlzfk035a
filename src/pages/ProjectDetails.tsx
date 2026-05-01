@@ -83,6 +83,7 @@ import { ProjectComments } from '@/components/ProjectComments'
 import { ProjectModules } from '@/components/ProjectModules'
 import { ProjectFinanceTab } from '@/components/ProjectFinanceTab'
 import { ProjectTimeline } from '@/components/ProjectTimeline'
+import { ProjectNotes } from '@/components/ProjectNotes'
 import ProjectCalendar from '@/pages/ProjectCalendar'
 import {
   AlertDialog,
@@ -1314,7 +1315,7 @@ export default function ProjectDetails() {
           <TabsList
             className={cn(
               'inline-flex w-max sm:w-full h-auto gap-1 p-1 min-w-full',
-              canAccessFinance ? 'sm:grid sm:grid-cols-6' : 'sm:grid sm:grid-cols-5',
+              canAccessFinance ? 'sm:grid sm:grid-cols-7' : 'sm:grid sm:grid-cols-6',
             )}
           >
             <TabsTrigger value="gestao" className="flex-1 min-w-[140px] sm:min-w-[120px]">
@@ -1322,6 +1323,9 @@ export default function ProjectDetails() {
             </TabsTrigger>
             <TabsTrigger value="operacional" className="flex-1 min-w-[140px] sm:min-w-[120px]">
               Operacional
+            </TabsTrigger>
+            <TabsTrigger value="anotacoes" className="flex-1 min-w-[140px] sm:min-w-[120px]">
+              Anotações
             </TabsTrigger>
             <TabsTrigger value="cronograma" className="flex-1 min-w-[140px] sm:min-w-[120px]">
               Cronograma
@@ -2034,6 +2038,10 @@ export default function ProjectDetails() {
 
         <TabsContent value="operacional" className="mt-6 outline-none">
           <ProjectModules projectId={project.id} enabled={enableSubscriptions} />
+        </TabsContent>
+
+        <TabsContent value="anotacoes" className="mt-6 outline-none">
+          <ProjectNotes projectId={project.id} enabled={enableSubscriptions} />
         </TabsContent>
 
         <TabsContent value="cronograma" className="mt-6 outline-none">

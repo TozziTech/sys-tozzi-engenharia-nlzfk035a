@@ -46,6 +46,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
 
   const isFocusedRef = useRef(false)
   const isDirtyRef = useRef(false)
+  const isSavingRef = useRef(false)
   const dirtyTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -171,6 +172,8 @@ export function NoteCard({ projectId }: { projectId?: string }) {
     const isMatch = projectId ? eProject === projectId : !eProject && e.record.user === user?.id
 
     if (isMatch) {
+      if (isSavingRef.current) return
+
       const isOwnUpdate = e.record.last_editor === user?.id
       if (isOwnUpdate) return
 
@@ -200,11 +203,15 @@ export function NoteCard({ projectId }: { projectId?: string }) {
     if (!isLoaded || !isDirtyRef.current) return
 
     setIsSaving(true)
+    isSavingRef.current = true
     try {
+      const payloadContent = localContentRef.current
+      const payloadCategory = categoryRef.current
+
       const data = {
         user: user?.id,
-        content: localContentRef.current,
-        category: categoryRef.current,
+        content: payloadContent,
+        category: payloadCategory,
         ...(projectId ? { project: projectId } : { project: null }),
       }
 
@@ -213,12 +220,13 @@ export function NoteCard({ projectId }: { projectId?: string }) {
         last_editor: user?.id,
       }
 
+      let record
       if (noteId) {
         // Prevent overwriting the original creator on update
         delete saveData.user
-        await pb.collection('user_notes').update(noteId, saveData)
+        record = await pb.collection('user_notes').update(noteId, saveData)
       } else {
-        const record = await pb.collection('user_notes').create(saveData)
+        record = await pb.collection('user_notes').create(saveData)
         setNoteId(record.id)
         setCreatorName(user?.name || null)
       }
@@ -226,11 +234,17 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       setLastEditor(user?.name || null)
       setLastEditDate(new Date())
 
-      setInitialContent(localContentRef.current)
-      setInitialCategory(categoryRef.current)
+      // Only update the reference baseline for what was actually saved.
+      // We do not overwrite localContentRef.current so we don't lose typing during the save request.
+      setServerContent(payloadContent)
+      setInitialContent(payloadContent)
+      setInitialCategory(payloadCategory)
       setLastSaved(new Date())
-      setIsDirtyState(false)
-      isDirtyRef.current = false
+
+      const isStillDirty =
+        localContentRef.current !== payloadContent || categoryRef.current !== payloadCategory
+      setIsDirtyState(isStillDirty)
+      isDirtyRef.current = isStillDirty
 
       toast({
         title: 'Anotação salva',
@@ -238,9 +252,14 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       })
     } catch (err) {
       console.error('Error saving note:', err)
-      toast({ title: 'Erro ao salvar anotação', variant: 'destructive' })
+      toast({
+        title: 'Erro ao salvar anotação',
+        description: 'Não foi possível salvar suas alterações. Tente novamente.',
+        variant: 'destructive',
+      })
     } finally {
       setIsSaving(false)
+      isSavingRef.current = false
     }
   }
 

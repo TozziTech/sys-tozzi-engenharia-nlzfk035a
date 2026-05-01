@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Trash2, GripVertical } from 'lucide-react'
+import { Trash2, GripVertical, Pencil, Check, X } from 'lucide-react'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
 import {
@@ -39,6 +39,8 @@ export function ProjectInternalChecklist({
 
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null)
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [editTaskTitle, setEditTaskTitle] = useState('')
 
   const loadTasks = useCallback(async () => {
     if (!projectId || !pb.authStore.isValid) return
@@ -108,6 +110,31 @@ export function ProjectInternalChecklist({
       await pb.collection('tasks').update(task.id, { priority })
     } catch (error) {
       toast({ title: 'Erro ao atualizar prioridade', variant: 'destructive' })
+    }
+  }
+
+  const handleEditStart = (task: InternalTask) => {
+    setEditingTaskId(task.id)
+    setEditTaskTitle(task.title)
+  }
+
+  const handleEditCancel = () => {
+    setEditingTaskId(null)
+    setEditTaskTitle('')
+  }
+
+  const handleEditSave = async (task: InternalTask) => {
+    if (!editTaskTitle.trim()) return
+    if (editTaskTitle.trim() === task.title) {
+      handleEditCancel()
+      return
+    }
+    try {
+      await pb.collection('tasks').update(task.id, { title: editTaskTitle.trim() })
+      setEditingTaskId(null)
+      setEditTaskTitle('')
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar título', variant: 'destructive' })
     }
   }
 
@@ -267,17 +294,49 @@ export function ProjectInternalChecklist({
                     onCheckedChange={() => handleToggle(task)}
                     className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                   />
-                  <label
-                    htmlFor={`task-${task.id}`}
-                    className={cn(
-                      'text-sm cursor-pointer select-none flex-1 break-words transition-all duration-200',
-                      task.status === 'Concluído'
-                        ? 'line-through text-muted-foreground'
-                        : 'text-foreground font-medium',
-                    )}
-                  >
-                    {task.title}
-                  </label>
+                  {editingTaskId === task.id ? (
+                    <div className="flex flex-1 items-center gap-2 pr-2">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editTaskTitle}
+                        onChange={(e) => setEditTaskTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleEditSave(task)
+                          if (e.key === 'Escape') handleEditCancel()
+                        }}
+                        className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 shrink-0"
+                        onClick={() => handleEditSave(task)}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:bg-muted shrink-0"
+                        onClick={handleEditCancel}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor={`task-${task.id}`}
+                      className={cn(
+                        'text-sm cursor-pointer select-none flex-1 break-words transition-all duration-200',
+                        task.status === 'Concluído'
+                          ? 'line-through text-muted-foreground'
+                          : 'text-foreground font-medium',
+                      )}
+                    >
+                      {task.title}
+                    </label>
+                  )}
                 </div>
                 <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto pl-10 sm:pl-0 gap-2 shrink-0">
                   <Select
@@ -299,6 +358,17 @@ export function ProjectInternalChecklist({
                       <SelectItem value="Urgente">Urgente</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {editingTaskId !== task.id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+                      onClick={() => handleEditStart(task)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
 
                   <Button
                     variant="ghost"

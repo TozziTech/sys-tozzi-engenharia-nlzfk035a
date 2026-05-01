@@ -16,7 +16,6 @@ import { FileText, Maximize2, Minimize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { useRealtime } from '@/hooks/use-realtime'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
 export function NoteCard({ projectId }: { projectId?: string }) {
@@ -41,6 +40,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
   const hasUnsavedChangesRef = useRef(false)
 
   const handleEditorChange = useCallback((val: string) => {
+    setEditorContent(val)
     localContentRef.current = val
     hasUnsavedChangesRef.current = true
   }, [])
@@ -106,46 +106,6 @@ export function NoteCard({ projectId }: { projectId?: string }) {
     loadNote(true)
   }, [loadNote])
 
-  const fetchEditorNames = useCallback(async (record: any) => {
-    try {
-      const result = await pb.collection('user_notes').getOne(record.id, {
-        expand: 'last_editor,user',
-      })
-      setLastEditor(result.expand?.last_editor?.name || null)
-      setCreatorName(result.expand?.user?.name || null)
-    } catch (e) {
-      console.error(e)
-    }
-  }, [])
-
-  useRealtime('user_notes', (e) => {
-    const eProject = e.record.project || undefined
-    const isMatch = projectId ? eProject === projectId : !eProject && e.record.user === user?.id
-
-    if (isMatch) {
-      if (isSaving) return
-
-      const isOwnUpdate = e.record.last_editor === user?.id
-      if (isOwnUpdate) return
-
-      if (isFocusedRef.current) return
-      if (hasUnsavedChangesRef.current) return
-
-      const newContent = e.record.content || ''
-      setNoteId(e.record.id)
-      setEditorContent(newContent)
-      localContentRef.current = newContent
-
-      const newCat = e.record.category || 'Geral'
-      setCategory(newCat)
-
-      setLastEditDate(e.record.updated ? new Date(e.record.updated) : null)
-
-      fetchEditorNames(e.record)
-      hasUnsavedChangesRef.current = false
-    }
-  })
-
   const handleSave = async () => {
     if (!isLoaded) return
 
@@ -176,6 +136,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       setLastEditDate(new Date())
 
       setEditorContent(payloadContent)
+      localContentRef.current = payloadContent
       hasUnsavedChangesRef.current = false
 
       toast({
@@ -267,6 +228,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
               onBlur={() => {
                 isFocusedRef.current = false
               }}
+              disabled={isSaving}
               className="flex-1 overflow-hidden h-full"
             />
             {(noteId || lastEditor || creatorName) && (
@@ -310,6 +272,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
                 onBlur={() => {
                   isFocusedRef.current = false
                 }}
+                disabled={isSaving}
                 className="flex-1 border-0 rounded-none h-full overflow-hidden"
               />
               {(noteId || lastEditor || creatorName) && (

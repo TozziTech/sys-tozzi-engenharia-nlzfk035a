@@ -47,13 +47,8 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const initialValueRef = useRef(value)
-  const isLocalChange = useRef(false)
 
   useEffect(() => {
-    if (isLocalChange.current) {
-      isLocalChange.current = false
-      return
-    }
     if (editorRef.current && editorRef.current.innerHTML !== value) {
       const selection = window.getSelection()
       const hasSelectionInEditor =
@@ -111,7 +106,6 @@ export function RichTextEditor({
       }
     }
     document.execCommand(command, false, arg)
-    isLocalChange.current = true
     onChange(editorRef.current?.innerHTML || '')
     saveSelection()
   }
@@ -327,7 +321,6 @@ export function RichTextEditor({
         contentEditable={!disabled}
         suppressContentEditableWarning={true}
         onInput={(e) => {
-          isLocalChange.current = true
           saveSelection()
           onChange(e.currentTarget.innerHTML)
         }}

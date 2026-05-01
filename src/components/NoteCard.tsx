@@ -24,10 +24,14 @@ export function NoteCard({ projectId }: { projectId?: string }) {
   const { toast } = useToast()
 
   const [noteId, setNoteId] = useState<string | null>(null)
-  const [content, setContent] = useState('')
+
+  const [serverContent, setServerContent] = useState('')
   const [initialContent, setInitialContent] = useState('')
+  const localContentRef = useRef('')
+
   const [category, setCategory] = useState('Geral')
   const [initialCategory, setInitialCategory] = useState('Geral')
+  const categoryRef = useRef(category)
 
   const [lastEditor, setLastEditor] = useState<string | null>(null)
   const [creatorName, setCreatorName] = useState<string | null>(null)
@@ -38,13 +42,42 @@ export function NoteCard({ projectId }: { projectId?: string }) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
+  const [isDirtyState, setIsDirtyState] = useState(false)
+
   const isFocusedRef = useRef(false)
   const isDirtyRef = useRef(false)
-  const isDirty = content !== initialContent || category !== initialCategory
+  const dirtyTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    isDirtyRef.current = isDirty
-  }, [isDirty])
+    categoryRef.current = category
+  }, [category])
+
+  const evaluateDirty = useCallback(() => {
+    const dirty =
+      localContentRef.current !== initialContent || categoryRef.current !== initialCategory
+    setIsDirtyState(dirty)
+    isDirtyRef.current = dirty
+  }, [initialContent, initialCategory])
+
+  const handleEditorChange = useCallback(
+    (val: string) => {
+      localContentRef.current = val
+      if (dirtyTimerRef.current) clearTimeout(dirtyTimerRef.current)
+      dirtyTimerRef.current = setTimeout(() => {
+        evaluateDirty()
+      }, 500)
+    },
+    [evaluateDirty],
+  )
+
+  const handleCategoryChange = useCallback(
+    (val: string) => {
+      setCategory(val)
+      categoryRef.current = val
+      evaluateDirty()
+    },
+    [evaluateDirty],
+  )
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -78,26 +111,37 @@ export function NoteCard({ projectId }: { projectId?: string }) {
 
         if (result.items && result.items.length > 0) {
           const note = result.items[0]
+          const newContent = note.content || ''
           setNoteId(note.id)
-          setContent(note.content || '')
-          setInitialContent(note.content || '')
-          setCategory(note.category || 'Geral')
-          setInitialCategory(note.category || 'Geral')
+          setServerContent(newContent)
+          setInitialContent(newContent)
+          localContentRef.current = newContent
+
+          const newCat = note.category || 'Geral'
+          setCategory(newCat)
+          setInitialCategory(newCat)
+          categoryRef.current = newCat
 
           setLastEditor(note.expand?.last_editor?.name || null)
           setCreatorName(note.expand?.user?.name || null)
           setLastEditDate(note.updated ? new Date(note.updated) : null)
         } else {
           setNoteId(null)
-          setContent('')
+          setServerContent('')
           setInitialContent('')
+          localContentRef.current = ''
+
           setCategory('Geral')
           setInitialCategory('Geral')
+          categoryRef.current = 'Geral'
+
           setLastEditor(null)
           setCreatorName(null)
           setLastEditDate(null)
         }
         setIsLoaded(true)
+        setIsDirtyState(false)
+        isDirtyRef.current = false
       } catch (err) {
         console.error('Error loading note:', err)
         setIsLoaded(true)
@@ -133,26 +177,34 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       if (isFocusedRef.current) return
       if (isDirtyRef.current) return
 
+      const newContent = e.record.content || ''
       setNoteId(e.record.id)
-      setContent(e.record.content || '')
-      setInitialContent(e.record.content || '')
-      setCategory(e.record.category || 'Geral')
-      setInitialCategory(e.record.category || 'Geral')
+      setServerContent(newContent)
+      setInitialContent(newContent)
+      localContentRef.current = newContent
+
+      const newCat = e.record.category || 'Geral'
+      setCategory(newCat)
+      setInitialCategory(newCat)
+      categoryRef.current = newCat
+
       setLastEditDate(e.record.updated ? new Date(e.record.updated) : null)
 
       fetchEditorNames(e.record)
+      setIsDirtyState(false)
+      isDirtyRef.current = false
     }
   })
 
   const handleSave = async () => {
-    if (!isLoaded || !isDirty) return
+    if (!isLoaded || !isDirtyRef.current) return
 
     setIsSaving(true)
     try {
       const data = {
         user: user?.id,
-        content,
-        category,
+        content: localContentRef.current,
+        category: categoryRef.current,
         ...(projectId ? { project: projectId } : { project: null }),
       }
 
@@ -174,9 +226,11 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       setLastEditor(user?.name || null)
       setLastEditDate(new Date())
 
-      setInitialContent(content)
-      setInitialCategory(category)
+      setInitialContent(localContentRef.current)
+      setInitialCategory(categoryRef.current)
       setLastSaved(new Date())
+      setIsDirtyState(false)
+      isDirtyRef.current = false
 
       toast({
         title: 'Anotação salva',
@@ -209,7 +263,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
         </div>
       </div>
       <div className="flex items-center gap-4 w-full sm:w-auto">
-        <Select value={category} onValueChange={setCategory}>
+        <Select value={category} onValueChange={handleCategoryChange}>
           <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs">
             <SelectValue placeholder="Categoria" />
           </SelectTrigger>
@@ -222,19 +276,19 @@ export function NoteCard({ projectId }: { projectId?: string }) {
         </Select>
 
         <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground whitespace-nowrap min-w-[80px] text-right">
+          <div className="text-xs text-muted-foreground whitespace-nowrap w-[150px] shrink-0 flex justify-end items-center">
             {isSaving ? (
-              <span className="flex items-center gap-1.5 justify-end text-blue-500">
+              <span className="flex items-center gap-1.5 text-blue-500">
                 <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                 Salvando...
               </span>
-            ) : isDirty ? (
-              <span className="flex items-center gap-1.5 justify-end text-amber-500">
+            ) : isDirtyState ? (
+              <span className="flex items-center gap-1.5 text-amber-500">
                 <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
                 Alterações pendentes
               </span>
             ) : lastSaved ? (
-              <span className="flex items-center gap-1.5 justify-end text-emerald-500">
+              <span className="flex items-center gap-1.5 text-emerald-500">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Salvo
               </span>
@@ -246,7 +300,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
             size="sm"
             className="h-8 gap-2"
             onClick={handleSave}
-            disabled={isSaving || !isDirty}
+            disabled={isSaving || !isDirtyState}
           >
             Salvar
           </Button>
@@ -274,8 +328,8 @@ export function NoteCard({ projectId }: { projectId?: string }) {
         {!isFullscreen && (
           <CardContent className="flex-1 flex flex-col min-h-[300px] overflow-hidden gap-2">
             <RichTextEditor
-              value={content}
-              onChange={setContent}
+              value={serverContent}
+              onChange={handleEditorChange}
               onFocus={() => {
                 isFocusedRef.current = true
               }}
@@ -318,8 +372,8 @@ export function NoteCard({ projectId }: { projectId?: string }) {
           {isFullscreen && (
             <div className="flex-1 overflow-hidden flex flex-col p-0">
               <RichTextEditor
-                value={content}
-                onChange={setContent}
+                value={serverContent}
+                onChange={handleEditorChange}
                 onFocus={() => {
                   isFocusedRef.current = true
                 }}

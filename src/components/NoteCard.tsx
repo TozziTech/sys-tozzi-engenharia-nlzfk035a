@@ -14,6 +14,8 @@ import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { FileText, CheckCircle2, Maximize2, Minimize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
@@ -91,7 +93,13 @@ export function NoteCard({ projectId }: { projectId?: string }) {
     const eProject = e.record.project || undefined
     const isMatch = projectId ? eProject === projectId : !eProject && e.record.user === user?.id
 
-    if (isMatch && !isFocusedRef.current) {
+    if (isMatch) {
+      const isOwnUpdate = e.record.last_editor === user?.id
+      const isDirty = content !== initialContent || category !== initialCategory
+
+      if (isOwnUpdate) return
+      if (isDirty) return
+
       loadNote()
     }
   })
@@ -175,13 +183,18 @@ export function NoteCard({ projectId }: { projectId?: string }) {
         <div className="flex items-center gap-3">
           <div className="text-xs text-muted-foreground whitespace-nowrap min-w-[80px] text-right">
             {isSaving ? (
-              <span className="flex items-center gap-1.5 justify-end">
+              <span className="flex items-center gap-1.5 justify-end text-blue-500">
                 <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                 Salvando...
               </span>
+            ) : content !== initialContent || category !== initialCategory ? (
+              <span className="flex items-center gap-1.5 justify-end text-amber-500">
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                Aguardando...
+              </span>
             ) : lastSaved ? (
-              <span className="flex items-center gap-1.5 justify-end">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="flex items-center gap-1.5 justify-end text-emerald-500">
+                <CheckCircle2 className="h-3.5 w-3.5" />
                 Salvo
               </span>
             ) : null}
@@ -233,8 +246,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
                     <span className="font-medium text-foreground/80">{creatorName}</span>
                   </>
                 ) : null}
-                {lastEditDate &&
-                  ` em ${lastEditDate.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`}
+                {lastEditDate && ` há ${formatDistanceToNow(lastEditDate, { locale: ptBR })}`}
               </div>
             )}
           </CardContent>
@@ -278,8 +290,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
                       <span className="font-medium text-foreground/80">{creatorName}</span>
                     </>
                   ) : null}
-                  {lastEditDate &&
-                    ` em ${lastEditDate.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`}
+                  {lastEditDate && ` há ${formatDistanceToNow(lastEditDate, { locale: ptBR })}`}
                 </div>
               )}
             </div>

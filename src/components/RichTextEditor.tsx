@@ -47,8 +47,13 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const initialValueRef = useRef(value)
+  const isLocalChange = useRef(false)
 
   useEffect(() => {
+    if (isLocalChange.current) {
+      isLocalChange.current = false
+      return
+    }
     if (editorRef.current && editorRef.current.innerHTML !== value) {
       if (!editorRef.current.contains(document.activeElement)) {
         editorRef.current.innerHTML = value || ''
@@ -91,9 +96,18 @@ export function RichTextEditor({
   }
 
   const execCommand = (command: string, arg?: string) => {
-    document.execCommand(command, false, arg)
     editorRef.current?.focus()
+    if (globalActiveEditor === editorRef.current && globalSavedRange) {
+      const selection = window.getSelection()
+      if (selection) {
+        selection.removeAllRanges()
+        selection.addRange(globalSavedRange)
+      }
+    }
+    document.execCommand(command, false, arg)
+    isLocalChange.current = true
     onChange(editorRef.current?.innerHTML || '')
+    saveSelection()
   }
 
   const handleImageClick = () => {
@@ -150,6 +164,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('bold')}
           title="Negrito"
         >
@@ -160,6 +175,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('italic')}
           title="Itálico"
         >
@@ -170,6 +186,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('underline')}
           title="Sublinhado"
         >
@@ -183,6 +200,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('justifyLeft')}
           title="Alinhar à Esquerda"
         >
@@ -193,6 +211,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('justifyCenter')}
           title="Centralizar"
         >
@@ -203,6 +222,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('justifyRight')}
           title="Alinhar à Direita"
         >
@@ -213,6 +233,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('justifyFull')}
           title="Justificar"
         >
@@ -226,6 +247,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('formatBlock', 'H1')}
           title="Título 1"
         >
@@ -236,6 +258,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('formatBlock', 'H2')}
           title="Título 2"
         >
@@ -246,6 +269,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('formatBlock', 'H3')}
           title="Título 3"
         >
@@ -259,6 +283,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('insertUnorderedList')}
           title="Lista com Marcadores"
         >
@@ -269,6 +294,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('insertOrderedList')}
           title="Lista Numerada"
         >
@@ -282,6 +308,7 @@ export function RichTextEditor({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleImageClick}
           title="Inserir Imagem"
         >
@@ -294,6 +321,7 @@ export function RichTextEditor({
         contentEditable={!disabled}
         suppressContentEditableWarning={true}
         onInput={(e) => {
+          isLocalChange.current = true
           saveSelection()
           onChange(e.currentTarget.innerHTML)
         }}

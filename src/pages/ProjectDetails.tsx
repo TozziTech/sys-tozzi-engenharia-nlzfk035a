@@ -104,6 +104,238 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
+function ProjectObservationsCard({
+  project,
+  canEdit,
+  updateProject,
+}: {
+  project: any
+  canEdit: boolean
+  updateProject: any
+}) {
+  const [isEditingObservations, setIsEditingObservations] = useState(false)
+  const [observationText, setObservationText] = useState('')
+  const { toast } = useToast()
+
+  return (
+    <Card>
+      <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
+        <CardTitle className="text-lg">Observações</CardTitle>
+        {!isEditingObservations && canEdit && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-2 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setObservationText(project.description || project.observations || '')
+              setIsEditingObservations(true)
+            }}
+          >
+            <Edit2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Editar</span>
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {isEditingObservations ? (
+          <div className="space-y-3 animate-in fade-in duration-200">
+            <div className="space-y-2">
+              <Textarea
+                value={observationText}
+                onChange={(e) => setObservationText(e.target.value)}
+                placeholder="Adicione observações e descrições do projeto... (Suporta Markdown: **negrito**, *itálico*, - listas, [link](url))"
+                className="min-h-[160px] resize-y font-mono text-sm"
+                autoFocus
+              />
+              <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <span>
+                    <strong className="font-bold">**</strong>negrito
+                    <strong className="font-bold">**</strong>
+                  </span>
+                  <span>
+                    <em className="italic">*</em>itálico<em className="italic">*</em>
+                  </span>
+                  <span>[link](url)</span>
+                  <span>- lista</span>
+                </div>
+                <span className="shrink-0">Suporta Markdown</span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsEditingObservations(false)}>
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await pb
+                      .collection('projects')
+                      .update(project.id, { description: observationText })
+                    if (typeof updateProject === 'function') {
+                      updateProject(project.id, {
+                        description: observationText,
+                        observations: observationText,
+                      })
+                    } else {
+                      window.location.reload()
+                    }
+                    setIsEditingObservations(false)
+                    toast({
+                      title: 'Sucesso',
+                      description: 'Observações atualizadas com êxito.',
+                    })
+                  } catch (err) {
+                    console.error(err)
+                    toast({
+                      title: 'Erro',
+                      description: `Ocorreu um erro ao salvar as observações.`,
+                      variant: 'destructive',
+                    })
+                  }
+                }}
+              >
+                Salvar
+              </Button>
+            </div>
+          </div>
+        ) : project.description || project.observations ? (
+          <div className="bg-muted/50 p-4 rounded-lg border border-border group relative">
+            <MarkdownRenderer content={project.description || project.observations || ''} />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">
+            Nenhuma observação detalhada foi registrada para este projeto.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ReportScheduleCard({ projectId }: { projectId: string }) {
+  const [reportSchedule, setReportSchedule] = useState<any>(null)
+  const [reportRecipients, setReportRecipients] = useState('')
+  const [isReportActive, setIsReportActive] = useState(false)
+  const [reportTemplateType, setReportTemplateType] = useState('Executivo')
+  const [isSavingReport, setIsSavingReport] = useState(false)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    let isMounted = true
+    const load = async () => {
+      if (!projectId || !pb.authStore.isValid) return
+      try {
+        const record = await pb
+          .collection('report_schedules')
+          .getFirstListItem(`project = "${projectId}" && frequency = "Semanal"`)
+        if (isMounted) {
+          setReportSchedule(record)
+          setReportRecipients(record.recipients)
+          setIsReportActive(record.active)
+          setReportTemplateType(record.template_type || 'Executivo')
+        }
+      } catch (e) {
+        if (isMounted) {
+          setReportSchedule(null)
+          setReportRecipients('')
+          setIsReportActive(false)
+          setReportTemplateType('Executivo')
+        }
+      }
+    }
+    load()
+    return () => {
+      isMounted = false
+    }
+  }, [projectId])
+
+  const saveReportSchedule = async () => {
+    if (!projectId) return
+    setIsSavingReport(true)
+    try {
+      if (reportSchedule) {
+        await pb.collection('report_schedules').update(reportSchedule.id, {
+          recipients: reportRecipients,
+          active: isReportActive,
+          frequency: 'Semanal',
+          template_type: reportTemplateType,
+        })
+      } else {
+        const record = await pb.collection('report_schedules').create({
+          project: projectId,
+          recipients: reportRecipients,
+          active: isReportActive,
+          frequency: 'Semanal',
+          template_type: reportTemplateType,
+        })
+        setReportSchedule(record)
+      }
+      toast({ title: 'Configuração salva', description: 'Relatório automático atualizado.' })
+    } catch (e) {
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Não foi possível salvar a configuração do relatório.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingReport(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <FileText className="h-5 w-5 text-primary" />
+          Relatórios Automáticos
+        </CardTitle>
+        <CardDescription>
+          Configure o envio semanal do resumo executivo deste projeto.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="report-active" className="flex flex-col space-y-1">
+            <span>Ativar Relatório</span>
+            <span className="font-normal text-xs text-muted-foreground">
+              Envio toda segunda-feira às 08:00
+            </span>
+          </Label>
+          <Switch id="report-active" checked={isReportActive} onCheckedChange={setIsReportActive} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="report-template">Layout do Relatório</Label>
+          <Select value={reportTemplateType} onValueChange={setReportTemplateType}>
+            <SelectTrigger id="report-template">
+              <SelectValue placeholder="Selecione o modelo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Executivo">Executivo (Financeiro e Geral)</SelectItem>
+              <SelectItem value="Técnico">Técnico (Tarefas e Prazos)</SelectItem>
+              <SelectItem value="Focado em Gráficos">Focado em Gráficos (Visual)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="report-recipients">Destinatários</Label>
+          <Textarea
+            id="report-recipients"
+            placeholder="email1@exemplo.com, email2@exemplo.com"
+            value={reportRecipients}
+            onChange={(e) => setReportRecipients(e.target.value)}
+            className="text-sm min-h-[80px]"
+          />
+        </div>
+        <Button onClick={saveReportSchedule} disabled={isSavingReport} className="w-full">
+          {isSavingReport ? 'Salvando...' : 'Salvar Configuração'}
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -125,8 +357,6 @@ export default function ProjectDetails() {
   >('emphasis')
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isEditingObservations, setIsEditingObservations] = useState(false)
-  const [observationText, setObservationText] = useState('')
   const [pbDocuments, setPbDocuments] = useState<any[]>([])
   const [isUploadingDoc, setIsUploadingDoc] = useState(false)
   const [auditLogs, setAuditLogs] = useState<any[]>([])
@@ -140,12 +370,6 @@ export default function ProjectDetails() {
     team: true,
   })
   const [financialData, setFinancialData] = useState({ totalIn: 0, totalOut: 0, pendingOut: 0 })
-
-  const [reportSchedule, setReportSchedule] = useState<any>(null)
-  const [reportRecipients, setReportRecipients] = useState('')
-  const [isReportActive, setIsReportActive] = useState(false)
-  const [reportTemplateType, setReportTemplateType] = useState('Executivo')
-  const [isSavingReport, setIsSavingReport] = useState(false)
 
   // Resolve console runtime warnings caused by vite-plugin-react-uid injecting data-uid into React.Fragment
   useEffect(() => {
@@ -237,24 +461,6 @@ export default function ProjectDetails() {
     }
   }, [])
 
-  const loadReportSchedule = useCallback(async () => {
-    if (!id || !pb.authStore.isValid) return
-    try {
-      const record = await pb
-        .collection('report_schedules')
-        .getFirstListItem(`project = "${id}" && frequency = "Semanal"`)
-      setReportSchedule(record)
-      setReportRecipients(record.recipients)
-      setIsReportActive(record.active)
-      setReportTemplateType(record.template_type || 'Executivo')
-    } catch (e) {
-      setReportSchedule(null)
-      setReportRecipients('')
-      setIsReportActive(false)
-      setReportTemplateType('Executivo')
-    }
-  }, [id])
-
   useEffect(() => {
     if (authLoading) return
     if (!id || !user?.id || !pb.authStore.isValid) return
@@ -269,7 +475,6 @@ export default function ProjectDetails() {
       loadDocuments(),
       loadTags(),
       loadSettings(),
-      loadReportSchedule(),
     ]).finally(() => {
       if (isMounted) {
         setIsLoadingData(false)
@@ -290,7 +495,6 @@ export default function ProjectDetails() {
     loadDocuments,
     loadTags,
     loadSettings,
-    loadReportSchedule,
   ])
 
   const enableSubscriptions = isReady && !!user?.id && pb.authStore.isValid
@@ -831,35 +1035,6 @@ export default function ProjectDetails() {
 
   const handlePrintPriorityReport = () => {
     window.print()
-  }
-
-  const saveReportSchedule = async () => {
-    if (!id) return
-    setIsSavingReport(true)
-    try {
-      if (reportSchedule) {
-        await pb.collection('report_schedules').update(reportSchedule.id, {
-          recipients: reportRecipients,
-          active: isReportActive,
-          frequency: 'Semanal',
-          template_type: reportTemplateType,
-        })
-      } else {
-        const record = await pb.collection('report_schedules').create({
-          project: id,
-          recipients: reportRecipients,
-          active: isReportActive,
-          frequency: 'Semanal',
-          template_type: reportTemplateType,
-        })
-        setReportSchedule(record)
-      }
-      toast({ title: 'Configuração salva', description: 'Relatório automático atualizado.' })
-    } catch (e) {
-      toast({ title: 'Erro ao salvar', description: getErrorMessage(e), variant: 'destructive' })
-    } finally {
-      setIsSavingReport(false)
-    }
   }
 
   const handleExportPremiumReport = async () => {
@@ -1470,105 +1645,11 @@ export default function ProjectDetails() {
 
           <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass}`}>
             <div className={`md:col-span-2 ${gapClass}`}>
-              <Card>
-                <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
-                  <CardTitle className="text-lg">Observações</CardTitle>
-                  {!isEditingObservations && canEdit && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 gap-2 text-muted-foreground hover:text-foreground"
-                      onClick={() => {
-                        setObservationText(project.description || project.observations || '')
-                        setIsEditingObservations(true)
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                      <span className="hidden sm:inline">Editar</span>
-                    </Button>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  {isEditingObservations ? (
-                    <div className="space-y-3 animate-in fade-in duration-200">
-                      <div className="space-y-2">
-                        <Textarea
-                          value={observationText}
-                          onChange={(e) => setObservationText(e.target.value)}
-                          placeholder="Adicione observações e descrições do projeto... (Suporta Markdown: **negrito**, *itálico*, - listas, [link](url))"
-                          className="min-h-[160px] resize-y font-mono text-sm"
-                          autoFocus
-                        />
-                        <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                          <div className="flex flex-wrap gap-x-3 gap-y-1">
-                            <span>
-                              <strong className="font-bold">**</strong>negrito
-                              <strong className="font-bold">**</strong>
-                            </span>
-                            <span>
-                              <em className="italic">*</em>itálico<em className="italic">*</em>
-                            </span>
-                            <span>[link](url)</span>
-                            <span>- lista</span>
-                          </div>
-                          <span className="shrink-0">Suporta Markdown</span>
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditingObservations(false)}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              await pb
-                                .collection('projects')
-                                .update(project.id, { description: observationText })
-                              if (typeof updateProject === 'function') {
-                                updateProject(project.id, {
-                                  description: observationText,
-                                  observations: observationText,
-                                })
-                              } else {
-                                window.location.reload()
-                              }
-                              setIsEditingObservations(false)
-                              toast({
-                                title: 'Sucesso',
-                                description: 'Observações atualizadas com êxito.',
-                              })
-                            } catch (err) {
-                              console.error(err)
-                              toast({
-                                title: 'Erro',
-                                description: `Ocorreu um erro ao salvar as observações. ${getErrorMessage(err)}`,
-                                variant: 'destructive',
-                              })
-                            }
-                          }}
-                        >
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : project.description || project.observations ? (
-                    <div className="bg-muted/50 p-4 rounded-lg border border-border group relative">
-                      <MarkdownRenderer
-                        content={project.description || project.observations || ''}
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      Nenhuma observação detalhada foi registrada para este projeto.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+              <ProjectObservationsCard
+                project={project}
+                canEdit={canEdit}
+                updateProject={updateProject}
+              />
 
               <div className="w-full">
                 <NoteCard projectId={project.id} />
@@ -1951,66 +2032,7 @@ export default function ProjectDetails() {
                 <ProjectComments projectId={project.id} enabled={enableSubscriptions} />
               </div>
 
-              {canEdit && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-primary" />
-                      Relatórios Automáticos
-                    </CardTitle>
-                    <CardDescription>
-                      Configure o envio semanal do resumo executivo deste projeto.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="report-active" className="flex flex-col space-y-1">
-                        <span>Ativar Relatório</span>
-                        <span className="font-normal text-xs text-muted-foreground">
-                          Envio toda segunda-feira às 08:00
-                        </span>
-                      </Label>
-                      <Switch
-                        id="report-active"
-                        checked={isReportActive}
-                        onCheckedChange={setIsReportActive}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="report-template">Layout do Relatório</Label>
-                      <Select value={reportTemplateType} onValueChange={setReportTemplateType}>
-                        <SelectTrigger id="report-template">
-                          <SelectValue placeholder="Selecione o modelo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Executivo">Executivo (Financeiro e Geral)</SelectItem>
-                          <SelectItem value="Técnico">Técnico (Tarefas e Prazos)</SelectItem>
-                          <SelectItem value="Focado em Gráficos">
-                            Focado em Gráficos (Visual)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="report-recipients">Destinatários</Label>
-                      <Textarea
-                        id="report-recipients"
-                        placeholder="email1@exemplo.com, email2@exemplo.com"
-                        value={reportRecipients}
-                        onChange={(e) => setReportRecipients(e.target.value)}
-                        className="text-sm min-h-[80px]"
-                      />
-                    </div>
-                    <Button
-                      onClick={saveReportSchedule}
-                      disabled={isSavingReport}
-                      className="w-full"
-                    >
-                      {isSavingReport ? 'Salvando...' : 'Salvar Configuração'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+              {canEdit && <ReportScheduleCard projectId={project.id} />}
             </div>
           </div>
         </TabsContent>

@@ -54,6 +54,333 @@ import {
 import { FilePreviewModal, type PreviewFile } from '@/components/FilePreviewModal'
 import { ImageMarkupEditor } from '@/components/ImageMarkupEditor'
 
+const CommentComposer = ({
+  projectId,
+  projectName,
+  filterField,
+  replyingTo,
+  setReplyingTo,
+  users,
+  user,
+  updateTypingStatus,
+}: any) => {
+  const [content, setContent] = useState('')
+  const [attachments, setAttachments] = useState<File[]>([])
+  const [showMentions, setShowMentions] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionIndex, setMentionIndex] = useState(-1)
+  const [submitting, setSubmitting] = useState(false)
+  const [markupFileIndex, setMarkupFileIndex] = useState<number | null>(null)
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const { toast } = useToast()
+
+  const filteredUsers = useMemo(() => {
+    if (!mentionQuery) return users
+    return users.filter((u: any) =>
+      (u.name || '').toLowerCase().includes(mentionQuery.toLowerCase()),
+    )
+  }, [users, mentionQuery])
+
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setContent(val)
+
+    if (!typingTimeoutRef.current) {
+      updateTypingStatus(true)
+    } else {
+      clearTimeout(typingTimeoutRef.current)
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      updateTypingStatus(false)
+      typingTimeoutRef.current = null
+    }, 3000)
+
+    const cursorPos = e.target.selectionStart
+    const textBeforeCursor = val.slice(0, cursorPos)
+    const match = textBeforeCursor.match(/@([\w\u00C0-\u017F]*)$/)
+
+    if (match) {
+      setShowMentions(true)
+      setMentionQuery(match[1])
+      setMentionIndex(textBeforeCursor.lastIndexOf('@'))
+    } else {
+      setShowMentions(false)
+    }
+  }
+
+  const insertMention = (userName: string) => {
+    if (mentionIndex === -1) return
+    const beforeMention = content.slice(0, mentionIndex)
+    const afterMention = content.slice(textareaRef.current?.selectionStart || content.length)
+
+    const newContent = `${beforeMention}@${userName} ${afterMention}`
+    setContent(newContent)
+    setShowMentions(false)
+    setMentionIndex(-1)
+
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus()
+        const newPos = beforeMention.length + userName.length + 2
+        textareaRef.current.setSelectionRange(newPos, newPos)
+      }
+    }, 0)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files)
+      setAttachments((prev) => [...prev, ...newFiles].slice(0, 5))
+    }
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const getAvatarUrl = (u: any) => (u && u.avatar ? pb.files.getUrl(u, u.avatar) : '')
+
+  const handleSubmit = async () => {
+    if ((!content.trim() && attachments.length === 0) || !user) return
+
+    setSubmitting(true)
+    const commentContent = content.trim()
+
+    try {
+      const formData = new FormData()
+      formData.append(filterField, projectId)
+      formData.append('autor', user.id)
+      formData.append('mensagem', commentContent)
+
+      if (replyingTo) {
+        formData.append('parent_id', replyingTo.id)
+      }
+
+      attachments.forEach((file) => {
+        formData.append('anexos', file)
+      })
+
+      await pb.collection('comentarios_projeto').create(formData)
+
+      try {
+        const sortedUsers = [...users]
+          .filter((u) => u.name)
+          .sort((a, b) => b.name.length - a.name.length)
+        if (sortedUsers.length > 0) {
+          const mentionRegex = new RegExp(
+            `(@(?:${sortedUsers.map((u) => u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))`,
+            'g',
+          )
+          const mentions = commentContent.match(mentionRegex)
+          if (mentions) {
+            const uniqueMentions = [...new Set(mentions)]
+            for (const mention of uniqueMentions) {
+              const name = mention.substring(1)
+              const mentionedUser = users.find((u: any) => u.name === name)
+              if (mentionedUser && mentionedUser.id !== user.id) {
+                await pb.collection('notifications').create({
+                  user: mentionedUser.id,
+                  title: `Menção em Comentário`,
+                  message: `${user.name} mencionou você no projeto ${projectName}.`,
+                  link: `/projects/${projectId}`,
+                  action_type: 'mention',
+                  read: false,
+                })
+              }
+            }
+          }
+        }
+      } catch (notifErr) {
+        console.error('Erro ao notificar menções:', notifErr)
+      }
+
+      setContent('')
+      setAttachments([])
+      setShowMentions(false)
+      setReplyingTo(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+        typingTimeoutRef.current = null
+      }
+      updateTypingStatus(false)
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao enviar',
+        description: error.message || 'Não foi possível enviar o comentário.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <>
+      {showMentions && filteredUsers.length > 0 && (
+        <div className="absolute bottom-[calc(100%+8px)] left-4 w-64 bg-background dark:bg-zinc-950 border dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-bottom-2">
+          <div className="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900 border-b dark:border-zinc-800">
+            Membros da equipe
+          </div>
+          <ScrollArea className="max-h-48">
+            {filteredUsers.map((u: any) => (
+              <button
+                key={u.id}
+                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-zinc-800 text-left text-sm transition-colors"
+                onClick={() => insertMention(u.name)}
+              >
+                <Avatar className="h-7 w-7 border border-slate-200 dark:border-zinc-700">
+                  <AvatarImage src={getAvatarUrl(u)} />
+                  <AvatarFallback>{(u.name || 'U').substring(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <span className="font-medium text-slate-800 dark:text-zinc-200">{u.name}</span>
+              </button>
+            ))}
+          </ScrollArea>
+        </div>
+      )}
+
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {attachments.map((file, i) => {
+            const isImage = file.type.startsWith('image/')
+            return (
+              <div
+                key={i}
+                className="flex items-center gap-2 bg-white dark:bg-zinc-800 border dark:border-zinc-700 rounded-full pl-3 pr-1.5 py-1.5 text-xs shadow-sm animate-in zoom-in-95 duration-200"
+              >
+                <FileIcon className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
+                <span className="truncate max-w-[150px] font-medium dark:text-zinc-200">
+                  {file.name}
+                </span>
+                {isImage && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 rounded-full hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-700"
+                    onClick={() => setMarkupFileIndex(i)}
+                    title="Editar Imagem"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 rounded-full hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-900/50 dark:hover:text-rose-400"
+                  onClick={() => removeAttachment(i)}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div
+        className={cn(
+          'relative flex flex-col gap-0 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 dark:focus-within:border-indigo-500 transition-all shadow-sm',
+          replyingTo ? 'rounded-b-xl rounded-t-md' : 'rounded-xl',
+        )}
+      >
+        {replyingTo && (
+          <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900/50 px-3 py-1.5 border-b border-slate-100 dark:border-zinc-800 rounded-t-md">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <MessageSquareReply className="h-3.5 w-3.5" />
+              <span>
+                Respondendo a{' '}
+                <span className="font-semibold text-foreground">
+                  {replyingTo.expand?.autor?.name || 'Usuário'}
+                </span>
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={() => setReplyingTo(null)}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+        <div className="p-2 flex flex-col gap-2">
+          <Textarea
+            ref={textareaRef}
+            value={content}
+            onChange={handleInput}
+            placeholder={
+              replyingTo
+                ? 'Escreva sua resposta...'
+                : 'Adicione um comentário... (Use @ para mencionar)'
+            }
+            className="min-h-[80px] max-h-[200px] resize-none border-0 focus-visible:ring-0 shadow-none p-2 bg-transparent text-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 dark:text-zinc-100"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmit()
+              }
+            }}
+          />
+          <div className="flex items-center justify-between mt-1 px-1">
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-slate-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 gap-2 h-8 px-3 rounded-md transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={submitting}
+            >
+              <Paperclip className="h-4 w-4" />
+              <span className="text-xs font-medium hidden sm:inline">Anexar</span>
+            </Button>
+            <Button
+              size="sm"
+              className="gap-2 h-8 px-4 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-transform active:scale-95 disabled:opacity-50"
+              onClick={handleSubmit}
+              disabled={(!content.trim() && attachments.length === 0) || submitting}
+            >
+              {submitting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <>
+                  <span className="text-xs font-medium hidden sm:inline">Enviar</span>
+                  <Send className="h-3.5 w-3.5" />
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {markupFileIndex !== null && attachments[markupFileIndex] && (
+        <ImageMarkupEditor
+          file={attachments[markupFileIndex]}
+          open={true}
+          onClose={() => setMarkupFileIndex(null)}
+          onSave={(editedFile) => {
+            setAttachments((prev) => prev.map((f, i) => (i === markupFileIndex ? editedFile : f)))
+            setMarkupFileIndex(null)
+          }}
+        />
+      )}
+    </>
+  )
+}
+
 export function ProjectComments({
   projectId,
   projectType = 'projects',
@@ -69,15 +396,8 @@ export function ProjectComments({
 
   const [comments, setComments] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
-  const [content, setContent] = useState('')
-  const [showMentions, setShowMentions] = useState(false)
-  const [mentionQuery, setMentionQuery] = useState('')
-  const [mentionIndex, setMentionIndex] = useState(-1)
-  const [attachments, setAttachments] = useState<File[]>([])
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
 
-  const [markupFileIndex, setMarkupFileIndex] = useState<number | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -89,10 +409,6 @@ export function ProjectComments({
   const [replyingTo, setReplyingTo] = useState<any>(null)
   const [typingUsers, setTypingUsers] = useState<any[]>([])
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null)
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const filterField = projectType === 'projects' ? 'projeto_interno_id' : 'projeto_id'
   const project = projects.find((p) => p.id === projectId)
@@ -260,7 +576,6 @@ export function ProjectComments({
       ? comments.find((c) => c.id === comment.parent_id) || comment
       : comment
     setReplyingTo(rootComment)
-    textareaRef.current?.focus()
   }
 
   const filteredComments = useMemo(() => {
@@ -299,146 +614,6 @@ export function ProjectComments({
     () => filteredComments.filter((c) => !c.parent_id),
     [filteredComments],
   )
-
-  const filteredUsers = useMemo(() => {
-    if (!mentionQuery) return users
-    return users.filter((u) => (u.name || '').toLowerCase().includes(mentionQuery.toLowerCase()))
-  }, [users, mentionQuery])
-
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value
-    setContent(val)
-
-    if (!typingTimeoutRef.current) {
-      updateTypingStatus(true)
-    } else {
-      clearTimeout(typingTimeoutRef.current)
-    }
-
-    typingTimeoutRef.current = setTimeout(() => {
-      updateTypingStatus(false)
-      typingTimeoutRef.current = null
-    }, 3000)
-
-    const cursorPos = e.target.selectionStart
-    const textBeforeCursor = val.slice(0, cursorPos)
-    const match = textBeforeCursor.match(/@([\w\u00C0-\u017F]*)$/)
-
-    if (match) {
-      setShowMentions(true)
-      setMentionQuery(match[1])
-      setMentionIndex(textBeforeCursor.lastIndexOf('@'))
-    } else {
-      setShowMentions(false)
-    }
-  }
-
-  const insertMention = (userName: string) => {
-    if (mentionIndex === -1) return
-    const beforeMention = content.slice(0, mentionIndex)
-    const afterMention = content.slice(textareaRef.current?.selectionStart || content.length)
-
-    const newContent = `${beforeMention}@${userName} ${afterMention}`
-    setContent(newContent)
-    setShowMentions(false)
-    setMentionIndex(-1)
-
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus()
-        const newPos = beforeMention.length + userName.length + 2
-        textareaRef.current.setSelectionRange(newPos, newPos)
-      }
-    }, 0)
-  }
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files)
-      setAttachments((prev) => [...prev, ...newFiles].slice(0, 5))
-    }
-  }
-
-  const removeAttachment = (index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const handleSubmit = async () => {
-    if ((!content.trim() && attachments.length === 0) || !user) return
-
-    setSubmitting(true)
-    const commentContent = content.trim()
-
-    try {
-      const formData = new FormData()
-      formData.append(filterField, projectId)
-      formData.append('autor', user.id)
-      formData.append('mensagem', commentContent)
-
-      if (replyingTo) {
-        formData.append('parent_id', replyingTo.id)
-      }
-
-      attachments.forEach((file) => {
-        formData.append('anexos', file)
-      })
-
-      await pb.collection('comentarios_projeto').create(formData)
-
-      // Create mention notifications
-      try {
-        const sortedUsers = [...users]
-          .filter((u) => u.name)
-          .sort((a, b) => b.name.length - a.name.length)
-        if (sortedUsers.length > 0) {
-          const mentionRegex = new RegExp(
-            `(@(?:${sortedUsers.map((u) => u.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))`,
-            'g',
-          )
-          const mentions = commentContent.match(mentionRegex)
-          if (mentions) {
-            const uniqueMentions = [...new Set(mentions)]
-            for (const mention of uniqueMentions) {
-              const name = mention.substring(1)
-              const mentionedUser = users.find((u) => u.name === name)
-              if (mentionedUser && mentionedUser.id !== user.id) {
-                await pb.collection('notifications').create({
-                  user: mentionedUser.id,
-                  title: `Menção em Comentário`,
-                  message: `${user.name} mencionou você no projeto ${projectName}.`,
-                  link: `/projects/${projectId}`,
-                  action_type: 'mention',
-                  read: false,
-                })
-              }
-            }
-          }
-        }
-      } catch (notifErr) {
-        console.error('Erro ao notificar menções:', notifErr)
-      }
-
-      setContent('')
-      setAttachments([])
-      setShowMentions(false)
-      setReplyingTo(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current)
-        typingTimeoutRef.current = null
-      }
-      updateTypingStatus(false)
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao enviar',
-        description: error.message || 'Não foi possível enviar o comentário.',
-        variant: 'destructive',
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   const renderContentWithMentions = (text: string) => {
     if (!text) return null
@@ -483,7 +658,7 @@ export function ProjectComments({
     return isConcluido || isOlderThan24h
   }
 
-  const CommentItem = ({ comment, isReply = false }: { comment: any; isReply?: boolean }) => {
+  const renderCommentItem = (comment: any, isReply = false) => {
     const isAuthor = comment.autor === user?.id
     const isAdmin = user?.role === 'Administrador'
     const canEditDelete = isAuthor || isAdmin
@@ -877,11 +1052,11 @@ export function ProjectComments({
                 const replies = filteredComments.filter((c) => c.parent_id === comment.id)
                 return (
                   <div key={comment.id}>
-                    <CommentItem comment={comment} />
+                    {renderCommentItem(comment, false)}
                     {replies.length > 0 && (
                       <div className="pl-12 space-y-4 border-l-2 border-slate-100 dark:border-zinc-800 ml-5 mt-4">
                         {replies.map((reply) => (
-                          <CommentItem key={reply.id} comment={reply} isReply />
+                          <div key={reply.id}>{renderCommentItem(reply, true)}</div>
                         ))}
                       </div>
                     )}
@@ -915,151 +1090,16 @@ export function ProjectComments({
             </div>
           )}
 
-          {showMentions && filteredUsers.length > 0 && (
-            <div className="absolute bottom-[calc(100%+8px)] left-4 w-64 bg-background dark:bg-zinc-950 border dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-bottom-2">
-              <div className="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900 border-b dark:border-zinc-800">
-                Membros da equipe
-              </div>
-              <ScrollArea className="max-h-48">
-                {filteredUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-zinc-800 text-left text-sm transition-colors"
-                    onClick={() => insertMention(u.name)}
-                  >
-                    <Avatar className="h-7 w-7 border border-slate-200 dark:border-zinc-700">
-                      <AvatarImage src={getAvatarUrl(u)} />
-                      <AvatarFallback>
-                        {(u.name || 'U').substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium text-slate-800 dark:text-zinc-200">{u.name}</span>
-                  </button>
-                ))}
-              </ScrollArea>
-            </div>
-          )}
-
-          {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {attachments.map((file, i) => {
-                const isImage = file.type.startsWith('image/')
-                return (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 bg-white dark:bg-zinc-800 border dark:border-zinc-700 rounded-full pl-3 pr-1.5 py-1.5 text-xs shadow-sm animate-in zoom-in-95 duration-200"
-                  >
-                    <FileIcon className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
-                    <span className="truncate max-w-[150px] font-medium dark:text-zinc-200">
-                      {file.name}
-                    </span>
-                    {isImage && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 rounded-full hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-700"
-                        onClick={() => setMarkupFileIndex(i)}
-                        title="Editar Imagem"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 rounded-full hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-900/50 dark:hover:text-rose-400"
-                      onClick={() => removeAttachment(i)}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          <div
-            className={cn(
-              'relative flex flex-col gap-0 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 dark:focus-within:border-indigo-500 transition-all shadow-sm',
-              replyingTo ? 'rounded-b-xl rounded-t-md' : 'rounded-xl',
-            )}
-          >
-            {replyingTo && (
-              <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-900/50 px-3 py-1.5 border-b border-slate-100 dark:border-zinc-800 rounded-t-md">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <MessageSquareReply className="h-3.5 w-3.5" />
-                  <span>
-                    Respondendo a{' '}
-                    <span className="font-semibold text-foreground">
-                      {replyingTo.expand?.autor?.name || 'Usuário'}
-                    </span>
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5"
-                  onClick={() => setReplyingTo(null)}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
-            <div className="p-2 flex flex-col gap-2">
-              <Textarea
-                ref={textareaRef}
-                value={content}
-                onChange={handleInput}
-                placeholder={
-                  replyingTo
-                    ? 'Escreva sua resposta...'
-                    : 'Adicione um comentário... (Use @ para mencionar)'
-                }
-                className="min-h-[80px] max-h-[200px] resize-none border-0 focus-visible:ring-0 shadow-none p-2 bg-transparent text-sm placeholder:text-slate-400 dark:placeholder:text-zinc-500 dark:text-zinc-100"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSubmit()
-                  }
-                }}
-              />
-              <div className="flex items-center justify-between mt-1 px-1">
-                <input
-                  type="file"
-                  multiple
-                  className="hidden"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-slate-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 gap-2 h-8 px-3 rounded-md transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={submitting}
-                >
-                  <Paperclip className="h-4 w-4" />
-                  <span className="text-xs font-medium hidden sm:inline">Anexar</span>
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-2 h-8 px-4 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-transform active:scale-95 disabled:opacity-50"
-                  onClick={handleSubmit}
-                  disabled={(!content.trim() && attachments.length === 0) || submitting}
-                >
-                  {submitting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <>
-                      <span className="text-xs font-medium hidden sm:inline">Enviar</span>
-                      <Send className="h-3.5 w-3.5" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
+          <CommentComposer
+            projectId={projectId}
+            projectName={projectName}
+            filterField={filterField}
+            replyingTo={replyingTo}
+            setReplyingTo={setReplyingTo}
+            users={users}
+            user={user}
+            updateTypingStatus={updateTypingStatus}
+          />
         </div>
       </CardContent>
 
@@ -1084,18 +1124,6 @@ export function ProjectComments({
       </AlertDialog>
 
       <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
-
-      {markupFileIndex !== null && attachments[markupFileIndex] && (
-        <ImageMarkupEditor
-          file={attachments[markupFileIndex]}
-          open={true}
-          onClose={() => setMarkupFileIndex(null)}
-          onSave={(editedFile) => {
-            setAttachments((prev) => prev.map((f, i) => (i === markupFileIndex ? editedFile : f)))
-            setMarkupFileIndex(null)
-          }}
-        />
-      )}
     </Card>
   )
 }

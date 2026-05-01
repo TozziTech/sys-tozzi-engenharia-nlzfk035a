@@ -16,7 +16,6 @@ import { FileText, Maximize2, Minimize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
 export function NoteCard({ projectId }: { projectId?: string }) {
   const { user } = useAuth()
@@ -155,70 +154,86 @@ export function NoteCard({ projectId }: { projectId?: string }) {
     }
   }
 
-  const EditorHeader = ({ inDialog }: { inDialog?: boolean }) => (
-    <div
-      className={cn(
-        'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4',
-        inDialog ? 'p-4 border-b bg-muted/30' : '',
-      )}
-    >
-      <div className="space-y-1 flex-1">
-        <div className="text-lg font-semibold flex items-center gap-2">
-          <FileText className="h-5 w-5 text-primary" />
-          {projectId ? 'Notas do Projeto' : 'Bloco de Notas'}
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {projectId
-            ? 'Suas anotações privadas para este projeto.'
-            : 'Anotações gerais e rascunhos.'}
-        </div>
-      </div>
-      <div className="flex items-center gap-4 w-full sm:w-auto">
-        <Select value={category} onValueChange={handleCategoryChange}>
-          <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs">
-            <SelectValue placeholder="Categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Geral">Geral</SelectItem>
-            <SelectItem value="Pessoal">Pessoal</SelectItem>
-            <SelectItem value="Projetos">Projetos</SelectItem>
-            <SelectItem value="Lembretes">Lembretes</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-2"
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            Salvar
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            title={isFullscreen ? 'Minimizar' : 'Tela Cheia'}
-          >
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-
   return (
-    <div className="w-full">
-      <Card className="w-full shadow-sm border-primary/10 flex flex-col">
-        <CardHeader className="pb-3 shrink-0">
-          <EditorHeader />
-        </CardHeader>
-        {!isFullscreen && (
-          <CardContent className="flex-1 flex flex-col min-h-[300px] overflow-hidden gap-2">
+    <>
+      <div
+        className={cn(
+          'transition-all duration-200',
+          isFullscreen
+            ? 'fixed inset-4 md:inset-10 z-[100] flex flex-col bg-background shadow-2xl rounded-xl border border-border overflow-hidden'
+            : 'w-full',
+        )}
+      >
+        <Card
+          className={cn(
+            'w-full shadow-sm flex flex-col border-primary/10',
+            isFullscreen ? 'h-full border-0 rounded-none' : '',
+          )}
+        >
+          <CardHeader
+            className={cn('shrink-0', isFullscreen ? 'p-4 border-b bg-muted/30 pb-4' : 'pb-3')}
+          >
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1 flex-1">
+                <div className="text-lg font-semibold flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  {projectId ? 'Notas do Projeto' : 'Bloco de Notas'}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {projectId
+                    ? 'Suas anotações privadas para este projeto.'
+                    : 'Anotações gerais e rascunhos.'}
+                </div>
+              </div>
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <Select value={category} onValueChange={handleCategoryChange}>
+                  <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs">
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Geral">Geral</SelectItem>
+                    <SelectItem value="Pessoal">Pessoal</SelectItem>
+                    <SelectItem value="Projetos">Projetos</SelectItem>
+                    <SelectItem value="Lembretes">Lembretes</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-2"
+                    onClick={handleSave}
+                    onMouseDown={(e) => e.preventDefault()}
+                    disabled={isSaving}
+                  >
+                    Salvar
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                    onClick={() => setIsFullscreen(!isFullscreen)}
+                    title={isFullscreen ? 'Minimizar' : 'Tela Cheia'}
+                  >
+                    {isFullscreen ? (
+                      <Minimize2 className="h-4 w-4" />
+                    ) : (
+                      <Maximize2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent
+            className={cn(
+              'flex-1 flex flex-col overflow-hidden gap-2',
+              isFullscreen ? 'p-0' : 'min-h-[300px]',
+            )}
+          >
             <RichTextEditor
               value={editorContent}
               onChange={handleEditorChange}
@@ -229,10 +244,18 @@ export function NoteCard({ projectId }: { projectId?: string }) {
                 isFocusedRef.current = false
               }}
               disabled={isSaving}
-              className="flex-1 overflow-hidden h-full"
+              className={cn(
+                'flex-1 overflow-hidden h-full',
+                isFullscreen ? 'border-0 rounded-none' : '',
+              )}
             />
             {(noteId || lastEditor || creatorName) && (
-              <div className="text-xs text-muted-foreground pt-2 border-t mt-auto text-left">
+              <div
+                className={cn(
+                  'text-xs text-muted-foreground pt-2 border-t mt-auto text-left',
+                  isFullscreen ? 'px-4 py-2 bg-muted/5 shrink-0' : '',
+                )}
+              >
                 {lastEditor ? (
                   <>
                     Última edição por:{' '}
@@ -248,53 +271,14 @@ export function NoteCard({ projectId }: { projectId?: string }) {
               </div>
             )}
           </CardContent>
-        )}
-      </Card>
-
-      <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent
-          className="max-w-[95vw] w-full h-[95vh] p-0 flex flex-col gap-0 border-none shadow-2xl overflow-hidden rounded-xl"
-          aria-describedby="fullscreen-editor"
-        >
-          <DialogTitle className="sr-only">Editor em Tela Cheia</DialogTitle>
-          <DialogDescription className="sr-only" id="fullscreen-editor">
-            Modo de tela cheia do editor de texto para anotações do usuário.
-          </DialogDescription>
-          <EditorHeader inDialog />
-          {isFullscreen && (
-            <div className="flex-1 overflow-hidden flex flex-col p-0">
-              <RichTextEditor
-                value={editorContent}
-                onChange={handleEditorChange}
-                onFocus={() => {
-                  isFocusedRef.current = true
-                }}
-                onBlur={() => {
-                  isFocusedRef.current = false
-                }}
-                disabled={isSaving}
-                className="flex-1 border-0 rounded-none h-full overflow-hidden"
-              />
-              {(noteId || lastEditor || creatorName) && (
-                <div className="text-xs text-muted-foreground py-2 px-4 border-t bg-muted/5 shrink-0">
-                  {lastEditor ? (
-                    <>
-                      Última edição por:{' '}
-                      <span className="font-medium text-foreground/80">{lastEditor}</span>
-                    </>
-                  ) : creatorName ? (
-                    <>
-                      Criado por:{' '}
-                      <span className="font-medium text-foreground/80">{creatorName}</span>
-                    </>
-                  ) : null}
-                  {lastEditDate && ` há ${formatDistanceToNow(lastEditDate, { locale: ptBR })}`}
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+        </Card>
+      </div>
+      {isFullscreen && (
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[90]"
+          onClick={() => setIsFullscreen(false)}
+        />
+      )}
+    </>
   )
 }

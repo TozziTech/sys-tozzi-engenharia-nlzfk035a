@@ -55,7 +55,13 @@ export function RichTextEditor({
       return
     }
     if (editorRef.current && editorRef.current.innerHTML !== value) {
-      if (!editorRef.current.contains(document.activeElement)) {
+      const selection = window.getSelection()
+      const hasSelectionInEditor =
+        selection &&
+        selection.rangeCount > 0 &&
+        editorRef.current.contains(selection.getRangeAt(0).commonAncestorContainer)
+
+      if (!editorRef.current.contains(document.activeElement) && !hasSelectionInEditor) {
         editorRef.current.innerHTML = value || ''
       }
     }

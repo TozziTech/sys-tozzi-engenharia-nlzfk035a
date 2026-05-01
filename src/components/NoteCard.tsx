@@ -39,11 +39,17 @@ export function NoteCard({ projectId }: { projectId?: string }) {
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const isFocusedRef = useRef(false)
+  const isDirtyRef = useRef(false)
+
+  useEffect(() => {
+    isDirtyRef.current = content !== initialContent || category !== initialCategory
+  }, [content, initialContent, category, initialCategory])
 
   const loadNote = useCallback(
     async (force = false) => {
       if (!user) return
-      if (isFocusedRef.current && !force) return // skip loading if user is editing
+      if (isFocusedRef.current && !force) return
+      if (isDirtyRef.current && !force) return
       try {
         const filter = projectId
           ? `project = "${projectId}"`
@@ -54,6 +60,9 @@ export function NoteCard({ projectId }: { projectId?: string }) {
           sort: 'created',
           expand: 'last_editor,user',
         })
+
+        if (isFocusedRef.current && !force) return
+        if (isDirtyRef.current && !force) return
 
         if (result.items && result.items.length > 0) {
           const note = result.items[0]
@@ -89,18 +98,37 @@ export function NoteCard({ projectId }: { projectId?: string }) {
     loadNote(true)
   }, [loadNote])
 
+  const fetchEditorNames = useCallback(async (record: any) => {
+    try {
+      const result = await pb.collection('user_notes').getOne(record.id, {
+        expand: 'last_editor,user',
+      })
+      setLastEditor(result.expand?.last_editor?.name || null)
+      setCreatorName(result.expand?.user?.name || null)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [])
+
   useRealtime('user_notes', (e) => {
     const eProject = e.record.project || undefined
     const isMatch = projectId ? eProject === projectId : !eProject && e.record.user === user?.id
 
     if (isMatch) {
       const isOwnUpdate = e.record.last_editor === user?.id
-      const isDirty = content !== initialContent || category !== initialCategory
-
       if (isOwnUpdate) return
-      if (isDirty) return
 
-      loadNote()
+      if (isFocusedRef.current) return
+      if (isDirtyRef.current) return
+
+      setNoteId(e.record.id)
+      setContent(e.record.content || '')
+      setInitialContent(e.record.content || '')
+      setCategory(e.record.category || 'Geral')
+      setInitialCategory(e.record.category || 'Geral')
+      setLastEditDate(e.record.updated ? new Date(e.record.updated) : null)
+
+      fetchEditorNames(e.record)
     }
   })
 
@@ -144,7 +172,7 @@ export function NoteCard({ projectId }: { projectId?: string }) {
       } finally {
         setIsSaving(false)
       }
-    }, 1000)
+    }, 1500)
 
     return () => clearTimeout(timeoutId)
   }, [content, initialContent, category, initialCategory, noteId, user, isLoaded, projectId, toast])

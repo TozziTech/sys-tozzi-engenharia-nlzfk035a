@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '@/hooks/use-auth'
-import { useRealtime } from '@/hooks/use-realtime'
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useNavigate } from 'react-router-dom'
+import { format, formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import {
   Building2,
   Activity,
@@ -21,8 +16,16 @@ import {
   MessageSquare,
   Download,
 } from 'lucide-react'
+
+import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { exportClientDashboardPDF } from '@/lib/exportPdf'
-import { useNavigate } from 'react-router-dom'
 import {
   getClientProjects,
   getClientPhases,
@@ -30,9 +33,7 @@ import {
   getClientComments,
 } from '@/services/client_dashboard'
 import pb from '@/lib/pocketbase/client'
-import { format, formatDistanceToNow } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
+import { cn } from '@/lib/utils'
 
 export default function ClientDashboard() {
   const { user } = useAuth()
@@ -54,7 +55,6 @@ export default function ClientDashboard() {
         getClientPayments(user.id),
         getClientComments(user.id),
       ])
-
       setProjects(projs)
       setPhases(phs)
       setPayments(pays)
@@ -69,22 +69,23 @@ export default function ClientDashboard() {
   useEffect(() => {
     loadData()
   }, [user])
-
   useRealtime('projetos_cliente', loadData)
   useRealtime('fases_projeto', loadData)
   useRealtime('pagamentos_projeto', loadData)
   useRealtime('comentarios_projeto', loadData)
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Concluído':
-        return 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent'
-      case 'Em Execução':
-        return 'bg-blue-500 hover:bg-blue-600 text-white border-transparent'
-      case 'Planejamento':
-        return 'bg-amber-500 hover:bg-amber-600 text-white border-transparent'
-      default:
-        return 'bg-zinc-200 text-zinc-800 border-transparent dark:bg-zinc-800 dark:text-zinc-200'
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      const settings = await pb
+        .collection('company_settings')
+        .getFirstListItem('')
+        .catch(() => null)
+      exportClientDashboardPDF(user, projects, phases, payments, comments, settings)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -100,334 +101,274 @@ export default function ClientDashboard() {
     projects.length > 0
       ? Math.round(projects.reduce((acc, p) => acc + (p.progresso_total || 0), 0) / projects.length)
       : 0
-
-  const progressData = [
-    { name: 'Concluído', value: avgProgress, color: 'hsl(var(--primary))' },
-    { name: 'Restante', value: 100 - avgProgress, color: 'hsl(var(--muted))' },
-  ]
-
   const phaseStats = phases.reduce(
-    (acc, p) => {
-      const st = p.status || 'Pendente'
-      acc[st] = (acc[st] || 0) + 1
-      return acc
-    },
+    (acc, p) => ({ ...acc, [p.status || 'Pendente']: (acc[p.status || 'Pendente'] || 0) + 1 }),
     {} as Record<string, number>,
   )
-
   const totalPago = payments
     .filter((p) => p.status === 'Pago')
     .reduce((sum, p) => sum + (p.valor || 0), 0)
   const totalPendente = payments
     .filter((p) => p.status === 'Pendente' || p.status === 'Atrasado')
     .reduce((sum, p) => sum + (p.valor || 0), 0)
-
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   return (
-    <div className="w-full p-4 md:p-6 lg:p-8 space-y-8 mx-auto animate-fade-in pb-20 max-w-7xl">
-      {/* Hero Section */}
-      <div className="relative rounded-3xl overflow-hidden bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-elevation">
-        <div className="absolute inset-0 bg-[url('https://img.usecurling.com/p/800/400?q=modern%20architecture&color=gray')] opacity-[0.03] dark:opacity-10 bg-cover bg-center mix-blend-overlay" />
-        <div className="relative p-8 md:p-12 backdrop-blur-sm flex flex-col md:flex-row justify-between items-start gap-6">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-zinc-900 dark:text-zinc-50 animate-fade-in-up">
+    <div className="w-full p-4 md:p-6 lg:p-8 space-y-6 mx-auto animate-fade-in pb-20 max-w-7xl">
+      <Card className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent dark:from-primary/10 pointer-events-none" />
+        <CardContent className="p-6 flex flex-col md:flex-row justify-between items-center md:items-start gap-6 relative z-10">
+          <div className="flex-1 text-center md:text-left">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mb-2">
               Bem-vindo(a),{' '}
               <span className="text-primary">{user?.name?.split(' ')[0] || 'Cliente'}</span>!
             </h1>
-            <p
-              className="text-zinc-600 dark:text-zinc-400 text-lg md:text-xl max-w-2xl animate-fade-in-up"
-              style={{ animationDelay: '100ms' }}
-            >
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm max-w-xl">
               Acompanhe o andamento dos seus projetos, status de fases, detalhes financeiros e as
-              últimas atualizações da equipe em tempo real.
+              últimas atualizações da equipe de forma centralizada.
             </p>
           </div>
-          <div
-            className="flex flex-col items-end gap-6 animate-fade-in-up"
-            style={{ animationDelay: '150ms' }}
-          >
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 relative shrink-0">
+                <svg viewBox="0 0 36 36" className="w-full h-full text-primary">
+                  <path
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeDasharray="100, 100"
+                    className="opacity-20"
+                  />
+                  <path
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeDasharray={`${avgProgress}, 100`}
+                    strokeLinecap="round"
+                    className="animate-[spin_1s_ease-out]"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-sm font-bold">
+                  {avgProgress}%
+                </div>
+              </div>
+              <div className="text-sm">
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">Progresso</p>
+                <p className="text-zinc-500 dark:text-zinc-400 text-xs">Média Geral</p>
+              </div>
+            </div>
             <Button
-              onClick={async () => {
-                setIsExporting(true)
-                try {
-                  let settings = null
-                  try {
-                    settings = await pb.collection('company_settings').getFirstListItem('')
-                  } catch {
-                    /* intentionally ignored */
-                  }
-                  exportClientDashboardPDF(user, projects, phases, payments, comments, settings)
-                } catch (err) {
-                  console.error('Error exporting PDF:', err)
-                } finally {
-                  setIsExporting(false)
-                }
-              }}
+              onClick={handleExport}
               disabled={isExporting}
-              className="bg-[#D4AF37] hover:bg-[#B5952F] text-white font-medium shadow-md transition-all"
+              className="shadow-sm transition-all whitespace-nowrap"
             >
               {isExporting ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Download className="w-4 h-4 mr-2" />
               )}
-              Exportar Relatório (PDF)
+              Exportar PDF
             </Button>
-            <div className="hidden md:flex w-32 h-32 relative flex-shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={progressData}
-                    innerRadius={40}
-                    outerRadius={60}
-                    startAngle={90}
-                    endAngle={-270}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {progressData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip formatter={(value: number) => `${value}%`} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center flex-col">
-                <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                  {avgProgress}%
-                </span>
-              </div>
-            </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          icon={CheckCircle2}
+          title="Fases Concluídas"
+          value={phaseStats['Concluído'] || 0}
+          iconClass="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+        />
+        <KpiCard
+          icon={Clock}
+          title="Em Andamento"
+          value={phaseStats['Em Andamento'] || 0}
+          iconClass="bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
+        />
+        <KpiCard
+          icon={DollarSign}
+          title="Total Pago"
+          value={formatCurrency(totalPago)}
+          iconClass="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+        />
+        <KpiCard
+          icon={Activity}
+          title="Pendências"
+          value={formatCurrency(totalPendente)}
+          iconClass="bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400"
+        />
       </div>
 
-      {/* Widgets Grid */}
-      <div
-        className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-fade-in-up"
-        style={{ animationDelay: '200ms' }}
-      >
-        {/* Left Column: Progress & Financial */}
-        <div className="md:col-span-4 space-y-6">
-          {/* Status Fases Widget */}
-          <Card className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2 text-zinc-800 dark:text-zinc-100">
-                <Activity className="w-5 h-5 text-primary" />
-                Status das Fases
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 mt-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm font-medium">Concluídas</span>
-                  </div>
-                  <span className="font-bold text-zinc-900 dark:text-zinc-50">
-                    {phaseStats['Concluído'] || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-                    <Loader2 className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium">Em Andamento</span>
-                  </div>
-                  <span className="font-bold text-zinc-900 dark:text-zinc-50">
-                    {phaseStats['Em Andamento'] || 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-                    <Clock className="w-4 h-4 text-amber-500" />
-                    <span className="text-sm font-medium">Pendentes</span>
-                  </div>
-                  <span className="font-bold text-zinc-900 dark:text-zinc-50">
-                    {(phaseStats['Pendente'] || 0) + (phaseStats['Aguardando Aprovação'] || 0)}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Financial Status Widget */}
-          <Card className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2 text-zinc-800 dark:text-zinc-100">
-                <DollarSign className="w-5 h-5 text-primary" />
-                Resumo Financeiro
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-4 mt-2">
-                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
-                  <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">
-                    Total Pago
-                  </p>
-                  <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                    {formatCurrency(totalPago)}
-                  </p>
-                </div>
-                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20">
-                  <p className="text-xs font-medium text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-1">
-                    Pendente
-                  </p>
-                  <p className="text-2xl font-bold text-rose-700 dark:text-rose-300">
-                    {formatCurrency(totalPendente)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Center/Right Column: Projects List & Activity Feed */}
-        <div className="md:col-span-8 space-y-6">
-          {/* Projects */}
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-bold tracking-tight flex items-center gap-2 text-zinc-800 dark:text-zinc-100">
-              <Layers className="w-6 h-6 text-primary" /> Meus Projetos
-            </h2>
-          </div>
-
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          <h2 className="text-lg font-bold tracking-tight flex items-center gap-2 text-zinc-800 dark:text-zinc-100">
+            <Layers className="w-5 h-5 text-primary" /> Meus Projetos
+          </h2>
           {projects.length === 0 ? (
-            <Card className="border-dashed border-2 bg-transparent border-zinc-200 dark:border-zinc-800">
-              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                <Building2 className="w-16 h-16 text-zinc-300 dark:text-zinc-700 mb-4" />
-                <h3 className="text-xl font-bold mb-2 text-zinc-800 dark:text-zinc-100">
+            <Card className="border-dashed bg-transparent">
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <Building2 className="w-12 h-12 text-zinc-300 dark:text-zinc-700 mb-4" />
+                <h3 className="text-lg font-bold mb-2 text-zinc-800 dark:text-zinc-100">
                   Nenhum projeto ativo
                 </h3>
-                <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mb-6">
-                  Você ainda não possui projetos vinculados à sua conta.
+                <p className="text-zinc-500 text-sm mb-4">
+                  Você ainda não possui projetos vinculados.
                 </p>
                 <Button
                   onClick={() => (window.location.href = 'mailto:contato@tozzi.com')}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  variant="outline"
                 >
-                  <Phone className="w-4 h-4 mr-2" /> Falar com Atendimento
+                  <Phone className="w-4 h-4 mr-2" /> Atendimento
                 </Button>
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {projects.map((project, idx) => (
-                <Card
+              {projects.map((project) => (
+                <ProjectCard
                   key={project.id}
-                  className="group overflow-hidden flex flex-col cursor-pointer bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 hover:shadow-lg hover:border-primary/50 transition-all duration-300"
+                  project={project}
                   onClick={() => navigate(`/gestao/painel-cliente/${project.id}`)}
-                  style={{ animationDelay: `${300 + idx * 50}ms` }}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start mb-2 gap-4">
-                      <CardTitle className="text-lg line-clamp-2 leading-tight group-hover:text-primary transition-colors text-zinc-800 dark:text-zinc-100">
-                        {project.nome_projeto}
-                      </CardTitle>
-                      <Badge className={getStatusColor(project.status_geral)} variant="outline">
-                        {project.status_geral}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 gap-2">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>
-                        Início:{' '}
-                        {project.data_inicio
-                          ? format(new Date(project.data_inicio), 'dd/MM/yyyy')
-                          : 'N/A'}
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-1 pb-3">
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-medium text-zinc-600 dark:text-zinc-300">
-                          Progresso
-                        </span>
-                        <span className="font-bold text-primary">
-                          {project.progresso_total || 0}%
-                        </span>
-                      </div>
-                      <Progress
-                        value={project.progresso_total || 0}
-                        className="h-1.5 bg-zinc-100 dark:bg-zinc-800"
-                      />
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-3 bg-zinc-50/50 dark:bg-zinc-900/50 group-hover:bg-primary/5 transition-colors border-t border-zinc-100 dark:border-zinc-800/50">
-                    <span className="text-xs font-semibold flex items-center text-primary">
-                      Acessar painel do projeto{' '}
-                      <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" />
-                    </span>
-                  </CardFooter>
-                </Card>
+                />
               ))}
             </div>
           )}
+        </div>
 
-          {/* Recent Activity Feed */}
-          <Card className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 shadow-sm mt-6">
-            <CardHeader className="border-b border-zinc-100 dark:border-zinc-800/50 py-4">
-              <CardTitle className="text-base flex items-center gap-2 text-zinc-800 dark:text-zinc-100">
-                <MessageSquare className="w-4 h-4 text-primary" />
-                Atualizações Recentes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[280px]">
-                {comments.length > 0 ? (
-                  <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800/50">
-                    {comments.map((comment) => (
-                      <div
-                        key={comment.id}
-                        className="p-4 flex gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
-                      >
-                        <Avatar className="w-9 h-9 border border-zinc-200 dark:border-zinc-700">
-                          <AvatarImage
-                            src={
-                              comment.expand?.autor?.avatar
-                                ? pb.files.getUrl(comment.expand.autor, comment.expand.autor.avatar)
-                                : undefined
-                            }
-                          />
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            {comment.expand?.autor?.name?.charAt(0) || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex justify-between items-start">
-                            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                              {comment.expand?.autor?.name || 'Equipe Tozzi'}
-                            </span>
-                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                              {formatDistanceToNow(new Date(comment.created), {
-                                addSuffix: true,
-                                locale: ptBR,
-                              })}
-                            </span>
-                          </div>
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
-                            {comment.mensagem}
-                          </p>
-                          {comment.expand?.projeto_id?.nome_projeto && (
-                            <p className="text-xs font-medium text-primary mt-1">
-                              Projeto: {comment.expand.projeto_id.nome_projeto}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-zinc-500 dark:text-zinc-400 p-6 text-center">
-                    <MessageSquare className="w-8 h-8 mb-2 opacity-20" />
-                    <p className="text-sm">Nenhuma atividade recente encontrada.</p>
-                  </div>
-                )}
-              </ScrollArea>
-            </CardContent>
+        <div className="space-y-4 flex flex-col">
+          <h2 className="text-lg font-bold tracking-tight flex items-center gap-2 text-zinc-800 dark:text-zinc-100">
+            <MessageSquare className="w-5 h-5 text-primary" /> Atualizações Recentes
+          </h2>
+          <Card className="flex-1 min-h-[400px] flex flex-col overflow-hidden">
+            <ScrollArea className="flex-1 h-[400px]">
+              {comments.length > 0 ? (
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+                  {comments.map((comment) => (
+                    <ActivityItem key={comment.id} comment={comment} />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-zinc-500 py-12">
+                  <MessageSquare className="w-8 h-8 mb-2 opacity-20" />
+                  <p className="text-sm">Nenhuma atividade recente.</p>
+                </div>
+              )}
+            </ScrollArea>
           </Card>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function KpiCard({ icon: Icon, title, value, iconClass }: any) {
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-4">
+        <div className={cn('p-3 rounded-full shrink-0', iconClass)}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 truncate">{title}</p>
+          <p className="text-xl font-bold text-zinc-900 dark:text-zinc-50 truncate">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ProjectCard({ project, onClick }: any) {
+  const getStatusColor = (status: string) => {
+    if (status === 'Concluído') return 'bg-emerald-500 hover:bg-emerald-600 text-white'
+    if (status === 'Em Execução') return 'bg-blue-500 hover:bg-blue-600 text-white'
+    if (status === 'Planejamento') return 'bg-amber-500 hover:bg-amber-600 text-white'
+    return 'bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200'
+  }
+
+  return (
+    <Card
+      className="group cursor-pointer hover:border-primary/50 transition-all flex flex-col h-full"
+      onClick={onClick}
+    >
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start gap-4 mb-2">
+          <CardTitle className="text-base line-clamp-2 group-hover:text-primary transition-colors">
+            {project.nome_projeto}
+          </CardTitle>
+          <Badge
+            className={cn('border-transparent shrink-0', getStatusColor(project.status_geral))}
+          >
+            {project.status_geral}
+          </Badge>
+        </div>
+        <div className="flex items-center text-xs text-zinc-500 gap-2">
+          <Calendar className="w-3.5 h-3.5" />
+          <span>
+            Início:{' '}
+            {project.data_inicio ? format(new Date(project.data_inicio), 'dd/MM/yyyy') : 'N/A'}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="mt-auto pb-3">
+        <div className="flex justify-between text-xs mb-1.5">
+          <span className="font-medium text-zinc-600 dark:text-zinc-300">Progresso</span>
+          <span className="font-bold text-primary">{project.progresso_total || 0}%</span>
+        </div>
+        <Progress value={project.progresso_total || 0} className="h-1.5" />
+      </CardContent>
+      <CardFooter className="pt-3 bg-zinc-50/50 dark:bg-zinc-900/50 group-hover:bg-primary/5 border-t border-zinc-100 dark:border-zinc-800/50">
+        <span className="text-xs font-semibold flex items-center text-primary">
+          Acessar projeto{' '}
+          <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" />
+        </span>
+      </CardFooter>
+    </Card>
+  )
+}
+
+function ActivityItem({ comment }: any) {
+  const isSystem = !comment.expand?.autor
+  return (
+    <div className="p-4 flex gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
+      <Avatar className="w-8 h-8 border border-zinc-200 dark:border-zinc-700 shrink-0 mt-0.5">
+        <AvatarImage
+          src={
+            comment.expand?.autor?.avatar
+              ? pb.files.getUrl(comment.expand.autor, comment.expand.autor.avatar)
+              : undefined
+          }
+        />
+        <AvatarFallback
+          className={isSystem ? 'bg-blue-100 text-blue-600' : 'bg-primary/10 text-primary'}
+        >
+          {isSystem ? (
+            <Activity className="w-4 h-4" />
+          ) : (
+            comment.expand?.autor?.name?.charAt(0) || 'U'
+          )}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-start mb-1">
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate pr-2">
+            {comment.expand?.autor?.name || 'Sistema'}
+          </span>
+          <span className="text-[10px] text-zinc-500 whitespace-nowrap shrink-0">
+            {formatDistanceToNow(new Date(comment.created), { addSuffix: true, locale: ptBR })}
+          </span>
+        </div>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 break-words leading-relaxed">
+          {comment.mensagem}
+        </p>
+        {comment.expand?.projeto_id?.nome_projeto && (
+          <p className="text-[10px] font-medium text-primary mt-1.5 truncate">
+            Projeto: {comment.expand.projeto_id.nome_projeto}
+          </p>
+        )}
       </div>
     </div>
   )

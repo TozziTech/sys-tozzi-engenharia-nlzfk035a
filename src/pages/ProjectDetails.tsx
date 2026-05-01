@@ -82,7 +82,6 @@ import { EditProjectModal } from '@/components/EditProjectModal'
 import { ProjectComments } from '@/components/ProjectComments'
 import { ProjectModules } from '@/components/ProjectModules'
 import { ProjectFinanceTab } from '@/components/ProjectFinanceTab'
-import { NoteCard } from '@/components/NoteCard'
 import { ProjectTimeline } from '@/components/ProjectTimeline'
 import ProjectCalendar from '@/pages/ProjectCalendar'
 import {
@@ -1650,10 +1649,6 @@ export default function ProjectDetails() {
                 canEdit={canEdit}
                 updateProject={updateProject}
               />
-
-              <div className="w-full">
-                <NoteCard projectId={project.id} />
-              </div>
 
               <div className={gapClass}>
                 <div className={`grid grid-cols-1 md:grid-cols-2 ${gridGapClass}`}>

@@ -47,7 +47,6 @@ import { Switch } from '@/components/ui/switch'
 import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
 import { NotificationsTab } from '@/components/meu-painel/NotificationsTab'
 import { usePermissions } from '@/hooks/use-permissions'
-import { NoteCard } from '@/components/NoteCard'
 import { MyTasksList } from '@/components/meu-painel/MyTasksList'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
@@ -350,10 +349,6 @@ export default function MeuPainel() {
           </div>
 
           <MyTasksList />
-
-          <div className="flex justify-center w-full relative mt-8">
-            <NoteCard />
-          </div>
         </TabsContent>
 
         <TabsContent value="cronograma" className="space-y-6">

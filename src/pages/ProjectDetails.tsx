@@ -96,123 +96,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
-import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { usePermissions } from '@/hooks/use-permissions'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-
-function ProjectObservationsCard({
-  project,
-  canEdit,
-  updateProject,
-}: {
-  project: any
-  canEdit: boolean
-  updateProject: any
-}) {
-  const [isEditingObservations, setIsEditingObservations] = useState(false)
-  const [observationText, setObservationText] = useState('')
-  const { toast } = useToast()
-
-  return (
-    <Card>
-      <CardHeader className="pb-3 flex flex-row items-start sm:items-center justify-between">
-        <CardTitle className="text-lg">Observações</CardTitle>
-        {!isEditingObservations && canEdit && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-2 text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setObservationText(project.description || project.observations || '')
-              setIsEditingObservations(true)
-            }}
-          >
-            <Edit2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent>
-        {isEditingObservations ? (
-          <div className="space-y-3 animate-in fade-in duration-200">
-            <div className="space-y-2">
-              <Textarea
-                value={observationText}
-                onChange={(e) => setObservationText(e.target.value)}
-                placeholder="Adicione observações e descrições do projeto... (Suporta Markdown: **negrito**, *itálico*, - listas, [link](url))"
-                className="min-h-[160px] resize-y font-mono text-sm"
-                autoFocus
-              />
-              <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <span>
-                    <strong className="font-bold">**</strong>negrito
-                    <strong className="font-bold">**</strong>
-                  </span>
-                  <span>
-                    <em className="italic">*</em>itálico<em className="italic">*</em>
-                  </span>
-                  <span>[link](url)</span>
-                  <span>- lista</span>
-                </div>
-                <span className="shrink-0">Suporta Markdown</span>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setIsEditingObservations(false)}>
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={async () => {
-                  try {
-                    await pb
-                      .collection('projects')
-                      .update(project.id, { description: observationText })
-                    if (typeof updateProject === 'function') {
-                      updateProject(project.id, {
-                        description: observationText,
-                        observations: observationText,
-                      })
-                    } else {
-                      window.location.reload()
-                    }
-                    setIsEditingObservations(false)
-                    toast({
-                      title: 'Sucesso',
-                      description: 'Observações atualizadas com êxito.',
-                    })
-                  } catch (err) {
-                    console.error(err)
-                    toast({
-                      title: 'Erro',
-                      description: `Ocorreu um erro ao salvar as observações.`,
-                      variant: 'destructive',
-                    })
-                  }
-                }}
-              >
-                Salvar
-              </Button>
-            </div>
-          </div>
-        ) : project.description || project.observations ? (
-          <div className="bg-muted/50 p-4 rounded-lg border border-border group relative">
-            <MarkdownRenderer content={project.description || project.observations || ''} />
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground italic">
-            Nenhuma observação detalhada foi registrada para este projeto.
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
 
 function ReportScheduleCard({ projectId }: { projectId: string }) {
   const [reportSchedule, setReportSchedule] = useState<any>(null)
@@ -1648,12 +1537,6 @@ export default function ProjectDetails() {
 
           <div className={`grid grid-cols-1 md:grid-cols-3 ${gridGapClass}`}>
             <div className={`md:col-span-2 ${gapClass}`}>
-              <ProjectObservationsCard
-                project={project}
-                canEdit={canEdit}
-                updateProject={updateProject}
-              />
-
               <div className={gapClass}>
                 <div className={`grid grid-cols-1 md:grid-cols-2 ${gridGapClass}`}>
                   <Card>

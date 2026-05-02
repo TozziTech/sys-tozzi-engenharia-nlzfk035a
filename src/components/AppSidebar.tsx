@@ -130,6 +130,12 @@ const getNavigationGroups = () => [
       { name: 'Clientes', id: 'clientes', href: '/clients', icon: Briefcase },
       { name: 'Contatos', id: 'contatos', href: '/contacts', icon: Contact },
       { name: 'Equipamentos', id: 'equipamentos', href: '/equipment', icon: HardHat },
+      {
+        name: 'Modelos de Disciplina',
+        id: 'modelos_disciplina',
+        href: '/settings/templates',
+        icon: FileStack,
+      },
     ],
   },
   {

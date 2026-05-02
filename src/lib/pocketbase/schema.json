@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-02T03:04:40.315Z",
+  "generatedAt": "2026-05-02T03:31:14.974Z",
   "collections": [
     {
       "name": "users",
@@ -1375,6 +1375,13 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "template_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "discipline_templates"
         }
       ],
       "indexes": ["CREATE INDEX idx_project_modules_project ON project_modules (project)"]
@@ -3461,6 +3468,112 @@
         "CREATE INDEX idx_project_reports_history_project ON project_reports_history (project)",
         "CREATE INDEX idx_project_reports_history_created ON project_reports_history (created)"
       ]
+    },
+    {
+      "name": "discipline_templates",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "task_templates",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'"
+      },
+      "fields": [
+        {
+          "name": "discipline_template",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "discipline_templates"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "priority",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Baixa", "Média", "Alta", "Urgente"]
+        },
+        {
+          "name": "is_internal",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

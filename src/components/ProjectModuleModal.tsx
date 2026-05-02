@@ -78,6 +78,7 @@ const schema = z.object({
   responsible: z.string().optional(),
   designer: z.string().optional(),
   sub_disciplines: z.array(z.any()).optional(),
+  template_id: z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -99,9 +100,14 @@ export function ProjectModuleModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [subDisciplineSearch, setSubDisciplineSearch] = useState('')
   const [tags, setTags] = useState<any[]>([])
+  const [templates, setTemplates] = useState<any[]>([])
 
   useEffect(() => {
     pb.collection('tags').getFullList({ sort: 'name' }).then(setTags).catch(console.error)
+    pb.collection('discipline_templates')
+      .getFullList({ sort: 'name' })
+      .then(setTemplates)
+      .catch(console.error)
   }, [])
 
   const form = useForm<FormData>({
@@ -114,6 +120,7 @@ export function ProjectModuleModal({
       deadline: '',
       notes: '',
       sub_disciplines: [],
+      template_id: 'none',
     },
   })
 
@@ -136,6 +143,7 @@ export function ProjectModuleModal({
           sub_disciplines: (module.sub_disciplines || []).map((sd: any) =>
             typeof sd === 'string' ? { name: sd, color: LEGACY_HEX_COLORS[sd] || '#3b82f6' } : sd,
           ),
+          template_id: 'none',
         })
       } else {
         form.reset({
@@ -150,6 +158,7 @@ export function ProjectModuleModal({
           responsible: 'none',
           designer: 'none',
           sub_disciplines: [],
+          template_id: 'none',
         })
       }
       setSubDisciplineSearch('')
@@ -190,6 +199,7 @@ export function ProjectModuleModal({
         responsible: data.responsible !== 'none' ? data.responsible : null,
         designer: data.designer !== 'none' ? data.designer : null,
         sub_disciplines: data.sub_disciplines || [],
+        template_id: data.template_id && data.template_id !== 'none' ? data.template_id : null,
       }
 
       if (module) {
@@ -232,6 +242,44 @@ export function ProjectModuleModal({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {!module && (
+              <FormField
+                control={form.control}
+                name="template_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Usar Disciplina Modelo (Opcional)</FormLabel>
+                    <Select
+                      onValueChange={(val) => {
+                        field.onChange(val)
+                        if (val && val !== 'none') {
+                          const t = templates.find((x) => x.id === val)
+                          if (t && !form.getValues('name')) {
+                            form.setValue('name', t.name)
+                          }
+                        }
+                      }}
+                      value={field.value || 'none'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um modelo para importar tarefas" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum modelo</SelectItem>
+                        {templates.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}

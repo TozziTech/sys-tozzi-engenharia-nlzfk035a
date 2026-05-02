@@ -47,6 +47,7 @@ import Audit from './pages/Audit'
 import AdminDocuments from './pages/admin/AdminDocuments'
 import AnalyticsDashboard from './pages/admin/AnalyticsDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
+import DisciplineTemplates from './pages/DisciplineTemplates'
 import AccessControl from './pages/AccessControl'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
 import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
@@ -193,6 +194,7 @@ const App = () => (
                     <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
                     <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
                     <Route path="/admin/users" element={<AdminUsers />} />
+                    <Route path="/settings/templates" element={<DisciplineTemplates />} />
                   </Route>
                 </Route>
               </Route>

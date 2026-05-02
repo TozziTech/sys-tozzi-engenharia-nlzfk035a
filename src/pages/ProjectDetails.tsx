@@ -57,6 +57,12 @@ import {
   Layers,
   Building2,
 } from 'lucide-react'
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion'
 import { exportProjectHoursCSV, exportAuditLogsCSV } from '@/lib/export'
 import { exportProjectHoursPDF, exportAuditLogsPDF, exportSpecialtiesPDF } from '@/lib/exportPdf'
 import pb from '@/lib/pocketbase/client'
@@ -1715,91 +1721,114 @@ export default function ProjectDetails() {
 
               <div className="space-y-6 mt-6">
                 <Card>
-                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <CardTitle className="text-lg">Histórico de Alterações</CardTitle>
-                      <CardDescription>
-                        Registro de alterações de acesso e atribuições de membros na equipe do
-                        projeto.
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-2 w-full sm:w-auto">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => exportAuditLogsCSV(auditLogs)}
-                        className="flex-1 sm:flex-none"
-                      >
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        CSV
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          exportAuditLogsPDF(
-                            auditLogs,
-                            user?.name || user?.email || 'Usuário',
-                            null,
-                          )
-                        }
-                        className="flex-1 sm:flex-none"
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        PDF
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {auditLogs.length > 0 ? (
-                      <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6">
-                        {auditLogs.map((log) => {
-                          const targetUser = users.find((u) => u.id === log.details?.target_user)
-                          const actionLabelMap: Record<string, string> = {
-                            access_granted: 'Acesso Concedido',
-                            access_updated: 'Acesso Atualizado',
-                            access_revoked: 'Acesso Revogado',
-                            assignment_added: 'Membro Atribuído',
-                            assignment_removed: 'Membro Removido',
-                          }
-                          const actionLabel = actionLabelMap[log.action] || 'Ação Desconhecida'
-
-                          let message = ''
-                          if (log.action === 'access_granted') {
-                            message = `Acesso de ${log.details?.access_level || 'Leitura'} concedido a ${targetUser?.name || 'Usuário'}`
-                          } else if (log.action === 'access_updated') {
-                            message = `Acesso de ${targetUser?.name || 'Usuário'} alterado para ${log.details?.access_level || 'Leitura'}`
-                          } else if (log.action === 'access_revoked') {
-                            message = `Acesso de ${targetUser?.name || 'Usuário'} revogado`
-                          } else if (log.action === 'assignment_added') {
-                            message = `${targetUser?.name || 'Usuário'} atribuído como ${log.details?.role} na disciplina "${log.details?.module_name}"`
-                          } else if (log.action === 'assignment_removed') {
-                            message = `${targetUser?.name || 'Usuário'} removido da função de ${log.details?.role} na disciplina "${log.details?.module_name}"`
-                          } else {
-                            message = `Ação: ${log.action}`
-                          }
-
-                          return (
-                            <div key={log.id} className="pl-6 relative">
-                              <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
-                              <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 mb-1">
-                                <span className="font-medium text-sm">{actionLabel}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(log.created).toLocaleString('pt-BR')} por{' '}
-                                  {log.expand?.user_id?.name || 'Sistema'}
-                                </span>
-                              </div>
-                              <p className="text-sm text-muted-foreground">{message}</p>
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="history" className="border-none">
+                      <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="flex-1 w-full">
+                          <AccordionTrigger className="py-0 hover:no-underline text-left group">
+                            <div className="pr-4">
+                              <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                                Histórico de Alterações
+                              </CardTitle>
+                              <CardDescription className="mt-1 font-normal">
+                                Registro de alterações de acesso e atribuições de membros na equipe
+                                do projeto.
+                              </CardDescription>
                             </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
-                        Nenhum histórico registrado para a equipe deste projeto.
-                      </div>
-                    )}
-                  </CardContent>
+                          </AccordionTrigger>
+                        </div>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              exportAuditLogsCSV(auditLogs)
+                            }}
+                            className="flex-1 sm:flex-none z-10"
+                          >
+                            <FileSpreadsheet className="h-4 w-4 mr-2" />
+                            CSV
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              exportAuditLogsPDF(
+                                auditLogs,
+                                user?.name || user?.email || 'Usuário',
+                                null,
+                              )
+                            }}
+                            className="flex-1 sm:flex-none z-10"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            PDF
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <AccordionContent className="pb-0">
+                        <CardContent>
+                          {auditLogs.length > 0 ? (
+                            <div className="relative border-l border-muted-foreground/30 ml-3 space-y-6">
+                              {auditLogs.map((log) => {
+                                const targetUser = users.find(
+                                  (u) => u.id === log.details?.target_user,
+                                )
+                                const actionLabelMap: Record<string, string> = {
+                                  access_granted: 'Acesso Concedido',
+                                  access_updated: 'Acesso Atualizado',
+                                  access_revoked: 'Acesso Revogado',
+                                  assignment_added: 'Membro Atribuído',
+                                  assignment_removed: 'Membro Removido',
+                                }
+                                const actionLabel =
+                                  actionLabelMap[log.action] || 'Ação Desconhecida'
+
+                                let message = ''
+                                if (log.action === 'access_granted') {
+                                  message = `Acesso de ${log.details?.access_level || 'Leitura'} concedido a ${targetUser?.name || 'Usuário'}`
+                                } else if (log.action === 'access_updated') {
+                                  message = `Acesso de ${targetUser?.name || 'Usuário'} alterado para ${log.details?.access_level || 'Leitura'}`
+                                } else if (log.action === 'access_revoked') {
+                                  message = `Acesso de ${targetUser?.name || 'Usuário'} revogado`
+                                } else if (log.action === 'assignment_added') {
+                                  message = `${targetUser?.name || 'Usuário'} atribuído como ${log.details?.role} na disciplina "${log.details?.module_name}"`
+                                } else if (log.action === 'assignment_removed') {
+                                  message = `${targetUser?.name || 'Usuário'} removido da função de ${log.details?.role} na disciplina "${log.details?.module_name}"`
+                                } else {
+                                  message = `Ação: ${log.action}`
+                                }
+
+                                return (
+                                  <div key={log.id} className="pl-6 relative">
+                                    <div className="absolute w-3 h-3 bg-primary rounded-full -left-[6.5px] top-1.5 ring-4 ring-background" />
+                                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 mb-1">
+                                      <span className="font-medium text-sm text-foreground">
+                                        {actionLabel}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {new Date(log.created).toLocaleString('pt-BR')} por{' '}
+                                        {log.expand?.user_id?.name || 'Sistema'}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground break-words">
+                                      {message}
+                                    </p>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/20">
+                              Nenhum histórico registrado para a equipe deste projeto.
+                            </div>
+                          )}
+                        </CardContent>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </Card>
 
                 <Card>

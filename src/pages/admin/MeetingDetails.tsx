@@ -2,7 +2,18 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowLeft, Clock, UploadCloud, Download, Trash, Plus, Play, Save } from 'lucide-react'
+import {
+  ArrowLeft,
+  Clock,
+  UploadCloud,
+  Download,
+  Trash,
+  Plus,
+  Play,
+  Save,
+  ExternalLink,
+  Edit,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { exportMeetingMinutesPDF } from '@/lib/exportPdf'
 import { Button } from '@/components/ui/button'
@@ -66,6 +77,14 @@ export default function MeetingDetails() {
   const [topicOpen, setTopicOpen] = useState(false)
   const [newTopic, setNewTopic] = useState({ topic: '', estimated_time: '15', responsible: '' })
 
+  const [editOpen, setEditOpen] = useState(false)
+  const [editData, setEditData] = useState({
+    title: '',
+    description: '',
+    date_time: '',
+    duration: '60',
+  })
+
   useEffect(() => {
     if (id) loadAll()
   }, [id])
@@ -85,6 +104,12 @@ export default function MeetingDetails() {
       setUsers(u)
       setMinutesVersions(mv)
       setMinutesContent(m.minutes || '')
+      setEditData({
+        title: m.title,
+        description: m.description || '',
+        date_time: format(new Date(m.date_time), "yyyy-MM-dd'T'HH:mm"),
+        duration: m.duration.toString(),
+      })
     } catch (e) {
       toast.error('Erro ao carregar reunião')
       navigate('/admin/reunioes')
@@ -109,6 +134,23 @@ export default function MeetingDetails() {
       loadAll()
     } catch (e) {
       toast.error('Erro ao salvar ata')
+    }
+  }
+
+  const handleUpdateDetails = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await updateMeeting(id!, {
+        title: editData.title,
+        description: editData.description,
+        date_time: new Date(editData.date_time).toISOString(),
+        duration: Number(editData.duration),
+      })
+      toast.success('Reunião atualizada')
+      setEditOpen(false)
+      loadAll()
+    } catch (err) {
+      toast.error('Erro ao atualizar reunião')
     }
   }
 
@@ -174,12 +216,36 @@ export default function MeetingDetails() {
 
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{meeting.title}</h1>
-          <p className="text-zinc-500 mt-1 flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            {format(new Date(meeting.date_time), "dd 'de' MMMM 'de' yyyy, HH:mm", { locale: ptBR })}
-            ({meeting.duration} min)
-          </p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">{meeting.title}</h1>
+            {meeting.status === 'Pendente' && (
+              <Button variant="ghost" size="icon" onClick={() => setEditOpen(true)}>
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {meeting.description && (
+            <p className="text-sm mt-2 text-zinc-600 max-w-2xl">{meeting.description}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-4 mt-3 text-zinc-500 text-sm">
+            <span className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              {format(new Date(meeting.date_time), "dd 'de' MMMM 'de' yyyy, HH:mm", {
+                locale: ptBR,
+              })}
+              ({meeting.duration} min)
+            </span>
+            {meeting.meet_link && (
+              <a
+                href={meeting.meet_link}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded-md transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" /> Google Meet
+              </a>
+            )}
+          </div>
           {meeting.expand?.project && (
             <Badge variant="outline" className="mt-2">
               {meeting.expand.project.name}
@@ -395,6 +461,54 @@ export default function MeetingDetails() {
           </TabsContent>
         )}
       </Tabs>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Reunião</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateDetails} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Título</Label>
+              <Input
+                required
+                value={editData.title}
+                onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input
+                value={editData.description}
+                onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data e Hora</Label>
+                <Input
+                  type="datetime-local"
+                  required
+                  value={editData.date_time}
+                  onChange={(e) => setEditData({ ...editData, date_time: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Duração (minutos)</Label>
+                <Input
+                  type="number"
+                  required
+                  value={editData.duration}
+                  onChange={(e) => setEditData({ ...editData, duration: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Salvar</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={topicOpen} onOpenChange={setTopicOpen}>
         <DialogContent>

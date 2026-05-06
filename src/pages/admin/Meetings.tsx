@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Plus, Trash } from 'lucide-react'
+import { Plus, Trash, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -43,6 +43,7 @@ export default function Meetings() {
   const [open, setOpen] = useState(false)
 
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [projectId, setProjectId] = useState('none')
   const [dateTime, setDateTime] = useState('')
   const [duration, setDuration] = useState('60')
@@ -72,6 +73,7 @@ export default function Meetings() {
     try {
       await createMeeting({
         title,
+        description,
         project: projectId === 'none' ? null : projectId,
         date_time: new Date(dateTime).toISOString(),
         duration: Number(duration),
@@ -82,6 +84,7 @@ export default function Meetings() {
       setOpen(false)
       loadData()
       setTitle('')
+      setDescription('')
       setProjectId('none')
       setDateTime('')
       setDuration('60')
@@ -129,6 +132,7 @@ export default function Meetings() {
                   <TableHead>Data/Hora</TableHead>
                   <TableHead>Participantes</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Link (Meet)</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -153,6 +157,20 @@ export default function Meetings() {
                       >
                         {m.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {m.meet_link ? (
+                        <a
+                          href={m.meet_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline flex items-center gap-1 text-sm"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Entrar
+                        </a>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" asChild>
@@ -186,7 +204,11 @@ export default function Meetings() {
                 <Input required value={title} onChange={(e) => setTitle(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Projeto</Label>
+                <Label>Descrição</Label>
+                <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Projeto</Label>{' '}
                 <Select value={projectId} onValueChange={setProjectId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um projeto" />

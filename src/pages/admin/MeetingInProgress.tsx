@@ -84,13 +84,6 @@ export default function MeetingInProgress() {
     return () => clearInterval(timer)
   }, [])
 
-  useEffect(() => {
-    const saveInterval = setInterval(() => {
-      if (meeting) handleAutoSave()
-    }, 10000)
-    return () => clearInterval(saveInterval)
-  }, [meeting])
-
   const loadData = async () => {
     try {
       const m = await getMeeting(id!)
@@ -125,7 +118,7 @@ export default function MeetingInProgress() {
     }
   }
 
-  const handleAutoSave = async () => {
+  const handleManualSave = async () => {
     if (!meeting) return
     try {
       await updateMeeting(meeting.id, {
@@ -133,8 +126,10 @@ export default function MeetingInProgress() {
         attendance: attendanceRef.current,
       })
       setLastSaved(new Date())
+      toast.success('Alterações salvas com sucesso!')
     } catch (err) {
-      console.error('Autosave failed', err)
+      console.error('Save failed', err)
+      toast.error('Erro ao salvar alterações.')
     }
   }
 
@@ -210,7 +205,10 @@ export default function MeetingInProgress() {
           </h1>
           <p className="text-zinc-500 text-sm mt-1">Ao vivo - {format(new Date(), 'dd/MM/yyyy')}</p>
         </div>
-        <div className="space-x-3">
+        <div className="space-x-3 flex items-center">
+          <Button variant="secondary" onClick={handleManualSave}>
+            <Save className="h-4 w-4 mr-2" /> Salvar Alterações
+          </Button>
           <Button variant="outline" onClick={() => setActionModal(true)}>
             <Plus className="h-4 w-4 mr-2" /> Criar Action Item
           </Button>
@@ -285,8 +283,8 @@ export default function MeetingInProgress() {
               <div className="text-xs font-medium text-zinc-500 flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full">
                 <Save className="h-3.5 w-3.5" />
                 {lastSaved
-                  ? `Salvo às ${format(lastSaved, 'HH:mm:ss')}`
-                  : 'Salvando automaticamente...'}
+                  ? `Último salvamento: ${format(lastSaved, 'HH:mm:ss')}`
+                  : 'Ainda não salvo'}
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col p-0">

@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   LogOut,
+  Timer,
   FolderKanban,
   Users,
   Settings,
@@ -26,6 +27,7 @@ import {
   FileSpreadsheet,
   GraduationCap,
   User,
+  UserCheck,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -84,16 +86,22 @@ const getNavigationGroups = () => [
     items: [
       { name: 'Dashboard geral', id: 'dashboard_geral', href: '/dashboard', icon: LayoutDashboard },
       {
-        name: 'Todos os Projetos',
+        name: 'Painel de Projetos',
         id: 'projetos',
         href: '/projects',
         icon: FolderKanban,
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Cliente', 'Visitante'],
       },
-      { name: 'Diagnóstico', id: 'diagnostico', href: '/diagnostics', icon: AlertTriangle },
       { name: 'Cronograma', id: 'cronograma', href: '/schedule', icon: CalendarDays },
-      { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
       { name: 'Calendário', id: 'calendario', href: '/calendar', icon: CalendarIcon },
+      {
+        name: 'Análise Pós-Ação',
+        id: 'apa',
+        href: '/apa/dashboard',
+        icon: FileCheck,
+        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
+      },
+      { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
     ],
   },
   {
@@ -123,7 +131,7 @@ const getNavigationGroups = () => [
     ],
   },
   {
-    label: 'Cadastro',
+    label: 'Gestão Administrativa',
     id: 'cadastro',
     items: [
       { name: 'Projetistas', id: 'projetistas', href: '/team', icon: Users },
@@ -135,6 +143,12 @@ const getNavigationGroups = () => [
         id: 'modelos_disciplina',
         href: '/settings/templates',
         icon: FileStack,
+      },
+      {
+        name: 'Reuniões',
+        id: 'reunioes',
+        href: '/admin/reunioes',
+        icon: Users,
       },
     ],
   },
@@ -169,6 +183,12 @@ const getNavigationGroups = () => [
         id: 'visao_carteira',
         href: '/admin/analytics',
         icon: LineChart,
+      },
+      {
+        name: 'Eficiência da Equipe',
+        id: 'eficiencia',
+        href: '/admin/efficiency',
+        icon: Timer,
       },
       { name: 'Meu Perfil', id: 'meu_perfil', href: '/profile', icon: User },
       { name: 'Configurações do Sistema', id: 'configuracoes', href: '/settings', icon: Settings },
@@ -239,9 +259,14 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {visibleItems.map((item) => {
+                    const currentPathWithSearch = location.pathname + location.search
                     const isActive =
-                      location.pathname === item.href ||
-                      (location.pathname === '/' && item.href === '/dashboard')
+                      currentPathWithSearch === item.href ||
+                      (location.pathname === item.href &&
+                        !item.href.includes('?') &&
+                        (!location.search || location.search === '?tab=overview')) ||
+                      (location.pathname === '/' && item.href === '/dashboard') ||
+                      (item.href === '/apa/dashboard' && location.pathname.startsWith('/apa/'))
 
                     return (
                       <SidebarMenuItem key={item.name}>

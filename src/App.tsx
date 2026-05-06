@@ -29,7 +29,7 @@ import Settings from './pages/Settings'
 import Profile from './pages/Profile'
 import Gantt from './pages/Gantt'
 import ProjectCalendar from './pages/ProjectCalendar'
-import Bottlenecks from './pages/Bottlenecks'
+import ResourceAllocation from './pages/ResourceAllocation'
 import Timesheet from './pages/Timesheet'
 import History from './pages/History'
 import Team from './pages/Team'
@@ -46,10 +46,18 @@ import Equipments from './pages/Equipments'
 import Audit from './pages/Audit'
 import AdminDocuments from './pages/admin/AdminDocuments'
 import AnalyticsDashboard from './pages/admin/AnalyticsDashboard'
+import EfficiencyReports from './pages/EfficiencyReports'
 import AdminUsers from './pages/admin/AdminUsers'
 import DisciplineTemplates from './pages/DisciplineTemplates'
 import AccessControl from './pages/AccessControl'
+import Meetings from './pages/admin/Meetings'
+import MeetingDetails from './pages/admin/MeetingDetails'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
+import ApaLayout from './pages/apa/ApaLayout'
+import ApaCreate from './pages/apa/ApaCreate'
+import ApaHistory from './pages/apa/ApaHistory'
+import LessonsLearnedDashboard from './pages/apa/LessonsLearnedDashboard'
+import ApaActions from './pages/apa/ApaActions'
 import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
 import { AuthProvider, useAuth } from './hooks/use-auth'
 import { RoleGuard } from './components/auth/RoleGuard'
@@ -62,6 +70,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Welcome from './pages/Welcome'
 import ChangePassword from './pages/ChangePassword'
+import PublicReportView from './pages/PublicReportView'
 
 function HomeRoute() {
   const { user } = useAuth()
@@ -104,6 +113,7 @@ const App = () => (
               <Route path="/welcome" element={<Welcome />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/report/view/:token" element={<PublicReportView />} />
               <Route element={<RoleGuard />}>
                 <Route path="/change-password" element={<ChangePassword />} />
                 <Route element={<Layout />}>
@@ -157,8 +167,14 @@ const App = () => (
                     <Route path="/projects" element={<Projects />} />
                     <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
                     <Route path="/financial-dashboard" element={<FinancialDashboard />} />
-                    <Route path="/diagnostics" element={<Bottlenecks />} />
-                    <Route path="/bottlenecks" element={<Bottlenecks />} />
+                    <Route
+                      path="/diagnostics"
+                      element={<Navigate to="/dashboard?tab=diagnostico" replace />}
+                    />
+                    <Route
+                      path="/bottlenecks"
+                      element={<Navigate to="/dashboard?tab=diagnostico" replace />}
+                    />
                     <Route path="/deadline-audit" element={<DeadlineAudit />} />
                     <Route path="/management/bank-accounts" element={<BankAccounts />} />
                     <Route path="/financial" element={<Financial />} />
@@ -169,6 +185,10 @@ const App = () => (
                     <Route path="/schedule" element={<Gantt />} />
                     <Route path="/gantt" element={<Gantt />} />
                     <Route path="/calendar" element={<ProjectCalendar />} />
+                    <Route
+                      path="/resources"
+                      element={<Navigate to="/dashboard?tab=recursos" replace />}
+                    />
                     <Route path="/quotes" element={<Quotes />} />
                     <Route path="/operations/contract-generator" element={<ContractGenerator />} />
                     <Route path="/team" element={<Team />} />
@@ -188,13 +208,27 @@ const App = () => (
                     <Route path="/gestao-central" element={<GestaoCentral />} />
                     <Route path="/audit" element={<Audit />} />
                     <Route path="/admin/access-control" element={<AccessControl />} />
+                    <Route path="/admin/reunioes" element={<Meetings />} />
+                    <Route path="/admin/reunioes/:id" element={<MeetingDetails />} />
                     <Route path="/audit-logs" element={<Audit />} />
                     <Route path="/admin/audit-log" element={<Audit />} />
                     <Route path="/admin/audit-logs" element={<Audit />} />
+                    <Route path="/apa" element={<ApaLayout />}>
+                      <Route index element={<Navigate to="dashboard" replace />} />
+                      <Route path="dashboard" element={<LessonsLearnedDashboard />} />
+                      <Route path="new" element={<ApaCreate />} />
+                      <Route path="history" element={<ApaHistory />} />
+                      <Route path="actions" element={<ApaActions />} />
+                    </Route>
                     <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
                     <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
+                    <Route path="/admin/efficiency" element={<EfficiencyReports />} />
                     <Route path="/admin/users" element={<AdminUsers />} />
                     <Route path="/settings/templates" element={<DisciplineTemplates />} />
+                    <Route
+                      path="/settings/templates/:templateId"
+                      element={<DisciplineDetails isTemplateMode />}
+                    />
                   </Route>
                 </Route>
               </Route>

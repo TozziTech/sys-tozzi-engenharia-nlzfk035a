@@ -2617,8 +2617,8 @@ export function exportMeetingMinutesPDF(
     ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
     : ''
   const projectName = meeting.expand?.project?.name || 'N/A'
-  
-  const participantsList = participants.map(p => p.name || p.email).join(', ')
+
+  const participantsList = participants.map((p) => p.name || p.email).join(', ')
 
   let actionsHtml = ''
   if (actions && actions.length > 0) {
@@ -2635,18 +2635,25 @@ export function exportMeetingMinutesPDF(
             </tr>
           </thead>
           <tbody>
-            ${actions.map((a: any) => {
-              const priority = a.expand?.task?.priority || a.priority || 'Média';
-              const pColor = priority === 'Alta' || priority === 'Urgente' ? '#ef4444' : priority === 'Média' ? '#eab308' : '#3b82f6';
-              return \`
+            ${actions
+              .map((a: any) => {
+                const priority = a.expand?.task?.priority || a.priority || 'Média'
+                const pColor =
+                  priority === 'Alta' || priority === 'Urgente'
+                    ? '#ef4444'
+                    : priority === 'Média'
+                      ? '#eab308'
+                      : '#3b82f6'
+                return `
               <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">\${a.description}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">\${a.expand?.responsible?.name || '-'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">\${a.due_date ? new Date(a.due_date).toLocaleDateString('pt-BR') : '-'}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;"><span style="background-color: \${pColor}20; color: \${pColor}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; border: 1px solid \${pColor}40;">\${priority}</span></td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">${a.description}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">${a.expand?.responsible?.name || '-'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">${a.due_date ? new Date(a.due_date).toLocaleDateString('pt-BR') : '-'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;"><span style="background-color: ${pColor}20; color: ${pColor}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; border: 1px solid ${pColor}40;">${priority}</span></td>
               </tr>
-            \`
-            }).join('')}
+            `
+              })
+              .join('')}
           </tbody>
         </table>
       </div>

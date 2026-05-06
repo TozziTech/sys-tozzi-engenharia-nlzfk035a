@@ -91,6 +91,8 @@ export default function MeetingDetails() {
   const [minutesContent, setMinutesContent] = useState<string>('')
   const [originalMinutesContent, setOriginalMinutesContent] = useState<string>('')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [meetingActions, setMeetingActions] = useState<any[]>([])
+  const [isExporting, setIsExporting] = useState(false)
 
   const isMinutesDirty = minutesContent !== originalMinutesContent
 
@@ -142,18 +144,22 @@ export default function MeetingDetails() {
 
   const loadAll = async () => {
     try {
-      const [m, a, d, u, mv] = await Promise.all([
+      const [m, a, d, u, mv, acts] = await Promise.all([
         getMeeting(id!),
         getMeetingAgenda(id!),
         getMeetingDocuments(id!),
         pb.collection('users').getFullList(),
         getMeetingMinutesVersions(id!),
+        pb
+          .collection('meeting_actions')
+          .getFullList({ filter: `meeting = '${id}'`, expand: 'responsible,task' }),
       ])
       setMeeting(m)
       setAgenda(a)
       setDocs(d)
       setUsers(u)
       setMinutesVersions(mv)
+      setMeetingActions(acts)
       setMinutesContent(m.minutes || '')
       setOriginalMinutesContent(m.minutes || '')
       setEditData({
@@ -333,12 +339,26 @@ export default function MeetingDetails() {
     const actions = lines
       .map((l) => l.trim())
       .filter((l) => l.startsWith('[ ]'))
-      .map((l, i) => ({
-        id: i,
-        description: l.replace('[ ]', '').trim(),
-        responsible: 'none',
-        due_date: '',
-      }))
+      .map((l, i) => {
+        let text = l.replace('[ ]', '').trim()
+        let prio = 'Média'
+        const prioMatch = text.match(/^\[(.*?)\]/)
+        if (
+          prioMatch &&
+          ['alta', 'media', 'média', 'baixa', 'urgente'].includes(prioMatch[1].toLowerCase())
+        ) {
+          prio = prioMatch[1].charAt(0).toUpperCase() + prioMatch[1].slice(1).toLowerCase()
+          if (prio === 'Media') prio = 'Média'
+          text = text.replace(prioMatch[0], '').trim()
+        }
+        return {
+          id: i,
+          description: text,
+          responsible: 'none',
+          due_date: '',
+          priority: prio,
+        }
+      })
 
     if (actions.length === 0) {
       toast.info('Nenhuma ação encontrada com o formato "[ ]". Insira [ ] no início da linha.')
@@ -352,18 +372,56 @@ export default function MeetingDetails() {
     try {
       for (const action of extractedActions) {
         if (!action.description) continue
+
+        let taskId = null
+        if (action.responsible !== 'none') {
+          const taskData = {
+            title: action.description,
+            due_date: action.due_date ? new Date(action.due_date + 'T12:00:00Z').toISOString() : '',
+            responsible: action.responsible,
+            project: meeting.project || null,
+            status: 'Pendente',
+            priority: action.priority || 'Média',
+          }
+          const createdTask = await pb.collection('tasks').create(taskData)
+          taskId = createdTask.id
+        }
+
         await createMeetingAction({
           meeting: id,
           description: action.description,
           responsible: action.responsible !== 'none' ? action.responsible : null,
-          due_date: action.due_date || null,
+          due_date: action.due_date ? new Date(action.due_date + 'T12:00:00Z').toISOString() : null,
           status: 'Pendente',
+          task: taskId,
         })
       }
       toast.success(`${extractedActions.length} ações geradas com sucesso!`)
       setExtractModalOpen(false)
+      loadAll()
     } catch (err) {
       toast.error('Erro ao gerar ações')
+    }
+  }
+
+  const doExportPDF = async (contentToExport: string) => {
+    setIsExporting(true)
+    try {
+      const participants = users.filter((u) => (meeting.participants || []).includes(u.id))
+      const settingsList = await pb.collection('company_settings').getFullList()
+      const companySettings = settingsList[0] || null
+      exportMeetingMinutesPDF(
+        meeting,
+        contentToExport,
+        user?.name || 'Sistema',
+        companySettings,
+        participants,
+        meetingActions,
+      )
+    } catch (e) {
+      toast.error('Erro ao exportar PDF')
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -598,15 +656,21 @@ export default function MeetingDetails() {
                     )}
                     <Button
                       variant="outline"
+                      disabled={isExporting}
                       onClick={() => {
                         const content =
                           selectedVersion === 'latest'
                             ? minutesContent
                             : minutesVersions.find((v) => v.id === selectedVersion)?.content || ''
-                        exportMeetingMinutesPDF(meeting, content, user?.name || 'Sistema')
+                        doExportPDF(content)
                       }}
                     >
-                      <Download className="h-4 w-4 mr-2" /> Gerar PDF
+                      {isExporting ? (
+                        <div className="h-4 w-4 mr-2 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      Gerar PDF
                     </Button>
                   </div>
                 </div>
@@ -837,6 +901,24 @@ export default function MeetingDetails() {
                     setExtractedActions(newActs)
                   }}
                 />
+                <Select
+                  value={action.priority}
+                  onValueChange={(val) => {
+                    const newActs = [...extractedActions]
+                    newActs[idx].priority = val
+                    setExtractedActions(newActs)
+                  }}
+                >
+                  <SelectTrigger className="w-[120px] bg-white dark:bg-zinc-950">
+                    <SelectValue placeholder="Prioridade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Baixa">Baixa</SelectItem>
+                    <SelectItem value="Média">Média</SelectItem>
+                    <SelectItem value="Alta">Alta</SelectItem>
+                    <SelectItem value="Urgente">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button
                   variant="ghost"
                   size="icon"

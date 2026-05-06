@@ -58,7 +58,12 @@ export default function MeetingInProgress() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
   const [actionModal, setActionModal] = useState(false)
-  const [newAction, setNewAction] = useState({ description: '', responsible: '', due_date: '' })
+  const [newAction, setNewAction] = useState({
+    description: '',
+    responsible: '',
+    due_date: '',
+    priority: 'Média',
+  })
 
   const minutesRef = useRef(minutes)
   const attendanceRef = useRef(attendance)
@@ -210,16 +215,35 @@ export default function MeetingInProgress() {
   const handleCreateAction = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      let taskId = null
+      if (newAction.responsible) {
+        const taskData = {
+          title: newAction.description,
+          responsible: newAction.responsible,
+          due_date: newAction.due_date
+            ? new Date(newAction.due_date + 'T12:00:00Z').toISOString()
+            : '',
+          project: meeting.project || null,
+          status: 'Pendente',
+          priority: newAction.priority || 'Média',
+        }
+        const t = await pb.collection('tasks').create(taskData)
+        taskId = t.id
+      }
+
       await createMeetingAction({
         meeting: id,
         description: newAction.description,
         responsible: newAction.responsible,
-        due_date: newAction.due_date || null,
+        due_date: newAction.due_date
+          ? new Date(newAction.due_date + 'T12:00:00Z').toISOString()
+          : null,
         status: 'Pendente',
+        task: taskId,
       })
       toast.success('Action item criado')
       setActionModal(false)
-      setNewAction({ description: '', responsible: '', due_date: '' })
+      setNewAction({ description: '', responsible: '', due_date: '', priority: 'Média' })
     } catch (err) {
       toast.error('Erro ao criar action item')
     }
@@ -455,14 +479,33 @@ export default function MeetingInProgress() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Data de Vencimento</Label>
-              <Input
-                type="date"
-                required
-                value={newAction.due_date}
-                onChange={(e) => setNewAction({ ...newAction, due_date: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data de Vencimento</Label>
+                <Input
+                  type="date"
+                  required
+                  value={newAction.due_date}
+                  onChange={(e) => setNewAction({ ...newAction, due_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Prioridade</Label>
+                <Select
+                  value={newAction.priority}
+                  onValueChange={(v) => setNewAction({ ...newAction, priority: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Baixa">Baixa</SelectItem>
+                    <SelectItem value="Média">Média</SelectItem>
+                    <SelectItem value="Alta">Alta</SelectItem>
+                    <SelectItem value="Urgente">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter>
               <Button type="submit">Criar Ação</Button>

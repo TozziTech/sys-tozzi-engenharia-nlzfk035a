@@ -2606,6 +2606,8 @@ export function exportMeetingMinutesPDF(
   minutesContent: string,
   currentUser: string,
   settings: any = null,
+  participants: any[] = [],
+  actions: any[] = [],
 ) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
@@ -2615,6 +2617,41 @@ export function exportMeetingMinutesPDF(
     ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
     : ''
   const projectName = meeting.expand?.project?.name || 'N/A'
+  
+  const participantsList = participants.map(p => p.name || p.email).join(', ')
+
+  let actionsHtml = ''
+  if (actions && actions.length > 0) {
+    actionsHtml = `
+      <div style="margin-top: 40px; page-break-inside: auto;">
+        <h3 style="color: ${primaryColor}; border-bottom: 2px solid ${primaryColor}; padding-bottom: 5px; font-size: 18px; margin-bottom: 0;">Plano de Ação (Tarefas)</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; background-color: ${primaryColor}; color: white; font-size: 12px; text-transform: uppercase;">Ação</th>
+              <th style="text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; background-color: ${primaryColor}; color: white; font-size: 12px; text-transform: uppercase;">Responsável</th>
+              <th style="text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; background-color: ${primaryColor}; color: white; font-size: 12px; text-transform: uppercase;">Prazo</th>
+              <th style="text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; background-color: ${primaryColor}; color: white; font-size: 12px; text-transform: uppercase;">Prioridade</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${actions.map((a: any) => {
+              const priority = a.expand?.task?.priority || a.priority || 'Média';
+              const pColor = priority === 'Alta' || priority === 'Urgente' ? '#ef4444' : priority === 'Média' ? '#eab308' : '#3b82f6';
+              return \`
+              <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">\${a.description}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">\${a.expand?.responsible?.name || '-'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">\${a.due_date ? new Date(a.due_date).toLocaleDateString('pt-BR') : '-'}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px;"><span style="background-color: \${pColor}20; color: \${pColor}; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; border: 1px solid \${pColor}40;">\${priority}</span></td>
+              </tr>
+            \`
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+  }
 
   const html = `
     <!DOCTYPE html>
@@ -2647,9 +2684,14 @@ export function exportMeetingMinutesPDF(
             <p style="margin: 5px 0 0;">Gerado por: ${currentUser}</p>
           </div>
         </div>
+        
+        ${participantsList ? `<div style="margin-bottom: 20px; font-size: 14px; color: #374151;"><strong>Participantes:</strong> ${participantsList}</div>` : ''}
+        
         <div class="content">
           ${minutesContent || '<p>Sem conteúdo na ata.</p>'}
         </div>
+        
+        ${actionsHtml}
       </body>
     </html>
   `

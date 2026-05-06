@@ -1,12 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default function AdminUsers() {
+export default function EfficiencyReports() {
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Gerenciamento de Usuários</h1>
+    <div className="p-6">
+      <h1 className="text-3xl font-bold tracking-tight mb-6">Eficiência da Equipe</h1>
       <Card>
         <CardHeader>
-          <CardTitle>Usuários do Sistema</CardTitle>
+          <CardTitle>Relatórios de Eficiência</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-zinc-500">Módulo em desenvolvimento.</p>

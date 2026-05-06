@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-06T04:30:50.377Z",
+  "generatedAt": "2026-05-06T04:37:26.816Z",
   "collections": [
     {
       "name": "users",
@@ -4322,6 +4322,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "task",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "tasks"
         }
       ],
       "indexes": []

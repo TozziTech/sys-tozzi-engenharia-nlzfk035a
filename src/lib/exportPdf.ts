@@ -2659,6 +2659,150 @@ export function exportMeetingMinutesPDF(
   setTimeout(() => printWindow.print(), 250)
 }
 
+export function exportMeetingsDashboardPDF(data: any, currentUser: string, settings: any = null) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Dashboard de Reuniões</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+          th { background-color: ${primaryColor}; color: #ffffff; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 20px; }
+          .summary-grid { display: flex; gap: 20px; margin-bottom: 20px; }
+          .summary-card { background: #f9fafb; padding: 15px; border-radius: 8px; flex: 1; border-left: 4px solid ${primaryColor}; }
+          .summary-card h3 { margin: 0 0 5px 0; font-size: 12px; color: #6b7280; text-transform: uppercase; }
+          .summary-card p { margin: 0; font-size: 20px; font-weight: bold; color: #111827; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <div class="header">
+          <div>
+            ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; margin-bottom: 10px;" />` : ''}
+            <h2 style="margin: 0; color: ${primaryColor};">Dashboard de Reuniões</h2>
+            <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;">${data.periodLabel}</p>
+          </div>
+          <div style="text-align: right; color: #6b7280; font-size: 14px;">
+            Gerado por: ${currentUser}<br/>
+            Data: ${format(new Date(), 'dd/MM/yyyy HH:mm')}
+          </div>
+        </div>
+        
+        <div class="summary-grid">
+          <div class="summary-card">
+            <h3>Total de Reuniões</h3>
+            <p>${data.metrics.totalMeetings}</p>
+          </div>
+          <div class="summary-card">
+            <h3>Duração Média (min)</h3>
+            <p>${Math.round(data.metrics.avgTime)}</p>
+          </div>
+        </div>
+
+        <h3 style="color: ${primaryColor}; margin-top: 30px;">Próximas Reuniões</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Data/Hora</th>
+              <th>Projeto</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.upcoming
+              .map(
+                (m: any) => `
+              <tr>
+                <td>${m.title}</td>
+                <td>${m.date_time ? format(new Date(m.date_time), 'dd/MM/yyyy HH:mm') : '-'}</td>
+                <td>${m.expand?.project?.name || '-'}</td>
+                <td>${m.status}</td>
+              </tr>
+            `,
+              )
+              .join('')}
+            ${data.upcoming.length === 0 ? '<tr><td colspan="4" style="text-align: center;">Nenhuma reunião futura.</td></tr>' : ''}
+          </tbody>
+        </table>
+
+        <h3 style="color: ${primaryColor}; margin-top: 30px;">Reuniões Recentes</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Data</th>
+              <th>Projeto</th>
+              <th>Duração</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.recent
+              .map(
+                (m: any) => `
+              <tr>
+                <td>${m.title}</td>
+                <td>${m.date_time ? format(new Date(m.date_time), 'dd/MM/yyyy') : '-'}</td>
+                <td>${m.expand?.project?.name || '-'}</td>
+                <td>${m.duration} min</td>
+              </tr>
+            `,
+              )
+              .join('')}
+            ${data.recent.length === 0 ? '<tr><td colspan="4" style="text-align: center;">Nenhuma reunião recente.</td></tr>' : ''}
+          </tbody>
+        </table>
+
+        <h3 style="color: ${primaryColor}; margin-top: 30px;">Ações Pendentes</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Descrição</th>
+              <th>Responsável</th>
+              <th>Prazo</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.actions
+              .map(
+                (a: any) => `
+              <tr>
+                <td>${a.description}</td>
+                <td>${a.expand?.responsible?.name || '-'}</td>
+                <td>${a.due_date ? format(new Date(a.due_date), 'dd/MM/yyyy') : '-'}</td>
+                <td>${a.status}</td>
+              </tr>
+            `,
+              )
+              .join('')}
+            ${data.actions.length === 0 ? '<tr><td colspan="4" style="text-align: center;">Nenhuma ação pendente.</td></tr>' : ''}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportUserPDF(
   user: any,
   projects: Project[],

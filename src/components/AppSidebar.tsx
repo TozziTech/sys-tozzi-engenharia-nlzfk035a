@@ -28,6 +28,7 @@ import {
   GraduationCap,
   User,
   UserCheck,
+  Presentation,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -143,6 +144,12 @@ const getNavigationGroups = () => [
         id: 'modelos_disciplina',
         href: '/settings/templates',
         icon: FileStack,
+      },
+      {
+        name: 'Dashboard de Reuniões',
+        id: 'dashboard_reunioes',
+        href: '/meetings-dashboard',
+        icon: Presentation,
       },
       {
         name: 'Reuniões',

@@ -50,12 +50,6 @@ export default function Meetings() {
   const [duration, setDuration] = useState('60')
   const [participants, setParticipants] = useState<{ user_id: string; is_mandatory: boolean }[]>([])
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  useRealtime('meetings', loadData)
-
   const loadData = async () => {
     try {
       const [m, u, p] = await Promise.all([
@@ -70,6 +64,12 @@ export default function Meetings() {
       toast.error('Erro ao carregar dados')
     }
   }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useRealtime('meetings', loadData)
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()

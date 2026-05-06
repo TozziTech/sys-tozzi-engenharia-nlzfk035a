@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Plus, Trash, ExternalLink } from 'lucide-react'
+import { Plus, Trash, ExternalLink, Pencil, Check, ChevronsUpDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -22,6 +22,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -32,10 +42,20 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import pb from '@/lib/pocketbase/client'
-import { getMeetings, createMeeting } from '@/services/meetings'
+import { getMeetings, createMeeting, updateMeeting, deleteMeeting } from '@/services/meetings'
 import { useRealtime } from '@/hooks/use-realtime'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 export default function Meetings() {
   const [meetings, setMeetings] = useState<any[]>([])
@@ -49,6 +69,15 @@ export default function Meetings() {
   const [dateTime, setDateTime] = useState('')
   const [duration, setDuration] = useState('60')
   const [participants, setParticipants] = useState<{ user_id: string; is_mandatory: boolean }[]>([])
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [editData, setEditData] = useState<any>(null)
+
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [meetingToDelete, setMeetingToDelete] = useState<string | null>(null)
+
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const [editPopoverOpen, setEditPopoverOpen] = useState(false)
 
   const loadData = async () => {
     try {
@@ -97,6 +126,58 @@ export default function Meetings() {
     }
   }
 
+  const toLocalDatetime = (dateStr: string) => {
+    if (!dateStr) return ''
+    const d = new Date(dateStr)
+    const tzOffset = d.getTimezoneOffset() * 60000
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16)
+  }
+
+  const handleEditClick = (meeting: any) => {
+    setEditData({
+      id: meeting.id,
+      title: meeting.title || '',
+      description: meeting.description || '',
+      project: meeting.project || 'none',
+      date_time: meeting.date_time ? toLocalDatetime(meeting.date_time) : '',
+      duration: meeting.duration?.toString() || '60',
+      status: meeting.status || 'Pendente',
+    })
+    setEditOpen(true)
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await updateMeeting(editData.id, {
+        title: editData.title,
+        description: editData.description,
+        project: editData.project === 'none' ? null : editData.project,
+        date_time: new Date(editData.date_time).toISOString(),
+        duration: Number(editData.duration),
+        status: editData.status,
+      })
+      toast.success('Reunião atualizada com sucesso!')
+      setEditOpen(false)
+      loadData()
+    } catch (err) {
+      toast.error('Erro ao atualizar reunião')
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!meetingToDelete) return
+    try {
+      await deleteMeeting(meetingToDelete)
+      toast.success('Reunião excluída com sucesso!')
+      setDeleteOpen(false)
+      setMeetingToDelete(null)
+      loadData()
+    } catch (err) {
+      toast.error('Erro ao excluir reunião')
+    }
+  }
+
   const meetingDates = meetings.map((m) => new Date(m.date_time))
 
   return (
@@ -136,7 +217,7 @@ export default function Meetings() {
                   <TableHead>Participantes</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Link (Meet)</TableHead>
-                  <TableHead></TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -175,7 +256,21 @@ export default function Meetings() {
                         '-'
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditClick(m)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500"
+                        onClick={() => {
+                          setMeetingToDelete(m.id)
+                          setDeleteOpen(true)
+                        }}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="sm" asChild>
                         <Link to={`/admin/reunioes/${m.id}`}>Detalhes</Link>
                       </Button>
@@ -184,7 +279,7 @@ export default function Meetings() {
                 ))}
                 {meetings.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4">
+                    <TableCell colSpan={7} className="text-center py-4">
                       Nenhuma reunião agendada.
                     </TableCell>
                   </TableRow>
@@ -195,6 +290,7 @@ export default function Meetings() {
         </Card>
       </div>
 
+      {/* CREATE DIALOG */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -206,25 +302,55 @@ export default function Meetings() {
                 <Label>Título</Label>
                 <Input required value={title} onChange={(e) => setTitle(e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Projeto</Label>{' '}
-                <Select value={projectId} onValueChange={setProjectId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um projeto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
-                    {projects.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2 flex flex-col justify-end">
+                <Label>Projeto</Label>
+                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                      <span className="truncate">
+                        {projectId !== 'none'
+                          ? projects.find((p) => p.id === projectId)?.name
+                          : 'Nenhum'}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar projeto..." />
+                      <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
+                      <CommandList>
+                        <CommandGroup>
+                          <CommandItem
+                            onSelect={() => {
+                              setProjectId('none')
+                              setPopoverOpen(false)
+                            }}
+                          >
+                            Nenhum
+                          </CommandItem>
+                          {projects.map((p) => (
+                            <CommandItem
+                              key={p.id}
+                              onSelect={() => {
+                                setProjectId(p.id)
+                                setPopoverOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4',
+                                  projectId === p.id ? 'opacity-100' : 'opacity-0',
+                                )}
+                              />
+                              {p.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label>Data e Hora</Label>
@@ -242,6 +368,14 @@ export default function Meetings() {
                   required
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Descrição</Label>
+                <textarea
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
             </div>
@@ -308,6 +442,150 @@ export default function Meetings() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* EDIT DIALOG */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar Reunião</DialogTitle>
+          </DialogHeader>
+          {editData && (
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Título</Label>
+                  <Input
+                    required
+                    value={editData.title}
+                    onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 flex flex-col justify-end">
+                  <Label>Projeto</Label>
+                  <Popover open={editPopoverOpen} onOpenChange={setEditPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between">
+                        <span className="truncate">
+                          {editData.project !== 'none'
+                            ? projects.find((p) => p.id === editData.project)?.name
+                            : 'Nenhum'}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar projeto..." />
+                        <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
+                        <CommandList>
+                          <CommandGroup>
+                            <CommandItem
+                              onSelect={() => {
+                                setEditData({ ...editData, project: 'none' })
+                                setEditPopoverOpen(false)
+                              }}
+                            >
+                              Nenhum
+                            </CommandItem>
+                            {projects.map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                onSelect={() => {
+                                  setEditData({ ...editData, project: p.id })
+                                  setEditPopoverOpen(false)
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    editData.project === p.id ? 'opacity-100' : 'opacity-0',
+                                  )}
+                                />
+                                {p.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data e Hora</Label>
+                  <Input
+                    type="datetime-local"
+                    required
+                    value={editData.date_time}
+                    onChange={(e) => setEditData({ ...editData, date_time: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Duração (minutos)</Label>
+                  <Input
+                    type="number"
+                    required
+                    value={editData.duration}
+                    onChange={(e) => setEditData({ ...editData, duration: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={editData.status}
+                    onValueChange={(v) => setEditData({ ...editData, status: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                      <SelectItem value="Realizada">Realizada</SelectItem>
+                      <SelectItem value="Cancelada">Cancelada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label>Descrição</Label>
+                  <textarea
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={editData.description}
+                    onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Salvar</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE CONFIRMATION */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Reunião</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta reunião? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMeetingToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={handleDeleteConfirm}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

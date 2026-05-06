@@ -91,7 +91,11 @@ export default function MeetingDetails() {
     if (id) loadAll()
   }, [id])
 
-  useRealtime('meetings', () => {
+  useRealtime('meetings', (e) => {
+    if (e.action === 'delete' && e.record.id === id) {
+      navigate('/admin/reunioes')
+      return
+    }
     if (id) loadAll()
   })
   useRealtime('meeting_agenda_items', () => {
@@ -128,8 +132,12 @@ export default function MeetingDetails() {
         date_time: format(new Date(m.date_time), "yyyy-MM-dd'T'HH:mm"),
         duration: m.duration.toString(),
       })
-    } catch (e) {
-      toast.error('Erro ao carregar reunião')
+    } catch (e: any) {
+      if (e?.status === 404) {
+        toast.error('Reunião não encontrada ou foi excluída.')
+      } else {
+        toast.error('Erro ao carregar reunião')
+      }
       navigate('/admin/reunioes')
     }
   }

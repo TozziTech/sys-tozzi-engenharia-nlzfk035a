@@ -66,7 +66,11 @@ export default function MeetingInProgress() {
     if (id) loadData()
   }, [id])
 
-  useRealtime('meetings', () => {
+  useRealtime('meetings', (e) => {
+    if (e.action === 'delete' && e.record.id === id) {
+      navigate('/admin/reunioes')
+      return
+    }
     if (id) loadData()
   })
   useRealtime('meeting_agenda_items', () => {
@@ -111,8 +115,12 @@ export default function MeetingInProgress() {
       setAttendance(m.attendance || [])
       setParticipants(pUsers)
       setAllUsers(allU)
-    } catch (e) {
-      toast.error('Erro ao carregar reunião')
+    } catch (e: any) {
+      if (e?.status === 404) {
+        toast.error('Reunião não encontrada ou foi excluída.')
+      } else {
+        toast.error('Erro ao carregar reunião')
+      }
       navigate('/admin/reunioes')
     }
   }

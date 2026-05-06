@@ -51,6 +51,8 @@ import AdminUsers from './pages/admin/AdminUsers'
 import DisciplineTemplates from './pages/DisciplineTemplates'
 import AccessControl from './pages/AccessControl'
 import Meetings from './pages/admin/Meetings'
+import MeetingTemplates from './pages/admin/MeetingTemplates'
+import MeetingTemplateDetails from './pages/admin/MeetingTemplateDetails'
 import MeetingDetails from './pages/admin/MeetingDetails'
 import MeetingInProgress from './pages/admin/MeetingInProgress'
 import MeetingsDashboard from './pages/MeetingsDashboard'
@@ -211,6 +213,11 @@ const App = () => (
                     <Route path="/audit" element={<Audit />} />
                     <Route path="/admin/access-control" element={<AccessControl />} />
                     <Route path="/admin/reunioes" element={<Meetings />} />
+                    <Route path="/admin/reunioes/templates" element={<MeetingTemplates />} />
+                    <Route
+                      path="/admin/reunioes/templates/:id"
+                      element={<MeetingTemplateDetails />}
+                    />
                     <Route path="/admin/reunioes/:id" element={<MeetingDetails />} />
                     <Route path="/admin/reunioes/:id/in-progress" element={<MeetingInProgress />} />
                     <Route path="/meetings-dashboard" element={<MeetingsDashboard />} />

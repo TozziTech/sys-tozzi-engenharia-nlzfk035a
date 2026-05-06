@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-06T22:55:11.146Z",
+  "generatedAt": "2026-05-06T23:02:57.257Z",
   "collections": [
     {
       "name": "users",
@@ -4387,6 +4387,107 @@
       ],
       "indexes": [
         "CREATE INDEX idx_meeting_minutes_versions_meeting ON meeting_minutes_versions (meeting)"
+      ]
+    },
+    {
+      "name": "meeting_templates",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "default_minutes",
+          "type": "editor",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "meeting_template_agenda_items",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'",
+        "update": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'",
+        "delete": "@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto'"
+      },
+      "fields": [
+        {
+          "name": "template",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "meeting_templates"
+        },
+        {
+          "name": "topic",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "estimated_time",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_meeting_template_agenda_items_template ON meeting_template_agenda_items (template)"
       ]
     }
   ]

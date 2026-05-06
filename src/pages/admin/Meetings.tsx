@@ -69,6 +69,8 @@ export default function Meetings() {
   const [dateTime, setDateTime] = useState('')
   const [duration, setDuration] = useState('60')
   const [participants, setParticipants] = useState<{ user_id: string; is_mandatory: boolean }[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState('none')
+  const [templates, setTemplates] = useState<any[]>([])
 
   const [editOpen, setEditOpen] = useState(false)
   const [editData, setEditData] = useState<any>(null)
@@ -84,14 +86,16 @@ export default function Meetings() {
 
   const loadData = async () => {
     try {
-      const [m, u, p] = await Promise.all([
+      const [m, u, p, t] = await Promise.all([
         getMeetings(),
         pb.collection('users').getFullList(),
         pb.collection('projects').getFullList({ filter: "status != 'Concluído'" }),
+        pb.collection('meeting_templates').getFullList(),
       ])
       setMeetings(m)
       setUsers(u)
       setProjects(p)
+      setTemplates(t)
     } catch (e) {
       toast.error('Erro ao carregar dados')
     }
@@ -106,7 +110,15 @@ export default function Meetings() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await createMeeting({
+      let minutesContent = ''
+      if (selectedTemplate !== 'none') {
+        const tmpl = templates.find((t) => t.id === selectedTemplate)
+        if (tmpl && tmpl.default_minutes) {
+          minutesContent = tmpl.default_minutes
+        }
+      }
+
+      const newMeeting = await createMeeting({
         title,
         description,
         project: projectId === 'none' ? null : projectId,
@@ -114,7 +126,23 @@ export default function Meetings() {
         duration: Number(duration),
         participants,
         status: 'Pendente',
+        minutes: minutesContent,
       })
+
+      if (selectedTemplate !== 'none') {
+        const agendaItems = await pb
+          .collection('meeting_template_agenda_items')
+          .getFullList({ filter: `template = '${selectedTemplate}'` })
+        for (const item of agendaItems) {
+          await pb.collection('meeting_agenda_items').create({
+            meeting: newMeeting.id,
+            topic: item.topic,
+            estimated_time: item.estimated_time,
+            order: item.order,
+          })
+        }
+      }
+
       toast.success('Reunião agendada com sucesso!')
       setOpen(false)
       loadData()
@@ -124,6 +152,7 @@ export default function Meetings() {
       setDateTime('')
       setDuration('60')
       setParticipants([])
+      setSelectedTemplate('none')
     } catch (err) {
       toast.error('Erro ao salvar reunião')
     }
@@ -194,9 +223,14 @@ export default function Meetings() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Reuniões</h1>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Agendar Reunião
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/admin/reunioes/templates">Gerenciar Templates</Link>
+          </Button>
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Agendar Reunião
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -351,6 +385,34 @@ export default function Meetings() {
             <DialogTitle>Agendar Reunião</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Template (Opcional)</Label>
+              <Select
+                value={selectedTemplate}
+                onValueChange={(v) => {
+                  setSelectedTemplate(v)
+                  if (v !== 'none') {
+                    const tmpl = templates.find((t) => t.id === v)
+                    if (tmpl) {
+                      if (!title) setTitle(tmpl.name)
+                      if (!description) setDescription(tmpl.description || '')
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {templates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Título</Label>

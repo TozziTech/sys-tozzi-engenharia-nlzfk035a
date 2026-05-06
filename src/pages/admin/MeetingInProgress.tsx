@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useBlocker } from 'react-router-dom'
 import { Clock, Save, Plus, StopCircle, FastForward, CheckSquare } from 'lucide-react'
 import { format } from 'date-fns'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -43,8 +44,13 @@ export default function MeetingInProgress() {
   const [allUsers, setAllUsers] = useState<any[]>([])
 
   const [minutes, setMinutes] = useState('')
+  const [originalMinutes, setOriginalMinutes] = useState('')
   const [attendance, setAttendance] = useState<string[]>([])
+  const [originalAttendance, setOriginalAttendance] = useState<string[]>([])
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+
+  const isDirty =
+    minutes !== originalMinutes || JSON.stringify(attendance) !== JSON.stringify(originalAttendance)
 
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -105,7 +111,9 @@ export default function MeetingInProgress() {
       setMeeting(m)
       setAgenda(a)
       setMinutes(m.minutes || '')
+      setOriginalMinutes(m.minutes || '')
       setAttendance(m.attendance || [])
+      setOriginalAttendance(m.attendance || [])
       setParticipants(pUsers)
       setAllUsers(allU)
     } catch (e: any) {
@@ -125,13 +133,44 @@ export default function MeetingInProgress() {
         minutes: minutesRef.current,
         attendance: attendanceRef.current,
       })
+      setOriginalMinutes(minutesRef.current)
+      setOriginalAttendance(attendanceRef.current)
       setLastSaved(new Date())
-      toast.success('Alterações salvas com sucesso!')
+      toast.success('Reunião atualizada com sucesso')
     } catch (err) {
       console.error('Save failed', err)
       toast.error('Erro ao salvar alterações.')
     }
   }
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        handleManualSave()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [meeting])
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty])
+
+  useBlocker(({ currentLocation, nextLocation }) => {
+    if (isDirty && currentLocation.pathname !== nextLocation.pathname) {
+      return !window.confirm('Você tem alterações não salvas. Deseja realmente sair?')
+    }
+    return false
+  })
 
   const toggleAttendance = (userId: string) => {
     setAttendance((prev) => {
@@ -206,6 +245,11 @@ export default function MeetingInProgress() {
           <p className="text-zinc-500 text-sm mt-1">Ao vivo - {format(new Date(), 'dd/MM/yyyy')}</p>
         </div>
         <div className="space-x-3 flex items-center">
+          {isDirty && (
+            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-300">
+              Pendente de salvamento
+            </Badge>
+          )}
           <Button variant="secondary" onClick={handleManualSave}>
             <Save className="h-4 w-4 mr-2" /> Salvar Alterações
           </Button>
@@ -287,7 +331,12 @@ export default function MeetingInProgress() {
                   : 'Ainda não salvo'}
               </div>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col p-0">
+            <CardContent
+              className={cn(
+                'flex-1 flex flex-col p-0 rounded-b-lg transition-colors border-2',
+                isDirty ? 'border-amber-300' : 'border-transparent',
+              )}
+            >
               <Textarea
                 className="flex-1 resize-none border-0 focus-visible:ring-0 rounded-none rounded-b-lg p-6 text-base leading-relaxed"
                 value={minutes}

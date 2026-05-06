@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useBlocker } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
@@ -13,8 +13,10 @@ import {
   Save,
   ExternalLink,
   Edit,
+  CheckSquare,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { cn } from '@/lib/utils'
 import { exportMeetingMinutesPDF } from '@/lib/exportPdf'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -85,6 +87,10 @@ export default function MeetingDetails() {
   const [minutesVersions, setMinutesVersions] = useState<any[]>([])
   const [selectedVersion, setSelectedVersion] = useState<string>('latest')
   const [minutesContent, setMinutesContent] = useState<string>('')
+  const [originalMinutesContent, setOriginalMinutesContent] = useState<string>('')
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+
+  const isMinutesDirty = minutesContent !== originalMinutesContent
 
   const [topicOpen, setTopicOpen] = useState(false)
   const [newTopic, setNewTopic] = useState({ topic: '', estimated_time: '15', responsible: '' })
@@ -96,6 +102,13 @@ export default function MeetingDetails() {
     date_time: '',
     duration: '60',
   })
+
+  const isDetailsDirty = meeting
+    ? editData.title !== meeting.title ||
+      editData.description !== (meeting.description || '') ||
+      editData.date_time !== format(new Date(meeting.date_time), "yyyy-MM-dd'T'HH:mm") ||
+      editData.duration !== meeting.duration.toString()
+    : false
 
   const [deleteMeetingOpen, setDeleteMeetingOpen] = useState(false)
 
@@ -138,6 +151,7 @@ export default function MeetingDetails() {
       setUsers(u)
       setMinutesVersions(mv)
       setMinutesContent(m.minutes || '')
+      setOriginalMinutesContent(m.minutes || '')
       setEditData({
         title: m.title,
         description: m.description || '',
@@ -168,15 +182,18 @@ export default function MeetingDetails() {
 
       await updateMeeting(id!, { minutes: minutesContent })
 
-      toast.success('Ata atualizada com sucesso e nova versão salva')
+      setOriginalMinutesContent(minutesContent)
+      setLastSaved(new Date())
+
+      toast.success('Reunião atualizada com sucesso')
       loadAll()
     } catch (e) {
       toast.error('Erro ao salvar ata')
     }
   }
 
-  const handleUpdateDetails = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleUpdateDetails = async (e?: React.FormEvent | Event) => {
+    if (e) e.preventDefault()
     try {
       await updateMeeting(id!, {
         title: editData.title,
@@ -184,13 +201,61 @@ export default function MeetingDetails() {
         date_time: new Date(editData.date_time).toISOString(),
         duration: Number(editData.duration),
       })
-      toast.success('Reunião atualizada')
+      toast.success('Reunião atualizada com sucesso')
       setEditOpen(false)
       loadAll()
     } catch (err) {
       toast.error('Erro ao atualizar reunião')
     }
   }
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        if (editOpen && isDetailsDirty) {
+          e.preventDefault()
+          handleUpdateDetails(e as any)
+          return
+        }
+        if (meeting?.status === 'Realizada' && selectedVersion === 'latest' && isMinutesDirty) {
+          e.preventDefault()
+          handleSaveMinutes()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [
+    meeting,
+    selectedVersion,
+    minutesContent,
+    minutesVersions,
+    editOpen,
+    isDetailsDirty,
+    editData,
+    isMinutesDirty,
+  ])
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if ((isMinutesDirty && selectedVersion === 'latest') || (editOpen && isDetailsDirty)) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isMinutesDirty, selectedVersion, editOpen, isDetailsDirty])
+
+  useBlocker(({ currentLocation, nextLocation }) => {
+    if (
+      ((isMinutesDirty && selectedVersion === 'latest') || (editOpen && isDetailsDirty)) &&
+      currentLocation.pathname !== nextLocation.pathname
+    ) {
+      return !window.confirm('Você tem alterações não salvas. Deseja realmente sair?')
+    }
+    return false
+  })
 
   const handleAddTopic = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -489,7 +554,12 @@ export default function MeetingDetails() {
 
                 {selectedVersion === 'latest' ? (
                   <div className="space-y-4">
-                    <div className="border rounded-md min-h-[300px] p-2 bg-white flex flex-col">
+                    <div
+                      className={cn(
+                        'border-2 rounded-md min-h-[300px] p-2 bg-white flex flex-col transition-colors',
+                        isMinutesDirty ? 'border-amber-300' : 'border-border',
+                      )}
+                    >
                       <textarea
                         className="w-full flex-1 min-h-[300px] p-2 outline-none resize-y"
                         value={minutesContent}
@@ -497,12 +567,28 @@ export default function MeetingDetails() {
                         placeholder="Digite a ata da reunião aqui..."
                       />
                     </div>
-                    <Button
-                      onClick={handleSaveMinutes}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <Save className="h-4 w-4 mr-2" /> Salvar Alterações
-                    </Button>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={handleSaveMinutes}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Save className="h-4 w-4 mr-2" /> Salvar Alterações
+                      </Button>
+                      {isMinutesDirty && (
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-50 text-amber-600 border-amber-300"
+                        >
+                          Pendente de salvamento
+                        </Badge>
+                      )}
+                      {lastSaved && !isMinutesDirty && (
+                        <span className="text-xs text-zinc-500 flex items-center gap-1">
+                          <CheckSquare className="h-3 w-3" />
+                          Último salvamento: {format(lastSaved, 'HH:mm:ss')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div
@@ -559,7 +645,14 @@ export default function MeetingDetails() {
                 />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="sm:justify-between items-center">
+              <div>
+                {isDetailsDirty && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-300">
+                    Pendente de salvamento
+                  </Badge>
+                )}
+              </div>
               <Button type="submit">Salvar</Button>
             </DialogFooter>
           </form>

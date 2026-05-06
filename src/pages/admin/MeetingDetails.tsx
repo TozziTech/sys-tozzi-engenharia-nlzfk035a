@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowLeft, Clock, UploadCloud, Download, Trash, Plus, Play } from 'lucide-react'
+import { ArrowLeft, Clock, UploadCloud, Download, Trash, Plus, Play, Save } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import { exportMeetingMinutesPDF } from '@/lib/exportPdf'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -42,17 +44,24 @@ import {
   createMeetingDocument,
   deleteMeetingDocument,
   updateMeeting,
+  getMeetingMinutesVersions,
+  createMeetingMinutesVersion,
 } from '@/services/meetings'
 
 export default function MeetingDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { user } = useAuth()
 
   const [meeting, setMeeting] = useState<any>(null)
   const [agenda, setAgenda] = useState<any[]>([])
   const [docs, setDocs] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
+
+  const [minutesVersions, setMinutesVersions] = useState<any[]>([])
+  const [selectedVersion, setSelectedVersion] = useState<string>('latest')
+  const [minutesContent, setMinutesContent] = useState<string>('')
 
   const [topicOpen, setTopicOpen] = useState(false)
   const [newTopic, setNewTopic] = useState({ topic: '', estimated_time: '15', responsible: '' })
@@ -63,19 +72,43 @@ export default function MeetingDetails() {
 
   const loadAll = async () => {
     try {
-      const [m, a, d, u] = await Promise.all([
+      const [m, a, d, u, mv] = await Promise.all([
         getMeeting(id!),
         getMeetingAgenda(id!),
         getMeetingDocuments(id!),
         pb.collection('users').getFullList(),
+        getMeetingMinutesVersions(id!),
       ])
       setMeeting(m)
       setAgenda(a)
       setDocs(d)
       setUsers(u)
+      setMinutesVersions(mv)
+      setMinutesContent(m.minutes || '')
     } catch (e) {
       toast.error('Erro ao carregar reunião')
       navigate('/admin/reunioes')
+    }
+  }
+
+  const handleSaveMinutes = async () => {
+    try {
+      const nextVersionNumber = minutesVersions.length + 1
+      const newVersionLabel = `v${nextVersionNumber}`
+
+      await createMeetingMinutesVersion({
+        meeting: id,
+        content: minutesContent,
+        version_label: newVersionLabel,
+        author: user?.id,
+      })
+
+      await updateMeeting(id!, { minutes: minutesContent })
+
+      toast.success('Ata atualizada com sucesso e nova versão salva')
+      loadAll()
+    } catch (e) {
+      toast.error('Erro ao salvar ata')
     }
   }
 
@@ -198,6 +231,7 @@ export default function MeetingDetails() {
         <TabsList>
           <TabsTrigger value="pauta">Pauta (Agenda)</TabsTrigger>
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
+          {meeting.status === 'Realizada' && <TabsTrigger value="ata">Ata da Reunião</TabsTrigger>}
         </TabsList>
         <TabsContent value="pauta" className="mt-4">
           <Card>
@@ -295,6 +329,71 @@ export default function MeetingDetails() {
             </Card>
           )}
         </TabsContent>
+        {meeting.status === 'Realizada' && (
+          <TabsContent value="ata" className="mt-4 space-y-4">
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
+                  <div className="space-y-1 flex-1 max-w-sm">
+                    <Label>Versão</Label>
+                    <Select value={selectedVersion} onValueChange={setSelectedVersion}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecione a versão" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="latest">Atual (Editável)</SelectItem>
+                        {minutesVersions.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.version_label} - {format(new Date(v.created), 'dd/MM/yyyy HH:mm')} -{' '}
+                            {v.expand?.author?.name || 'Sistema'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const content =
+                        selectedVersion === 'latest'
+                          ? minutesContent
+                          : minutesVersions.find((v) => v.id === selectedVersion)?.content || ''
+                      exportMeetingMinutesPDF(meeting, content, user?.name || 'Sistema')
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" /> Gerar PDF
+                  </Button>
+                </div>
+
+                {selectedVersion === 'latest' ? (
+                  <div className="space-y-4">
+                    <div className="border rounded-md min-h-[300px] p-2 bg-white flex flex-col">
+                      <textarea
+                        className="w-full flex-1 min-h-[300px] p-2 outline-none resize-y"
+                        value={minutesContent}
+                        onChange={(e) => setMinutesContent(e.target.value)}
+                        placeholder="Digite a ata da reunião aqui..."
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSaveMinutes}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <Save className="h-4 w-4 mr-2" /> Salvar Alterações
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="border rounded-md min-h-[300px] p-4 bg-zinc-50 prose max-w-none whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{
+                      __html: minutesVersions.find((v) => v.id === selectedVersion)?.content || '',
+                    }}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       <Dialog open={topicOpen} onOpenChange={setTopicOpen}>

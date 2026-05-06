@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-06T04:16:50.235Z",
+  "generatedAt": "2026-05-06T04:27:42.694Z",
   "collections": [
     {
       "name": "users",
@@ -4307,6 +4307,62 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "meeting_minutes_versions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'Administrador' || @request.auth.role = 'Gerente de Projeto')",
+        "update": "@request.auth.role = 'Administrador'",
+        "delete": "@request.auth.role = 'Administrador'"
+      },
+      "fields": [
+        {
+          "name": "meeting",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "meetings"
+        },
+        {
+          "name": "content",
+          "type": "editor",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "version_label",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "author",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_meeting_minutes_versions_meeting ON meeting_minutes_versions (meeting)"
+      ]
     }
   ]
 }

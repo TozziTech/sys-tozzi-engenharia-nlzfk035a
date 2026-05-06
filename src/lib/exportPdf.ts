@@ -2601,6 +2601,64 @@ export function exportCommentsPDF(
   setTimeout(() => printWindow.print(), 250)
 }
 
+export function exportMeetingMinutesPDF(
+  meeting: any,
+  minutesContent: string,
+  currentUser: string,
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+  const projectName = meeting.expand?.project?.name || 'N/A'
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Ata de Reunião - ${meeting.title}</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 30px; }
+          .content { font-size: 14px; white-space: pre-wrap; }
+          .content h1, .content h2, .content h3 { color: ${primaryColor}; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <div class="header">
+          <div>
+            ${logoUrl ? `<img src="${logoUrl}" style="max-height: 60px; margin-bottom: 10px;" />` : ''}
+            <h2 style="margin: 0; color: ${primaryColor};">Ata de Reunião</h2>
+            <h3 style="margin: 5px 0 0; color: #111827;">${meeting.title}</h3>
+            <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;">Projeto: ${projectName}</p>
+          </div>
+          <div style="text-align: right; color: #6b7280; font-size: 14px;">
+            <p style="margin: 0;">Data: ${meeting.date_time ? new Date(meeting.date_time).toLocaleString('pt-BR') : '-'}</p>
+            <p style="margin: 5px 0 0;">Duração: ${meeting.duration} min</p>
+            <p style="margin: 5px 0 0;">Gerado por: ${currentUser}</p>
+          </div>
+        </div>
+        <div class="content">
+          ${minutesContent || '<p>Sem conteúdo na ata.</p>'}
+        </div>
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportUserPDF(
   user: any,
   projects: Project[],

@@ -3,6 +3,12 @@ migrate(
     const meetings = app.findCollectionByNameOrId('meetings')
     const agenda = app.findCollectionByNameOrId('meeting_agenda_items')
 
+    // Make the seed idempotent
+    try {
+      app.findFirstRecordByData('meetings', 'title', 'Reunião de Acompanhamento Semanal')
+      return // Already exists, skip
+    } catch (_) {}
+
     const usersRecords = app.findRecordsByFilter('_pb_users_auth_', '1=1', '', 5, 0)
     const userIds = usersRecords.map((u) => u.id)
 
@@ -40,6 +46,13 @@ migrate(
     }
   },
   (app) => {
-    // no-op
+    try {
+      const meeting = app.findFirstRecordByData(
+        'meetings',
+        'title',
+        'Reunião de Acompanhamento Semanal',
+      )
+      app.delete(meeting)
+    } catch (_) {}
   },
 )

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-06T04:12:31.193Z",
+  "generatedAt": "2026-05-06T04:16:50.235Z",
   "collections": [
     {
       "name": "users",
@@ -4109,7 +4109,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Pendente", "Realizada", "Cancelada"]
+          "selectValues": ["Pendente", "Em Andamento", "Realizada", "Cancelada"]
         },
         {
           "name": "created",
@@ -4124,6 +4124,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "minutes",
+          "type": "editor",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "attendance",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -4217,6 +4229,67 @@
           "type": "file",
           "required": false,
           "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "meeting_actions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "meeting",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "meetings"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "responsible",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Pendente", "Em Progresso", "Concluído"]
         },
         {
           "name": "created",

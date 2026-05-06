@@ -2,7 +2,10 @@ migrate(
   (app) => {
     const meetings = app.findCollectionByNameOrId('meetings')
     const statusField = meetings.fields.getByName('status')
-    if (statusField && statusField.type === 'select') {
+
+    // Fix: Removed `&& statusField.type === "select"` check which evaluated to false
+    // because in PB v0.36, typed field structs do not have a plain `.type` string property.
+    if (statusField) {
       statusField.values = ['Pendente', 'Em Andamento', 'Realizada', 'Cancelada']
     }
 

@@ -31,6 +31,7 @@ import {
   updateMeeting,
   createMeetingAction,
 } from '@/services/meetings'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function MeetingInProgress() {
   const { id } = useParams<{ id: string }>()
@@ -64,6 +65,13 @@ export default function MeetingInProgress() {
   useEffect(() => {
     if (id) loadData()
   }, [id])
+
+  useRealtime('meetings', () => {
+    if (id) loadData()
+  })
+  useRealtime('meeting_agenda_items', () => {
+    if (id) loadData()
+  })
 
   useEffect(() => {
     const timer = setInterval(() => {

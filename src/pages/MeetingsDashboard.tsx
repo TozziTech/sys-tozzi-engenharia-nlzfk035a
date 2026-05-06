@@ -27,6 +27,7 @@ import {
 import { Link } from 'react-router-dom'
 import { exportMeetingsDashboardPDF } from '@/lib/exportPdf'
 import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { cn } from '@/lib/utils'
@@ -45,7 +46,7 @@ export default function MeetingsDashboard() {
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
 
-  useEffect(() => {
+  const loadData = () => {
     pb.collection('projects').getFullList({ sort: 'name' }).then(setProjects)
     pb.collection('meetings')
       .getFullList({ expand: 'project', sort: '-date_time' })
@@ -56,7 +57,14 @@ export default function MeetingsDashboard() {
         sort: '-created',
       })
       .then(setActions)
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
+
+  useRealtime('meetings', loadData)
+  useRealtime('meeting_actions', loadData)
 
   const filteredMeetings = useMemo(() => {
     return meetings.filter((m) => {
@@ -85,9 +93,11 @@ export default function MeetingsDashboard() {
     })
   }, [actions, selectedProject, dateRange])
 
-  const upcomingMeetings = filteredMeetings.filter(
-    (m) => m.status === 'Pendente' || m.status === 'Em Andamento',
-  )
+  const upcomingMeetings = filteredMeetings.filter((m) => {
+    const isUpcoming =
+      !m.date_time || parseISO(m.date_time).getTime() >= new Date().setHours(0, 0, 0, 0)
+    return (m.status === 'Pendente' || m.status === 'Em Andamento') && isUpcoming
+  })
   const recentMeetings = filteredMeetings.filter((m) => m.status === 'Realizada').slice(0, 10)
   const pendingActions = filteredActions.filter(
     (a) => a.status === 'Pendente' || a.status === 'Em Progresso',

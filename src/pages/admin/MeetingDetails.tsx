@@ -55,9 +55,11 @@ import {
   createMeetingDocument,
   deleteMeetingDocument,
   updateMeeting,
+  deleteMeeting,
   getMeetingMinutesVersions,
   createMeetingMinutesVersion,
 } from '@/services/meetings'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function MeetingDetails() {
   const { id } = useParams<{ id: string }>()
@@ -88,6 +90,22 @@ export default function MeetingDetails() {
   useEffect(() => {
     if (id) loadAll()
   }, [id])
+
+  useRealtime('meetings', () => {
+    if (id) loadAll()
+  })
+  useRealtime('meeting_agenda_items', () => {
+    if (id) loadAll()
+  })
+  useRealtime('meeting_documents', () => {
+    if (id) loadAll()
+  })
+  useRealtime('meeting_minutes_versions', () => {
+    if (id) loadAll()
+  })
+  useRealtime('meeting_actions', () => {
+    if (id) loadAll()
+  })
 
   const loadAll = async () => {
     try {
@@ -202,6 +220,22 @@ export default function MeetingDetails() {
     }
   }
 
+  const handleDeleteMeeting = async () => {
+    if (
+      !confirm(
+        'Deseja realmente excluir esta reunião? Todos os dados vinculados também serão excluídos.',
+      )
+    )
+      return
+    try {
+      await deleteMeeting(id!)
+      toast.success('Reunião excluída com sucesso')
+      navigate('/admin/reunioes')
+    } catch (e) {
+      toast.error('Erro ao excluir reunião')
+    }
+  }
+
   if (!meeting) return null
 
   return (
@@ -223,6 +257,14 @@ export default function MeetingDetails() {
                 <Edit className="h-4 w-4" />
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDeleteMeeting}
+              className="text-red-500 hover:text-red-600 hover:bg-red-50"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
           </div>
           {meeting.description && (
             <p className="text-sm mt-2 text-zinc-600 max-w-2xl">{meeting.description}</p>

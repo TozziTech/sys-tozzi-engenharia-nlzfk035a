@@ -34,6 +34,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import pb from '@/lib/pocketbase/client'
 import { getMeetings, createMeeting } from '@/services/meetings'
+import { useRealtime } from '@/hooks/use-realtime'
 import { toast } from 'sonner'
 
 export default function Meetings() {
@@ -52,6 +53,8 @@ export default function Meetings() {
   useEffect(() => {
     loadData()
   }, [])
+
+  useRealtime('meetings', loadData)
 
   const loadData = async () => {
     try {

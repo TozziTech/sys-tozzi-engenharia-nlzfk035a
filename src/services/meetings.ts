@@ -24,3 +24,12 @@ export const getMeetingDocuments = (meetingId: string) =>
 export const createMeetingDocument = (data: FormData) =>
   pb.collection('meeting_documents').create(data)
 export const deleteMeetingDocument = (id: string) => pb.collection('meeting_documents').delete(id)
+
+export const getMeetingActions = (meetingId: string) =>
+  pb
+    .collection('meeting_actions')
+    .getFullList({ filter: `meeting = '${meetingId}'`, expand: 'responsible', sort: '-created' })
+export const createMeetingAction = (data: any) => pb.collection('meeting_actions').create(data)
+export const updateMeetingAction = (id: string, data: any) =>
+  pb.collection('meeting_actions').update(id, data)
+export const deleteMeetingAction = (id: string) => pb.collection('meeting_actions').delete(id)

@@ -52,6 +52,7 @@ import DisciplineTemplates from './pages/DisciplineTemplates'
 import AccessControl from './pages/AccessControl'
 import Meetings from './pages/admin/Meetings'
 import MeetingDetails from './pages/admin/MeetingDetails'
+import MeetingInProgress from './pages/admin/MeetingInProgress'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
 import ApaLayout from './pages/apa/ApaLayout'
 import ApaCreate from './pages/apa/ApaCreate'
@@ -210,6 +211,7 @@ const App = () => (
                     <Route path="/admin/access-control" element={<AccessControl />} />
                     <Route path="/admin/reunioes" element={<Meetings />} />
                     <Route path="/admin/reunioes/:id" element={<MeetingDetails />} />
+                    <Route path="/admin/reunioes/:id/in-progress" element={<MeetingInProgress />} />
                     <Route path="/audit-logs" element={<Audit />} />
                     <Route path="/admin/audit-log" element={<Audit />} />
                     <Route path="/admin/audit-logs" element={<Audit />} />

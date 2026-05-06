@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowLeft, Clock, UploadCloud, Download, Trash, Plus } from 'lucide-react'
+import { ArrowLeft, Clock, UploadCloud, Download, Trash, Plus, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -41,6 +41,7 @@ import {
   deleteAgendaItem,
   createMeetingDocument,
   deleteMeetingDocument,
+  updateMeeting,
 } from '@/services/meetings'
 
 export default function MeetingDetails() {
@@ -152,18 +153,45 @@ export default function MeetingDetails() {
             </Badge>
           )}
         </div>
-        <Badge
-          variant={
-            meeting.status === 'Realizada'
-              ? 'default'
-              : meeting.status === 'Cancelada'
-                ? 'destructive'
-                : 'secondary'
-          }
-          className="text-sm"
-        >
-          {meeting.status}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge
+            variant={
+              meeting.status === 'Realizada'
+                ? 'default'
+                : meeting.status === 'Cancelada'
+                  ? 'destructive'
+                  : 'secondary'
+            }
+            className="text-sm"
+          >
+            {meeting.status}
+          </Badge>
+          {meeting.status === 'Pendente' && (
+            <Button
+              onClick={async () => {
+                try {
+                  await updateMeeting(meeting.id, { status: 'Em Andamento' })
+                  navigate(`/admin/reunioes/${meeting.id}/in-progress`)
+                } catch (e) {
+                  toast.error('Erro ao iniciar')
+                }
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white"
+              size="sm"
+            >
+              <Play className="mr-2 h-4 w-4" /> Iniciar Reunião
+            </Button>
+          )}
+          {meeting.status === 'Em Andamento' && (
+            <Button
+              onClick={() => navigate(`/admin/reunioes/${meeting.id}/in-progress`)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              size="sm"
+            >
+              <Clock className="mr-2 h-4 w-4" /> Painel Ao Vivo
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="pauta" className="w-full">

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
+import { ResponsiveContainer, Tooltip as RechartsTooltip, Legend as RechartsLegend } from 'recharts'
 
 export const ChartContainer = React.forwardRef<
   HTMLDivElement,
@@ -41,3 +41,37 @@ export const ChartTooltipContent = ({ active, payload, label }: any) => {
   }
   return null
 }
+
+export const ChartLegend = RechartsLegend
+
+export const ChartLegendContent = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<'div'> & {
+    payload?: any[]
+    verticalAlign?: string
+    align?: string
+    nameKey?: string
+  }
+>(({ className, payload, verticalAlign, align, nameKey, ...props }, ref) => {
+  if (!payload || !payload.length) {
+    return null
+  }
+
+  return (
+    <div
+      ref={ref}
+      className={`flex items-center justify-center flex-wrap gap-4 pt-3 ${verticalAlign === 'top' ? 'pb-3' : 'pt-3'} ${className || ''}`}
+      {...props}
+    >
+      {payload.map((item: any, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: item.color }} />
+          <span className="text-sm font-medium text-muted-foreground">
+            {nameKey ? item.payload?.[nameKey] || item.value : item.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+})
+ChartLegendContent.displayName = 'ChartLegendContent'

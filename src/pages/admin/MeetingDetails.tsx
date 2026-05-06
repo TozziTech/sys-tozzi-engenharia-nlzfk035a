@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 import { exportMeetingMinutesPDF } from '@/lib/exportPdf'
 import { Button } from '@/components/ui/button'
+import { RichTextEditor } from '@/components/RichTextEditor'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -70,6 +71,7 @@ import {
   deleteMeeting,
   getMeetingMinutesVersions,
   createMeetingMinutesVersion,
+  createMeetingAction,
 } from '@/services/meetings'
 import { useRealtime } from '@/hooks/use-realtime'
 
@@ -111,6 +113,8 @@ export default function MeetingDetails() {
     : false
 
   const [deleteMeetingOpen, setDeleteMeetingOpen] = useState(false)
+  const [extractModalOpen, setExtractModalOpen] = useState(false)
+  const [extractedActions, setExtractedActions] = useState<any[]>([])
 
   useEffect(() => {
     if (id) loadAll()
@@ -312,6 +316,54 @@ export default function MeetingDetails() {
       navigate('/admin/reunioes')
     } catch (e) {
       toast.error('Erro ao excluir reunião')
+    }
+  }
+
+  const handleExtractActions = () => {
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = minutesContent
+    tempDiv.style.position = 'absolute'
+    tempDiv.style.visibility = 'hidden'
+    tempDiv.style.whiteSpace = 'pre-wrap'
+    document.body.appendChild(tempDiv)
+    const text = tempDiv.innerText || ''
+    document.body.removeChild(tempDiv)
+
+    const lines = text.split('\n')
+    const actions = lines
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith('[ ]'))
+      .map((l, i) => ({
+        id: i,
+        description: l.replace('[ ]', '').trim(),
+        responsible: 'none',
+        due_date: '',
+      }))
+
+    if (actions.length === 0) {
+      toast.info('Nenhuma ação encontrada com o formato "[ ]". Insira [ ] no início da linha.')
+      return
+    }
+    setExtractedActions(actions)
+    setExtractModalOpen(true)
+  }
+
+  const confirmExtractedActions = async () => {
+    try {
+      for (const action of extractedActions) {
+        if (!action.description) continue
+        await createMeetingAction({
+          meeting: id,
+          description: action.description,
+          responsible: action.responsible !== 'none' ? action.responsible : null,
+          due_date: action.due_date || null,
+          status: 'Pendente',
+        })
+      }
+      toast.success(`${extractedActions.length} ações geradas com sucesso!`)
+      setExtractModalOpen(false)
+    } catch (err) {
+      toast.error('Erro ao gerar ações')
     }
   }
 
@@ -538,33 +590,39 @@ export default function MeetingDetails() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const content =
-                        selectedVersion === 'latest'
-                          ? minutesContent
-                          : minutesVersions.find((v) => v.id === selectedVersion)?.content || ''
-                      exportMeetingMinutesPDF(meeting, content, user?.name || 'Sistema')
-                    }}
-                  >
-                    <Download className="h-4 w-4 mr-2" /> Gerar PDF
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {selectedVersion === 'latest' && (
+                      <Button variant="secondary" onClick={handleExtractActions}>
+                        <CheckSquare className="h-4 w-4 mr-2" /> Gerar Ações
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const content =
+                          selectedVersion === 'latest'
+                            ? minutesContent
+                            : minutesVersions.find((v) => v.id === selectedVersion)?.content || ''
+                        exportMeetingMinutesPDF(meeting, content, user?.name || 'Sistema')
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" /> Gerar PDF
+                    </Button>
+                  </div>
                 </div>
 
                 {selectedVersion === 'latest' ? (
                   <div className="space-y-4">
                     <div
                       className={cn(
-                        'border-2 rounded-md min-h-[300px] p-2 bg-white flex flex-col transition-colors',
+                        'border-2 rounded-md min-h-[300px] bg-white flex flex-col transition-colors',
                         isMinutesDirty ? 'border-amber-300' : 'border-border',
                       )}
                     >
-                      <textarea
-                        className="w-full flex-1 min-h-[300px] p-2 outline-none resize-y"
+                      <RichTextEditor
+                        className="flex-1 border-0"
                         value={minutesContent}
-                        onChange={(e) => setMinutesContent(e.target.value)}
-                        placeholder="Digite a ata da reunião aqui..."
+                        onChange={setMinutesContent}
                       />
                     </div>
                     <div className="flex items-center gap-3">
@@ -727,6 +785,84 @@ export default function MeetingDetails() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={extractModalOpen} onOpenChange={setExtractModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Gerar Ações a partir da Ata</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            {extractedActions.map((action, idx) => (
+              <div
+                key={action.id}
+                className="flex flex-col md:flex-row gap-3 p-3 border rounded-md items-start md:items-center bg-zinc-50 dark:bg-zinc-900"
+              >
+                <Input
+                  className="flex-1 bg-white dark:bg-zinc-950"
+                  value={action.description}
+                  onChange={(e) => {
+                    const newActs = [...extractedActions]
+                    newActs[idx].description = e.target.value
+                    setExtractedActions(newActs)
+                  }}
+                  placeholder="Descrição da ação..."
+                />
+                <Select
+                  value={action.responsible}
+                  onValueChange={(val) => {
+                    const newActs = [...extractedActions]
+                    newActs[idx].responsible = val
+                    setExtractedActions(newActs)
+                  }}
+                >
+                  <SelectTrigger className="w-[180px] bg-white dark:bg-zinc-950">
+                    <SelectValue placeholder="Responsável" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem Responsável</SelectItem>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name || u.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="date"
+                  className="w-[150px] bg-white dark:bg-zinc-950"
+                  value={action.due_date}
+                  onChange={(e) => {
+                    const newActs = [...extractedActions]
+                    newActs[idx].due_date = e.target.value
+                    setExtractedActions(newActs)
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-red-500"
+                  onClick={() => {
+                    setExtractedActions(extractedActions.filter((_, i) => i !== idx))
+                  }}
+                >
+                  <Trash className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            {extractedActions.length === 0 && (
+              <p className="text-sm text-zinc-500">Nenhuma ação na lista.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExtractModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmExtractedActions} disabled={extractedActions.length === 0}>
+              Criar {extractedActions.length} Ações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Textarea } from '@/components/ui/textarea'
+import { RichTextEditor } from '@/components/RichTextEditor'
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,7 @@ import {
   getMeetingAgenda,
   updateMeeting,
   createMeetingAction,
+  getMeetingTemplates,
 } from '@/services/meetings'
 import { useRealtime } from '@/hooks/use-realtime'
 
@@ -42,6 +43,7 @@ export default function MeetingInProgress() {
   const [agenda, setAgenda] = useState<any[]>([])
   const [participants, setParticipants] = useState<any[]>([])
   const [allUsers, setAllUsers] = useState<any[]>([])
+  const [templates, setTemplates] = useState<any[]>([])
 
   const [minutes, setMinutes] = useState('')
   const [originalMinutes, setOriginalMinutes] = useState('')
@@ -107,8 +109,10 @@ export default function MeetingInProgress() {
       }
 
       const allU = await pb.collection('users').getFullList()
+      const t = await getMeetingTemplates()
 
       setMeeting(m)
+      setTemplates(t)
       setAgenda(a)
       setMinutes(m.minutes || '')
       setOriginalMinutes(m.minutes || '')
@@ -229,6 +233,29 @@ export default function MeetingInProgress() {
     return `${m}:${s}`
   }
 
+  const applyTemplate = (templateId: string) => {
+    if (templateId === 'none') return
+    const t = templates.find((x) => x.id === templateId)
+    if (!t) return
+
+    let content = t.default_minutes || ''
+
+    const title = meeting.title || ''
+    const projectName = meeting.expand?.project?.name || ''
+    const dateStr = format(new Date(meeting.date_time), 'dd/MM/yyyy')
+    const timeStr = format(new Date(meeting.date_time), 'HH:mm')
+    const parts = participants.map((p) => p.name || p.email).join(', ')
+
+    content = content.replace(/{{meeting_title}}/g, title)
+    content = content.replace(/{{project_name}}/g, projectName)
+    content = content.replace(/{{meeting_date}}/g, dateStr)
+    content = content.replace(/{{meeting_time}}/g, timeStr)
+    content = content.replace(/{{participants}}/g, parts)
+
+    setMinutes((prev) => prev + (prev ? '<br><br>' : '') + content)
+    toast.success('Template aplicado com sucesso!')
+  }
+
   if (!meeting) return null
 
   return (
@@ -323,7 +350,22 @@ export default function MeetingInProgress() {
         <div className="col-span-2 flex flex-col space-y-6 min-h-0">
           <Card className="flex-1 flex flex-col min-h-0">
             <CardHeader className="py-3 flex flex-row items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/20 border-b">
-              <CardTitle className="text-base font-semibold">Ata (Minutos)</CardTitle>
+              <div className="flex items-center gap-4">
+                <CardTitle className="text-base font-semibold">Ata (Minutos)</CardTitle>
+                <Select onValueChange={applyTemplate}>
+                  <SelectTrigger className="h-8 w-[200px] text-xs bg-white dark:bg-zinc-950">
+                    <SelectValue placeholder="Carregar Template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Selecione...</SelectItem>
+                    {templates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="text-xs font-medium text-zinc-500 flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full">
                 <Save className="h-3.5 w-3.5" />
                 {lastSaved
@@ -337,12 +379,13 @@ export default function MeetingInProgress() {
                 isDirty ? 'border-amber-300' : 'border-transparent',
               )}
             >
-              <Textarea
-                className="flex-1 resize-none border-0 focus-visible:ring-0 rounded-none rounded-b-lg p-6 text-base leading-relaxed"
-                value={minutes}
-                onChange={(e) => setMinutes(e.target.value)}
-                placeholder="Registre as discussões, decisões e notas importantes aqui..."
-              />
+              <div className="flex-1 min-h-0 flex flex-col relative">
+                <RichTextEditor
+                  className="flex-1 border-0 focus-visible:ring-0 rounded-none rounded-b-lg text-base leading-relaxed"
+                  value={minutes}
+                  onChange={setMinutes}
+                />
+              </div>
             </CardContent>
           </Card>
 

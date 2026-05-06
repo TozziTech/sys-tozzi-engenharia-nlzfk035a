@@ -13,6 +13,7 @@ import {
   Heading2,
   Heading3,
   Image as ImageIcon,
+  CheckSquare,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -302,6 +303,69 @@ export function RichTextEditor({
         </Button>
 
         <div className="w-px h-4 bg-border mx-1" />
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-red-600"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() =>
+            execCommand(
+              'insertHTML',
+              '&nbsp;<span style="background-color: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; vertical-align: middle;">Alta</span>&nbsp;',
+            )
+          }
+          title="Prioridade Alta"
+        >
+          <div className="h-3 w-3 rounded-full bg-red-500" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-yellow-600"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() =>
+            execCommand(
+              'insertHTML',
+              '&nbsp;<span style="background-color: #fef9c3; color: #854d0e; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; vertical-align: middle;">Média</span>&nbsp;',
+            )
+          }
+          title="Prioridade Média"
+        >
+          <div className="h-3 w-3 rounded-full bg-yellow-500" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-green-600"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() =>
+            execCommand(
+              'insertHTML',
+              '&nbsp;<span style="background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; vertical-align: middle;">Baixa</span>&nbsp;',
+            )
+          }
+          title="Prioridade Baixa"
+        >
+          <div className="h-3 w-3 rounded-full bg-green-500" />
+        </Button>
+
+        <div className="w-px h-4 bg-border mx-1" />
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => execCommand('insertHTML', '<div>[ ] </div>')}
+          title="Caixa de Seleção (Ação)"
+        >
+          <CheckSquare className="h-4 w-4" />
+        </Button>
 
         <Button
           type="button"

@@ -25,6 +25,9 @@ export const createMeetingDocument = (data: FormData) =>
   pb.collection('meeting_documents').create(data)
 export const deleteMeetingDocument = (id: string) => pb.collection('meeting_documents').delete(id)
 
+export const getMeetingTemplates = () =>
+  pb.collection('meeting_templates').getFullList({ sort: 'name' })
+
 export const getMeetingMinutesVersions = (meetingId: string) =>
   pb
     .collection('meeting_minutes_versions')

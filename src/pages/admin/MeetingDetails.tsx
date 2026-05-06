@@ -44,6 +44,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import pb from '@/lib/pocketbase/client'
 import { toast } from 'sonner'
 import {
@@ -86,6 +96,8 @@ export default function MeetingDetails() {
     date_time: '',
     duration: '60',
   })
+
+  const [deleteMeetingOpen, setDeleteMeetingOpen] = useState(false)
 
   useEffect(() => {
     if (id) loadAll()
@@ -229,15 +241,9 @@ export default function MeetingDetails() {
   }
 
   const handleDeleteMeeting = async () => {
-    if (
-      !confirm(
-        'Deseja realmente excluir esta reunião? Todos os dados vinculados também serão excluídos.',
-      )
-    )
-      return
     try {
       await deleteMeeting(id!)
-      toast.success('Reunião excluída com sucesso')
+      toast.success('Reunião excluída com sucesso.')
       navigate('/admin/reunioes')
     } catch (e) {
       toast.error('Erro ao excluir reunião')
@@ -268,7 +274,7 @@ export default function MeetingDetails() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={handleDeleteMeeting}
+              onClick={() => setDeleteMeetingOpen(true)}
               className="text-red-500 hover:text-red-600 hover:bg-red-50"
             >
               <Trash className="h-4 w-4" />
@@ -607,6 +613,27 @@ export default function MeetingDetails() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteMeetingOpen} onOpenChange={setDeleteMeetingOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a reunião '{meeting.title}'? Esta ação é permanente e
+              removerá todos os itens de agenda e documentos vinculados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMeeting}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -74,9 +74,12 @@ export default function Meetings() {
   const [editData, setEditData] = useState<any>(null)
 
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [meetingToDelete, setMeetingToDelete] = useState<string | null>(null)
+  const [meetingToDelete, setMeetingToDelete] = useState<any | null>(null)
 
   const [popoverOpen, setPopoverOpen] = useState(false)
+  const [searchTitle, setSearchTitle] = useState('')
+  const [filterProject, setFilterProject] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
   const [editPopoverOpen, setEditPopoverOpen] = useState(false)
 
   const loadData = async () => {
@@ -168,8 +171,8 @@ export default function Meetings() {
   const handleDeleteConfirm = async () => {
     if (!meetingToDelete) return
     try {
-      await deleteMeeting(meetingToDelete)
-      toast.success('Reunião excluída com sucesso!')
+      await deleteMeeting(meetingToDelete.id)
+      toast.success('Reunião excluída com sucesso.')
       setDeleteOpen(false)
       setMeetingToDelete(null)
       loadData()
@@ -179,6 +182,13 @@ export default function Meetings() {
   }
 
   const meetingDates = meetings.map((m) => new Date(m.date_time))
+
+  const filteredMeetings = meetings.filter((m) => {
+    const matchTitle = m.title.toLowerCase().includes(searchTitle.toLowerCase())
+    const matchProject = filterProject === 'all' || m.project === filterProject
+    const matchStatus = filterStatus === 'all' || m.status === filterStatus
+    return matchTitle && matchProject && matchStatus
+  })
 
   return (
     <div className="p-6 space-y-6">
@@ -192,14 +202,58 @@ export default function Meetings() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>Calendário</CardTitle>
+            <CardTitle>Filtros e Calendário</CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-center">
-            <Calendar
-              mode="multiple"
-              selected={meetingDates}
-              className="rounded-md border shadow"
-            />
+          <CardContent className="flex flex-col gap-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Buscar por Título</Label>
+                <Input
+                  placeholder="Ex: Reunião de Alinhamento..."
+                  value={searchTitle}
+                  onChange={(e) => setSearchTitle(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Projeto</Label>
+                <Select value={filterProject} onValueChange={setFilterProject}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os projetos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os projetos</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="Pendente">Pendente</SelectItem>
+                    <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                    <SelectItem value="Realizada">Realizada</SelectItem>
+                    <SelectItem value="Cancelada">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex justify-center border-t pt-6">
+              <Calendar
+                mode="multiple"
+                selected={meetingDates}
+                className="rounded-md border shadow"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -221,7 +275,7 @@ export default function Meetings() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {meetings.map((m) => (
+                {filteredMeetings.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell className="font-medium">{m.title}</TableCell>
                     <TableCell>{m.expand?.project?.name || '-'}</TableCell>
@@ -265,7 +319,7 @@ export default function Meetings() {
                         size="icon"
                         className="text-red-500"
                         onClick={() => {
-                          setMeetingToDelete(m.id)
+                          setMeetingToDelete(m)
                           setDeleteOpen(true)
                         }}
                       >
@@ -277,10 +331,10 @@ export default function Meetings() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {meetings.length === 0 && (
+                {filteredMeetings.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-4">
-                      Nenhuma reunião agendada.
+                      Nenhuma reunião encontrada.
                     </TableCell>
                   </TableRow>
                 )}
@@ -570,15 +624,16 @@ export default function Meetings() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Reunião</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta reunião? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir a reunião '{meetingToDelete?.title}'? Esta ação é
+              permanente e removerá todos os itens de agenda e documentos vinculados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setMeetingToDelete(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-500 hover:bg-red-600"
+              className="bg-red-500 hover:bg-red-600 text-white"
               onClick={handleDeleteConfirm}
             >
               Excluir

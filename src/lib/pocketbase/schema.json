@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-07T01:00:23.986Z",
+  "generatedAt": "2026-05-07T01:04:02.997Z",
   "collections": [
     {
       "name": "users",
@@ -1023,6 +1023,12 @@
         {
           "name": "role_permissions",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "apa_trigger_days",
+          "type": "number",
           "required": false,
           "system": false
         }

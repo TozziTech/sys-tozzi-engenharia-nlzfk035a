@@ -1,26 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, CalendarIcon, Plus, Trash2, Save } from 'lucide-react'
-import { z } from 'zod'
-import { useForm, useFieldArray } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import pb from '@/lib/pocketbase/client'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
-import { toast } from 'sonner'
-import { format } from 'date-fns'
-import { cn } from '@/lib/utils'
-
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import pb from '@/lib/pocketbase/client'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
@@ -29,402 +12,240 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from '@/components/ui/table'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
-
-const actionSchema = z.object({
-  description: z.string().min(1, 'Descrição é obrigatória'),
-  responsible: z.string().min(1, 'Responsável é obrigatório'),
-  due_date: z.date({ required_error: 'Data é obrigatória' }),
-  status: z.enum(['aberta', 'em_progresso', 'concluída']),
-})
-
-const formSchema = z.object({
-  project: z.string().min(1, 'Projeto é obrigatório'),
-  positive_points: z.string().min(1, 'Obrigatório'),
-  negative_points: z.string().min(1, 'Obrigatório'),
-  lessons_learned: z.string().min(1, 'Obrigatório'),
-  corrective_plan: z.string().min(1, 'Obrigatório'),
-  actions: z.array(actionSchema),
-})
+import { toast } from 'sonner'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 
 export default function ApaCreate() {
-  const navigate = useNavigate()
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const projectIdParam = searchParams.get('project')
+
   const [projects, setProjects] = useState<any[]>([])
-  const [users, setUsers] = useState<any[]>([])
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [existingRecordId, setExistingRecordId] = useState<string | null>(null)
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      project: '',
-      positive_points: '',
-      negative_points: '',
-      lessons_learned: '',
-      corrective_plan: '',
-      actions: [],
-    },
-  })
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: 'actions',
+  const [formData, setFormData] = useState({
+    project: projectIdParam || '',
+    positive_points: '',
+    negative_points: '',
+    lessons_learned: '',
+    corrective_plan: '',
+    status: 'concluído',
   })
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [projectsRes, usersRes] = await Promise.all([
-          pb.collection('projects').getFullList(),
-          pb.collection('users').getFullList(),
-        ])
-
-        let completed = projectsRes.filter(
-          (p) => p.status?.toLowerCase() === 'concluído' || p.status?.toLowerCase() === 'concluido',
-        )
-
-        if (completed.length === 0 && projectsRes.length > 0) {
-          completed = [{ ...projectsRes[0], name: `${projectsRes[0].name} (Exemplo Concluído)` }]
-        }
-
-        setProjects(completed)
-        setUsers(usersRes)
-      } catch (err) {
-        console.error('Error fetching data', err)
-      }
-    }
-    fetchData()
+    loadData()
   }, [])
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setIsSubmitting(true)
+  useEffect(() => {
+    if (formData.project) {
+      checkExistingApa(formData.project)
+    }
+  }, [formData.project])
+
+  const loadData = async () => {
     try {
-      const report = await pb.collection('apa_reports').create({
-        project: values.project,
-        positive_points: values.positive_points,
-        negative_points: values.negative_points,
-        lessons_learned: values.lessons_learned,
-        corrective_plan: values.corrective_plan,
-        created_by: user?.id,
-        status: 'pendente',
+      const p = await pb.collection('projects').getFullList({
+        sort: '-created',
       })
+      setProjects(p)
 
-      for (const action of values.actions) {
-        await pb.collection('apa_actions').create({
-          apa_report: report.id,
-          description: action.description,
-          responsible: action.responsible,
-          due_date: action.due_date.toISOString(),
-          status: action.status,
-        })
+      if (projectIdParam) {
+        await checkExistingApa(projectIdParam)
       }
-
-      toast.success('APA salva com sucesso!')
-      navigate('/apa/dashboard')
     } catch (error) {
-      toast.error('Erro ao salvar APA.')
-      console.error(error)
+      toast.error('Erro ao carregar projetos')
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
+  const checkExistingApa = async (projId: string) => {
+    try {
+      const records = await pb.collection('apa_reports').getFullList({
+        filter: `project = "${projId}"`,
+      })
+      if (records.length > 0) {
+        const record = records[0]
+        setExistingRecordId(record.id)
+        setFormData({
+          project: projId,
+          positive_points: record.positive_points || '',
+          negative_points: record.negative_points || '',
+          lessons_learned: record.lessons_learned || '',
+          corrective_plan: record.corrective_plan || '',
+          status: record.status || 'concluído',
+        })
+      } else {
+        setExistingRecordId(null)
+        setFormData((prev) => ({
+          ...prev,
+          positive_points: '',
+          negative_points: '',
+          lessons_learned: '',
+          corrective_plan: '',
+        }))
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.project) {
+      toast.error('Selecione um projeto')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const payload = {
+        ...formData,
+        created_by: user?.id,
+      }
+
+      if (existingRecordId) {
+        await pb.collection('apa_reports').update(existingRecordId, payload)
+        toast.success('APA atualizada com sucesso')
+      } else {
+        await pb.collection('apa_reports').create(payload)
+        toast.success('APA criada com sucesso')
+      }
+      navigate('/apa/dashboard')
+    } catch (error) {
+      toast.error('Erro ao salvar APA')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-10">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link to="/apa/dashboard">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Nova Análise Pós-Ação</h1>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Análise Pós-Ação (APA)</h2>
+          <p className="text-muted-foreground">
+            Registre as lições aprendidas e crie um plano de ação para o projeto.
+          </p>
+        </div>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Detalhes do Projeto</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="project"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Projeto</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um projeto concluído" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {projects.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Análise Qualitativa</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="positive_points"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pontos Positivos</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        rows={4}
-                        placeholder="O que funcionou bem no projeto..."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="negative_points"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pontos Negativos/Gargalos</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        rows={4}
-                        placeholder="O que não funcionou ou causou atrasos..."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="lessons_learned"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lições Aprendidas</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        rows={4}
-                        placeholder="O que a equipe aprendeu com este projeto..."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="corrective_plan"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Plano de Ação Corretiva</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        rows={4}
-                        placeholder="Plano geral para melhorar nos próximos projetos..."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Ações de Correção</CardTitle>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  append({
-                    description: '',
-                    responsible: '',
-                    due_date: new Date(),
-                    status: 'aberta',
-                  })
-                }
+      <Card>
+        <form onSubmit={handleSubmit}>
+          <CardHeader>
+            <CardTitle>Formulário de APA</CardTitle>
+            <CardDescription>
+              {existingRecordId
+                ? 'Você está editando uma APA existente (ou pendente).'
+                : 'Preencha os dados abaixo para registrar uma nova APA.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label>Projeto</Label>
+              <Select
+                value={formData.project}
+                onValueChange={(val) => setFormData({ ...formData, project: val })}
               >
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Ação
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Pontos Positivos (O que deu certo?)</Label>
+                <Textarea
+                  required
+                  className="min-h-[150px]"
+                  placeholder="Liste as práticas que funcionaram bem..."
+                  value={formData.positive_points}
+                  onChange={(e) => setFormData({ ...formData, positive_points: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Pontos Negativos (O que deu errado?)</Label>
+                <Textarea
+                  required
+                  className="min-h-[150px]"
+                  placeholder="Liste os problemas e dificuldades encontrados..."
+                  value={formData.negative_points}
+                  onChange={(e) => setFormData({ ...formData, negative_points: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Lições Aprendidas</Label>
+                <Textarea
+                  required
+                  className="min-h-[150px]"
+                  placeholder="O que aprendemos com este projeto?..."
+                  value={formData.lessons_learned}
+                  onChange={(e) => setFormData({ ...formData, lessons_learned: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Plano de Ação Corretiva</Label>
+                <Textarea
+                  required
+                  className="min-h-[150px]"
+                  placeholder="Quais ações tomaremos para evitar que os problemas se repitam?..."
+                  value={formData.corrective_plan}
+                  onChange={(e) => setFormData({ ...formData, corrective_plan: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status da APA</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(val) => setFormData({ ...formData, status: val })}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="concluído">Concluído</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-4 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => navigate('/apa/dashboard')}>
+                Cancelar
               </Button>
-            </CardHeader>
-            <CardContent>
-              {fields.length === 0 ? (
-                <div className="text-center py-6 text-zinc-500 border rounded-md border-dashed">
-                  Nenhuma ação corretiva adicionada. Clique em "Adicionar Ação" para criar um plano.
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Responsável</TableHead>
-                      <TableHead>Data Vencimento</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {fields.map((field, index) => (
-                      <TableRow key={field.id}>
-                        <TableCell className="align-top pt-4">
-                          <FormField
-                            control={form.control}
-                            name={`actions.${index}.description`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Input {...field} placeholder="Descrição..." />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell className="align-top pt-4">
-                          <FormField
-                            control={form.control}
-                            name={`actions.${index}.responsible`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Selecione..." />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {users.map((u) => (
-                                      <SelectItem key={u.id} value={u.id}>
-                                        {u.name || u.email}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell className="align-top pt-4">
-                          <FormField
-                            control={form.control}
-                            name={`actions.${index}.due_date`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <FormControl>
-                                      <Button
-                                        variant="outline"
-                                        className={cn(
-                                          'w-full pl-3 text-left font-normal',
-                                          !field.value && 'text-muted-foreground',
-                                        )}
-                                      >
-                                        {field.value ? (
-                                          format(field.value, 'dd/MM/yyyy')
-                                        ) : (
-                                          <span>Selecione...</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                      </Button>
-                                    </FormControl>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="single"
-                                      selected={field.value}
-                                      onSelect={field.onChange}
-                                      initialFocus
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell className="align-top pt-4">
-                          <FormField
-                            control={form.control}
-                            name={`actions.${index}.status`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Status..." />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="aberta">Aberta</SelectItem>
-                                    <SelectItem value="em_progresso">Em Progresso</SelectItem>
-                                    <SelectItem value="concluída">Concluída</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell className="align-top pt-4">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => remove(index)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-            <CardFooter className="flex justify-end border-t p-6">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <span className="animate-spin mr-2">⏳</span>}
-                <Save className="mr-2 h-4 w-4" />
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Salvar APA
               </Button>
-            </CardFooter>
-          </Card>
+            </div>
+          </CardContent>
         </form>
-      </Form>
+      </Card>
     </div>
   )
 }

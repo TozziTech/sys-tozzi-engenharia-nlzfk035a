@@ -29,6 +29,7 @@ export function CompanySettingsModal({
     phone: '',
     logo: '',
     primary_color: '#0f172a',
+    apa_trigger_days: 7,
   })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState('')
@@ -73,6 +74,7 @@ export function CompanySettingsModal({
             phone: record.phone || '',
             logo: record.logo || '',
             primary_color: record.primary_color || '#0f172a',
+            apa_trigger_days: record.apa_trigger_days || 7,
           })
           if (record.logo) {
             setLogoPreview(
@@ -111,6 +113,7 @@ export function CompanySettingsModal({
       formData.append('address', companyForm.address)
       formData.append('phone', companyForm.phone)
       formData.append('primary_color', companyForm.primary_color)
+      formData.append('apa_trigger_days', companyForm.apa_trigger_days.toString())
       if (logoFile) formData.append('logo', logoFile)
 
       if (companyForm.id) {
@@ -211,6 +214,23 @@ export function CompanySettingsModal({
                 />
               ))}
             </div>
+          </div>
+          <div className="space-y-2 md:col-span-2 pt-2 border-t mt-2">
+            <Label htmlFor="modal_apa_trigger">Dias para Acionar APA</Label>
+            <Input
+              id="modal_apa_trigger"
+              type="number"
+              min={1}
+              value={companyForm.apa_trigger_days}
+              onChange={(e) =>
+                setCompanyForm({ ...companyForm, apa_trigger_days: Number(e.target.value) })
+              }
+              placeholder="Ex: 7"
+            />
+            <p className="text-xs text-muted-foreground">
+              Dias após a conclusão do projeto para gerar automaticamente o registro de Análise
+              Pós-Ação (APA).
+            </p>
           </div>
           <div className="space-y-2 md:col-span-2 pt-2 border-t mt-2">
             <Label htmlFor="modal_logo">Logotipo (PNG, JPG, SVG)</Label>

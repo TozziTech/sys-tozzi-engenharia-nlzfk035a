@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Edit,
   CheckSquare,
+  CheckCircle,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
@@ -325,6 +326,27 @@ export default function MeetingDetails() {
     }
   }
 
+  const handleFinalizeAta = async () => {
+    if (!confirm('Deseja finalizar a ata e enviar por e-mail para todos os participantes?')) return
+
+    const participantsWithNoEmail: string[] = []
+    for (const pId of meeting.participants || []) {
+      const u = users.find((u) => u.id === pId)
+      if (u && !u.email) participantsWithNoEmail.push(u.name || 'Desconhecido')
+    }
+
+    try {
+      await updateMeeting(meeting.id, { status: 'Realizada' })
+      toast.success('Ata finalizada! O envio de e-mails foi agendado.')
+      if (participantsWithNoEmail.length > 0) {
+        toast.warning(`Participantes sem e-mail: ${participantsWithNoEmail.join(', ')}`)
+      }
+      loadAll()
+    } catch (err) {
+      toast.error('Erro ao finalizar ata')
+    }
+  }
+
   const handleExtractActions = () => {
     const tempDiv = document.createElement('div')
     tempDiv.innerHTML = minutesContent
@@ -519,6 +541,16 @@ export default function MeetingDetails() {
               size="sm"
             >
               <Clock className="mr-2 h-4 w-4" /> Painel Ao Vivo
+            </Button>
+          )}
+          {(meeting.status === 'Pendente' || meeting.status === 'Em Andamento') && (
+            <Button
+              onClick={handleFinalizeAta}
+              variant="outline"
+              className="text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-950"
+              size="sm"
+            >
+              <CheckCircle className="mr-2 h-4 w-4" /> Finalizar Ata
             </Button>
           )}
         </div>

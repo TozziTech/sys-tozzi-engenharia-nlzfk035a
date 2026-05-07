@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Plus, Trash, ExternalLink, Pencil, Check, ChevronsUpDown } from 'lucide-react'
+import { Plus, Trash, ExternalLink, Pencil, Check, CheckCircle, ChevronsUpDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -210,6 +210,32 @@ export default function Meetings() {
     }
   }
 
+  const handleFinalize = async (meeting: any) => {
+    if (
+      !confirm(
+        `Finalizar a reunião '${meeting.title}' e enviar a ata por e-mail para os participantes?`,
+      )
+    )
+      return
+
+    const participantsWithNoEmail: string[] = []
+    for (const pId of meeting.participants || []) {
+      const u = users.find((u) => u.id === pId)
+      if (u && !u.email) participantsWithNoEmail.push(u.name || 'Desconhecido')
+    }
+
+    try {
+      await updateMeeting(meeting.id, { status: 'Realizada' })
+      toast.success('Ata finalizada! O envio de e-mails foi agendado.')
+      if (participantsWithNoEmail.length > 0) {
+        toast.warning(`Participantes sem e-mail: ${participantsWithNoEmail.join(', ')}`)
+      }
+      loadData()
+    } catch (err) {
+      toast.error('Erro ao finalizar ata')
+    }
+  }
+
   const meetingDates = meetings.map((m) => new Date(m.date_time))
 
   const filteredMeetings = meetings.filter((m) => {
@@ -345,6 +371,17 @@ export default function Meetings() {
                       )}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
+                      {(m.status === 'Pendente' || m.status === 'Em Andamento') && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-green-600"
+                          title="Finalizar Ata e Enviar Email"
+                          onClick={() => handleFinalize(m)}
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => handleEditClick(m)}>
                         <Pencil className="h-4 w-4" />
                       </Button>

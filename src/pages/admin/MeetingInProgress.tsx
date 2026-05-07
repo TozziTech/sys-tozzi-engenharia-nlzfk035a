@@ -198,14 +198,29 @@ export default function MeetingInProgress() {
   }
 
   const finishMeeting = async () => {
-    if (!confirm('Deseja encerrar a reunião e salvar a ata final?')) return
+    if (
+      !confirm(
+        'Deseja encerrar a reunião e salvar a ata final? Os participantes receberão a ata por e-mail.',
+      )
+    )
+      return
+
+    const participantsWithNoEmail: string[] = []
+    for (const pId of meeting.participants || []) {
+      const u = allUsers.find((u) => u.id === pId)
+      if (u && !u.email) participantsWithNoEmail.push(u.name || 'Desconhecido')
+    }
+
     try {
       await updateMeeting(meeting.id, {
         status: 'Realizada',
         minutes: minutesRef.current,
         attendance: attendanceRef.current,
       })
-      toast.success('Reunião encerrada')
+      toast.success('Reunião encerrada e ata enviada por e-mail!')
+      if (participantsWithNoEmail.length > 0) {
+        toast.warning(`Participantes sem e-mail: ${participantsWithNoEmail.join(', ')}`)
+      }
       navigate(`/admin/reunioes/${meeting.id}`)
     } catch (e) {
       toast.error('Erro ao encerrar reunião')

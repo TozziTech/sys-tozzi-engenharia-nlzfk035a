@@ -67,7 +67,7 @@ import { cn } from '@/lib/utils'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell, ReferenceLine } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { exportDesignerDashboardPDF } from '@/lib/exportPdf'
-import { PlanilhaFinanceira } from '@/components/meu-painel/PlanilhaFinanceira'
+import { ServicosList } from '@/components/financial/ServicosList'
 import { MyTasksList } from '@/components/meu-painel/MyTasksList'
 
 const getStatusColor = (status: string) => {
@@ -169,7 +169,7 @@ export default function DesignerPanel() {
           .getFullList({ filter: `user_id = "${user.id}"` })
         const pgs = await pb
           .collection('pagamentos_servicos')
-          .getFullList({ filter: `servico_id.user_id = "${user.id}" && status = "Pago"` })
+          .getFullList({ filter: `user_id = "${user.id}" && status = "Pago"` })
 
         const totalGeral = servicos
           .filter((s) => s.status !== 'Cancelado')
@@ -242,9 +242,8 @@ export default function DesignerPanel() {
     `pagamentos_user_all_${user?.id}`,
     () =>
       pb.collection('pagamentos_servicos').getFullList({
-        filter: `servico_id.user_id = "${user?.id}"`,
+        filter: `user_id = "${user?.id}"`,
         sort: '-data_pagamento',
-        expand: 'servico_id',
       }),
     { enabled: !!user && hasFinanceAccess },
   )
@@ -699,21 +698,20 @@ export default function DesignerPanel() {
                 </CardHeader>
                 <CardContent className="text-xs text-blue-700 dark:text-blue-400 space-y-3">
                   <p>
-                    1. <strong>Novo Lançamento:</strong> Registre o valor total do serviço. Ele
-                    aparecerá como "Pendente".
+                    1. <strong>Novo Lançamento:</strong> Registre o valor total do serviço. O código
+                    é gerado sequencialmente de forma automática.
                   </p>
                   <p>
-                    2. <strong>Parcelas:</strong> Expanda a linha do serviço (clique na seta à
-                    esquerda) e adicione as parcelas e datas de vencimento.
+                    2. <strong>Vínculo:</strong> O serviço agora pode ser vinculado a um de seus
+                    projetos ativos, melhorando a rastreabilidade.
                   </p>
                   <p>
-                    3. <strong>Alertas Visuais:</strong> As parcelas mudam para status amarelo
-                    (Próximo) quando faltarem 3 dias ou menos, e vermelho (Atrasado) se passarem da
-                    data.
+                    3. <strong>Histórico:</strong> Todos os lançamentos passados são exibidos nesta
+                    tabela, sem filtro de data, para visão global.
                   </p>
                   <p>
-                    4. <strong>Baixa:</strong> Marque a parcela como "Pago" e informe a data que o
-                    dinheiro entrou.
+                    4. <strong>Autonomia:</strong> Os registros de pagamentos são agora gerenciados
+                    de forma independente dos serviços prestados.
                   </p>
                 </CardContent>
               </Card>
@@ -800,7 +798,7 @@ export default function DesignerPanel() {
             </div>
 
             <div className="border border-zinc-800 rounded-xl bg-zinc-950/30 overflow-hidden shadow-lg p-4 md:p-6">
-              <PlanilhaFinanceira dateRange={dateRange} />
+              <ServicosList />
             </div>
           </TabsContent>
         )}
@@ -1019,7 +1017,7 @@ export default function DesignerPanel() {
               >
                 <div className="flex justify-between items-start w-full">
                   <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 pr-2">
-                    {p.expand?.servico_id?.projeto_servico || 'Serviço não especificado'}
+                    {p.descricao || 'Pagamento não especificado'}
                   </span>
                   {p.isOverdue ? (
                     <Badge

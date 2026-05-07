@@ -118,7 +118,9 @@ export function ServicosList() {
                     <TableCell className="font-medium whitespace-nowrap">
                       {servico.codigo}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{servico.projeto_servico}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {servico.expand?.project_ref?.name || servico.projeto_servico || '-'}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">{servico.cliente || '-'}</TableCell>
                     <TableCell className="whitespace-nowrap">
                       {new Date(servico.data_inicio).toLocaleDateString('pt-BR')}

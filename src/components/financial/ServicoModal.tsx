@@ -20,7 +20,7 @@ import {
 import { ClientCombobox } from '@/components/ClientCombobox'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
-import { Plus } from 'lucide-react'
+import { Plus, Check, ChevronsUpDown } from 'lucide-react'
 import {
   createServico,
   updateServico,
@@ -28,6 +28,17 @@ import {
   checkServicoCodeExists,
   type ServicoFinanceiro,
 } from '@/services/servicos_financeiros'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { cn } from '@/lib/utils'
+import pb from '@/lib/pocketbase/client'
 
 interface ServicoModalProps {
   servico?: ServicoFinanceiro
@@ -40,9 +51,13 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
   const { user } = useAuth()
   const { toast } = useToast()
 
+  const [projects, setProjects] = useState<any[]>([])
+  const [openProjectCombo, setOpenProjectCombo] = useState(false)
+
   const [formData, setFormData] = useState({
     codigo: '',
     projeto_servico: '',
+    project_ref: '',
     cliente: '',
     data_inicio: new Date().toISOString().split('T')[0],
     status: 'Pendente',
@@ -51,11 +66,25 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
   })
 
   useEffect(() => {
+    if (open && user) {
+      pb.collection('projects')
+        .getFullList({
+          sort: '-created',
+          fields: 'id,name',
+          filter: 'status != "Concluído" && status != "Cancelado"',
+        })
+        .then(setProjects)
+        .catch(console.error)
+    }
+  }, [open, user])
+
+  useEffect(() => {
     if (open) {
       if (servico) {
         setFormData({
           codigo: servico.codigo || '',
           projeto_servico: servico.projeto_servico || '',
+          project_ref: servico.project_ref || '',
           cliente: servico.cliente || '',
           data_inicio: servico.data_inicio ? servico.data_inicio.split('T')[0] : '',
           status: servico.status || 'Pendente',
@@ -66,6 +95,7 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
         setFormData({
           codigo: '',
           projeto_servico: '',
+          project_ref: '',
           cliente: '',
           data_inicio: new Date().toISOString().split('T')[0],
           status: 'Pendente',
@@ -92,10 +122,11 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
       return
     }
 
-    if (!formData.projeto_servico.trim()) {
+    if (!formData.project_ref && !formData.projeto_servico.trim()) {
       toast({
         title: 'Erro',
-        description: 'O campo Projeto / Serviço é obrigatório.',
+        description:
+          'É necessário selecionar um projeto ou informar um nome manual para o serviço.',
         variant: 'destructive',
       })
       return
@@ -118,7 +149,7 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
       if (exists) {
         toast({
           title: 'Aviso',
-          description: 'Código já lançado. Por favor, utilize um código único.',
+          description: 'Este código já está em uso. Por favor, utilize um código único.',
           variant: 'destructive',
         })
         setLoading(false)
@@ -129,6 +160,7 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
         user_id: user.id,
         codigo: formData.codigo,
         projeto_servico: formData.projeto_servico,
+        project_ref: formData.project_ref || '',
         cliente: formData.cliente,
         data_inicio: new Date(formData.data_inicio).toISOString(),
         status: formData.status as any,
@@ -197,17 +229,70 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Projeto / Serviço</Label>
-            <Input
-              required
-              value={formData.projeto_servico}
-              onChange={(e) => setFormData({ ...formData, projeto_servico: e.target.value })}
-              placeholder="Ex: Consultoria Financeira, Projeto X"
-            />
+          <div className="space-y-2 flex flex-col">
+            <Label>Projeto / Serviço Vinculado (Opcional)</Label>
+            <Popover open={openProjectCombo} onOpenChange={setOpenProjectCombo}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openProjectCombo}
+                  className="w-full justify-between font-normal bg-zinc-950/50"
+                >
+                  {formData.project_ref
+                    ? projects.find((p) => p.id === formData.project_ref)?.name
+                    : 'Selecione o projeto vinculado...'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar projeto..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {projects.map((project) => (
+                        <CommandItem
+                          key={project.id}
+                          value={project.name}
+                          onSelect={() => {
+                            setFormData({
+                              ...formData,
+                              project_ref: project.id,
+                              projeto_servico: project.name,
+                            })
+                            setOpenProjectCombo(false)
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              formData.project_ref === project.id ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          {project.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
-          <div className="space-y-2">
+          {!formData.project_ref && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+              <Label>Nome Manual do Serviço</Label>
+              <Input
+                required={!formData.project_ref}
+                value={formData.projeto_servico}
+                onChange={(e) => setFormData({ ...formData, projeto_servico: e.target.value })}
+                placeholder="Ex: Consultoria Financeira"
+              />
+            </div>
+          )}
+
+          <div className="space-y-2 flex flex-col">
             <Label>Cliente</Label>
             <ClientCombobox
               value={formData.cliente}

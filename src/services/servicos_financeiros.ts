@@ -5,6 +5,7 @@ export interface ServicoFinanceiro {
   user_id: string
   codigo: string
   projeto_servico: string
+  project_ref?: string
   observacoes?: string
   cliente?: string
   data_inicio: string
@@ -18,7 +19,7 @@ export interface ServicoFinanceiro {
 export const getServicos = async () => {
   return await pb.collection('servicos_financeiros').getFullList<ServicoFinanceiro>({
     sort: '-created',
-    expand: 'user_id',
+    expand: 'user_id,project_ref',
   })
 }
 

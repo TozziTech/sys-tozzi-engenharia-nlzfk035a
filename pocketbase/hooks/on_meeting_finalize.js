@@ -1,12 +1,9 @@
-// @deps pdf-lib@1.17.1
 onRecordAfterUpdateSuccess((e) => {
   const record = e.record
   const original = record.original()
 
   if (record.getString('status') === 'Realizada' && original.getString('status') !== 'Realizada') {
     try {
-      const { PDFDocument, StandardFonts } = require('pdf-lib')
-
       // Helper to run async process without blocking the main event flow
       ;(async () => {
         try {
@@ -31,116 +28,12 @@ onRecordAfterUpdateSuccess((e) => {
             return
           }
 
-          // 2. Generate PDF
-          const pdfDoc = await PDFDocument.create()
-          const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-          const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-
-          let page = pdfDoc.addPage()
-          const { width, height } = page.getSize()
-          let y = height - 50
-
-          const drawText = (text, size, isBold = false) => {
-            if (y < 50) {
-              page = pdfDoc.addPage()
-              y = height - 50
-            }
-            page.drawText(text, { x: 50, y, size, font: isBold ? boldFont : font })
-            y -= size + 5
-          }
-
-          const charMap = {
-            á: 'a',
-            à: 'a',
-            ã: 'a',
-            â: 'a',
-            ä: 'a',
-            é: 'e',
-            è: 'e',
-            ê: 'e',
-            ë: 'e',
-            í: 'i',
-            ì: 'i',
-            î: 'i',
-            ï: 'i',
-            ó: 'o',
-            ò: 'o',
-            õ: 'o',
-            ô: 'o',
-            ö: 'o',
-            ú: 'u',
-            ù: 'u',
-            û: 'u',
-            ü: 'u',
-            ç: 'c',
-            ñ: 'n',
-            Á: 'A',
-            À: 'A',
-            Ã: 'A',
-            Â: 'A',
-            Ä: 'A',
-            É: 'E',
-            È: 'E',
-            Ê: 'E',
-            Ë: 'E',
-            Í: 'I',
-            Ì: 'I',
-            Î: 'I',
-            Ï: 'I',
-            Ó: 'O',
-            Ò: 'O',
-            Õ: 'O',
-            Ô: 'O',
-            Ö: 'O',
-            Ú: 'U',
-            Ù: 'U',
-            Û: 'U',
-            Ü: 'U',
-            Ç: 'C',
-            Ñ: 'N',
-          }
-
-          const sanitizeText = (txt) => {
-            return txt
-              .replace(/[^\u0000-\u007E]/g, (a) => charMap[a] || '')
-              .replace(/[^\x20-\x7E]/g, '')
-          }
-
-          drawText('Ata de Reuniao', 20, true)
-          y -= 10
-          drawText(sanitizeText('Titulo: ' + record.getString('title')), 14, true)
-          const dateStr = record.getString('date_time')
-          drawText('Data: ' + (dateStr ? dateStr.substring(0, 16).replace('T', ' ') : 'N/A'), 12)
-          y -= 20
-
-          const minutesHtml = record.getString('minutes') || 'Sem conteudo documentado.'
-          const plainText = sanitizeText(
-            minutesHtml
-              .replace(/<[^>]+>/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim(),
-          )
-
-          const words = plainText.split(' ')
-          let line = ''
-          for (const word of words) {
-            const testLine = line + word + ' '
-            if (testLine.length * 6 > width - 100) {
-              drawText(line, 12)
-              line = word + ' '
-            } else {
-              line = testLine
-            }
-          }
-          if (line.trim().length > 0) {
-            drawText(line, 12)
-          }
-
-          const pdfBytes = await pdfDoc.save()
-
-          // 3. Send Email
+          // 2. Send Email with HTML minutes
           try {
             const mailer = require('mailer')
+            const minutesHtml = record.getString('minutes') || 'Sem conteúdo documentado.'
+            const title = record.getString('title')
+
             for (const email of emails) {
               const message = new mailer.Message({
                 from: {
@@ -148,11 +41,18 @@ onRecordAfterUpdateSuccess((e) => {
                   name: $app.settings().meta.senderName || 'Sistema de Gestão',
                 },
                 to: [{ address: email }],
-                subject: 'Ata de Reunião: ' + record.getString('title'),
-                html: `<p>Olá,</p><p>A reunião <strong>${record.getString('title')}</strong> foi finalizada. Em anexo, você encontrará a ata com as decisões e itens de ação.</p><p>Atenciosamente,<br>Equipe</p>`,
-                attachments: {
-                  'Ata_de_Reuniao.pdf': pdfBytes,
-                },
+                subject: 'Ata de Reunião: ' + title,
+                html: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                  <h2>Ata de Reunião</h2>
+                  <p>Olá,</p>
+                  <p>A reunião <strong>${title}</strong> foi finalizada. Abaixo, você encontrará a ata com as decisões e itens de ação documentados.</p>
+                  <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;" />
+                  <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px;">
+                    ${minutesHtml}
+                  </div>
+                  <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;" />
+                  <p style="color: #666; font-size: 14px;">Atenciosamente,<br>Equipe</p>
+                </div>`,
               })
               $app.newMailClient().send(message)
             }
@@ -169,7 +69,7 @@ onRecordAfterUpdateSuccess((e) => {
             $app.logger().error('Failed to send meeting minutes email', 'error', String(err))
           }
 
-          // 4. Create Audit Log
+          // 3. Create Audit Log
           try {
             const auditCol = $app.findCollectionByNameOrId('audit_logs')
             const auditRecord = new Record(auditCol)
@@ -203,7 +103,7 @@ onRecordAfterUpdateSuccess((e) => {
         }
       })()
     } catch (err) {
-      $app.logger().error('Error loading pdf-lib in meeting finalize', 'error', String(err))
+      $app.logger().error('Error loading hook context in meeting finalize', 'error', String(err))
     }
   }
   e.next()

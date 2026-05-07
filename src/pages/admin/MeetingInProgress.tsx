@@ -527,8 +527,4 @@ export default function MeetingInProgress() {
               <Button type="submit">Criar Ação</Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
+      

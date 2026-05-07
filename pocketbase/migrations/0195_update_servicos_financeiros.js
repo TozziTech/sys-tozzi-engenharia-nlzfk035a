@@ -63,6 +63,7 @@ migrate(
     // Remove servico_id mapping
     const servicoIdField = pagamentos.fields.getByName('servico_id')
     if (servicoIdField) {
+      pagamentos.removeIndex('idx_pagamentos_servico_id')
       pagamentos.fields.removeByName('servico_id')
       app.save(pagamentos)
     }
@@ -88,6 +89,7 @@ migrate(
           maxSelect: 1,
         }),
       )
+      pagamentos.addIndex('idx_pagamentos_servico_id', false, 'servico_id', '')
       app.save(pagamentos)
     }
   },

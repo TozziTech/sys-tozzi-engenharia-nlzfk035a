@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-07T16:49:55.979Z",
+  "generatedAt": "2026-05-07T16:54:27.929Z",
   "collections": [
     {
       "name": "users",
@@ -2072,9 +2072,19 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "project_ref",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "projects"
         }
       ],
-      "indexes": ["CREATE INDEX idx_servicos_financeiros_user ON servicos_financeiros (user_id)"]
+      "indexes": [
+        "CREATE INDEX idx_servicos_financeiros_user ON servicos_financeiros (user_id)",
+        "CREATE UNIQUE INDEX `idx_servicos_financeiros_codigo_unique` ON `servicos_financeiros` (codigo)"
+      ]
     },
     {
       "name": "pagamentos_servicos",
@@ -2087,13 +2097,6 @@
         "delete": "@request.auth.id != ''"
       },
       "fields": [
-        {
-          "name": "servico_id",
-          "type": "relation",
-          "required": true,
-          "system": false,
-          "collectionRef": "servicos_financeiros"
-        },
         {
           "name": "valor",
           "type": "number",
@@ -2138,9 +2141,16 @@
           "required": false,
           "system": false,
           "selectValues": ["Pendente", "Pago"]
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
-      "indexes": ["CREATE INDEX idx_pagamentos_servico_id ON pagamentos_servicos (servico_id)"]
+      "indexes": []
     },
     {
       "name": "contract_templates",

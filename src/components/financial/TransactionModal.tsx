@@ -47,6 +47,7 @@ const initialFormState = {
   category: '',
   responsible: 'none',
   bankAccount: 'none',
+  client: 'none',
   is_recurring: false,
   frequency: 'Mensal',
   end_date: '',
@@ -121,6 +122,7 @@ export function TransactionModal() {
         formData.responsible && formData.responsible !== 'none' ? formData.responsible : null,
       bank_account:
         formData.bankAccount && formData.bankAccount !== 'none' ? formData.bankAccount : null,
+      client: formData.client && formData.client !== 'none' ? formData.client : null,
       is_recurring: formData.is_recurring,
       frequency: formData.is_recurring ? formData.frequency : null,
       end_date:
@@ -137,9 +139,7 @@ export function TransactionModal() {
       if (formData.attachment) {
         const submitData = new FormData()
         for (const [key, value] of Object.entries(payload)) {
-          if (value === null) {
-            submitData.append(key, '')
-          } else if (value !== undefined) {
+          if (value !== null && value !== undefined) {
             submitData.append(key, value as any)
           }
         }
@@ -157,10 +157,12 @@ export function TransactionModal() {
       setIsOpen(false)
       setFormData({ ...initialFormState })
     } catch (err: any) {
-      console.error(err)
+      console.error('Transaction save error:', err)
       const errors = extractFieldErrors(err)
       setFieldErrors(errors)
-      const errorMsg = getErrorMessage(err) || 'Erro ao salvar transação.'
+      const errorMsg =
+        getErrorMessage(err) ||
+        'Erro interno ao salvar. Verifique se todos os campos obrigatórios estão preenchidos.'
       setFormError(errorMsg)
       toast.error('Falha ao salvar transação', {
         description: errorMsg,

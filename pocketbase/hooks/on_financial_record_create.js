@@ -24,7 +24,15 @@ onRecordCreate((e) => {
     e.record.set('code', nextCode)
   }
 
-  if (status === 'Pago' && account && account !== '') {
+  // Defensive check to ensure we only attempt to update the balance if a valid account ID exists
+  if (
+    status === 'Pago' &&
+    account &&
+    typeof account === 'string' &&
+    account.trim() !== '' &&
+    account !== 'none' &&
+    account !== 'null'
+  ) {
     const amount = e.record.get('amount') || 0
     const type = e.record.get('type')
     const impact = type === 'Entrada' ? amount : -amount
@@ -37,6 +45,9 @@ onRecordCreate((e) => {
         .execute()
     } catch (err) {
       console.log('Error updating bank account balance:', err)
+      throw new BadRequestError(
+        'Erro ao atualizar saldo da conta bancária vinculada. Verifique os dados e tente novamente.',
+      )
     }
   }
 

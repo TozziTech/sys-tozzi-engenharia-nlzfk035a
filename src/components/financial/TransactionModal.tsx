@@ -90,7 +90,7 @@ export function TransactionModal() {
 
     const numericAmount = Number(formData.value)
     if (!formData.description || !formData.date || isNaN(numericAmount) || numericAmount <= 0) {
-      setFormError('Preencha os campos obrigatórios (incluindo um valor válido).')
+      setFormError('Preencha os campos obrigatórios (incluindo um valor válido e maior que zero).')
       return
     }
     if (!formData.category) {
@@ -139,14 +139,17 @@ export function TransactionModal() {
       if (formData.attachment) {
         const submitData = new FormData()
         for (const [key, value] of Object.entries(payload)) {
-          if (value !== null && value !== undefined) {
+          if (value !== null && value !== undefined && value !== '') {
             submitData.append(key, value as any)
           }
         }
         submitData.append('attachment', formData.attachment)
         await pb.collection('financial_records').create(submitData)
       } else {
-        await pb.collection('financial_records').create(payload)
+        const cleanPayload = Object.fromEntries(
+          Object.entries(payload).filter(([k, v]) => v !== null && v !== undefined && v !== ''),
+        )
+        await pb.collection('financial_records').create(cleanPayload)
       }
 
       if (formData.is_recurring) {
@@ -160,9 +163,16 @@ export function TransactionModal() {
       console.error('Transaction save error:', err)
       const errors = extractFieldErrors(err)
       setFieldErrors(errors)
-      const errorMsg =
-        getErrorMessage(err) ||
-        'Erro interno ao salvar. Verifique se todos os campos obrigatórios estão preenchidos.'
+
+      let errorMsg = getErrorMessage(err)
+      if (err?.response?.code === 400 && Object.keys(errors).length > 0) {
+        errorMsg = 'Corrija os erros destacados nos campos abaixo.'
+      } else if (err?.message?.includes('UNIQUE') || errorMsg.toLowerCase().includes('unique')) {
+        errorMsg = 'Conflito de código único gerado. Tente novamente.'
+      } else if (!errorMsg) {
+        errorMsg = 'Erro interno ao salvar. Verifique os dados e tente novamente.'
+      }
+
       setFormError(errorMsg)
       toast.error('Falha ao salvar transação', {
         description: errorMsg,

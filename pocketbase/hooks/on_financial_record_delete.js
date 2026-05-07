@@ -2,7 +2,7 @@ onRecordDelete((e) => {
   const status = e.record.get('status')
   const account = e.record.get('bank_account')
 
-  if (status === 'Pago' && account) {
+  if (status === 'Pago' && account && account !== 'none' && account !== 'null') {
     const amount = e.record.get('amount') || 0
     const type = e.record.get('type')
     const impact = type === 'Entrada' ? -amount : amount

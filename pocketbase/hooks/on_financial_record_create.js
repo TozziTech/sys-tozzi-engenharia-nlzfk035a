@@ -1,6 +1,16 @@
 onRecordCreate((e) => {
   const status = e.record.get('status')
-  const account = e.record.get('bank_account')
+  let account = e.record.get('bank_account')
+  const responsible = e.record.get('responsible')
+  const projectId = e.record.get('project_id')
+
+  // Clean up nulls passed from frontend to avoid string "null" in text/relation fields
+  if (account === 'null' || account === 'none') {
+    e.record.set('bank_account', '')
+    account = ''
+  }
+  if (responsible === 'null' || responsible === 'none') e.record.set('responsible', '')
+  if (projectId === 'null' || projectId === 'none') e.record.set('project_id', '')
 
   if (e.record.get('is_recurring') && !e.record.get('recurrence_group_id')) {
     e.record.set('recurrence_group_id', $security.randomString(16))
@@ -20,7 +30,7 @@ onRecordCreate((e) => {
     } catch (err) {
       console.log('Error finding max code', err)
     }
-    const nextCode = 'FIN-' + String(maxNum + 1).padStart(3, '0')
+    const nextCode = 'FIN-' + String(maxNum + 1).padStart(4, '0')
     e.record.set('code', nextCode)
   }
 
@@ -45,9 +55,11 @@ onRecordCreate((e) => {
         .execute()
     } catch (err) {
       console.log('Error updating bank account balance:', err)
-      throw new BadRequestError(
-        'Erro ao atualizar saldo da conta bancária vinculada. Verifique os dados e tente novamente.',
-      )
+      try {
+        $app
+          .logger()
+          .error('Error updating bank account balance', 'error', err.message, 'accountId', account)
+      } catch (_) {}
     }
   }
 

@@ -45,7 +45,13 @@ onRecordUpdate((e) => {
   const newType = e.record.get('type')
 
   // Apply new impact if "Pago"
-  if (newStatus === 'Pago' && newAccount && newAccount !== '') {
+  if (
+    newStatus === 'Pago' &&
+    newAccount &&
+    newAccount !== '' &&
+    newAccount !== 'none' &&
+    newAccount !== 'null'
+  ) {
     const applyImpact = newType === 'Entrada' ? newAmount : -newAmount
     try {
       $app

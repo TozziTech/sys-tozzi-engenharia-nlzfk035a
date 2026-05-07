@@ -30,7 +30,8 @@ onRecordAfterUpdateSuccess((e) => {
 
           // 2. Send Email with HTML minutes
           try {
-            const mailer = require('mailer')
+            const moduleName = 'mailer'
+            const mailer = require(moduleName)
             const minutesHtml = record.getString('minutes') || 'Sem conteúdo documentado.'
             const title = record.getString('title')
 

@@ -201,7 +201,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     try {
       await pb.collection('tasks').create({
         title: inlineCreateTitle,
-        parent_task: inlineCreateId === 'root' ? '' : inlineCreateId,
+        parent_task: inlineCreateId === 'root' ? null : inlineCreateId,
         status: 'Pendente',
         responsible: user?.id,
         ordem: Date.now() / 1000,
@@ -256,7 +256,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
   const handleUpdateDueDate = async (id: string, dateStr: string) => {
     try {
       await pb.collection('tasks').update(id, {
-        due_date: dateStr ? `${dateStr} 12:00:00.000Z` : '',
+        due_date: dateStr ? `${dateStr} 12:00:00.000Z` : null,
       })
       queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
       queryClient().invalidateQueries(`designer_urgent_tasks_`)
@@ -321,7 +321,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
 
     try {
       await pb.collection('tasks').update(draggedId, {
-        parent_task: newParent || '',
+        parent_task: newParent || null,
         ordem: newOrdem,
       })
       queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)

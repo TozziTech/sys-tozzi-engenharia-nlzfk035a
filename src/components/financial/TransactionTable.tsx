@@ -86,7 +86,7 @@ export function TransactionTable({
       console.error(err)
       toast({
         title: 'Erro',
-        description: 'Não foi possível aprovar o lançamento.',
+        description: 'Erro ao aprovar lançamento. Verifique suas permissões.',
         variant: 'destructive',
       })
     } finally {

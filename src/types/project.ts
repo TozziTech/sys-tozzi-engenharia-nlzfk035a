@@ -111,13 +111,24 @@ export interface ExpenseCategory {
 
 export interface Transaction {
   id: string
-  projectId: string
+  projectId?: string
+  project_id?: string
   description: string
-  type: 'Entrada' | 'Saída'
-  value: number
+  type: 'Entrada' | 'Saída' | string
+  value?: number
+  amount?: number
   date: string
   categoryId?: string
-  status?: 'Pendente' | 'Pago'
+  category?: string
+  status?: 'Pendente' | 'Pago' | 'Atrasado' | 'Cancelado' | string
+  is_approved?: boolean
+  approved_by?: string
+  is_recurring?: boolean
+  frequency?: string
+  attachment?: string
+  code?: string
+  responsible?: string
+  [key: string]: any
 }
 
 export interface AccessRequest {

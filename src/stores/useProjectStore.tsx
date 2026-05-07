@@ -354,14 +354,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const records = await pb.collection('financial_records').getFullList({ sort: '-created' })
       setTransactions(
         records.map((r) => ({
+          ...r,
           id: r.id,
           projectId: r.project_id || '',
           description: r.description,
           type: r.type,
           value: r.amount,
+          amount: r.amount,
           date: r.date ? r.date.substring(0, 10) : new Date().toISOString(),
           categoryId: r.category,
-          status: 'Pago',
+          category: r.category,
+          status: r.status || 'Pendente',
+          is_approved: r.is_approved,
+          approved_by: r.approved_by,
         })),
       )
     } catch (e) {
@@ -405,13 +410,18 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const updateTransaction = async (id: string, data: Partial<Transaction>) => {
     try {
-      const payload: any = {}
+      const payload: any = { ...data }
       if (data.description !== undefined) payload.description = data.description
       if (data.value !== undefined) payload.amount = data.value
       if (data.type !== undefined) payload.type = data.type
       if (data.categoryId !== undefined) payload.category = data.categoryId
       if (data.projectId !== undefined) payload.project_id = data.projectId
       if (data.date !== undefined) payload.date = new Date(data.date).toISOString()
+
+      delete payload.value
+      delete payload.categoryId
+      delete payload.projectId
+      delete payload.id
 
       await pb.collection('financial_records').update(id, payload)
     } catch (e) {

@@ -12,6 +12,16 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Trash2,
   GripVertical,
   Plus,
@@ -55,6 +65,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
 
   const [inlineCreateId, setInlineCreateId] = useState<string | null>(null)
   const [inlineCreateTitle, setInlineCreateTitle] = useState('')
+
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
 
   // Inline Editing State
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -193,6 +205,33 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
       setSelectedIds(new Set())
     } catch (e) {
       toast({ title: 'Erro ao excluir tarefas', variant: 'destructive' })
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!taskToDelete) return
+    try {
+      const idsToDelete = new Set<string>()
+      const collectIds = (id: string) => {
+        idsToDelete.add(id)
+        const children = tasks.filter((t) => t.parent_task === id)
+        children.forEach((c) => collectIds(c.id))
+      }
+      collectIds(taskToDelete)
+
+      await Promise.all(Array.from(idsToDelete).map((id) => pb.collection('tasks').delete(id)))
+
+      queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
+      queryClient().invalidateQueries(`designer_urgent_tasks_`)
+      toast({ title: 'Tarefa(s) excluída(s) com sucesso' })
+
+      const newSelected = new Set(selectedIds)
+      idsToDelete.forEach((id) => newSelected.delete(id))
+      setSelectedIds(newSelected)
+    } catch (e) {
+      toast({ title: 'Erro ao excluir tarefa(s)', variant: 'destructive' })
+    } finally {
+      setTaskToDelete(null)
     }
   }
 
@@ -374,18 +413,29 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             <Checkbox checked={isSelected} onCheckedChange={() => {}} />
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 p-0 shrink-0 text-slate-400 hover:text-primary hover:bg-primary/10"
-            onClick={() => {
-              setInlineCreateId(node.id)
-              setExpandedIds((prev) => new Set(prev).add(node.id))
-            }}
-            title="Adicionar subtarefa"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center opacity-100 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0 gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+              onClick={() => {
+                setInlineCreateId(node.id)
+                setExpandedIds((prev) => new Set(prev).add(node.id))
+              }}
+              title="Adicionar subtarefa"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+              onClick={() => setTaskToDelete(node.id)}
+              title="Excluir tarefa"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
 
           <Button
             variant="ghost"
@@ -538,6 +588,27 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             <div className="py-2">{tree.map((node) => renderNode(node, 0))}</div>
           )}
         </div>
+
+        <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir tarefa</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita e
+                excluirá todas as subtarefas associadas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-600 dark:hover:bg-red-700"
+                onClick={handleDeleteConfirm}
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {selectedIds.size > 0 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-5">

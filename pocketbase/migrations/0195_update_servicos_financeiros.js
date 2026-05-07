@@ -52,8 +52,9 @@ migrate(
       .db()
       .newQuery(`
     UPDATE pagamentos_servicos 
-    SET user_id = (
-      SELECT user_id FROM servicos_financeiros WHERE servicos_financeiros.id = pagamentos_servicos.servico_id
+    SET user_id = COALESCE(
+      (SELECT user_id FROM servicos_financeiros WHERE servicos_financeiros.id = pagamentos_servicos.servico_id),
+      ''
     )
     WHERE servico_id IS NOT NULL AND servico_id != ''
   `)

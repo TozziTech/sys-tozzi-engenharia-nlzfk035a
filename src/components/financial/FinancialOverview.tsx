@@ -143,7 +143,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-foreground">Saldo Total</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -156,7 +156,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-foreground">Total de Entradas</CardTitle>
             <ArrowUpRight className="h-4 w-4 text-emerald-500" />
@@ -167,7 +167,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-foreground">Total de Saídas</CardTitle>
             <ArrowDownRight className="h-4 w-4 text-rose-500" />
@@ -179,7 +179,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
           <CardHeader>
             <CardTitle className="text-base">Despesas por Categoria</CardTitle>
           </CardHeader>
@@ -216,7 +216,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
           <CardHeader>
             <CardTitle className="text-base">Fluxo de Caixa</CardTitle>
           </CardHeader>
@@ -252,7 +252,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
       </div>
 
       {monthlyGoals.length > 0 && (
-        <Card>
+        <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
           <CardHeader>
             <CardTitle className="text-base">Metas de Gastos Mensais</CardTitle>
           </CardHeader>

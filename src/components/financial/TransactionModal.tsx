@@ -187,7 +187,7 @@ export function TransactionModal() {
       <DialogTrigger asChild>
         <Button
           disabled={!canWriteFinance}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
         >
           <Plus className="h-4 w-4 mr-2" /> Nova Transação
         </Button>
@@ -453,7 +453,7 @@ export function TransactionModal() {
             )}
           </div>
 
-          <div className="col-span-2 space-y-4 border rounded-md p-4 bg-slate-50 dark:bg-slate-900/50 mt-2">
+          <div className="col-span-2 space-y-4 border border-primary/30 dark:border-border rounded-md p-4 bg-slate-100/50 dark:bg-slate-900/50 mt-2 shadow-sm">
             <div className="flex items-center space-x-2">
               <Switch
                 checked={formData.is_recurring}

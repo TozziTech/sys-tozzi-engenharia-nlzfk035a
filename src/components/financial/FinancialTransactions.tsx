@@ -160,7 +160,7 @@ export function FinancialTransactions() {
     <div className="space-y-6 animate-fade-in">
       <FinancialOverview transactions={filteredTransactions} categories={categories} />
 
-      <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center bg-slate-100/80 dark:bg-slate-900/50 p-4 rounded-lg border border-primary/30 dark:border-slate-800 shadow-sm">
         <div className="flex flex-wrap gap-4 w-full xl:w-auto items-center">
           <Popover>
             <PopoverTrigger asChild>
@@ -272,7 +272,7 @@ export function FinancialTransactions() {
         </div>
       </div>
 
-      <Card>
+      <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
         <CardHeader>
           <CardTitle>Operações e Histórico</CardTitle>
         </CardHeader>

@@ -55,7 +55,7 @@ export default function Financial() {
   }
 
   return (
-    <div className="w-full p-6 md:p-8 mx-auto space-y-6 animate-fade-in-up">
+    <div className="w-full p-6 md:p-8 mx-auto space-y-6 animate-fade-in-up bg-slate-50 dark:bg-transparent min-h-[calc(100vh-4rem)]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
@@ -90,7 +90,7 @@ export default function Financial() {
       </ErrorBoundary>
 
       <Tabs defaultValue="lancamentos" className="w-full space-y-6">
-        <TabsList className="bg-muted/50 border border-border p-1 w-full justify-start overflow-x-auto h-auto flex-wrap">
+        <TabsList className="bg-slate-200/50 dark:bg-muted/50 border border-slate-300 dark:border-border p-1 w-full justify-start overflow-x-auto h-auto flex-wrap shadow-inner">
           <TabsTrigger value="lancamentos" className="py-2">
             Lançamentos
           </TabsTrigger>

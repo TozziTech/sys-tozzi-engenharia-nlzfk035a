@@ -452,7 +452,7 @@ export default function FinancialDashboard() {
   }
 
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 animate-fade-in">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 animate-fade-in bg-slate-50 dark:bg-transparent min-h-[calc(100vh-4rem)]">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard Financeiro</h2>
@@ -516,7 +516,7 @@ export default function FinancialDashboard() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full space-y-6">
-        <TabsList className="bg-muted p-1 inline-flex h-10 items-center justify-center rounded-md text-muted-foreground w-full md:w-auto overflow-x-auto whitespace-nowrap">
+        <TabsList className="bg-slate-200/50 dark:bg-muted p-1 inline-flex h-10 items-center justify-center rounded-md text-muted-foreground w-full md:w-auto overflow-x-auto whitespace-nowrap shadow-inner border border-slate-300 dark:border-border">
           <TabsTrigger value="overview" className="py-2 px-4 flex-1 md:flex-none">
             Visão Geral
           </TabsTrigger>
@@ -530,7 +530,7 @@ export default function FinancialDashboard() {
 
         <TabsContent value="overview" className="space-y-6 outline-none focus:outline-none m-0">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-sm">
+            <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
                 <div className="p-2 bg-emerald-500/10 rounded-full">
@@ -543,7 +543,7 @@ export default function FinancialDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-sm">
+            <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Despesa Total</CardTitle>
                 <div className="p-2 bg-rose-500/10 rounded-full">
@@ -556,7 +556,7 @@ export default function FinancialDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-sm">
+            <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Saldo em Caixa</CardTitle>
                 <div className="p-2 bg-primary/10 rounded-full">
@@ -571,7 +571,7 @@ export default function FinancialDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-sm">
+            <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Orçamento vs Gasto</CardTitle>
                 <div className="p-2 bg-blue-500/10 rounded-full">
@@ -597,7 +597,7 @@ export default function FinancialDashboard() {
           </div>
 
           <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-            <Card className="shadow-sm">
+            <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
               <CardHeader>
                 <CardTitle>Fluxo de Caixa Mensal</CardTitle>
                 <CardDescription>Comparativo de receitas e despesas por mês</CardDescription>
@@ -657,7 +657,7 @@ export default function FinancialDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm">
+            <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
               <CardHeader>
                 <CardTitle>Atualização de Progresso</CardTitle>
                 <CardDescription>
@@ -710,7 +710,7 @@ export default function FinancialDashboard() {
         </TabsContent>
 
         <TabsContent value="detailed" className="space-y-6 outline-none focus:outline-none m-0">
-          <div className="flex flex-col sm:flex-row gap-4 flex-wrap bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row gap-4 flex-wrap bg-slate-100/80 dark:bg-slate-900/50 p-4 rounded-lg border border-primary/30 dark:border-slate-800 shadow-sm">
             <Select value={advSelectedProject} onValueChange={setAdvSelectedProject}>
               <SelectTrigger className="w-full sm:w-[220px] bg-white dark:bg-slate-950">
                 <SelectValue placeholder="Filtrar por Projeto" />
@@ -794,7 +794,7 @@ export default function FinancialDashboard() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Card className="shadow-sm">
+            <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
               <CardHeader>
                 <CardTitle>Evolução de Despesas</CardTitle>
                 <CardDescription>Tendência de gastos no período selecionado</CardDescription>
@@ -835,7 +835,7 @@ export default function FinancialDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm">
+            <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
               <CardHeader>
                 <CardTitle>Despesas por Categoria</CardTitle>
                 <CardDescription>Distribuição dos gastos totais</CardDescription>
@@ -882,7 +882,7 @@ export default function FinancialDashboard() {
             </Card>
           </div>
 
-          <Card className="shadow-sm">
+          <Card className="shadow-md border-primary/40 dark:border-border bg-white dark:bg-card">
             <CardHeader>
               <CardTitle>Performance de Projetos</CardTitle>
               <CardDescription>Receitas, despesas e lucro por projeto</CardDescription>
@@ -929,15 +929,15 @@ export default function FinancialDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-xl border border-zinc-800/60 bg-zinc-900/50 backdrop-blur-md text-zinc-100 shadow-xl">
+          <Card className="rounded-xl border border-primary/40 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/50 backdrop-blur-md text-foreground dark:text-zinc-100 shadow-xl">
             <CardHeader>
               <CardTitle>Comparação de Projetos</CardTitle>
-              <CardDescription className="text-zinc-400">
+              <CardDescription className="text-slate-500 dark:text-zinc-400">
                 Selecione múltiplos projetos para comparar Orçamento vs Custo e Receita.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-4 mb-6 p-4 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
+              <div className="flex flex-wrap gap-4 mb-6 p-4 bg-slate-50 dark:bg-zinc-800/30 rounded-lg border border-primary/20 dark:border-zinc-700/50">
                 {projects
                   .filter((p) => p.status !== 'Concluído')
                   .map((p) => (
@@ -949,7 +949,7 @@ export default function FinancialDashboard() {
                       />
                       <Label
                         htmlFor={`comp-${p.id}`}
-                        className="cursor-pointer font-medium text-zinc-200"
+                        className="cursor-pointer font-medium text-foreground dark:text-zinc-200"
                       >
                         {p.name}
                       </Label>
@@ -988,7 +988,7 @@ export default function FinancialDashboard() {
                   </BarChart>
                 </ChartContainer>
               ) : (
-                <div className="h-[250px] flex items-center justify-center text-sm text-zinc-400 border border-dashed border-zinc-700 rounded-md bg-zinc-800/20">
+                <div className="h-[250px] flex items-center justify-center text-sm text-slate-500 dark:text-zinc-400 border border-dashed border-primary/40 dark:border-zinc-700 rounded-md bg-slate-50 dark:bg-zinc-800/20">
                   Selecione um ou mais projetos acima para visualizar a comparação.
                 </div>
               )}

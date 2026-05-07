@@ -94,7 +94,10 @@ export function GerarParcelasModal({ servico, onGenerate }: GerarParcelasModalPr
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="secondary" className="whitespace-nowrap">
+        <Button
+          size="sm"
+          className="whitespace-nowrap bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+        >
           <Wand2 className="w-4 h-4 mr-2" />
           Gerar Parcelas
         </Button>

@@ -109,6 +109,13 @@ const getNavigationGroups = () => [
         icon: History,
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
       },
+      {
+        name: 'Ações Corretivas',
+        id: 'apa_actions',
+        href: '/apa/actions',
+        icon: AlertTriangle,
+        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
+      },
       { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
     ],
   },

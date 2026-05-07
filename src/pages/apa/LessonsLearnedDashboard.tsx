@@ -193,31 +193,53 @@ export default function LessonsLearnedDashboard() {
   const handleExport = async () => {
     try {
       setIsExporting(true)
-
       const now = new Date()
-      let limitDate = new Date()
-      if (dateFilter === '3m') limitDate.setMonth(now.getMonth() - 3)
-      if (dateFilter === '6m') limitDate.setMonth(now.getMonth() - 6)
-      if (dateFilter === '1y') limitDate.setFullYear(now.getFullYear() - 1)
 
-      const res = await pb.send('/backend/v1/gerar_relatorio_apa', {
-        method: 'POST',
-        body: {
-          data_inicio: limitDate.toISOString(),
-          data_fim: now.toISOString(),
-          disciplina: disciplineFilter,
-        },
-      })
+      let csvContent = 'Relatório de Lições Aprendidas (APA)\n\n'
+      csvContent += `Período de filtro,${dateFilter}\n`
+      csvContent += `Filtro de Disciplina,${disciplineFilter !== 'all' ? disciplineFilter : 'Todas'}\n\n`
 
-      if (res.downloadUrl) {
-        const url = import.meta.env.VITE_POCKETBASE_URL + res.downloadUrl
-        window.open(url, '_blank')
-        toast({ title: 'Sucesso', description: 'Relatório gerado com sucesso.' })
+      csvContent += 'Top Problemas Recorrentes\n'
+      csvContent += 'Problema,Ocorrências\n'
+      if (topProblems.length === 0) {
+        csvContent += 'Nenhum problema registrado no período.,0\n'
+      } else {
+        topProblems.forEach((p) => {
+          csvContent += `"${p.name.replace(/"/g, '""')}",${p.count}\n`
+        })
       }
+      csvContent += '\n'
+
+      csvContent += 'Efetividade de Ações\n'
+      csvContent += 'Status,Quantidade\n'
+      csvContent += `No Prazo,${effectivenessData[0].value}\n`
+      csvContent += `Atrasadas,${effectivenessData[1].value}\n\n`
+
+      csvContent += 'Comparativo por Disciplina\n'
+      csvContent += 'Disciplina,APAs,Problemas/Projeto (Média),Efetividade (%)\n'
+      if (tableData.length === 0) {
+        csvContent += 'Nenhum dado disponível.,0,0,0\n'
+      } else {
+        tableData.forEach((row) => {
+          csvContent += `"${row.discipline.replace(/"/g, '""')}",${row.totalApas},${row.avgProblems},${row.effectiveness}\n`
+        })
+      }
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `relatorio_apa_${now.getTime()}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast({ title: 'Sucesso', description: 'Relatório exportado com sucesso.' })
     } catch (error: any) {
       toast({
         title: 'Erro',
-        description: getErrorMessage(error) || 'Erro ao gerar relatório',
+        description: getErrorMessage(error) || 'Erro ao exportar relatório',
         variant: 'destructive',
       })
     } finally {

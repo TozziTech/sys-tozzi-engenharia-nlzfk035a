@@ -9,17 +9,19 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Plus, Download, AlertCircle } from 'lucide-react'
+import { Plus, Download, AlertCircle, Loader2 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts'
-import { exportApaDashboardPDF } from '@/lib/exportPdf'
 import { useSettingsStore } from '@/stores/useSettingsStore'
+import { useToast } from '@/hooks/use-toast'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function LessonsLearnedDashboard() {
   const { user } = useAuth()
   const { settings } = useSettingsStore()
+  const { toast } = useToast()
 
   const [reports, setReports] = useState<any[]>([])
   const [actions, setActions] = useState<any[]>([])
@@ -186,18 +188,41 @@ export default function LessonsLearnedDashboard() {
     }
   }, [reports, actions, projects, dateFilter, disciplineFilter])
 
-  const handleExport = () => {
-    exportApaDashboardPDF(
-      {
-        dateFilter,
-        disciplineFilter,
-        topProblems,
-        effectivenessData,
-        tableData,
-      },
-      user?.name || 'Usuário',
-      settings,
-    )
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true)
+
+      const now = new Date()
+      let limitDate = new Date()
+      if (dateFilter === '3m') limitDate.setMonth(now.getMonth() - 3)
+      if (dateFilter === '6m') limitDate.setMonth(now.getMonth() - 6)
+      if (dateFilter === '1y') limitDate.setFullYear(now.getFullYear() - 1)
+
+      const res = await pb.send('/backend/v1/gerar_relatorio_apa', {
+        method: 'POST',
+        body: {
+          data_inicio: limitDate.toISOString(),
+          data_fim: now.toISOString(),
+          disciplina: disciplineFilter,
+        },
+      })
+
+      if (res.downloadUrl) {
+        const url = import.meta.env.VITE_POCKETBASE_URL + res.downloadUrl
+        window.open(url, '_blank')
+        toast({ title: 'Sucesso', description: 'Relatório gerado com sucesso.' })
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: getErrorMessage(error) || 'Erro ao gerar relatório',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   const barChartConfig = {
@@ -263,9 +288,14 @@ export default function LessonsLearnedDashboard() {
           onClick={handleExport}
           variant="outline"
           className="w-full sm:w-auto"
-          disabled={loading}
+          disabled={loading || isExporting}
         >
-          <Download className="mr-2 h-4 w-4" /> Exportar Relatório
+          {isExporting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
+          Exportar Relatório
         </Button>
       </div>
 

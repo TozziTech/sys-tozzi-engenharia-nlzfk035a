@@ -1,5 +1,14 @@
 import pb from '@/lib/pocketbase/client'
 
+export interface Parcela {
+  id: string
+  descricao?: string
+  valor: number
+  data_vencimento: string
+  data_pagamento?: string
+  status: 'Pendente' | 'Pago'
+}
+
 export interface ServicoFinanceiro {
   id: string
   user_id: string
@@ -11,6 +20,7 @@ export interface ServicoFinanceiro {
   data_inicio: string
   status: 'Pendente' | 'Em Andamento' | 'Concluído' | 'Cancelado'
   valor_total: number
+  parcelas?: Parcela[]
   created: string
   updated: string
   expand?: any

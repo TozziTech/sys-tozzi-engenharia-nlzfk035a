@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import pb from '@/lib/pocketbase/client'
-import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -29,12 +28,11 @@ import { Badge } from '@/components/ui/badge'
 import { Trash2, Plus, Pencil, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { isBefore, addDays, startOfDay } from 'date-fns'
-import { useQuery, queryClient } from '@/hooks/use-query'
+import { queryClient } from '@/hooks/use-query'
 
 export function ExpandedPaymentRow({ servico }: { servico: any }) {
   const { toast } = useToast()
 
-  // Create form state
   const [novoPagamento, setNovoPagamento] = useState({
     descricao: '',
     valor: '',
@@ -42,7 +40,6 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
     status: 'Pendente',
   })
 
-  // Edit form state
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
     descricao: '',
@@ -52,54 +49,46 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
     status: 'Pendente',
   })
 
-  const { data: pagamentos = [], refetch } = useQuery(
-    `pagamentos_servico_${servico.id}`,
-    () =>
-      pb.collection('pagamentos_servicos').getFullList({
-        filter: `servico_id = "${servico.id}"`,
-        sort: 'data_vencimento',
-      }),
-    { enabled: !!servico.id },
-  )
+  const pagamentos = Array.isArray(servico.parcelas) ? servico.parcelas : []
 
-  useRealtime('pagamentos_servicos', (e) => {
-    if (e.record?.servico_id === servico.id) {
-      refetch()
+  const updateServicoParcelas = async (newParcelas: any[]) => {
+    try {
+      await pb.collection('servicos_financeiros').update(servico.id, {
+        parcelas: newParcelas,
+      })
+      queryClient().invalidateQueries()
+      toast({ title: 'Parcelas atualizadas com sucesso!' })
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar parcelas', variant: 'destructive' })
     }
-  })
+  }
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     if (!novoPagamento.valor || !novoPagamento.data_vencimento) {
       toast({ title: 'Preencha valor e vencimento', variant: 'destructive' })
       return
     }
-
     if (Number(novoPagamento.valor) <= 0) {
       toast({ title: 'O valor deve ser maior que zero', variant: 'destructive' })
       return
     }
 
-    try {
-      await pb.collection('pagamentos_servicos').create({
-        servico_id: servico.id,
-        valor: Number(novoPagamento.valor),
-        data_vencimento: novoPagamento.data_vencimento,
-        data_pagamento: novoPagamento.status === 'Pago' ? new Date().toISOString() : null,
-        status: novoPagamento.status,
-        descricao: novoPagamento.descricao,
-      })
-      setNovoPagamento({
-        descricao: '',
-        valor: '',
-        data_vencimento: new Date().toISOString().substring(0, 10),
-        status: 'Pendente',
-      })
-      queryClient().invalidateQueries(`pagamentos_servico_${servico.id}`)
-      queryClient().invalidateQueries(`pagamentos_user_all_`)
-      toast({ title: 'Parcela registrada com sucesso!' })
-    } catch (e) {
-      toast({ title: 'Erro ao registrar parcela', variant: 'destructive' })
+    const newParcela = {
+      id: Math.random().toString(36).substring(2),
+      valor: Number(novoPagamento.valor),
+      data_vencimento: novoPagamento.data_vencimento,
+      data_pagamento: novoPagamento.status === 'Pago' ? new Date().toISOString() : null,
+      status: novoPagamento.status,
+      descricao: novoPagamento.descricao,
     }
+
+    updateServicoParcelas([...pagamentos, newParcela])
+    setNovoPagamento({
+      descricao: '',
+      valor: '',
+      data_vencimento: new Date().toISOString().substring(0, 10),
+      status: 'Pendente',
+    })
   }
 
   const startEdit = (p: any) => {
@@ -113,50 +102,44 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
     })
   }
 
-  const handleUpdate = async () => {
+  const handleUpdate = () => {
     if (!editForm.valor || !editForm.data_vencimento) {
       toast({ title: 'Preencha valor e vencimento', variant: 'destructive' })
       return
     }
-
     if (Number(editForm.valor) <= 0) {
       toast({ title: 'O valor deve ser maior que zero', variant: 'destructive' })
       return
     }
 
-    try {
-      await pb.collection('pagamentos_servicos').update(editingId!, {
-        valor: Number(editForm.valor),
-        data_vencimento: editForm.data_vencimento,
-        data_pagamento:
-          editForm.status === 'Pago' ? editForm.data_pagamento || new Date().toISOString() : null,
-        status: editForm.status,
-        descricao: editForm.descricao,
-      })
-      setEditingId(null)
-      queryClient().invalidateQueries(`pagamentos_servico_${servico.id}`)
-      queryClient().invalidateQueries(`pagamentos_user_all_`)
-      toast({ title: 'Parcela atualizada com sucesso!' })
-    } catch (e) {
-      toast({ title: 'Erro ao atualizar parcela', variant: 'destructive' })
-    }
+    const updatedParcelas = pagamentos.map((p: any) => {
+      if (p.id === editingId) {
+        return {
+          ...p,
+          valor: Number(editForm.valor),
+          data_vencimento: editForm.data_vencimento,
+          data_pagamento:
+            editForm.status === 'Pago' ? editForm.data_pagamento || new Date().toISOString() : null,
+          status: editForm.status,
+          descricao: editForm.descricao,
+        }
+      }
+      return p
+    })
+
+    updateServicoParcelas(updatedParcelas)
+    setEditingId(null)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir esta parcela?')) return
-    try {
-      await pb.collection('pagamentos_servicos').delete(id)
-      queryClient().invalidateQueries(`pagamentos_servico_${servico.id}`)
-      queryClient().invalidateQueries(`pagamentos_user_all_`)
-      toast({ title: 'Parcela excluída!' })
-    } catch (e) {
-      toast({ title: 'Erro ao excluir parcela', variant: 'destructive' })
-    }
+    const updatedParcelas = pagamentos.filter((p: any) => p.id !== id)
+    updateServicoParcelas(updatedParcelas)
   }
 
   const totalPago = pagamentos
-    .filter((p) => p.status === 'Pago')
-    .reduce((acc, p) => acc + (p.valor || 0), 0)
+    .filter((p: any) => p.status === 'Pago')
+    .reduce((acc: number, p: any) => acc + (p.valor || 0), 0)
   const valorRestante = (servico.valor_total || 0) - totalPago
 
   const formatCurrency = (value: number) =>
@@ -293,7 +276,7 @@ export function ExpandedPaymentRow({ servico }: { servico: any }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pagamentos.map((p) => (
+              {pagamentos.map((p: any) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{formatDate(p.data_vencimento)}</TableCell>
                   <TableCell className="text-muted-foreground">{p.descricao || '-'}</TableCell>

@@ -93,24 +93,25 @@ export function PlanilhaFinanceira({ dateRange }: { dateRange?: { from: Date; to
     { enabled: !!user },
   )
 
-  const {
-    data: pagamentos = [],
-    isLoading: isLoadingPagamentos,
-    refetch: refetchPagamentos,
-  } = useQuery(
-    `pagamentos_user_all_${user?.id}`,
-    () =>
-      pb.collection('pagamentos_servicos').getFullList({
-        filter: `servico_id.user_id = "${user?.id}"`,
-      }),
-    { enabled: !!user },
-  )
+  const pagamentos = useMemo(() => {
+    const arr: any[] = []
+    servicos.forEach((s) => {
+      if (s.parcelas && Array.isArray(s.parcelas)) {
+        s.parcelas.forEach((p) => {
+          arr.push({
+            ...p,
+            servico_id: s.id,
+          })
+        })
+      }
+    })
+    return arr
+  }, [servicos])
 
-  const isLoading = isLoadingServicos || isLoadingPagamentos
+  const isLoading = isLoadingServicos
 
   // Desativado temporariamente para diagnosticar erro "Maximum update depth exceeded"
   // useRealtime('servicos_financeiros', refetchServicos)
-  // useRealtime('pagamentos_servicos', refetchPagamentos)
 
   const handleSave = async () => {
     if (!formData.codigo || !String(formData.codigo).trim()) {

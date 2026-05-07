@@ -118,7 +118,13 @@ const getPriorityColor = (priority: string) => {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
-type DatePreset = 'Este Mês' | 'Últimos 3 Meses' | 'Últimos 6 Meses' | 'Este Ano' | 'Customizado'
+type DatePreset =
+  | 'Este Mês'
+  | 'Últimos 3 Meses'
+  | 'Últimos 6 Meses'
+  | 'Este Ano'
+  | 'Todos os Tempos'
+  | 'Customizado'
 
 const EMPTY_ARRAY: any[] = []
 
@@ -133,6 +139,8 @@ const getPresetRange = (preset: DatePreset) => {
       return { from: startOfMonth(subMonths(now, 5)), to: endOfMonth(now) }
     case 'Este Ano':
       return { from: startOfYear(now), to: endOfYear(now) }
+    case 'Todos os Tempos':
+      return { from: new Date(2000, 0, 1), to: new Date(2100, 0, 1) }
     default:
       return { from: startOfMonth(now), to: endOfMonth(now) }
   }
@@ -145,9 +153,9 @@ export default function DesignerPanel() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = searchParams.get('tab') || 'gerenciamento'
 
-  const [datePreset, setDatePreset] = useState<DatePreset>('Este Mês')
+  const [datePreset, setDatePreset] = useState<DatePreset>('Todos os Tempos')
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(() =>
-    getPresetRange('Este Mês'),
+    getPresetRange('Todos os Tempos'),
   )
 
   const [calendarMonth, setCalendarMonth] = useState(dateRange.from)
@@ -238,15 +246,31 @@ export default function DesignerPanel() {
     { enabled: !!user },
   )
 
-  const { data: allPagamentos = EMPTY_ARRAY, refetch: refetchPagamentos } = useQuery(
-    `pagamentos_user_all_${user?.id}`,
+  const { data: allServicos = EMPTY_ARRAY } = useQuery(
+    `servicos_financeiros_user_${user?.id}`,
     () =>
-      pb.collection('pagamentos_servicos').getFullList({
+      pb.collection('servicos_financeiros').getFullList({
         filter: `user_id = "${user?.id}"`,
-        sort: '-data_pagamento',
+        sort: '-created',
       }),
     { enabled: !!user && hasFinanceAccess },
   )
+
+  const allPagamentos = useMemo(() => {
+    const pgs: any[] = []
+    allServicos.forEach((s) => {
+      if (s.parcelas && Array.isArray(s.parcelas)) {
+        s.parcelas.forEach((p) => {
+          pgs.push({
+            ...p,
+            servico_id: s.id,
+            servico_descricao: s.projeto_servico,
+          })
+        })
+      }
+    })
+    return pgs
+  }, [allServicos])
 
   const revenueData = useMemo(
     () => allPagamentos.filter((p: any) => p.status === 'Pago'),
@@ -315,8 +339,6 @@ export default function DesignerPanel() {
   useRealtime('projects', refetchProjects, !!user?.id)
   useRealtime('user_project_access', refetchProjects, !!user?.id)
   useRealtime('tasks', refetchTasks, !!user?.id)
-  // Desativado temporariamente para diagnosticar erro "Maximum update depth exceeded"
-  // useRealtime('pagamentos_servicos', refetchPagamentos, !!user?.id && hasFinanceAccess)
 
   const periodProjects = useMemo(() => {
     return myProjects.filter((p) => {
@@ -458,6 +480,7 @@ export default function DesignerPanel() {
                 <SelectItem value="Últimos 3 Meses">Últimos 3 Meses</SelectItem>
                 <SelectItem value="Últimos 6 Meses">Últimos 6 Meses</SelectItem>
                 <SelectItem value="Este Ano">Este Ano</SelectItem>
+                <SelectItem value="Todos os Tempos">Todos os Tempos</SelectItem>
                 <SelectItem value="Customizado">Customizado</SelectItem>
               </SelectContent>
             </Select>

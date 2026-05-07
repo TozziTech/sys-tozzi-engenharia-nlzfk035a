@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { useRealtime } from '@/hooks/use-realtime'
+// import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -108,8 +108,9 @@ export function PlanilhaFinanceira({ dateRange }: { dateRange?: { from: Date; to
 
   const isLoading = isLoadingServicos || isLoadingPagamentos
 
-  useRealtime('servicos_financeiros', refetchServicos)
-  useRealtime('pagamentos_servicos', refetchPagamentos)
+  // Desativado temporariamente para diagnosticar erro "Maximum update depth exceeded"
+  // useRealtime('servicos_financeiros', refetchServicos)
+  // useRealtime('pagamentos_servicos', refetchPagamentos)
 
   const handleSave = async () => {
     if (!formData.codigo || !String(formData.codigo).trim()) {

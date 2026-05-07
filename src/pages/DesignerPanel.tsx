@@ -316,7 +316,8 @@ export default function DesignerPanel() {
   useRealtime('projects', refetchProjects, !!user?.id)
   useRealtime('user_project_access', refetchProjects, !!user?.id)
   useRealtime('tasks', refetchTasks, !!user?.id)
-  useRealtime('pagamentos_servicos', refetchPagamentos, !!user?.id && hasFinanceAccess)
+  // Desativado temporariamente para diagnosticar erro "Maximum update depth exceeded"
+  // useRealtime('pagamentos_servicos', refetchPagamentos, !!user?.id && hasFinanceAccess)
 
   const periodProjects = useMemo(() => {
     return myProjects.filter((p) => {

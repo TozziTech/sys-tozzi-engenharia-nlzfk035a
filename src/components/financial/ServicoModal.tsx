@@ -20,7 +20,7 @@ import {
 import { ClientCombobox } from '@/components/ClientCombobox'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
-import { Plus, Check, ChevronsUpDown, Trash2 } from 'lucide-react'
+import { Plus, Check, ChevronsUpDown } from 'lucide-react'
 import {
   createServico,
   updateServico,
@@ -64,7 +64,6 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
     valor_total: '',
     observacoes: '',
   })
-  const [parcelas, setParcelas] = useState<any[]>([])
 
   useEffect(() => {
     if (open && user) {
@@ -92,7 +91,6 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
           valor_total: servico.valor_total?.toString() || '',
           observacoes: servico.observacoes || '',
         })
-        setParcelas(servico.parcelas || [])
       } else {
         setFormData({
           codigo: '',
@@ -104,42 +102,12 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
           valor_total: '',
           observacoes: '',
         })
-        setParcelas([])
         getNextServicoCode()
           .then((code) => setFormData((prev) => ({ ...prev, codigo: code })))
           .catch(console.error)
       }
     }
   }, [open, servico])
-
-  const handleAddParcela = () => {
-    setParcelas([
-      ...parcelas,
-      {
-        id: Math.random().toString(36).substring(2),
-        descricao: `Parcela ${parcelas.length + 1}`,
-        valor: 0,
-        data_vencimento: new Date().toISOString().substring(0, 10),
-        status: 'Pendente',
-      },
-    ])
-  }
-
-  const handleUpdateParcela = (id: string, field: string, value: any) => {
-    setParcelas(parcelas.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
-  }
-
-  const handleRemoveParcela = (id: string) => {
-    setParcelas(parcelas.filter((p) => p.id !== id))
-  }
-
-  const sumParcelas = parcelas.reduce((acc, p) => acc + Number(p.valor), 0)
-  const numericValueForm = parseFloat(formData.valor_total) || 0
-  const showMismatchWarning = parcelas.length > 0 && Math.abs(sumParcelas - numericValueForm) > 0.01
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -188,14 +156,7 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
         return
       }
 
-      const finalParcelas = parcelas.map((p) => ({
-        ...p,
-        valor: Number(p.valor),
-        data_pagamento:
-          p.status === 'Pago' && !p.data_pagamento ? new Date().toISOString() : p.data_pagamento,
-      }))
-
-      const payload = {
+      const payload: any = {
         user_id: user.id,
         codigo: formData.codigo,
         projeto_servico: formData.projeto_servico,
@@ -205,13 +166,13 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
         status: formData.status as any,
         valor_total: numericValue,
         observacoes: formData.observacoes,
-        parcelas: finalParcelas,
       }
 
       if (servico) {
         await updateServico(servico.id, payload)
         toast({ title: 'Sucesso', description: 'Serviço atualizado com sucesso.' })
       } else {
+        payload.parcelas = [] // Initialize empty on create
         await createServico(payload)
         toast({ title: 'Sucesso', description: 'Serviço criado com sucesso.' })
       }
@@ -370,89 +331,6 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-4 pt-2 border-t border-zinc-800">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold">Cronograma de Parcelas</Label>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddParcela}>
-                <Plus className="w-4 h-4 mr-2" /> Nova Parcela
-              </Button>
-            </div>
-
-            {showMismatchWarning && (
-              <div className="text-amber-500 text-xs bg-amber-500/10 p-2 rounded-md border border-amber-500/20">
-                Aviso: A soma das parcelas ({formatCurrency(sumParcelas)}) difere do valor total (
-                {formatCurrency(numericValueForm)}).
-              </div>
-            )}
-
-            {parcelas.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-2">Nenhuma parcela adicionada.</p>
-            ) : (
-              <div className="space-y-3">
-                {parcelas.map((p, index) => (
-                  <div
-                    key={p.id}
-                    className="grid grid-cols-[1fr_120px_130px_110px_auto] gap-2 items-end"
-                  >
-                    <div className="space-y-1">
-                      <Label className="text-xs text-zinc-400">Descrição</Label>
-                      <Input
-                        value={p.descricao}
-                        onChange={(e) => handleUpdateParcela(p.id, 'descricao', e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-zinc-400">Vencimento</Label>
-                      <Input
-                        type="date"
-                        value={p.data_vencimento}
-                        onChange={(e) =>
-                          handleUpdateParcela(p.id, 'data_vencimento', e.target.value)
-                        }
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-zinc-400">Valor (R$)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={p.valor}
-                        onChange={(e) => handleUpdateParcela(p.id, 'valor', e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-zinc-400">Status</Label>
-                      <Select
-                        value={p.status}
-                        onValueChange={(v) => handleUpdateParcela(p.id, 'status', v)}
-                      >
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Pendente">Pendente</SelectItem>
-                          <SelectItem value="Pago">Pago</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                      onClick={() => handleRemoveParcela(p.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           <div className="space-y-2 pt-2 border-t border-zinc-800">

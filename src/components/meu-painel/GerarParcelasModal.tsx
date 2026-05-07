@@ -129,9 +129,15 @@ export function GerarParcelasModal({ servico, onGenerate }: GerarParcelasModalPr
                 name="numeroParcelas"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Número de Parcelas</FormLabel>
+                    <FormLabel className="text-foreground">Número de Parcelas</FormLabel>
                     <FormControl>
-                      <Input type="number" min="1" max="120" {...field} />
+                      <Input
+                        className="border-border bg-background text-foreground"
+                        type="number"
+                        min="1"
+                        max="120"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -143,15 +149,16 @@ export function GerarParcelasModal({ servico, onGenerate }: GerarParcelasModalPr
                 name="dataPrimeira"
                 render={({ field }) => (
                   <FormItem className="flex flex-col mt-2">
-                    <FormLabel>Data da Primeira Parcela</FormLabel>
+                    <FormLabel className="text-foreground">Data da Primeira Parcela</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
                             variant={'outline'}
                             className={cn(
-                              'w-full pl-3 text-left font-normal mt-1',
+                              'w-full pl-3 text-left font-normal mt-1 border-border bg-background hover:bg-muted/50',
                               !field.value && 'text-muted-foreground',
+                              field.value && 'text-foreground',
                             )}
                           >
                             {field.value ? (
@@ -159,7 +166,7 @@ export function GerarParcelasModal({ servico, onGenerate }: GerarParcelasModalPr
                             ) : (
                               <span>Selecione uma data</span>
                             )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50 text-muted-foreground" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
@@ -179,10 +186,19 @@ export function GerarParcelasModal({ servico, onGenerate }: GerarParcelasModalPr
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0 pt-2">
-              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setOpen(false)}
+                className="hover:bg-muted text-foreground"
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
                 {loading ? 'Gerando...' : 'Confirmar'}
               </Button>
             </DialogFooter>

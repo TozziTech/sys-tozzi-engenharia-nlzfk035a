@@ -182,11 +182,11 @@ export function ThemeColorInjector() {
       const { h, s, l } = hexToHslObject(bgColor)
 
       if (isDark) {
-        const darkL = Math.min(12, l * 0.2)
-        const fgL_dark = 98
+        const darkL = Math.max(12, Math.min(16, l * 0.2))
+        const fgL_dark = 88
         const cardL_dark = Math.min(100, darkL + 3)
         const mutedL_dark = Math.min(100, darkL + 8)
-        const borderL_dark = Math.min(100, darkL + 12)
+        const borderL_dark = Math.min(100, darkL + 13)
 
         root.style.setProperty('--background', `${h} ${s}% ${darkL}%`)
         root.style.setProperty('--foreground', `${h} ${s}% ${fgL_dark}%`)
@@ -195,14 +195,14 @@ export function ThemeColorInjector() {
         root.style.setProperty('--popover', `${h} ${s}% ${cardL_dark}%`)
         root.style.setProperty('--popover-foreground', `${h} ${s}% ${fgL_dark}%`)
         root.style.setProperty('--muted', `${h} ${s}% ${mutedL_dark}%`)
-        root.style.setProperty('--muted-foreground', `${h} ${s}% 70%`)
+        root.style.setProperty('--muted-foreground', `${h} ${s}% 64%`)
         root.style.setProperty('--border', `${h} ${s}% ${borderL_dark}%`)
         root.style.setProperty('--input', `${h} ${s}% ${borderL_dark}%`)
         root.style.setProperty('--sidebar-background', `${h} ${s}% ${cardL_dark}%`)
         root.style.setProperty('--sidebar-foreground', `${h} ${s}% ${fgL_dark}%`)
         root.style.setProperty('--sidebar-border', `${h} ${s}% ${borderL_dark}%`)
       } else {
-        const fgL_light = l < 50 ? 98 : 10
+        const fgL_light = l < 50 ? 98 : 15
         const cardL_light = Math.max(0, l - 2)
         const mutedL_light = Math.max(0, l - 5)
         const borderL_light = Math.max(0, l - 10)

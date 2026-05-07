@@ -103,15 +103,15 @@ const getStatusIcon = (status: string) => {
 const getPriorityColor = (priority: string) => {
   switch (priority) {
     case 'Baixa':
-      return 'bg-slate-500/10 text-slate-500 border-slate-500/20 dark:text-slate-400'
+      return 'bg-muted text-muted-foreground border-border'
     case 'Média':
-      return 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400'
+      return 'bg-blue-500/10 text-blue-500 border-blue-500/20'
     case 'Alta':
-      return 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-500'
+      return 'bg-primary/10 text-primary border-primary/20'
     case 'Urgente':
-      return 'bg-rose-500/10 text-rose-600 border-rose-500/20 dark:text-rose-500'
+      return 'bg-destructive/10 text-destructive border-destructive/20'
     default:
-      return 'bg-slate-500/10 text-slate-500 border-slate-500/20 dark:text-slate-400'
+      return 'bg-muted text-muted-foreground border-border'
   }
 }
 
@@ -452,19 +452,19 @@ export default function DesignerPanel() {
     <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-zinc-100 flex items-center gap-3">
-            <div className="p-2 bg-amber-500/10 rounded-lg">
-              <LayoutDashboard className="h-6 w-6 text-amber-500" />
+          <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <LayoutDashboard className="h-6 w-6 text-primary" />
             </div>
             Resumo de Projeto (Meu Painel)
           </h2>
-          <p className="text-zinc-400 mt-2">
+          <p className="text-muted-foreground mt-2">
             Olá, {user?.name}. Acompanhe o progresso dos seus projetos, cronogramas e prazos.
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
           {/* Global Filter */}
-          <div className="flex items-center gap-2 bg-zinc-900/50 p-2 rounded-lg border border-zinc-800 w-full md:w-auto">
+          <div className="flex items-center gap-2 bg-card p-2 rounded-lg border border-border w-full md:w-auto">
             <Select
               value={datePreset}
               onValueChange={(val: DatePreset) => {
@@ -472,7 +472,7 @@ export default function DesignerPanel() {
                 if (val !== 'Customizado') setDateRange(getPresetRange(val))
               }}
             >
-              <SelectTrigger className="w-[160px] bg-zinc-950 border-zinc-800">
+              <SelectTrigger className="w-[160px] bg-background border-border">
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
               <SelectContent>
@@ -489,9 +489,9 @@ export default function DesignerPanel() {
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="border-zinc-800 bg-zinc-950 text-zinc-100 flex gap-2"
+                  className="border-border bg-background text-foreground flex gap-2 hover:bg-muted/50"
                 >
-                  <CalendarIcon className="h-4 w-4 text-zinc-400" />
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   {format(dateRange.from, 'dd/MM/yy')} - {format(dateRange.to, 'dd/MM/yy')}
                 </Button>
               </PopoverTrigger>
@@ -514,18 +514,18 @@ export default function DesignerPanel() {
 
           <Button
             variant="outline"
-            className="border-zinc-800 bg-zinc-950 text-zinc-100 hidden md:flex shadow-sm"
+            className="border-border bg-background text-foreground hidden md:flex shadow-sm hover:bg-muted/50"
             onClick={() => {
               queryClient().invalidateQueries('')
             }}
           >
-            <RefreshCw className="w-4 h-4 mr-2 text-zinc-400" />
+            <RefreshCw className="w-4 h-4 mr-2 text-muted-foreground" />
             Atualizar
           </Button>
 
           <Button
             variant="default"
-            className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-md w-full md:w-auto"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-md w-full md:w-auto"
             onClick={handleExportDashboard}
             disabled={exportingDocs}
           >
@@ -545,24 +545,24 @@ export default function DesignerPanel() {
         className="w-full space-y-6"
       >
         <div className="w-full overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="inline-flex min-w-max h-11 items-center justify-start rounded-md bg-zinc-100 dark:bg-zinc-900 p-1 text-zinc-500 dark:text-zinc-400">
+          <TabsList className="inline-flex min-w-max h-11 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground border border-border">
             <TabsTrigger
               value="gerenciamento"
-              className="rounded-sm px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-100 data-[state=active]:shadow-sm"
+              className="rounded-sm px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-border"
             >
               Gerenciamento
             </TabsTrigger>
             {hasFinanceAccess && (
               <TabsTrigger
                 value="financeiro"
-                className="rounded-sm px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-100 data-[state=active]:shadow-sm"
+                className="rounded-sm px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-border"
               >
                 Meus Serviços Financeiros
               </TabsTrigger>
             )}
             <TabsTrigger
               value="cronograma"
-              className="rounded-sm px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-950 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-zinc-100 data-[state=active]:shadow-sm"
+              className="rounded-sm px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-border"
             >
               Cronograma de Projetos
             </TabsTrigger>
@@ -573,27 +573,24 @@ export default function DesignerPanel() {
           {hasFinanceAccess && (overdueCount > 0 || dueSoonCount > 0) && (
             <div className="grid gap-3 md:grid-cols-2 mb-2">
               {overdueCount > 0 && (
-                <Alert
-                  variant="destructive"
-                  className="bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900"
-                >
-                  <AlertCircle className="h-5 w-5 !text-rose-600 dark:!text-rose-400" />
-                  <AlertTitle className="font-semibold text-rose-800 dark:text-rose-300">
+                <Alert variant="destructive" className="bg-destructive/10 border-destructive/20">
+                  <AlertCircle className="h-5 w-5 !text-destructive" />
+                  <AlertTitle className="font-semibold text-destructive">
                     Pagamentos Atrasados
                   </AlertTitle>
-                  <AlertDescription className="text-rose-700 dark:text-rose-400 mt-1">
+                  <AlertDescription className="text-destructive mt-1">
                     Você tem {overdueCount} parcela{overdueCount > 1 ? 's' : ''} de serviço
                     financeiro em atraso.
                   </AlertDescription>
                 </Alert>
               )}
               {dueSoonCount > 0 && (
-                <Alert className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900">
-                  <AlertTriangle className="h-5 w-5 !text-amber-600 dark:!text-amber-400" />
-                  <AlertTitle className="font-semibold text-amber-800 dark:text-amber-300">
+                <Alert className="bg-primary/10 border-primary/20">
+                  <AlertTriangle className="h-5 w-5 !text-primary" />
+                  <AlertTitle className="font-semibold text-primary">
                     Pagamentos Vencendo
                   </AlertTitle>
-                  <AlertDescription className="text-amber-700 dark:text-amber-400 mt-1">
+                  <AlertDescription className="text-primary mt-1">
                     Você tem {dueSoonCount} parcela{dueSoonCount > 1 ? 's' : ''} de serviço
                     financeiro vencendo nos próximos 3 dias.
                   </AlertDescription>
@@ -603,14 +600,14 @@ export default function DesignerPanel() {
           )}
 
           <div className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2 text-zinc-100">
-              <AlertCircle className="h-5 w-5 text-rose-500" />
+            <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
+              <AlertCircle className="h-5 w-5 text-destructive" />
               Atividades do Período
             </h3>
             {urgentTasks.length === 0 ? (
-              <div className="text-center py-8 bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
+              <div className="text-center py-8 bg-card/30 rounded-xl border border-dashed border-border">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-3 opacity-50" />
-                <p className="text-sm text-zinc-400">
+                <p className="text-sm text-muted-foreground">
                   Nenhum registro encontrado para este período.
                 </p>
               </div>
@@ -619,7 +616,7 @@ export default function DesignerPanel() {
                 {urgentTasks.map((t) => (
                   <div
                     key={t.id}
-                    className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors shadow-sm"
+                    className="p-4 rounded-xl bg-card border border-border hover:border-primary/50 transition-colors shadow-sm"
                   >
                     <div className="flex justify-between items-start mb-2">
                       <Badge
@@ -631,14 +628,14 @@ export default function DesignerPanel() {
                       >
                         {t.priority || 'Urgente'}
                       </Badge>
-                      <span className="text-xs font-medium text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md">
+                      <span className="text-xs font-medium text-muted-foreground bg-background px-2 py-1 rounded-md border border-border">
                         {new Date(t.due_date).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
-                    <p className="font-semibold text-zinc-100 text-sm mb-1 leading-snug">
+                    <p className="font-semibold text-foreground text-sm mb-1 leading-snug">
                       {t.title}
                     </p>
-                    <p className="text-xs text-zinc-400 flex items-center gap-1.5">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <LayoutDashboard className="w-3.5 h-3.5 opacity-70" />
                       {t.expand?.project?.name || 'Projeto não especificado'}
                     </p>
@@ -649,14 +646,14 @@ export default function DesignerPanel() {
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2 text-zinc-100">
-              <LayoutDashboard className="h-5 w-5 text-amber-500" />
+            <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
+              <LayoutDashboard className="h-5 w-5 text-primary" />
               Métricas de Eficiência
             </h3>
-            <Card className="border-zinc-800/50 bg-zinc-950/50">
-              <CardHeader className="pb-3 border-b border-zinc-800/50">
-                <CardTitle className="text-lg">Período Selecionado</CardTitle>
-                <CardDescription>
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-3 border-b border-border/50">
+                <CardTitle className="text-lg text-foreground">Período Selecionado</CardTitle>
+                <CardDescription className="text-muted-foreground">
                   Distribuição de status (%) dos {periodProjects.length} projetos com atividades
                   neste período
                 </CardDescription>
@@ -712,14 +709,14 @@ export default function DesignerPanel() {
         {hasFinanceAccess && (
           <TabsContent value="financeiro" className="space-y-6 outline-none">
             <div className="grid gap-6 md:grid-cols-3">
-              <Card className="bg-blue-50/50 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900/50 md:col-span-1 h-fit">
+              <Card className="bg-blue-500/5 border-blue-500/20 md:col-span-1 h-fit">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-800 dark:text-blue-300">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-500">
                     <Info className="h-4 w-4" />
                     Guia Rápido de Lançamentos
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="text-xs text-blue-700 dark:text-blue-400 space-y-3">
+                <CardContent className="text-xs text-blue-500/80 space-y-3">
                   <p>
                     1. <strong>Novo Lançamento:</strong> Registre o valor total do serviço. O código
                     é gerado sequencialmente de forma automática.
@@ -739,14 +736,14 @@ export default function DesignerPanel() {
                 </CardContent>
               </Card>
 
-              <Card className="border-zinc-800/50 bg-zinc-950/50 md:col-span-2">
-                <CardHeader className="pb-3 border-b border-zinc-800/50 flex flex-row items-center justify-between">
+              <Card className="border-border bg-card md:col-span-2">
+                <CardHeader className="pb-3 border-b border-border/50 flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
+                    <CardTitle className="text-lg flex items-center gap-2 text-foreground">
                       <TrendingUp className="h-5 w-5 text-emerald-500" />
                       Receita Mensal (Período Selecionado)
                     </CardTitle>
-                    <CardDescription className="mt-1 flex items-center gap-2">
+                    <CardDescription className="mt-1 flex items-center gap-2 text-muted-foreground">
                       Média mensal calculada:{' '}
                       <Badge
                         variant="outline"
@@ -759,7 +756,7 @@ export default function DesignerPanel() {
                 </CardHeader>
                 <CardContent className="py-6">
                   {monthlyRevenue.length === 0 ? (
-                    <div className="h-[180px] flex items-center justify-center text-sm text-zinc-500">
+                    <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground">
                       Nenhum registro encontrado para este período.
                     </div>
                   ) : (
@@ -820,33 +817,35 @@ export default function DesignerPanel() {
               </Card>
             </div>
 
-            <div className="border border-zinc-800 rounded-xl bg-zinc-950/30 overflow-hidden shadow-lg p-4 md:p-6">
+            <div className="border border-border rounded-xl bg-card overflow-hidden shadow-lg p-4 md:p-6">
               <ServicosList />
             </div>
           </TabsContent>
         )}
 
         <TabsContent value="cronograma" className="space-y-6 outline-none">
-          <div className="space-y-6 border border-zinc-800 rounded-xl bg-zinc-950/30 overflow-hidden shadow-lg p-4 md:p-6">
-            <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-xl border border-zinc-800">
-              <h3 className="text-lg font-medium text-zinc-100 flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5 text-amber-500" />
+          <div className="space-y-6 border border-border rounded-xl bg-card overflow-hidden shadow-lg p-4 md:p-6">
+            <div className="flex items-center justify-between bg-card p-4 rounded-xl border border-border">
+              <h3 className="text-lg font-medium text-foreground flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5 text-primary" />
                 Cronograma de Projetos
               </h3>
               <div className="flex items-center gap-2 hidden md:flex">
                 <Button
                   variant="outline"
                   size="icon"
+                  className="border-border bg-background hover:bg-muted text-foreground"
                   onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-sm font-medium w-32 text-center capitalize">
+                <span className="text-sm font-medium w-32 text-center capitalize text-foreground">
                   {format(calendarMonth, 'MMMM yyyy', { locale: ptBR })}
                 </span>
                 <Button
                   variant="outline"
                   size="icon"
+                  className="border-border bg-background hover:bg-muted text-foreground"
                   onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -855,26 +854,29 @@ export default function DesignerPanel() {
             </div>
 
             {filteredProjects.length === 0 ? (
-              <div className="text-center py-16 bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
-                <CalendarIcon className="h-8 w-8 text-zinc-500 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-zinc-100 mb-2">
+              <div className="text-center py-16 bg-card/30 rounded-xl border border-dashed border-border">
+                <CalendarIcon className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
                   Nenhum projeto ativo no cronograma
                 </h3>
-                <p className="text-sm text-zinc-400">
+                <p className="text-sm text-muted-foreground">
                   Você não tem projetos associados ou eles não possuem datas definidas.
                 </p>
               </div>
             ) : (
               <div className="w-full">
-                <div className="hidden md:block rounded-xl border border-zinc-800 overflow-hidden bg-zinc-950/50">
-                  <div className="grid grid-cols-7 bg-zinc-900/80 border-b border-zinc-800">
+                <div className="hidden md:block rounded-xl border border-border overflow-hidden bg-card/50">
+                  <div className="grid grid-cols-7 bg-muted/50 border-b border-border">
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
-                      <div key={d} className="p-3 text-center text-sm font-medium text-zinc-400">
+                      <div
+                        key={d}
+                        className="p-3 text-center text-sm font-medium text-muted-foreground"
+                      >
                         {d}
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-7 gap-px bg-zinc-800 auto-rows-fr">
+                  <div className="grid grid-cols-7 gap-px bg-border auto-rows-fr">
                     {calendarDays.map((day, i) => {
                       const key = format(day, 'yyyy-MM-dd')
                       const dayProjects = projectsByDate[key] || []
@@ -882,8 +884,8 @@ export default function DesignerPanel() {
                         <div
                           key={i}
                           className={cn(
-                            'min-h-[120px] p-2 bg-zinc-950 transition-colors flex flex-col gap-1',
-                            !isSameMonth(day, calendarMonth) && 'bg-zinc-900/50 opacity-60',
+                            'min-h-[120px] p-2 bg-background transition-colors flex flex-col gap-1',
+                            !isSameMonth(day, calendarMonth) && 'bg-muted/30 opacity-60',
                           )}
                         >
                           <div className="flex justify-end mb-1">
@@ -891,8 +893,8 @@ export default function DesignerPanel() {
                               className={cn(
                                 'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
                                 isToday(day)
-                                  ? 'bg-amber-500 text-zinc-950 shadow-sm'
-                                  : 'text-zinc-400',
+                                  ? 'bg-primary text-primary-foreground shadow-sm'
+                                  : 'text-muted-foreground',
                               )}
                             >
                               {format(day, 'd')}
@@ -908,26 +910,26 @@ export default function DesignerPanel() {
                                       p.status === 'Concluído'
                                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                         : p.is_priority
-                                          ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 font-medium'
+                                          ? 'bg-primary/10 text-primary border-primary/20 font-medium'
                                           : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
                                     )}
                                   >
                                     {p.name}
                                   </div>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-64 bg-zinc-950 border-zinc-800">
+                                <PopoverContent className="w-64 bg-card border-border">
                                   <div className="space-y-3">
                                     <div>
-                                      <h4 className="font-semibold text-sm text-zinc-100">
+                                      <h4 className="font-semibold text-sm text-foreground">
                                         {p.name}
                                       </h4>
-                                      <p className="text-xs text-zinc-400 mt-0.5">
+                                      <p className="text-xs text-muted-foreground mt-0.5">
                                         Cliente: {p.client || 'N/A'}
                                       </p>
                                     </div>
                                     <div className="flex items-center justify-between text-xs font-medium">
-                                      <span className="text-zinc-400">Progresso</span>
-                                      <span className="text-amber-500">{p.progress || 0}%</span>
+                                      <span className="text-muted-foreground">Progresso</span>
+                                      <span className="text-primary">{p.progress || 0}%</span>
                                     </div>
                                     <Progress value={p.progress || 0} className="h-1.5" />
                                     <div className="pt-2 flex justify-end">
@@ -952,33 +954,35 @@ export default function DesignerPanel() {
                 </div>
 
                 <div className="flex flex-col md:hidden items-center gap-6 mt-4">
-                  <Card className="border-zinc-800 bg-zinc-950 p-2 w-full flex justify-center shadow-md">
+                  <Card className="border-border bg-card p-2 w-full flex justify-center shadow-md">
                     <Calendar
                       mode="single"
                       selected={selectedDate}
                       onSelect={setSelectedDate}
-                      className="rounded-md"
+                      className="rounded-md bg-background"
                       modifiers={{
                         active: (d: any) => !!projectsByDate[format(d, 'yyyy-MM-dd')],
                       }}
                       modifiersClassNames={{
-                        active: 'font-bold text-amber-500 bg-amber-500/10',
+                        active: 'font-bold text-primary bg-primary/10',
                       }}
                     />
                   </Card>
                   <div className="w-full space-y-3">
-                    <h4 className="font-medium text-sm text-zinc-400">
+                    <h4 className="font-medium text-sm text-muted-foreground">
                       Projetos em {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : ''}
                     </h4>
                     {selectedDateProjects.length === 0 ? (
-                      <p className="text-sm text-zinc-500 text-center py-4 bg-zinc-900/30 rounded-lg border border-zinc-800 border-dashed">
+                      <p className="text-sm text-muted-foreground text-center py-4 bg-card/30 rounded-lg border border-border border-dashed">
                         Nenhum projeto ativo nesta data.
                       </p>
                     ) : (
                       selectedDateProjects.map((p) => (
-                        <Card key={p.id} className="border-zinc-800 bg-zinc-950/50">
+                        <Card key={p.id} className="border-border bg-card/50">
                           <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between space-y-0">
-                            <div className="font-medium text-sm truncate flex-1 pr-2">{p.name}</div>
+                            <div className="font-medium text-sm text-foreground truncate flex-1 pr-2">
+                              {p.name}
+                            </div>
                             <Badge
                               variant="outline"
                               className={cn(
@@ -991,12 +995,12 @@ export default function DesignerPanel() {
                             </Badge>
                           </CardHeader>
                           <CardContent className="p-3 pt-0">
-                            <p className="text-xs text-zinc-400 mb-2">
+                            <p className="text-xs text-muted-foreground mb-2">
                               Cliente: {p.client || 'N/A'}
                             </p>
-                            <div className="flex items-center justify-between text-xs mb-1">
+                            <div className="flex items-center justify-between text-xs mb-1 text-foreground">
                               <span>Progresso</span>
-                              <span>{p.progress || 0}%</span>
+                              <span className="text-primary">{p.progress || 0}%</span>
                             </div>
                             <Progress value={p.progress || 0} className="h-1 mb-3" />
                             <Button
@@ -1022,7 +1026,7 @@ export default function DesignerPanel() {
       <Dialog open={showDailySummary} onOpenChange={setShowDailySummary}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Resumo Diário de Pendências</DialogTitle>
+            <DialogTitle className="text-foreground">Resumo Diário de Pendências</DialogTitle>
             <DialogDescription>
               Você possui pagamentos que exigem sua atenção hoje.
             </DialogDescription>
@@ -1036,29 +1040,27 @@ export default function DesignerPanel() {
                   setSearchParams({ tab: 'financeiro' })
                   setShowDailySummary(false)
                 }}
-                className="flex flex-col gap-1 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/50 text-left hover:border-amber-500/50 transition-colors w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="flex flex-col gap-1 p-3 rounded-lg border border-border bg-card text-left hover:border-primary/50 transition-colors w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <div className="flex justify-between items-start w-full">
-                  <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 pr-2">
+                  <span className="font-semibold text-sm text-foreground pr-2">
                     {p.descricao || 'Pagamento não especificado'}
                   </span>
                   {p.isOverdue ? (
                     <Badge
                       variant="destructive"
-                      className="bg-rose-500 hover:bg-rose-600 text-white whitespace-nowrap"
+                      className="bg-destructive hover:bg-destructive/90 text-destructive-foreground whitespace-nowrap"
                     >
                       Atrasado
                     </Badge>
                   ) : (
-                    <Badge className="bg-amber-500 hover:bg-amber-600 text-amber-950 whitespace-nowrap">
+                    <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap">
                       Urgente
                     </Badge>
                   )}
                 </div>
-                <div className="flex justify-between items-center text-sm text-zinc-500 mt-1 w-full">
-                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                    {formatCurrency(p.valor)}
-                  </span>
+                <div className="flex justify-between items-center text-sm text-muted-foreground mt-1 w-full">
+                  <span className="font-medium text-emerald-500">{formatCurrency(p.valor)}</span>
                   <span>
                     Vencimento:{' '}
                     {format(
@@ -1072,7 +1074,10 @@ export default function DesignerPanel() {
           </div>
 
           <div className="mt-4 flex justify-end">
-            <Button onClick={() => setShowDailySummary(false)} className="w-full sm:w-auto">
+            <Button
+              onClick={() => setShowDailySummary(false)}
+              className="w-full sm:w-auto hover:bg-muted text-foreground border-border bg-background border"
+            >
               Fechar
             </Button>
           </div>

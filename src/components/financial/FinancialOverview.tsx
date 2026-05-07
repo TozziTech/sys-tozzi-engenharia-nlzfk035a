@@ -145,12 +145,12 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Saldo Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-slate-500" />
+            <CardTitle className="text-sm font-medium text-foreground">Saldo Total</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}
+              className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}
             >
               {formatCurrency(balance)}
             </div>
@@ -158,22 +158,22 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total de Entradas</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Total de Entradas</CardTitle>
             <ArrowUpRight className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">
+            <div className="text-2xl font-bold text-emerald-500">
               {formatCurrency(totalIncomes)}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total de Saídas</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Total de Saídas</CardTitle>
             <ArrowDownRight className="h-4 w-4 text-rose-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-rose-600">{formatCurrency(totalExpenses)}</div>
+            <div className="text-2xl font-bold text-rose-500">{formatCurrency(totalExpenses)}</div>
           </CardContent>
         </Card>
       </div>
@@ -196,6 +196,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
                     innerRadius={60}
                     outerRadius={80}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    className="text-foreground fill-foreground"
                   >
                     {expensesByCategory.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />

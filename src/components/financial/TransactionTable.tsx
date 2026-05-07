@@ -190,41 +190,23 @@ export function TransactionTable({
           Exibindo {filteredTransactions.length} de {safeTransactions.length} registros
         </div>
       </div>
-      <div className="rounded-md border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-card text-card-foreground">
+      <div className="rounded-md border border-border overflow-hidden bg-card text-card-foreground shadow-sm">
         <Table>
-          <TableHeader className="bg-zinc-100 dark:bg-zinc-900/80">
-            <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-                Código
-              </TableHead>
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-                Data
-              </TableHead>
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-                Tipo
-              </TableHead>
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-                Categoria
-              </TableHead>
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-                Descrição
-              </TableHead>
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-                Projeto
-              </TableHead>
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
+          <TableHeader className="bg-muted/50">
+            <TableRow className="border-b border-border hover:bg-transparent">
+              <TableHead className="font-semibold text-center text-foreground">Código</TableHead>
+              <TableHead className="font-semibold text-center text-foreground">Data</TableHead>
+              <TableHead className="font-semibold text-center text-foreground">Tipo</TableHead>
+              <TableHead className="font-semibold text-center text-foreground">Categoria</TableHead>
+              <TableHead className="font-semibold text-center text-foreground">Descrição</TableHead>
+              <TableHead className="font-semibold text-center text-foreground">Projeto</TableHead>
+              <TableHead className="font-semibold text-center text-foreground">
                 Responsável
               </TableHead>
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-                Status
-              </TableHead>
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-                Aprovação
-              </TableHead>
-              <TableHead className="font-semibold text-center text-zinc-700 dark:text-zinc-300">
-                Valor
-              </TableHead>
-              <TableHead className="w-[60px] text-center font-semibold text-zinc-700 dark:text-zinc-300">
+              <TableHead className="font-semibold text-center text-foreground">Status</TableHead>
+              <TableHead className="font-semibold text-center text-foreground">Aprovação</TableHead>
+              <TableHead className="font-semibold text-center text-foreground">Valor</TableHead>
+              <TableHead className="w-[60px] text-center font-semibold text-foreground">
                 Anexo
               </TableHead>
               <TableHead className="w-[60px] text-center"></TableHead>
@@ -269,9 +251,9 @@ export function TransactionTable({
                 return (
                   <TableRow
                     key={tx.id}
-                    className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 transition-colors"
+                    className="hover:bg-muted/50 border-border transition-colors"
                   >
-                    <TableCell className="whitespace-nowrap text-center font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    <TableCell className="whitespace-nowrap text-center font-mono text-xs font-semibold text-foreground">
                       {tx.code || '-'}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-center">
@@ -328,7 +310,7 @@ export function TransactionTable({
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium text-center text-zinc-900 dark:text-zinc-100">
+                    <TableCell className="font-medium text-center text-foreground">
                       <div className="flex items-center justify-center gap-2">
                         <span>{tx.description}</span>
                         {tx.is_recurring && (
@@ -343,10 +325,8 @@ export function TransactionTable({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-zinc-600 dark:text-zinc-400">
-                      {projName}
-                    </TableCell>
-                    <TableCell className="text-center text-zinc-600 dark:text-zinc-400">
+                    <TableCell className="text-center text-muted-foreground">{projName}</TableCell>
+                    <TableCell className="text-center text-muted-foreground">
                       {respUser ? respUser.name || respUser.email : '-'}
                     </TableCell>
                     <TableCell className="text-center">
@@ -356,10 +336,7 @@ export function TransactionTable({
                         </Badge>
                       )}
                       {txStatus === 'Pendente' && (
-                        <Badge
-                          variant="outline"
-                          className="text-amber-600 border-amber-500 dark:text-amber-400"
-                        >
+                        <Badge variant="outline" className="text-primary border-primary">
                           Pendente
                         </Badge>
                       )}
@@ -419,7 +396,7 @@ export function TransactionTable({
                         <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-center font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                    <TableCell className="text-center font-semibold text-foreground whitespace-nowrap">
                       {formatCurrency(tx.value || tx.amount || 0)}
                     </TableCell>
                     <TableCell className="text-center">
@@ -429,7 +406,7 @@ export function TransactionTable({
                           size="icon"
                           asChild
                           title="Ver Anexo"
-                          className="hover:text-amber-500 dark:hover:text-amber-400"
+                          className="hover:text-primary"
                         >
                           <a
                             href={pb.files.getURL(
@@ -450,24 +427,18 @@ export function TransactionTable({
                     <TableCell className="text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="hover:text-amber-500 dark:hover:text-amber-400"
-                          >
+                          <Button variant="ghost" size="icon" className="hover:text-primary">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="dark:bg-zinc-900 dark:border-zinc-800"
-                        >
+                        <DropdownMenuContent align="end">
                           {canWriteFinance ? (
                             <>
                               <DropdownMenuItem
                                 onClick={() => onEdit(tx)}
-                                className="focus:text-amber-500 dark:focus:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30 cursor-pointer"
+                                className="focus:text-primary focus:bg-primary/10 cursor-pointer"
                               >
+                                {' '}
                                 <Pencil className="h-4 w-4 mr-2" /> Editar
                               </DropdownMenuItem>
                               <DropdownMenuItem

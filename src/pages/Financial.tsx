@@ -59,7 +59,9 @@ export default function Financial() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <DollarSign className="h-8 w-8 text-primary" />
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <DollarSign className="h-6 w-6 text-primary" />
+            </div>
             Módulo Financeiro
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -68,7 +70,7 @@ export default function Financial() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={handleExportPDF} className="gap-2">
-            <FileText className="h-4 w-4" />
+            <FileText className="h-4 w-4 text-muted-foreground" />
             Exportar Relatório (PDF)
           </Button>
           {hasDashboardAccess && (
@@ -88,7 +90,7 @@ export default function Financial() {
       </ErrorBoundary>
 
       <Tabs defaultValue="lancamentos" className="w-full space-y-6">
-        <TabsList className="bg-muted p-1 w-full justify-start overflow-x-auto h-auto flex-wrap">
+        <TabsList className="bg-muted/50 border border-border p-1 w-full justify-start overflow-x-auto h-auto flex-wrap">
           <TabsTrigger value="lancamentos" className="py-2">
             Lançamentos
           </TabsTrigger>

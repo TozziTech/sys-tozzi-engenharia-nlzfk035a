@@ -10,6 +10,17 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { getServicos, deleteServico, type ServicoFinanceiro } from '@/services/servicos_financeiros'
 import { ServicoModal } from './ServicoModal'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -42,12 +53,12 @@ export function ServicosList() {
   })
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este serviço?')) return
     try {
       await deleteServico(id)
-      toast({ title: 'Sucesso', description: 'Serviço excluído com sucesso.' })
+      toast({ title: 'Sucesso', description: 'Lançamento excluído com sucesso.' })
+      setServicos((prev) => prev.filter((s) => s.id !== id))
     } catch (error) {
-      toast({ title: 'Erro', description: 'Não foi possível excluir.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Erro ao excluir lançamento.', variant: 'destructive' })
     }
   }
 
@@ -123,13 +134,31 @@ export function ServicosList() {
                     <TableCell>
                       <div className="flex items-center gap-2 justify-end">
                         <ServicoModal servico={servico} />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(servico.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir este lançamento? Esta ação não pode
+                                ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(servico.id)}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                              >
+                                Confirmar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>

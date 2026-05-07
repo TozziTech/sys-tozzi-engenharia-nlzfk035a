@@ -2278,6 +2278,149 @@ export function exportAccessReportPDF(
   setTimeout(() => printWindow.print(), 250)
 }
 
+export function exportApaDashboardPDF(
+  data: {
+    dateFilter: string
+    disciplineFilter: string
+    topProblems: any[]
+    effectivenessData: any[]
+    tableData: any[]
+  },
+  currentUser: string,
+  settings: any = null,
+) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const primaryColor = getPrimaryColor(settings)
+  const logoUrl = settings?.logo
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/company_settings/${settings.id}/${settings.logo}`
+    : ''
+
+  const filterLabel =
+    data.dateFilter === '3m'
+      ? 'Últimos 3 Meses'
+      : data.dateFilter === '6m'
+        ? 'Últimos 6 Meses'
+        : 'Último Ano'
+  const discLabel = data.disciplineFilter === 'all' ? 'Todas as Disciplinas' : data.disciplineFilter
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Dashboard de Lições Aprendidas</title>
+        <style>
+          @page { margin: 20mm; }
+          body { font-family: system-ui, sans-serif; color: #1a1a1a; padding: 20px; max-width: 1000px; margin: 0 auto; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+          th { background-color: ${primaryColor}; color: #ffffff; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 20px; }
+          .section { margin-bottom: 30px; }
+          .section-title { font-size: 18px; color: ${primaryColor}; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 15px; font-weight: bold; }
+          .card { background: #f9fafb; padding: 15px; border-radius: 8px; flex: 1; border: 1px solid #e5e7eb; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #fef3c7; color: #92400e; padding: 10px; text-align: center; margin-bottom: 20px; border-radius: 4px; font-size: 14px;">
+          <strong>Nota:</strong> A impressão iniciará automaticamente.
+        </div>
+        <div class="header">
+          <div>
+            ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; margin-bottom: 10px;" />` : ''}
+            <h2 style="margin: 0; color: ${primaryColor};">Dashboard de Lições Aprendidas (APA)</h2>
+            <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;">Período: ${filterLabel} | Disciplina: ${discLabel}</p>
+          </div>
+          <div style="text-align: right; color: #6b7280; font-size: 14px;">
+            Gerado por: ${currentUser}<br/>
+            Data: ${new Date().toLocaleString('pt-BR')}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">1. Recorrência de Problemas (Top 5)</div>
+          <div class="card">
+            ${data.topProblems.length === 0 ? '<p>Nenhum problema registrado no período.</p>' : ''}
+            ${data.topProblems
+              .map((p) => {
+                const maxCount = Math.max(...data.topProblems.map((tp) => tp.count))
+                const pct = (p.count / maxCount) * 100
+                return `
+                 <div style="margin-bottom: 10px;">
+                   <div style="font-size: 12px; margin-bottom: 2px; font-weight: 500;">${p.name} (${p.count})</div>
+                   <div style="width: 100%; background: #e5e7eb; border-radius: 4px; height: 16px;">
+                     <div style="width: ${pct}%; background: ${primaryColor}; height: 100%; border-radius: 4px;"></div>
+                   </div>
+                 </div>
+               `
+              })
+              .join('')}
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">2. Efetividade de Ações Concluídas</div>
+          <div class="card" style="display: flex; gap: 20px; align-items: center;">
+            ${
+              data.effectivenessData[0].value === 0 && data.effectivenessData[1].value === 0
+                ? '<p>Nenhuma ação concluída no período.</p>'
+                : `
+              <div style="flex: 1;">
+                 <div style="font-weight: bold; color: #10b981; font-size: 18px;">No Prazo: ${data.effectivenessData[0].value}</div>
+                 <div style="font-weight: bold; color: #ef4444; font-size: 18px; margin-top: 10px;">Atrasadas: ${data.effectivenessData[1].value}</div>
+              </div>
+            `
+            }
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">3. Comparativo por Disciplina</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Disciplina</th>
+                <th style="text-align: center;">Total APAs</th>
+                <th style="text-align: center;">Problemas (Média/Proj)</th>
+                <th>Taxa de Efetividade (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.tableData.length === 0 ? '<tr><td colspan="4" style="text-align: center;">Nenhum dado disponível.</td></tr>' : ''}
+              ${data.tableData
+                .map(
+                  (r) => `
+                <tr>
+                  <td style="font-weight: bold;">${r.discipline}</td>
+                  <td style="text-align: center;">${r.totalApas}</td>
+                  <td style="text-align: center;">${r.avgProblems}</td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span style="min-width: 40px; font-weight: 600;">${r.effectiveness}%</span>
+                      <div style="flex: 1; background: #e5e7eb; border-radius: 4px; height: 8px;">
+                        <div style="width: ${r.effectiveness}%; background: ${r.effectiveness > 70 ? '#10b981' : r.effectiveness > 40 ? '#f59e0b' : '#ef4444'}; height: 100%; border-radius: 4px;"></div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              `,
+                )
+                .join('')}
+            </tbody>
+          </table>
+        </div>
+
+      </body>
+    </html>
+  `
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => printWindow.print(), 250)
+}
+
 export function exportDesignerDashboardPDF(
   user: any,
   projects: any[],

@@ -24,16 +24,20 @@ onRecordCreate((e) => {
     e.record.set('code', nextCode)
   }
 
-  if (status === 'Pago' && account) {
+  if (status === 'Pago' && account && account !== '') {
     const amount = e.record.get('amount') || 0
     const type = e.record.get('type')
     const impact = type === 'Entrada' ? amount : -amount
 
-    $app
-      .db()
-      .newQuery('UPDATE bank_accounts SET balance = balance + {:impact} WHERE id = {:id}')
-      .bind({ impact, id: account })
-      .execute()
+    try {
+      $app
+        .db()
+        .newQuery('UPDATE bank_accounts SET balance = balance + {:impact} WHERE id = {:id}')
+        .bind({ impact, id: account })
+        .execute()
+    } catch (err) {
+      console.log('Error updating bank account balance:', err)
+    }
   }
 
   e.next()

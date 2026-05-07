@@ -25,13 +25,17 @@ onRecordUpdate((e) => {
     const oldType = oldData.type
 
     // Revert previous impact if it was "Pago"
-    if (oldStatus === 'Pago' && oldAccount) {
+    if (oldStatus === 'Pago' && oldAccount && oldAccount !== '') {
       const revertImpact = oldType === 'Entrada' ? -oldAmount : oldAmount
-      $app
-        .db()
-        .newQuery('UPDATE bank_accounts SET balance = balance + {:impact} WHERE id = {:id}')
-        .bind({ impact: revertImpact, id: oldAccount })
-        .execute()
+      try {
+        $app
+          .db()
+          .newQuery('UPDATE bank_accounts SET balance = balance + {:impact} WHERE id = {:id}')
+          .bind({ impact: revertImpact, id: oldAccount })
+          .execute()
+      } catch (err) {
+        console.log('Error reverting bank account balance:', err)
+      }
     }
   }
 
@@ -41,13 +45,17 @@ onRecordUpdate((e) => {
   const newType = e.record.get('type')
 
   // Apply new impact if "Pago"
-  if (newStatus === 'Pago' && newAccount) {
+  if (newStatus === 'Pago' && newAccount && newAccount !== '') {
     const applyImpact = newType === 'Entrada' ? newAmount : -newAmount
-    $app
-      .db()
-      .newQuery('UPDATE bank_accounts SET balance = balance + {:impact} WHERE id = {:id}')
-      .bind({ impact: applyImpact, id: newAccount })
-      .execute()
+    try {
+      $app
+        .db()
+        .newQuery('UPDATE bank_accounts SET balance = balance + {:impact} WHERE id = {:id}')
+        .bind({ impact: applyImpact, id: newAccount })
+        .execute()
+    } catch (err) {
+      console.log('Error applying bank account balance:', err)
+    }
   }
 
   e.next()

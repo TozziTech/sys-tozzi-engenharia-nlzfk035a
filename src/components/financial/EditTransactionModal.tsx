@@ -23,6 +23,7 @@ import pb from '@/lib/pocketbase/client'
 import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useAuth } from '@/hooks/use-auth'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export function EditTransactionModal({
   transaction,
@@ -128,41 +129,52 @@ export function EditTransactionModal({
     setFormError(null)
 
     try {
-      const data: any = {
+      const payload: any = {
         description: formData.description,
         type: formData.type,
         amount: formData.value,
-        date: formData.date ? new Date(formData.date).toISOString() : '',
-        project_id: formData.projectId,
-        category: formData.type === 'Saída' ? formData.categoryId : '',
-        responsible: formData.responsible === 'none' ? '' : formData.responsible,
-        bank_account: formData.bankAccount === 'none' ? '' : formData.bankAccount,
+        date: formData.date ? new Date(formData.date).toISOString() : null,
+        project_id: formData.projectId && formData.projectId !== 'none' ? formData.projectId : null,
+        category:
+          formData.type === 'Saída' && formData.categoryId && formData.categoryId !== 'none'
+            ? formData.categoryId
+            : null,
+        responsible:
+          formData.responsible && formData.responsible !== 'none' ? formData.responsible : null,
+        bank_account:
+          formData.bankAccount && formData.bankAccount !== 'none' ? formData.bankAccount : null,
         status: formData.status,
         is_recurring: formData.is_recurring,
-        frequency: formData.is_recurring ? formData.frequency : '',
+        frequency: formData.is_recurring ? formData.frequency : null,
         recurrence_group_id: formData.is_recurring
           ? transaction.recurrence_group_id || crypto.randomUUID()
-          : '',
+          : null,
         end_date:
           formData.is_recurring && formData.end_date
             ? new Date(formData.end_date).toISOString()
-            : '',
+            : null,
       }
 
-      const submitData = new FormData()
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== null && value !== undefined) {
-          submitData.append(key, value as any)
+      if (newAttachment || removeAttachment) {
+        const submitData = new FormData()
+        for (const [key, value] of Object.entries(payload)) {
+          if (value === null) {
+            submitData.append(key, '')
+          } else if (value !== undefined) {
+            submitData.append(key, value as any)
+          }
         }
-      }
 
-      if (newAttachment) {
-        submitData.append('attachment', newAttachment)
-      } else if (removeAttachment) {
-        submitData.append('attachment', '')
-      }
+        if (newAttachment) {
+          submitData.append('attachment', newAttachment)
+        } else if (removeAttachment) {
+          submitData.append('attachment', '')
+        }
 
-      await pb.collection('financial_records').update(transaction.id, submitData)
+        await pb.collection('financial_records').update(transaction.id, submitData)
+      } else {
+        await pb.collection('financial_records').update(transaction.id, payload)
+      }
 
       if (formData.is_recurring) {
         toast.success('Série recorrente configurada com sucesso!')
@@ -171,9 +183,13 @@ export function EditTransactionModal({
       }
 
       onOpenChange(false)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      setFormError('Erro ao atualizar a transação. Verifique os dados e tente novamente.')
+      const errorMsg =
+        getErrorMessage(err) ||
+        'Erro ao atualizar a transação. Verifique os dados e tente novamente.'
+      setFormError(errorMsg)
+      toast.error('Falha ao atualizar', { description: errorMsg })
     }
   }
 

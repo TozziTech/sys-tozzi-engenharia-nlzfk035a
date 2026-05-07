@@ -110,39 +110,44 @@ export function TransactionModal() {
       return
     }
 
-    const payload = {
+    const payload: any = {
       description: formData.description,
       type: formData.type,
       amount: numericAmount,
       date: new Date(formData.date).toISOString(),
-      project_id: formData.projectId,
-      category: formData.category,
-      responsible: formData.responsible === 'none' ? '' : formData.responsible,
-      bank_account: formData.bankAccount === 'none' ? '' : formData.bankAccount,
+      project_id: formData.projectId && formData.projectId !== 'none' ? formData.projectId : null,
+      category: formData.category && formData.category !== 'none' ? formData.category : null,
+      responsible:
+        formData.responsible && formData.responsible !== 'none' ? formData.responsible : null,
+      bank_account:
+        formData.bankAccount && formData.bankAccount !== 'none' ? formData.bankAccount : null,
       is_recurring: formData.is_recurring,
-      frequency: formData.is_recurring ? formData.frequency : '',
+      frequency: formData.is_recurring ? formData.frequency : null,
       end_date:
         formData.is_recurring && formData.end_date
           ? new Date(formData.end_date).toISOString()
           : null,
-      recurrence_group_id: formData.is_recurring ? crypto.randomUUID() : '',
+      recurrence_group_id: formData.is_recurring ? crypto.randomUUID() : null,
       status: formData.status,
       is_approved: false,
     }
 
-    const submitData = new FormData()
-    for (const [key, value] of Object.entries(payload)) {
-      if (value !== null) {
-        submitData.append(key, value as any)
-      }
-    }
-    if (formData.attachment) {
-      submitData.append('attachment', formData.attachment)
-    }
-
     setIsSubmitting(true)
     try {
-      await pb.collection('financial_records').create(submitData)
+      if (formData.attachment) {
+        const submitData = new FormData()
+        for (const [key, value] of Object.entries(payload)) {
+          if (value === null) {
+            submitData.append(key, '')
+          } else if (value !== undefined) {
+            submitData.append(key, value as any)
+          }
+        }
+        submitData.append('attachment', formData.attachment)
+        await pb.collection('financial_records').create(submitData)
+      } else {
+        await pb.collection('financial_records').create(payload)
+      }
 
       if (formData.is_recurring) {
         toast.success('Série recorrente configurada com sucesso!')
@@ -155,7 +160,11 @@ export function TransactionModal() {
       console.error(err)
       const errors = extractFieldErrors(err)
       setFieldErrors(errors)
-      setFormError(getErrorMessage(err) || 'Erro ao salvar transação.')
+      const errorMsg = getErrorMessage(err) || 'Erro ao salvar transação.'
+      setFormError(errorMsg)
+      toast.error('Falha ao salvar transação', {
+        description: errorMsg,
+      })
     } finally {
       setIsSubmitting(false)
     }

@@ -2761,7 +2761,18 @@ export function exportMeetingMinutesPDF(
     : ''
   const projectName = meeting.expand?.project?.name || 'N/A'
 
-  const participantsList = participants.map((p) => p.name || p.email).join(', ')
+  const presentIds = meeting.attendance || []
+  const presentParticipants = participants.filter((p) => presentIds.includes(p.id))
+  const absentParticipants = participants.filter((p) => !presentIds.includes(p.id))
+
+  const presentList =
+    presentParticipants.length > 0
+      ? presentParticipants.map((p) => p.name || p.email).join(', ')
+      : 'Nenhum'
+  const absentList =
+    absentParticipants.length > 0
+      ? absentParticipants.map((p) => p.name || p.email).join(', ')
+      : 'Nenhum'
 
   let actionsHtml = ''
   if (actions && actions.length > 0) {
@@ -2835,7 +2846,10 @@ export function exportMeetingMinutesPDF(
           </div>
         </div>
         
-        ${participantsList ? `<div style="margin-bottom: 20px; font-size: 14px; color: #374151;"><strong>Participantes:</strong> ${participantsList}</div>` : ''}
+        <div style="margin-bottom: 20px; font-size: 14px; color: #374151;">
+          <p style="margin: 0;"><strong>Presentes:</strong> ${presentList}</p>
+          <p style="margin: 5px 0 0;"><strong>Ausentes:</strong> ${absentList}</p>
+        </div>
         
         <div class="content">
           ${minutesContent || '<p>Sem conteúdo na ata.</p>'}

@@ -1,6 +1,17 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, useBlocker } from 'react-router-dom'
-import { Clock, Save, Plus, StopCircle, FastForward, CheckSquare } from 'lucide-react'
+import {
+  Clock,
+  Save,
+  Plus,
+  StopCircle,
+  FastForward,
+  CheckSquare,
+  FileText,
+  Download,
+  Copy,
+  Loader2,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,6 +38,8 @@ import {
 import { toast } from 'sonner'
 import pb from '@/lib/pocketbase/client'
 import { cn } from '@/lib/utils'
+import { exportMeetingMinutesPDF } from '@/lib/exportPdf'
+import { useAuth } from '@/hooks/use-auth'
 import {
   getMeeting,
   getMeetingAgenda,
@@ -39,6 +52,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 export default function MeetingInProgress() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [meeting, setMeeting] = useState<any>(null)
   const [agenda, setAgenda] = useState<any[]>([])
@@ -59,6 +73,9 @@ export default function MeetingInProgress() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
   const [actionModal, setActionModal] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  const [summaryText, setSummaryText] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
   const [newAction, setNewAction] = useState({
     description: '',
     responsible: '',
@@ -296,6 +313,93 @@ export default function MeetingInProgress() {
     toast.success('Template aplicado com sucesso!')
   }
 
+  const handleGenerateSummary = async () => {
+    try {
+      const acts = await pb
+        .collection('meeting_actions')
+        .getFullList({ filter: `meeting = '${id}'`, expand: 'responsible' })
+
+      let text = `Resumo da Reunião: ${meeting.title}\n`
+      text += `Data: ${format(new Date(meeting.date_time), 'dd/MM/yyyy HH:mm')}\n`
+      text += `Projeto: ${meeting.expand?.project?.name || 'N/A'}\n\n`
+
+      text += `PARTICIPANTES\n`
+      const present = participants
+        .filter((p) => attendance.includes(p.id))
+        .map((p) => p.name || p.email)
+      const absent = participants
+        .filter((p) => !attendance.includes(p.id))
+        .map((p) => p.name || p.email)
+      text += `Presentes: ${present.length > 0 ? present.join(', ') : 'Nenhum'}\n`
+      text += `Ausentes: ${absent.length > 0 ? absent.join(', ') : 'Nenhum'}\n\n`
+
+      text += `PAUTA\n`
+      if (agenda.length > 0) {
+        agenda.forEach((a) => {
+          text += `- ${a.topic} (${a.estimated_time} min)\n`
+        })
+      } else {
+        text += `Nenhum tópico de pauta.\n`
+      }
+      text += `\n`
+
+      text += `NOTAS (ATA)\n`
+      const strippedMinutes = minutes
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\n\s*\n/g, '\n')
+        .trim()
+      text += `${strippedMinutes || 'Nenhuma nota registrada.'}\n\n`
+
+      text += `AÇÕES PENDENTES\n`
+      if (acts.length > 0) {
+        acts.forEach((a) => {
+          const resp = a.expand?.responsible?.name || 'Sem responsável'
+          const due = a.due_date ? format(new Date(a.due_date), 'dd/MM/yyyy') : 'Sem prazo'
+          text += `- [ ] ${a.description} (Resp: ${resp} | Prazo: ${due})\n`
+        })
+      } else {
+        text += `Nenhuma ação registrada.\n`
+      }
+
+      setSummaryText(text)
+      setSummaryOpen(true)
+    } catch (err) {
+      toast.error('Erro ao gerar resumo')
+    }
+  }
+
+  const handleExportPDF = async () => {
+    setIsExporting(true)
+    try {
+      const acts = await pb
+        .collection('meeting_actions')
+        .getFullList({ filter: `meeting = '${id}'`, expand: 'responsible,task' })
+      const settingsList = await pb.collection('company_settings').getFullList()
+      const companySettings = settingsList[0] || null
+
+      const currentMeeting = {
+        ...meeting,
+        minutes: minutesRef.current,
+        attendance: attendanceRef.current,
+      }
+
+      exportMeetingMinutesPDF(
+        currentMeeting,
+        minutesRef.current,
+        user?.name || 'Sistema',
+        companySettings,
+        participants,
+        acts,
+      )
+    } catch (err) {
+      toast.error('Erro ao exportar PDF')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   if (!meeting) return null
 
   return (
@@ -312,18 +416,29 @@ export default function MeetingInProgress() {
           <p className="text-zinc-500 text-sm mt-1">Ao vivo - {format(new Date(), 'dd/MM/yyyy')}</p>
         </div>
         <div className="space-x-3 flex items-center">
+          <Button variant="outline" onClick={handleGenerateSummary} size="sm">
+            <FileText className="h-4 w-4 mr-2" /> Gerar Resumo
+          </Button>
+          <Button variant="outline" onClick={handleExportPDF} disabled={isExporting} size="sm">
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}{' '}
+            Exportar PDF
+          </Button>
           {isDirty && (
             <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-300">
               Pendente de salvamento
             </Badge>
           )}
-          <Button variant="secondary" onClick={handleManualSave}>
+          <Button variant="secondary" onClick={handleManualSave} size="sm">
             <Save className="h-4 w-4 mr-2" /> Salvar Alterações
           </Button>
-          <Button variant="outline" onClick={() => setActionModal(true)}>
+          <Button variant="outline" onClick={() => setActionModal(true)} size="sm">
             <Plus className="h-4 w-4 mr-2" /> Criar Action Item
           </Button>
-          <Button variant="destructive" onClick={finishMeeting}>
+          <Button variant="destructive" onClick={finishMeeting} size="sm">
             <StopCircle className="h-4 w-4 mr-2" /> Encerrar Reunião
           </Button>
         </div>
@@ -527,6 +642,34 @@ export default function MeetingInProgress() {
               <Button type="submit">Criar Ação</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Resumo da Reunião</DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Textarea
+              className="min-h-[50vh] font-mono text-sm leading-relaxed"
+              value={summaryText}
+              readOnly
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setSummaryOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                navigator.clipboard.writeText(summaryText)
+                toast.success('Resumo copiado para a área de transferência!')
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" /> Copiar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

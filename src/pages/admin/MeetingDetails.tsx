@@ -15,6 +15,8 @@ import {
   Edit,
   CheckSquare,
   CheckCircle,
+  FileText,
+  Copy,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
@@ -34,6 +36,7 @@ import {
 } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -94,6 +97,8 @@ export default function MeetingDetails() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [meetingActions, setMeetingActions] = useState<any[]>([])
   const [isExporting, setIsExporting] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  const [summaryText, setSummaryText] = useState('')
 
   const isMinutesDirty = minutesContent !== originalMinutesContent
 
@@ -447,6 +452,60 @@ export default function MeetingDetails() {
     }
   }
 
+  const handleGenerateSummary = () => {
+    let text = `Resumo da Reunião: ${meeting.title}\n`
+    text += `Data: ${format(new Date(meeting.date_time), 'dd/MM/yyyy HH:mm')}\n`
+    text += `Projeto: ${meeting.expand?.project?.name || 'N/A'}\n\n`
+
+    text += `PARTICIPANTES\n`
+    const attendance = meeting.attendance || []
+    const present = users
+      .filter((u) => (meeting.participants || []).includes(u.id) && attendance.includes(u.id))
+      .map((p) => p.name || p.email)
+    const absent = users
+      .filter((u) => (meeting.participants || []).includes(u.id) && !attendance.includes(u.id))
+      .map((p) => p.name || p.email)
+    text += `Presentes: ${present.length > 0 ? present.join(', ') : 'Nenhum'}\n`
+    text += `Ausentes: ${absent.length > 0 ? absent.join(', ') : 'Nenhum'}\n\n`
+
+    text += `PAUTA\n`
+    if (agenda.length > 0) {
+      agenda.forEach((a) => {
+        text += `- ${a.topic} (${a.estimated_time} min)\n`
+      })
+    } else {
+      text += `Nenhum tópico de pauta.\n`
+    }
+    text += `\n`
+
+    text += `NOTAS (ATA)\n`
+    const contentToParse =
+      selectedVersion === 'latest'
+        ? minutesContent
+        : minutesVersions.find((v) => v.id === selectedVersion)?.content || ''
+    const strippedMinutes = contentToParse
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n\s*\n/g, '\n')
+      .trim()
+    text += `${strippedMinutes || 'Nenhuma nota registrada.'}\n\n`
+
+    text += `AÇÕES PENDENTES\n`
+    if (meetingActions.length > 0) {
+      meetingActions.forEach((a) => {
+        const resp = a.expand?.responsible?.name || 'Sem responsável'
+        const due = a.due_date ? format(new Date(a.due_date), 'dd/MM/yyyy') : 'Sem prazo'
+        text += `- [ ] ${a.description} (Resp: ${resp} | Prazo: ${due})\n`
+      })
+    } else {
+      text += `Nenhuma ação registrada.\n`
+    }
+
+    setSummaryText(text)
+    setSummaryOpen(true)
+  }
+
   if (!meeting) return null
 
   return (
@@ -505,7 +564,29 @@ export default function MeetingDetails() {
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" onClick={handleGenerateSummary} size="sm">
+            <FileText className="h-4 w-4 mr-2" /> Gerar Resumo
+          </Button>
+          <Button
+            variant="outline"
+            disabled={isExporting}
+            onClick={() => {
+              const content =
+                selectedVersion === 'latest'
+                  ? minutesContent
+                  : minutesVersions.find((v) => v.id === selectedVersion)?.content || ''
+              doExportPDF(content)
+            }}
+            size="sm"
+          >
+            {isExporting ? (
+              <div className="h-4 w-4 mr-2 rounded-full border-2 border-current border-t-transparent animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}{' '}
+            Exportar PDF
+          </Button>
           <Badge
             variant={
               meeting.status === 'Realizada'
@@ -973,6 +1054,34 @@ export default function MeetingDetails() {
             </Button>
             <Button onClick={confirmExtractedActions} disabled={extractedActions.length === 0}>
               Criar {extractedActions.length} Ações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Resumo da Reunião</DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Textarea
+              className="min-h-[50vh] font-mono text-sm leading-relaxed"
+              value={summaryText}
+              readOnly
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setSummaryOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                navigator.clipboard.writeText(summaryText)
+                toast.success('Resumo copiado para a área de transferência!')
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" /> Copiar
             </Button>
           </DialogFooter>
         </DialogContent>

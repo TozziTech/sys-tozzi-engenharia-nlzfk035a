@@ -1,4 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import {
+  createBrowserRouter,
+  RouterProvider,
+  createRoutesFromElements,
+  Route,
+  Navigate,
+  Outlet,
+} from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -100,153 +107,144 @@ function HomeRoute() {
   return <Navigate to="/designer-panel" replace />
 }
 
+const RootProviders = () => (
+  <TooltipProvider>
+    <RealtimeSync />
+    <Toaster />
+    <Sonner />
+    <Outlet />
+  </TooltipProvider>
+)
+
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<RootProviders />}>
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route path="/welcome" element={<Welcome />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/report/view/:token" element={<PublicReportView />} />
+      <Route element={<RoleGuard />}>
+        <Route path="/change-password" element={<ChangePassword />} />
+        <Route element={<Layout />}>
+          <Route element={<ModuleGuard />}>
+            {/* Public authenticated routes */}
+            <Route path="/" element={<HomeRoute />} />
+            <Route path="/meu-painel" element={<MeuPainel />} />
+            <Route path="/designer-panel" element={<DesignerPanel />} />
+            <Route path="/meus-projetos" element={<Projects filterOnlyMine />} />
+            <Route path="/projects/:id" element={<ProjectDetails />} />
+            <Route path="/projects/:id/disciplines/:moduleId" element={<DisciplineDetails />} />
+            <Route path="/gestao/painel-cliente" element={<ClientDashboard />} />
+            <Route path="/client-dashboard" element={<ClientDashboard />} />
+            <Route path="/gestao/painel-cliente/:id" element={<ClientProjectDetails />} />
+
+            {/* Document & File Routes */}
+            <Route
+              path="/files/library"
+              element={<DocumentResourcesPage category="Biblioteca" title="Biblioteca" />}
+            />
+            <Route
+              path="/files/pops"
+              element={<DocumentResourcesPage category="POPs" title="POPs" />}
+            />
+            <Route
+              path="/files/base-projects"
+              element={<DocumentResourcesPage category="Projetos Base" title="Projetos Base" />}
+            />
+            <Route
+              path="/files/templates"
+              element={
+                <DocumentResourcesPage category="Documentos Modelos" title="Documentos Modelos" />
+              }
+            />
+            <Route
+              path="/files/courses"
+              element={<DocumentResourcesPage category="Cursos" title="Cursos" />}
+            />
+            <Route path="/files/favorites" element={<FavoriteDocumentsPage />} />
+
+            {/* Module-Guarded Routes (Settings, Admin, Managers, etc) */}
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
+            <Route path="/financial-dashboard" element={<FinancialDashboard />} />
+            <Route
+              path="/diagnostics"
+              element={<Navigate to="/dashboard?tab=diagnostico" replace />}
+            />
+            <Route
+              path="/bottlenecks"
+              element={<Navigate to="/dashboard?tab=diagnostico" replace />}
+            />
+            <Route path="/deadline-audit" element={<DeadlineAudit />} />
+            <Route path="/management/bank-accounts" element={<BankAccounts />} />
+            <Route path="/financial" element={<Financial />} />
+            <Route path="/financeiro" element={<Navigate to="/financial-dashboard" replace />} />
+            <Route path="/schedule" element={<Gantt />} />
+            <Route path="/gantt" element={<Gantt />} />
+            <Route path="/calendar" element={<ProjectCalendar />} />
+            <Route path="/resources" element={<Navigate to="/dashboard?tab=recursos" replace />} />
+            <Route path="/quotes" element={<Quotes />} />
+            <Route path="/operations/contract-generator" element={<ContractGenerator />} />
+            <Route path="/team" element={<Team />} />
+            <Route path="/team/new" element={<TeamNew />} />
+            <Route path="/team/:id/edit" element={<TeamEdit />} />
+            <Route path="/clients" element={<Clients />} />
+            <Route path="/contacts" element={<Contacts />} />
+            <Route path="/equipments" element={<Equipments />} />
+            <Route path="/equipment" element={<Equipments />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/timesheet" element={<Timesheet />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/activities" element={<Activities />} />
+            <Route path="/pending-report" element={<PendingReport />} />
+            <Route path="/gestao-central" element={<GestaoCentral />} />
+            <Route path="/audit" element={<Audit />} />
+            <Route path="/admin/access-control" element={<AccessControl />} />
+            <Route path="/admin/reunioes" element={<Meetings />} />
+            <Route path="/admin/reunioes/templates" element={<MeetingTemplates />} />
+            <Route path="/admin/reunioes/templates/:id" element={<MeetingTemplateDetails />} />
+            <Route path="/admin/reunioes/:id" element={<MeetingDetails />} />
+            <Route path="/admin/reunioes/:id/in-progress" element={<MeetingInProgress />} />
+            <Route path="/meetings-dashboard" element={<MeetingsDashboard />} />
+            <Route path="/audit-logs" element={<Audit />} />
+            <Route path="/admin/audit-log" element={<Audit />} />
+            <Route path="/admin/audit-logs" element={<Audit />} />
+            <Route path="/apa" element={<ApaLayout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<LessonsLearnedDashboard />} />
+              <Route path="new" element={<ApaCreate />} />
+              <Route path="history" element={<ApaHistory />} />
+              <Route path="actions" element={<ApaActions />} />
+            </Route>
+            <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
+            <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
+            <Route path="/admin/efficiency" element={<EfficiencyReports />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/settings/templates" element={<DisciplineTemplates />} />
+            <Route
+              path="/settings/templates/:templateId"
+              element={<DisciplineDetails isTemplateMode />}
+            />
+          </Route>
+        </Route>
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Route>,
+  ),
+)
+
 const App = () => (
   <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
     <AuthProvider>
       <ThemeColorInjector />
       <ThemeSync />
       <ProjectProvider>
-        <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-          <TooltipProvider>
-            <RealtimeSync />
-            <Toaster />
-            <Sonner />
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<SignUp />} />
-              <Route path="/welcome" element={<Welcome />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/report/view/:token" element={<PublicReportView />} />
-              <Route element={<RoleGuard />}>
-                <Route path="/change-password" element={<ChangePassword />} />
-                <Route element={<Layout />}>
-                  <Route element={<ModuleGuard />}>
-                    {/* Public authenticated routes */}
-                    <Route path="/" element={<HomeRoute />} />
-                    <Route path="/meu-painel" element={<MeuPainel />} />
-                    <Route path="/designer-panel" element={<DesignerPanel />} />
-                    <Route path="/meus-projetos" element={<Projects filterOnlyMine />} />
-                    <Route path="/projects/:id" element={<ProjectDetails />} />
-                    <Route
-                      path="/projects/:id/disciplines/:moduleId"
-                      element={<DisciplineDetails />}
-                    />
-                    <Route path="/gestao/painel-cliente" element={<ClientDashboard />} />
-                    <Route path="/client-dashboard" element={<ClientDashboard />} />
-                    <Route path="/gestao/painel-cliente/:id" element={<ClientProjectDetails />} />
-
-                    {/* Document & File Routes */}
-                    <Route
-                      path="/files/library"
-                      element={<DocumentResourcesPage category="Biblioteca" title="Biblioteca" />}
-                    />
-                    <Route
-                      path="/files/pops"
-                      element={<DocumentResourcesPage category="POPs" title="POPs" />}
-                    />
-                    <Route
-                      path="/files/base-projects"
-                      element={
-                        <DocumentResourcesPage category="Projetos Base" title="Projetos Base" />
-                      }
-                    />
-                    <Route
-                      path="/files/templates"
-                      element={
-                        <DocumentResourcesPage
-                          category="Documentos Modelos"
-                          title="Documentos Modelos"
-                        />
-                      }
-                    />
-                    <Route
-                      path="/files/courses"
-                      element={<DocumentResourcesPage category="Cursos" title="Cursos" />}
-                    />
-                    <Route path="/files/favorites" element={<FavoriteDocumentsPage />} />
-
-                    {/* Module-Guarded Routes (Settings, Admin, Managers, etc) */}
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/projects" element={<Projects />} />
-                    <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
-                    <Route path="/financial-dashboard" element={<FinancialDashboard />} />
-                    <Route
-                      path="/diagnostics"
-                      element={<Navigate to="/dashboard?tab=diagnostico" replace />}
-                    />
-                    <Route
-                      path="/bottlenecks"
-                      element={<Navigate to="/dashboard?tab=diagnostico" replace />}
-                    />
-                    <Route path="/deadline-audit" element={<DeadlineAudit />} />
-                    <Route path="/management/bank-accounts" element={<BankAccounts />} />
-                    <Route path="/financial" element={<Financial />} />
-                    <Route
-                      path="/financeiro"
-                      element={<Navigate to="/financial-dashboard" replace />}
-                    />
-                    <Route path="/schedule" element={<Gantt />} />
-                    <Route path="/gantt" element={<Gantt />} />
-                    <Route path="/calendar" element={<ProjectCalendar />} />
-                    <Route
-                      path="/resources"
-                      element={<Navigate to="/dashboard?tab=recursos" replace />}
-                    />
-                    <Route path="/quotes" element={<Quotes />} />
-                    <Route path="/operations/contract-generator" element={<ContractGenerator />} />
-                    <Route path="/team" element={<Team />} />
-                    <Route path="/team/new" element={<TeamNew />} />
-                    <Route path="/team/:id/edit" element={<TeamEdit />} />
-                    <Route path="/clients" element={<Clients />} />
-                    <Route path="/contacts" element={<Contacts />} />
-                    <Route path="/equipments" element={<Equipments />} />
-                    <Route path="/equipment" element={<Equipments />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/timesheet" element={<Timesheet />} />
-                    <Route path="/history" element={<History />} />
-                    <Route path="/activities" element={<Activities />} />
-                    <Route path="/pending-report" element={<PendingReport />} />
-                    <Route path="/gestao-central" element={<GestaoCentral />} />
-                    <Route path="/audit" element={<Audit />} />
-                    <Route path="/admin/access-control" element={<AccessControl />} />
-                    <Route path="/admin/reunioes" element={<Meetings />} />
-                    <Route path="/admin/reunioes/templates" element={<MeetingTemplates />} />
-                    <Route
-                      path="/admin/reunioes/templates/:id"
-                      element={<MeetingTemplateDetails />}
-                    />
-                    <Route path="/admin/reunioes/:id" element={<MeetingDetails />} />
-                    <Route path="/admin/reunioes/:id/in-progress" element={<MeetingInProgress />} />
-                    <Route path="/meetings-dashboard" element={<MeetingsDashboard />} />
-                    <Route path="/audit-logs" element={<Audit />} />
-                    <Route path="/admin/audit-log" element={<Audit />} />
-                    <Route path="/admin/audit-logs" element={<Audit />} />
-                    <Route path="/apa" element={<ApaLayout />}>
-                      <Route index element={<Navigate to="dashboard" replace />} />
-                      <Route path="dashboard" element={<LessonsLearnedDashboard />} />
-                      <Route path="new" element={<ApaCreate />} />
-                      <Route path="history" element={<ApaHistory />} />
-                      <Route path="actions" element={<ApaActions />} />
-                    </Route>
-                    <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
-                    <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
-                    <Route path="/admin/efficiency" element={<EfficiencyReports />} />
-                    <Route path="/admin/users" element={<AdminUsers />} />
-                    <Route path="/settings/templates" element={<DisciplineTemplates />} />
-                    <Route
-                      path="/settings/templates/:templateId"
-                      element={<DisciplineDetails isTemplateMode />}
-                    />
-                  </Route>
-                </Route>
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </TooltipProvider>
-        </BrowserRouter>
+        <RouterProvider router={router} />
       </ProjectProvider>
     </AuthProvider>
   </ThemeProvider>

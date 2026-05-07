@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import pb from '@/lib/pocketbase/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { ServicoFinanceiro, Parcela, updateServico } from '@/services/servicos_financeiros'
 import {
   Table,
   TableBody,
@@ -10,437 +8,175 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, Plus, Pencil, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { isBefore, addDays, startOfDay } from 'date-fns'
+import { GerarParcelasModal } from './GerarParcelasModal'
+import { Trash2, CheckCircle2, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export function ExpandedPaymentRow({ servico }: { servico: any }) {
+interface ExpandedPaymentRowProps {
+  servico: ServicoFinanceiro
+}
+
+export function ExpandedPaymentRow({ servico }: ExpandedPaymentRowProps) {
   const { toast } = useToast()
+  const [loadingId, setLoadingId] = useState<string | null>(null)
 
-  const pagamentos = Array.isArray(servico.parcelas) ? servico.parcelas : []
+  const parcelas = servico.parcelas || []
+  const totalParcelado = parcelas.reduce((acc, p) => acc + p.valor, 0)
+  const restante = servico.valor_total - totalParcelado
 
-  const [novoPagamento, setNovoPagamento] = useState({
-    descricao: `Parcela ${pagamentos.length + 1}`,
-    valor: '',
-    data_vencimento: new Date().toISOString().substring(0, 10),
-    status: 'Pendente',
-  })
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState({
-    descricao: '',
-    valor: '',
-    data_vencimento: '',
-    data_pagamento: '',
-    status: 'Pendente',
-  })
+  const handleGenerate = async (novasParcelas: Parcela[]) => {
+    await updateServico(servico.id, { parcelas: novasParcelas })
+    toast({ title: 'Sucesso', description: 'Parcelas geradas com sucesso.' })
+  }
 
-  const updateServicoParcelas = async (newParcelas: any[]) => {
+  const handleDelete = async (id: string) => {
+    setLoadingId(id)
     try {
-      await pb.collection('servicos_financeiros').update(servico.id, {
-        parcelas: newParcelas,
-      })
-      toast({ title: 'Parcelas atualizadas com sucesso!' })
-
-      if (!editingId) {
-        setNovoPagamento((prev) => ({ ...prev, descricao: `Parcela ${newParcelas.length + 1}` }))
-      }
-    } catch (e) {
-      toast({ title: 'Erro ao atualizar parcelas', variant: 'destructive' })
+      const novas = parcelas.filter((p) => p.id !== id)
+      await updateServico(servico.id, { parcelas: novas })
+      toast({ title: 'Sucesso', description: 'Parcela removida.' })
+    } finally {
+      setLoadingId(null)
     }
   }
 
-  const handleAdd = () => {
-    if (!novoPagamento.valor || !novoPagamento.data_vencimento) {
-      toast({ title: 'Preencha valor e vencimento', variant: 'destructive' })
-      return
-    }
-    const val = Number(novoPagamento.valor)
-    if (val < 0) {
-      toast({ title: 'O valor não pode ser negativo', variant: 'destructive' })
-      return
-    }
-    if (val === 0) {
-      toast({ title: 'O valor deve ser maior que zero', variant: 'destructive' })
-      return
-    }
-
-    const newParcela = {
-      id: Math.random().toString(36).substring(2),
-      valor: val,
-      data_vencimento: novoPagamento.data_vencimento,
-      data_pagamento: novoPagamento.status === 'Pago' ? new Date().toISOString() : null,
-      status: novoPagamento.status,
-      descricao: novoPagamento.descricao || `Parcela ${pagamentos.length + 1}`,
-    }
-
-    updateServicoParcelas([...pagamentos, newParcela])
-    setNovoPagamento({
-      descricao: `Parcela ${pagamentos.length + 2}`,
-      valor: '',
-      data_vencimento: new Date().toISOString().substring(0, 10),
-      status: 'Pendente',
-    })
-  }
-
-  const startEdit = (p: any) => {
-    setEditingId(p.id)
-    setEditForm({
-      descricao: p.descricao || '',
-      valor: p.valor.toString(),
-      data_vencimento: p.data_vencimento ? p.data_vencimento.substring(0, 10) : '',
-      data_pagamento: p.data_pagamento ? p.data_pagamento.substring(0, 10) : '',
-      status: p.status || 'Pendente',
-    })
-  }
-
-  const handleUpdate = () => {
-    if (!editForm.valor || !editForm.data_vencimento) {
-      toast({ title: 'Preencha valor e vencimento', variant: 'destructive' })
-      return
-    }
-    const val = Number(editForm.valor)
-    if (val < 0) {
-      toast({ title: 'O valor não pode ser negativo', variant: 'destructive' })
-      return
-    }
-
-    const updatedParcelas = pagamentos.map((p: any) => {
-      if (p.id === editingId) {
-        return {
-          ...p,
-          valor: val,
-          data_vencimento: editForm.data_vencimento,
-          data_pagamento:
-            editForm.status === 'Pago' ? editForm.data_pagamento || new Date().toISOString() : null,
-          status: editForm.status,
-          descricao: editForm.descricao,
+  const handleToggleStatus = async (id: string) => {
+    setLoadingId(id)
+    try {
+      const novas = parcelas.map((p) => {
+        if (p.id === id) {
+          const novoStatus = p.status === 'Pago' ? 'Pendente' : 'Pago'
+          return {
+            ...p,
+            status: novoStatus,
+            data_pagamento: novoStatus === 'Pago' ? new Date().toISOString() : undefined,
+          }
         }
-      }
-      return p
-    })
-
-    updateServicoParcelas(updatedParcelas)
-    setEditingId(null)
-  }
-
-  const handleDelete = (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta parcela?')) return
-    const updatedParcelas = pagamentos.filter((p: any) => p.id !== id)
-    updateServicoParcelas(updatedParcelas)
-  }
-
-  const totalValue = servico.valor_total || 0
-  const totalScheduled = pagamentos.reduce((acc: number, p: any) => acc + (p.valor || 0), 0)
-  const remainingBalance = totalValue - totalScheduled
-
-  const isOverScheduled = totalScheduled > totalValue
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-'
-    return dateString.substring(0, 10).split('-').reverse().join('/')
-  }
-
-  const getStatusBadge = (p: any) => {
-    if (p.status === 'Pago') {
-      return (
-        <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20 whitespace-nowrap">
-          <CheckCircle2 className="w-3 h-3 mr-1" /> Pago
-        </Badge>
-      )
+        return p
+      })
+      await updateServico(servico.id, { parcelas: novas as Parcela[] })
+      toast({ title: 'Sucesso', description: 'Status atualizado.' })
+    } finally {
+      setLoadingId(null)
     }
-
-    const today = startOfDay(new Date())
-    const venc = p.data_vencimento ? startOfDay(new Date(p.data_vencimento)) : today
-    const in3Days = addDays(today, 3)
-
-    if (isBefore(venc, today)) {
-      return (
-        <Badge className="bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 border-rose-500/20 whitespace-nowrap">
-          <AlertCircle className="w-3 h-3 mr-1" /> Atrasado
-        </Badge>
-      )
-    } else if (isBefore(venc, in3Days) || venc.getTime() === in3Days.getTime()) {
-      return (
-        <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-500/20 whitespace-nowrap">
-          <Clock className="w-3 h-3 mr-1" /> Vencendo
-        </Badge>
-      )
-    }
-
-    return (
-      <Badge className="bg-slate-500/10 text-slate-600 hover:bg-slate-500/20 border-slate-500/20 whitespace-nowrap">
-        Pendente
-      </Badge>
-    )
   }
 
   return (
-    <div className="px-4 sm:px-6 py-6 bg-transparent">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h4 className="font-semibold text-sm flex items-center gap-2">
-          <span className="bg-primary/10 text-primary px-2 py-1 rounded-md text-xs">Parcelas</span>
-          Gestão de Parcelas
-        </h4>
-        <div className="flex gap-4 sm:gap-6 text-sm bg-background px-4 py-3 rounded-md border shadow-sm w-full sm:w-auto overflow-x-auto">
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider">
-              Valor Total
-            </span>
-            <span className="font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-              {formatCurrency(totalValue)}
-            </span>
-          </div>
-          <div className="w-px bg-border shrink-0"></div>
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider">
-              Total Agendado
-            </span>
-            <span
-              className={cn(
-                'font-bold whitespace-nowrap',
-                isOverScheduled
-                  ? 'text-rose-600 dark:text-rose-500'
-                  : totalScheduled === totalValue
-                    ? 'text-emerald-600 dark:text-emerald-500'
-                    : 'text-zinc-900 dark:text-zinc-100',
-              )}
-            >
-              {formatCurrency(totalScheduled)}
-            </span>
-          </div>
-          <div className="w-px bg-border shrink-0"></div>
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider">
-              Saldo Restante
-            </span>
-            <span
-              className={cn(
-                'font-bold whitespace-nowrap px-1 rounded-sm',
-                remainingBalance < 0
-                  ? 'bg-rose-500/20 text-rose-700 dark:text-rose-400'
-                  : remainingBalance === 0
-                    ? 'text-emerald-600 dark:text-emerald-500'
-                    : 'text-amber-600 dark:text-amber-500 bg-amber-500/10',
-              )}
-            >
-              {formatCurrency(remainingBalance)}
-            </span>
-          </div>
+    <div className="p-4 sm:p-6 bg-muted/10 rounded-md m-2 border shadow-inner">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+        <div>
+          <h4 className="font-semibold text-base">Gerenciamento de Parcelas</h4>
+          <p className="text-sm text-muted-foreground">
+            Valor Total do Serviço: {formatCurrency(servico.valor_total)}
+          </p>
         </div>
+        <GerarParcelasModal servico={servico} onGenerate={handleGenerate} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_130px_130px_130px_auto] gap-3 mb-6 items-end bg-background p-4 rounded-md border shadow-sm">
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Descrição</label>
-          <Input
-            className="h-9"
-            value={novoPagamento.descricao}
-            onChange={(e) => setNovoPagamento({ ...novoPagamento, descricao: e.target.value })}
-            placeholder="Ex: Parcela 01, Sinal..."
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Vencimento</label>
-          <Input
-            type="date"
-            className="h-9"
-            value={novoPagamento.data_vencimento}
-            onChange={(e) =>
-              setNovoPagamento({ ...novoPagamento, data_vencimento: e.target.value })
-            }
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Valor (R$)</label>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            className="h-9"
-            value={novoPagamento.valor}
-            onChange={(e) => setNovoPagamento({ ...novoPagamento, valor: e.target.value })}
-            placeholder="0.00"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Status</label>
-          <Select
-            value={novoPagamento.status}
-            onValueChange={(val) => setNovoPagamento({ ...novoPagamento, status: val })}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Pendente">Pendente</SelectItem>
-              <SelectItem value="Pago">Pago</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button size="sm" onClick={handleAdd} className="h-9 w-full md:w-auto">
-          <Plus className="w-4 h-4 mr-2" /> Adicionar
-        </Button>
-      </div>
-
-      {isOverScheduled && (
-        <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 text-sm rounded-md flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>Atenção: O total agendado excede o valor total do serviço.</span>
-        </div>
-      )}
-
-      {pagamentos.length > 0 ? (
-        <div className="border rounded-md bg-background overflow-x-auto shadow-sm">
-          <Table>
-            <TableHeader className="bg-muted/50">
+      <div className="rounded-md border bg-background overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Vencimento</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
+              <TableHead className="text-right w-[100px]">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {parcelas.length === 0 ? (
               <TableRow>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="w-[120px]">Vencimento</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="w-[100px]"></TableHead>
+                <TableCell colSpan={5} className="text-center h-16 text-muted-foreground">
+                  Nenhuma parcela registrada. Use o botão acima para gerar.
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pagamentos.map((p: any) => (
+            ) : (
+              parcelas.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
+                  <TableCell className="font-medium whitespace-nowrap">
                     {p.descricao || '-'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(p.data_vencimento)}
+                  <TableCell className="whitespace-nowrap">
+                    {p.data_vencimento
+                      ? new Date(p.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                      : '-'}
                   </TableCell>
-                  <TableCell>{getStatusBadge(p)}</TableCell>
-                  <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-500">
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        p.status === 'Pago'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+                      )}
+                    >
+                      {p.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-medium whitespace-nowrap">
                     {formatCurrency(p.valor)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
+                  <TableCell className="text-right whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        onClick={() => startEdit(p)}
-                        title="Editar parcela"
+                        onClick={() => handleToggleStatus(p.id)}
+                        disabled={loadingId === p.id}
+                        title={p.status === 'Pago' ? 'Marcar como Pendente' : 'Marcar como Pago'}
                       >
-                        <Pencil className="w-4 h-4" />
+                        {p.status === 'Pago' ? (
+                          <Clock className="h-4 w-4 text-yellow-600" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        )}
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
                         onClick={() => handleDelete(p.id)}
-                        title="Excluir parcela"
+                        disabled={loadingId === p.id}
+                        title="Excluir Parcela"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <div className="text-center py-6 bg-background border rounded-md border-dashed">
-          <p className="text-sm text-muted-foreground">
-            Nenhuma parcela registrada para este serviço. O saldo restante é{' '}
-            <span className="font-semibold text-amber-600">{formatCurrency(remainingBalance)}</span>
-            .
-          </p>
-        </div>
-      )}
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-      <Dialog open={!!editingId} onOpenChange={(open) => !open && setEditingId(null)}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Editar Parcela</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Descrição</label>
-              <Input
-                value={editForm.descricao}
-                onChange={(e) => setEditForm({ ...editForm, descricao: e.target.value })}
-                placeholder="Ex: Parcela 01, Sinal..."
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Vencimento</label>
-                <Input
-                  type="date"
-                  value={editForm.data_vencimento}
-                  onChange={(e) => setEditForm({ ...editForm, data_vencimento: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Valor (R$)</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={editForm.valor}
-                  onChange={(e) => setEditForm({ ...editForm, valor: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
-                <Select
-                  value={editForm.status}
-                  onValueChange={(val) => setEditForm({ ...editForm, status: val })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pendente">Pendente</SelectItem>
-                    <SelectItem value="Pago">Pago</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {editForm.status === 'Pago' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-                  <label className="text-sm font-medium text-emerald-600">Data de Pagamento</label>
-                  <Input
-                    type="date"
-                    value={editForm.data_pagamento}
-                    onChange={(e) => setEditForm({ ...editForm, data_pagamento: e.target.value })}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingId(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleUpdate}>Salvar Alterações</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 text-sm">
+        <div className="flex flex-col items-end">
+          <span className="text-muted-foreground">Total Parcelado</span>
+          <span className="font-semibold text-base">{formatCurrency(totalParcelado)}</span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-muted-foreground">Sub-total Restante</span>
+          <span
+            className={cn(
+              'font-semibold text-base',
+              restante > 0.01
+                ? 'text-amber-500'
+                : restante < -0.01
+                  ? 'text-red-500'
+                  : 'text-green-600',
+            )}
+          >
+            {formatCurrency(Math.abs(restante))} {restante < -0.01 && '(Excedente)'}
+          </span>
+        </div>
+      </div>
     </div>
   )
 }

@@ -34,12 +34,3 @@ export const getMeetingMinutesVersions = (meetingId: string) =>
     .getFullList({ filter: `meeting = '${meetingId}'`, expand: 'author', sort: '-created' })
 export const createMeetingMinutesVersion = (data: any) =>
   pb.collection('meeting_minutes_versions').create(data)
-
-export const getMeetingActions = (meetingId: string) =>
-  pb
-    .collection('meeting_actions')
-    .getFullList({ filter: `meeting = '${meetingId}'`, expand: 'responsible', sort: '-created' })
-export const createMeetingAction = (data: any) => pb.collection('meeting_actions').create(data)
-export const updateMeetingAction = (id: string, data: any) =>
-  pb.collection('meeting_actions').update(id, data)
-export const deleteMeetingAction = (id: string) => pb.collection('meeting_actions').delete(id)

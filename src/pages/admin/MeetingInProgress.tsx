@@ -44,7 +44,6 @@ import {
   getMeeting,
   getMeetingAgenda,
   updateMeeting,
-  createMeetingAction,
   getMeetingTemplates,
 } from '@/services/meetings'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -72,16 +71,9 @@ export default function MeetingInProgress() {
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
-  const [actionModal, setActionModal] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [summaryText, setSummaryText] = useState('')
   const [isExporting, setIsExporting] = useState(false)
-  const [newAction, setNewAction] = useState({
-    description: '',
-    responsible: '',
-    due_date: '',
-    priority: 'Média',
-  })
 
   const minutesRef = useRef(minutes)
   const attendanceRef = useRef(attendance)
@@ -245,43 +237,6 @@ export default function MeetingInProgress() {
     }
   }
 
-  const handleCreateAction = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      let taskId = null
-      if (newAction.responsible) {
-        const taskData = {
-          title: newAction.description,
-          responsible: newAction.responsible,
-          due_date: newAction.due_date
-            ? new Date(newAction.due_date + 'T12:00:00Z').toISOString()
-            : '',
-          project: meeting.project || null,
-          status: 'Pendente',
-          priority: newAction.priority || 'Média',
-        }
-        const t = await pb.collection('tasks').create(taskData)
-        taskId = t.id
-      }
-
-      await createMeetingAction({
-        meeting: id,
-        description: newAction.description,
-        responsible: newAction.responsible,
-        due_date: newAction.due_date
-          ? new Date(newAction.due_date + 'T12:00:00Z').toISOString()
-          : null,
-        status: 'Pendente',
-        task: taskId,
-      })
-      toast.success('Action item criado')
-      setActionModal(false)
-      setNewAction({ description: '', responsible: '', due_date: '', priority: 'Média' })
-    } catch (err) {
-      toast.error('Erro ao criar action item')
-    }
-  }
-
   const formatTime = (totalSecs: number) => {
     const m = Math.floor(totalSecs / 60)
       .toString()
@@ -315,10 +270,6 @@ export default function MeetingInProgress() {
 
   const handleGenerateSummary = async () => {
     try {
-      const acts = await pb
-        .collection('meeting_actions')
-        .getFullList({ filter: `meeting = '${id}'`, expand: 'responsible' })
-
       let text = `Resumo da Reunião: ${meeting.title}\n`
       text += `Data: ${format(new Date(meeting.date_time), 'dd/MM/yyyy HH:mm')}\n`
       text += `Projeto: ${meeting.expand?.project?.name || 'N/A'}\n\n`
@@ -352,17 +303,6 @@ export default function MeetingInProgress() {
         .trim()
       text += `${strippedMinutes || 'Nenhuma nota registrada.'}\n\n`
 
-      text += `AÇÕES PENDENTES\n`
-      if (acts.length > 0) {
-        acts.forEach((a) => {
-          const resp = a.expand?.responsible?.name || 'Sem responsável'
-          const due = a.due_date ? format(new Date(a.due_date), 'dd/MM/yyyy') : 'Sem prazo'
-          text += `- [ ] ${a.description} (Resp: ${resp} | Prazo: ${due})\n`
-        })
-      } else {
-        text += `Nenhuma ação registrada.\n`
-      }
-
       setSummaryText(text)
       setSummaryOpen(true)
     } catch (err) {
@@ -373,9 +313,6 @@ export default function MeetingInProgress() {
   const handleExportPDF = async () => {
     setIsExporting(true)
     try {
-      const acts = await pb
-        .collection('meeting_actions')
-        .getFullList({ filter: `meeting = '${id}'`, expand: 'responsible,task' })
       const settingsList = await pb.collection('company_settings').getFullList()
       const companySettings = settingsList[0] || null
 
@@ -391,7 +328,7 @@ export default function MeetingInProgress() {
         user?.name || 'Sistema',
         companySettings,
         participants,
-        acts,
+        [],
       )
     } catch (err) {
       toast.error('Erro ao exportar PDF')
@@ -434,9 +371,6 @@ export default function MeetingInProgress() {
           )}
           <Button variant="secondary" onClick={handleManualSave} size="sm">
             <Save className="h-4 w-4 mr-2" /> Salvar Alterações
-          </Button>
-          <Button variant="outline" onClick={() => setActionModal(true)} size="sm">
-            <Plus className="h-4 w-4 mr-2" /> Criar Action Item
           </Button>
           <Button variant="destructive" onClick={finishMeeting} size="sm">
             <StopCircle className="h-4 w-4 mr-2" /> Encerrar Reunião
@@ -575,75 +509,6 @@ export default function MeetingInProgress() {
           </Card>
         </div>
       </div>
-
-      <Dialog open={actionModal} onOpenChange={setActionModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Novo Action Item</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreateAction} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Descrição da Ação</Label>
-              <Textarea
-                required
-                value={newAction.description}
-                onChange={(e) => setNewAction({ ...newAction, description: e.target.value })}
-                placeholder="O que precisa ser feito..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Responsável</Label>
-              <Select
-                required
-                value={newAction.responsible}
-                onValueChange={(v) => setNewAction({ ...newAction, responsible: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um responsável" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allUsers.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name || u.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Data de Vencimento</Label>
-                <Input
-                  type="date"
-                  required
-                  value={newAction.due_date}
-                  onChange={(e) => setNewAction({ ...newAction, due_date: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Prioridade</Label>
-                <Select
-                  value={newAction.priority}
-                  onValueChange={(v) => setNewAction({ ...newAction, priority: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Baixa">Baixa</SelectItem>
-                    <SelectItem value="Média">Média</SelectItem>
-                    <SelectItem value="Alta">Alta</SelectItem>
-                    <SelectItem value="Urgente">Urgente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Criar Ação</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
         <DialogContent className="max-w-3xl">

@@ -75,7 +75,6 @@ import {
   deleteMeeting,
   getMeetingMinutesVersions,
   createMeetingMinutesVersion,
-  createMeetingAction,
 } from '@/services/meetings'
 import { useRealtime } from '@/hooks/use-realtime'
 
@@ -95,7 +94,6 @@ export default function MeetingDetails() {
   const [minutesContent, setMinutesContent] = useState<string>('')
   const [originalMinutesContent, setOriginalMinutesContent] = useState<string>('')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const [meetingActions, setMeetingActions] = useState<any[]>([])
   const [isExporting, setIsExporting] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [summaryText, setSummaryText] = useState('')
@@ -121,8 +119,6 @@ export default function MeetingDetails() {
     : false
 
   const [deleteMeetingOpen, setDeleteMeetingOpen] = useState(false)
-  const [extractModalOpen, setExtractModalOpen] = useState(false)
-  const [extractedActions, setExtractedActions] = useState<any[]>([])
 
   useEffect(() => {
     if (id) loadAll()
@@ -144,28 +140,21 @@ export default function MeetingDetails() {
   useRealtime('meeting_minutes_versions', () => {
     if (id) loadAll()
   })
-  useRealtime('meeting_actions', () => {
-    if (id) loadAll()
-  })
 
   const loadAll = async () => {
     try {
-      const [m, a, d, u, mv, acts] = await Promise.all([
+      const [m, a, d, u, mv] = await Promise.all([
         getMeeting(id!),
         getMeetingAgenda(id!),
         getMeetingDocuments(id!),
         pb.collection('users').getFullList(),
         getMeetingMinutesVersions(id!),
-        pb
-          .collection('meeting_actions')
-          .getFullList({ filter: `meeting = '${id}'`, expand: 'responsible,task' }),
       ])
       setMeeting(m)
       setAgenda(a)
       setDocs(d)
       setUsers(u)
       setMinutesVersions(mv)
-      setMeetingActions(acts)
       setMinutesContent(m.minutes || '')
       setOriginalMinutesContent(m.minutes || '')
       setEditData({
@@ -352,85 +341,6 @@ export default function MeetingDetails() {
     }
   }
 
-  const handleExtractActions = () => {
-    const tempDiv = document.createElement('div')
-    tempDiv.innerHTML = minutesContent
-    tempDiv.style.position = 'absolute'
-    tempDiv.style.visibility = 'hidden'
-    tempDiv.style.whiteSpace = 'pre-wrap'
-    document.body.appendChild(tempDiv)
-    const text = tempDiv.innerText || ''
-    document.body.removeChild(tempDiv)
-
-    const lines = text.split('\n')
-    const actions = lines
-      .map((l) => l.trim())
-      .filter((l) => l.startsWith('[ ]'))
-      .map((l, i) => {
-        let text = l.replace('[ ]', '').trim()
-        let prio = 'Média'
-        const prioMatch = text.match(/^\[(.*?)\]/)
-        if (
-          prioMatch &&
-          ['alta', 'media', 'média', 'baixa', 'urgente'].includes(prioMatch[1].toLowerCase())
-        ) {
-          prio = prioMatch[1].charAt(0).toUpperCase() + prioMatch[1].slice(1).toLowerCase()
-          if (prio === 'Media') prio = 'Média'
-          text = text.replace(prioMatch[0], '').trim()
-        }
-        return {
-          id: i,
-          description: text,
-          responsible: 'none',
-          due_date: '',
-          priority: prio,
-        }
-      })
-
-    if (actions.length === 0) {
-      toast.info('Nenhuma ação encontrada com o formato "[ ]". Insira [ ] no início da linha.')
-      return
-    }
-    setExtractedActions(actions)
-    setExtractModalOpen(true)
-  }
-
-  const confirmExtractedActions = async () => {
-    try {
-      for (const action of extractedActions) {
-        if (!action.description) continue
-
-        let taskId = null
-        if (action.responsible !== 'none') {
-          const taskData = {
-            title: action.description,
-            due_date: action.due_date ? new Date(action.due_date + 'T12:00:00Z').toISOString() : '',
-            responsible: action.responsible,
-            project: meeting.project || null,
-            status: 'Pendente',
-            priority: action.priority || 'Média',
-          }
-          const createdTask = await pb.collection('tasks').create(taskData)
-          taskId = createdTask.id
-        }
-
-        await createMeetingAction({
-          meeting: id,
-          description: action.description,
-          responsible: action.responsible !== 'none' ? action.responsible : null,
-          due_date: action.due_date ? new Date(action.due_date + 'T12:00:00Z').toISOString() : null,
-          status: 'Pendente',
-          task: taskId,
-        })
-      }
-      toast.success(`${extractedActions.length} ações geradas com sucesso!`)
-      setExtractModalOpen(false)
-      loadAll()
-    } catch (err) {
-      toast.error('Erro ao gerar ações')
-    }
-  }
-
   const doExportPDF = async (contentToExport: string) => {
     setIsExporting(true)
     try {
@@ -443,7 +353,7 @@ export default function MeetingDetails() {
         user?.name || 'Sistema',
         companySettings,
         participants,
-        meetingActions,
+        [],
       )
     } catch (e) {
       toast.error('Erro ao exportar PDF')
@@ -490,17 +400,6 @@ export default function MeetingDetails() {
       .replace(/\n\s*\n/g, '\n')
       .trim()
     text += `${strippedMinutes || 'Nenhuma nota registrada.'}\n\n`
-
-    text += `AÇÕES PENDENTES\n`
-    if (meetingActions.length > 0) {
-      meetingActions.forEach((a) => {
-        const resp = a.expand?.responsible?.name || 'Sem responsável'
-        const due = a.due_date ? format(new Date(a.due_date), 'dd/MM/yyyy') : 'Sem prazo'
-        text += `- [ ] ${a.description} (Resp: ${resp} | Prazo: ${due})\n`
-      })
-    } else {
-      text += `Nenhuma ação registrada.\n`
-    }
 
     setSummaryText(text)
     setSummaryOpen(true)
@@ -762,11 +661,6 @@ export default function MeetingDetails() {
                     </Select>
                   </div>
                   <div className="flex items-center gap-2">
-                    {selectedVersion === 'latest' && (
-                      <Button variant="secondary" onClick={handleExtractActions}>
-                        <CheckSquare className="h-4 w-4 mr-2" /> Gerar Ações
-                      </Button>
-                    )}
                     <Button
                       variant="outline"
                       disabled={isExporting}
@@ -962,102 +856,6 @@ export default function MeetingDetails() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <Dialog open={extractModalOpen} onOpenChange={setExtractModalOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Gerar Ações a partir da Ata</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-            {extractedActions.map((action, idx) => (
-              <div
-                key={action.id}
-                className="flex flex-col md:flex-row gap-3 p-3 border rounded-md items-start md:items-center bg-zinc-50 dark:bg-zinc-900"
-              >
-                <Input
-                  className="flex-1 bg-white dark:bg-zinc-950"
-                  value={action.description}
-                  onChange={(e) => {
-                    const newActs = [...extractedActions]
-                    newActs[idx].description = e.target.value
-                    setExtractedActions(newActs)
-                  }}
-                  placeholder="Descrição da ação..."
-                />
-                <Select
-                  value={action.responsible}
-                  onValueChange={(val) => {
-                    const newActs = [...extractedActions]
-                    newActs[idx].responsible = val
-                    setExtractedActions(newActs)
-                  }}
-                >
-                  <SelectTrigger className="w-[180px] bg-white dark:bg-zinc-950">
-                    <SelectValue placeholder="Responsável" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sem Responsável</SelectItem>
-                    {users.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.name || u.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="date"
-                  className="w-[150px] bg-white dark:bg-zinc-950"
-                  value={action.due_date}
-                  onChange={(e) => {
-                    const newActs = [...extractedActions]
-                    newActs[idx].due_date = e.target.value
-                    setExtractedActions(newActs)
-                  }}
-                />
-                <Select
-                  value={action.priority}
-                  onValueChange={(val) => {
-                    const newActs = [...extractedActions]
-                    newActs[idx].priority = val
-                    setExtractedActions(newActs)
-                  }}
-                >
-                  <SelectTrigger className="w-[120px] bg-white dark:bg-zinc-950">
-                    <SelectValue placeholder="Prioridade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Baixa">Baixa</SelectItem>
-                    <SelectItem value="Média">Média</SelectItem>
-                    <SelectItem value="Alta">Alta</SelectItem>
-                    <SelectItem value="Urgente">Urgente</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-red-500"
-                  onClick={() => {
-                    setExtractedActions(extractedActions.filter((_, i) => i !== idx))
-                  }}
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-            {extractedActions.length === 0 && (
-              <p className="text-sm text-zinc-500">Nenhuma ação na lista.</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setExtractModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={confirmExtractedActions} disabled={extractedActions.length === 0}>
-              Criar {extractedActions.length} Ações
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
         <DialogContent className="max-w-3xl">

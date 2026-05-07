@@ -21,10 +21,6 @@ export default function LessonsLearnedDashboard() {
   const { user } = useAuth()
   const { settings } = useSettingsStore()
 
-  if (user?.role === 'Visitante' || user?.role === 'Cliente') {
-    return <Navigate to="/" replace />
-  }
-
   const [reports, setReports] = useState<any[]>([])
   const [actions, setActions] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
@@ -211,6 +207,10 @@ export default function LessonsLearnedDashboard() {
   const pieChartConfig = {
     onTime: { label: 'No Prazo', color: '#10b981' },
     late: { label: 'Atrasada', color: '#ef4444' },
+  }
+
+  if (user?.role === 'Visitante' || user?.role === 'Cliente') {
+    return <Navigate to="/" replace />
   }
 
   return (

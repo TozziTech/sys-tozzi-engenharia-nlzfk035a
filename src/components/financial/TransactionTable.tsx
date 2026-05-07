@@ -40,6 +40,7 @@ import { Download } from 'lucide-react'
 import { exportFinancialCSV } from '@/lib/export'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useAuth } from '@/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
 
 interface TableProps {
   transactions: any[]
@@ -60,9 +61,42 @@ export function TransactionTable({
 }: TableProps) {
   const { canWrite } = usePermissions()
   const { user } = useAuth()
-  const canWriteFinance = canWrite('lancamentos_financeiros') || user?.role === 'Administrador'
+  const { toast } = useToast()
+  const canWriteFinance =
+    canWrite('lancamentos_financeiros') ||
+    user?.role === 'Administrador' ||
+    user?.role === 'Gerente de Projeto'
 
   const [statusFilter, setStatusFilter] = useState('Todos')
+  const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set())
+
+  const handleApprove = async (e: React.MouseEvent, tx: any) => {
+    e.stopPropagation()
+    try {
+      setApprovingIds((prev) => new Set(prev).add(tx.id))
+      await pb.collection('financial_records').update(tx.id, {
+        is_approved: true,
+        approved_by: pb.authStore.record?.id,
+      })
+      toast({
+        title: 'Sucesso',
+        description: 'Lançamento aprovado com sucesso!',
+      })
+    } catch (err: any) {
+      console.error(err)
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível aprovar o lançamento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setApprovingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(tx.id)
+        return next
+      })
+    }
+  }
   const [typeFilter, setTypeFilter] = useState('Todos')
   const [recurrenceFilter, setRecurrenceFilter] = useState('Todos')
 
@@ -339,12 +373,27 @@ export function TransactionTable({
                     <TableCell className="text-center">
                       {tx.type === 'Saída' ? (
                         tx.is_approved ? (
-                          <Badge
-                            variant="outline"
-                            className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800"
-                          >
-                            Aprovado
-                          </Badge>
+                          <div className="flex flex-col items-center gap-1">
+                            <Badge
+                              variant="outline"
+                              className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800"
+                            >
+                              Aprovado
+                            </Badge>
+                            {tx.approved_by && (
+                              <span
+                                className="text-[10px] text-muted-foreground"
+                                title={
+                                  safeUsers.find((u: any) => u.id === tx.approved_by)?.name ||
+                                  'Usuário'
+                                }
+                              >
+                                {safeUsers
+                                  .find((u: any) => u.id === tx.approved_by)
+                                  ?.name?.split(' ')[0] || ''}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <div className="flex flex-col items-center gap-1">
                             <Badge
@@ -358,19 +407,10 @@ export function TransactionTable({
                                 size="sm"
                                 variant="ghost"
                                 className="h-6 px-2 text-[10px]"
-                                onClick={async (e) => {
-                                  e.stopPropagation()
-                                  try {
-                                    await pb.collection('financial_records').update(tx.id, {
-                                      is_approved: true,
-                                      approved_by: pb.authStore.record?.id,
-                                    })
-                                  } catch (err) {
-                                    console.error(err)
-                                  }
-                                }}
+                                disabled={approvingIds.has(tx.id)}
+                                onClick={(e) => handleApprove(e, tx)}
                               >
-                                Aprovar
+                                {approvingIds.has(tx.id) ? 'Aprovando...' : 'Aprovar'}
                               </Button>
                             )}
                           </div>

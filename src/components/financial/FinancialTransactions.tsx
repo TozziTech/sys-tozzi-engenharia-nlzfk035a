@@ -28,6 +28,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import pb from '@/lib/pocketbase/client'
 import { exportFinancialCSV } from '@/lib/export'
 import { exportFinancialPDF } from '@/lib/exportPdf'
+import { useRealtime } from '@/hooks/use-realtime'
 import { EditTransactionModal } from './EditTransactionModal'
 import { FinancialOverview } from './FinancialOverview'
 import { TransactionTable } from './TransactionTable'
@@ -36,11 +37,37 @@ import { DateRange } from 'react-day-picker'
 import { cn } from '@/lib/utils'
 
 export function FinancialTransactions() {
-  const { projects, transactions } = useProjectStore()
+  const { projects, transactions: storeTransactions } = useProjectStore()
   const { categories } = useFinancialCategories()
   const { user } = useAuth()
   const { canWrite } = usePermissions()
-  const canWriteFinance = canWrite('lancamentos_financeiros') || user?.role === 'Administrador'
+  const canWriteFinance =
+    canWrite('lancamentos_financeiros') ||
+    user?.role === 'Administrador' ||
+    user?.role === 'Gerente de Projeto'
+
+  const [localTransactions, setLocalTransactions] = useState<any[]>([])
+
+  useEffect(() => {
+    if (storeTransactions) {
+      setLocalTransactions(storeTransactions)
+    }
+  }, [storeTransactions])
+
+  useRealtime('financial_records', (e) => {
+    if (e.action === 'create') {
+      setLocalTransactions((prev) => {
+        if (prev.some((tx) => tx.id === e.record.id)) return prev
+        return [e.record, ...prev]
+      })
+    } else if (e.action === 'update') {
+      setLocalTransactions((prev) =>
+        prev.map((tx) => (tx.id === e.record.id ? { ...tx, ...e.record } : tx)),
+      )
+    } else if (e.action === 'delete') {
+      setLocalTransactions((prev) => prev.filter((tx) => tx.id !== e.record.id))
+    }
+  })
 
   const [selectedProject, setSelectedProject] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
@@ -59,8 +86,8 @@ export function FinancialTransactions() {
   }, [])
 
   const filteredTransactions = useMemo(() => {
-    if (!transactions || !Array.isArray(transactions)) return []
-    return transactions
+    if (!localTransactions || !Array.isArray(localTransactions)) return []
+    return localTransactions
       .filter((tx) => {
         const pId = tx.projectId || (tx as any).project_id
         if (selectedProject !== 'all' && pId !== selectedProject) return false
@@ -87,7 +114,14 @@ export function FinancialTransactions() {
         return true
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [transactions, selectedProject, selectedType, selectedStatus, selectedRecurrence, dateRange])
+  }, [
+    localTransactions,
+    selectedProject,
+    selectedType,
+    selectedStatus,
+    selectedRecurrence,
+    dateRange,
+  ])
 
   const clearFilters = () => {
     setSelectedProject('all')

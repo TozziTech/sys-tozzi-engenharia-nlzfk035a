@@ -575,3 +575,5 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
         )}
       </CardContent>
     </Card>
+  )
+}

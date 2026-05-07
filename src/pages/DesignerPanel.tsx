@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   Calendar as CalendarIcon,
@@ -120,6 +120,8 @@ const formatCurrency = (value: number) =>
 
 type DatePreset = 'Este Mês' | 'Últimos 3 Meses' | 'Últimos 6 Meses' | 'Este Ano' | 'Customizado'
 
+const EMPTY_ARRAY: any[] = []
+
 const getPresetRange = (preset: DatePreset) => {
   const now = new Date()
   switch (preset) {
@@ -152,7 +154,7 @@ export default function DesignerPanel() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
   const [exportingDocs, setExportingDocs] = useState(false)
-  const [hasShownDailySummary, setHasShownDailySummary] = useState(false)
+  const hasShownDailySummary = useRef(false)
   const [showDailySummary, setShowDailySummary] = useState(false)
 
   const hasFinanceAccess = canAccess('planilha_financeira') || user?.role === 'Administrador'
@@ -200,7 +202,7 @@ export default function DesignerPanel() {
   const filterFrom = format(dateRange.from, "yyyy-MM-dd 00:00:00.000'Z'")
   const filterTo = format(dateRange.to, "yyyy-MM-dd 23:59:59.999'Z'")
 
-  const { data: myProjects = [], refetch: refetchProjects } = useQuery(
+  const { data: myProjects = EMPTY_ARRAY, refetch: refetchProjects } = useQuery(
     `designer_projects_${user?.id}`,
     async () => {
       if (!user) return []
@@ -225,7 +227,7 @@ export default function DesignerPanel() {
     { enabled: !!user },
   )
 
-  const { data: urgentTasks = [], refetch: refetchTasks } = useQuery(
+  const { data: urgentTasks = EMPTY_ARRAY, refetch: refetchTasks } = useQuery(
     `designer_urgent_tasks_${user?.id}_${filterFrom}_${filterTo}`,
     () =>
       pb.collection('tasks').getFullList({
@@ -236,7 +238,7 @@ export default function DesignerPanel() {
     { enabled: !!user },
   )
 
-  const { data: allPagamentos = [], refetch: refetchPagamentos } = useQuery(
+  const { data: allPagamentos = EMPTY_ARRAY, refetch: refetchPagamentos } = useQuery(
     `pagamentos_user_all_${user?.id}`,
     () =>
       pb.collection('pagamentos_servicos').getFullList({
@@ -282,11 +284,11 @@ export default function DesignerPanel() {
   }, [allPagamentos])
 
   useEffect(() => {
-    if (hasFinanceAccess && urgentPayments.length > 0 && !hasShownDailySummary) {
+    if (hasFinanceAccess && urgentPayments.length > 0 && !hasShownDailySummary.current) {
       setShowDailySummary(true)
-      setHasShownDailySummary(true)
+      hasShownDailySummary.current = true
     }
-  }, [urgentPayments, hasShownDailySummary, hasFinanceAccess])
+  }, [urgentPayments.length, hasFinanceAccess])
 
   const { overdueCount, dueSoonCount } = useMemo(() => {
     let overdue = 0
@@ -309,7 +311,7 @@ export default function DesignerPanel() {
 
   useEffect(() => {
     setCalendarMonth(dateRange.from)
-  }, [dateRange.from])
+  }, [dateRange.from.getTime()])
 
   useRealtime('projects', refetchProjects, !!user?.id)
   useRealtime('user_project_access', refetchProjects, !!user?.id)

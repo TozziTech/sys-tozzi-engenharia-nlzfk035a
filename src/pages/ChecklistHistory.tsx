@@ -38,11 +38,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import {
-  getChecklistExecutions,
-  getChecklistTemplates,
-  generateChecklistPdf,
-} from '@/services/checklists'
+import { getChecklistExecutions, getChecklistTemplates } from '@/services/checklists'
 import pb from '@/lib/pocketbase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -63,8 +59,6 @@ export default function ChecklistHistory() {
 
   // Modal
   const [selectedExecution, setSelectedExecution] = useState<any>(null)
-  const [generatingPdf, setGeneratingPdf] = useState(false)
-
   useEffect(() => {
     fetchAuxData()
   }, [])
@@ -111,22 +105,80 @@ export default function ChecklistHistory() {
     }
   }
 
-  const handleGeneratePdf = async () => {
+  const handleGeneratePdf = () => {
     if (!selectedExecution) return
-    try {
-      setGeneratingPdf(true)
-      const res = await generateChecklistPdf(selectedExecution.id)
-      if (res.publicUrl) {
-        toast.success('Relatório gerado com sucesso!')
-        window.open(res.publicUrl, '_blank')
-        fetchExecutions()
-      }
-    } catch (error) {
-      toast.error('Falha ao gerar PDF.')
-      console.error(error)
-    } finally {
-      setGeneratingPdf(false)
-    }
+
+    const engName = selectedExecution.expand?.responsible?.name || 'N/A'
+    const tplName = selectedExecution.expand?.template?.name || 'N/A'
+    const dateFormatted = selectedExecution.inspection_date
+      ? format(new Date(selectedExecution.inspection_date), 'dd/MM/yyyy')
+      : 'N/A'
+    const score = selectedExecution.compliance_score || 0
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Relatório de Checklist - ${selectedExecution.location}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+            h1 { color: #f59e0b; border-bottom: 2px solid #f59e0b; padding-bottom: 10px; }
+            .header-info { margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .header-info div { margin-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f9fafb; }
+            .checked { color: #10b981; font-weight: bold; }
+            .unchecked { color: #ef4444; font-weight: bold; }
+            .score { font-size: 24px; font-weight: bold; margin-top: 20px; color: #f59e0b; }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Relatório de Checklist</h1>
+          <div class="header-info">
+            <div><strong>Data:</strong> ${dateFormatted}</div>
+            <div><strong>Local:</strong> ${selectedExecution.location}</div>
+            <div><strong>Responsável:</strong> ${engName}</div>
+            <div><strong>Modelo:</strong> ${tplName}</div>
+          </div>
+          
+          <div class="score">Conformidade: ${score}%</div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th style="width: 80px; text-align: center;">Status</th>
+                <th>Observações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(selectedExecution.responses || [])
+                .map(
+                  (r: any) => `
+                <tr>
+                  <td>${r.itemName}</td>
+                  <td style="text-align: center;" class="${r.checked ? 'checked' : 'unchecked'}">${r.checked ? 'SIM' : 'NÃO'}</td>
+                  <td>${r.notes || '-'}</td>
+                </tr>
+              `,
+                )
+                .join('')}
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `
+
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
   }
 
   return (
@@ -315,7 +367,7 @@ export default function ChecklistHistory() {
 
           {selectedExecution && (
             <div className="space-y-6 py-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-3 bg-muted/50 rounded-lg border border-amber-500/10">
                   <div className="text-xs text-muted-foreground">Engenheiro Responsável</div>
                   <div className="font-semibold">
@@ -333,21 +385,6 @@ export default function ChecklistHistory() {
                   <div className="font-semibold capitalize">
                     {selectedExecution.status?.replace('_', ' ') || 'N/A'}
                   </div>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg border border-amber-500/10">
-                  <div className="text-xs text-muted-foreground">Arquivo Anexo</div>
-                  {selectedExecution.report_file ? (
-                    <a
-                      href={`${import.meta.env.VITE_POCKETBASE_URL}/api/files/checklist_executions/${selectedExecution.id}/${selectedExecution.report_file}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-amber-500 hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      <Download className="h-3 w-3" /> PDF Gerado
-                    </a>
-                  ) : (
-                    <div className="text-muted-foreground">Não gerado</div>
-                  )}
                 </div>
               </div>
 
@@ -417,15 +454,10 @@ export default function ChecklistHistory() {
             </Button>
             <Button
               onClick={handleGeneratePdf}
-              disabled={generatingPdf}
               className="bg-amber-500 text-amber-950 hover:bg-amber-600 gap-2"
             >
-              {generatingPdf ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileText className="h-4 w-4" />
-              )}
-              {generatingPdf ? 'Gerando...' : 'Gerar PDF'}
+              <FileText className="h-4 w-4" />
+              Imprimir / PDF
             </Button>
           </DialogFooter>
         </DialogContent>

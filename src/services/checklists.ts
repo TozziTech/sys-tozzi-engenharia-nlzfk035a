@@ -14,6 +14,3 @@ export const createChecklistExecution = (data: any) =>
 
 export const getChecklistExecutions = (options?: any) =>
   pb.collection('checklist_executions').getList(1, 50, { sort: '-created', ...options })
-
-export const generateChecklistPdf = (id: string) =>
-  pb.send(`/backend/v1/checklists/${id}/pdf`, { method: 'POST' })

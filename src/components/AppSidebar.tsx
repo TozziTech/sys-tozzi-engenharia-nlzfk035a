@@ -117,6 +117,7 @@ const getNavigationGroups = () => [
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
       },
       { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
+      { name: 'Novo Checklist', id: 'novo_checklist', href: '/novo-checklist', icon: FileCheck },
     ],
   },
   {
@@ -170,6 +171,12 @@ const getNavigationGroups = () => [
         id: 'reunioes',
         href: '/admin/reunioes',
         icon: Users,
+      },
+      {
+        name: 'Modelos de Checklist',
+        id: 'modelos_checklist',
+        href: '/checklist-templates',
+        icon: FileCheck,
       },
     ],
   },
@@ -243,18 +250,20 @@ export function AppSidebar() {
   })
 
   return (
-    <Sidebar className="border-r border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
+    <Sidebar className="border-r border-border bg-sidebar backdrop-blur-xl">
       <SidebarHeader className="p-4 flex flex-row items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-zinc-950 shadow-sm">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-amber-950 shadow-sm">
           <Home className="h-5 w-5" />
         </div>
         <div className="flex flex-col">
-          <span className="font-semibold tracking-tight text-zinc-100">Tozzi Engenharia</span>
-          <span className="text-xs text-amber-500/80">Plataforma Premium</span>
+          <span className="font-semibold tracking-tight text-sidebar-foreground">
+            Tozzi Engenharia
+          </span>
+          <span className="text-xs text-amber-600 dark:text-amber-500/80">Plataforma Premium</span>
         </div>
       </SidebarHeader>
-      <SidebarSeparator className="bg-zinc-800" />
-      <SidebarContent className="scrollbar-hide py-2 text-[#ccc6c4]">
+      <SidebarSeparator className="bg-border" />
+      <SidebarContent className="scrollbar-hide py-2 text-sidebar-foreground">
         {groups.map((group, i) => {
           const visibleItems = group.items.filter((item) => {
             if (user?.role === 'Administrador') return true
@@ -297,8 +306,8 @@ export function AppSidebar() {
                           tooltip={item.name}
                           className={
                             isActive
-                              ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400 border-r-2 border-amber-500 rounded-none rounded-l-md'
-                              : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100'
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-400 border-r-2 border-amber-500 rounded-none rounded-l-md'
+                              : 'text-sidebar-foreground/70 hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-500 transition-colors'
                           }
                         >
                           <Link to={item.href} className="flex items-center gap-3">

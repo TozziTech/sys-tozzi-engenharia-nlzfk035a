@@ -193,7 +193,7 @@ export function TransactionTable({
       <div className="rounded-md border border-primary/40 dark:border-border overflow-hidden bg-white dark:bg-card text-card-foreground shadow-md">
         <Table>
           <TableHeader className="bg-slate-100/80 dark:bg-muted/50">
-            <TableRow className="border-b-2 border-b-primary dark:border-b-border hover:bg-transparent">
+            <TableRow className="border-b-2 border-border hover:bg-transparent">
               <TableHead className="font-semibold text-center text-foreground">Código</TableHead>
               <TableHead className="font-semibold text-center text-foreground">Data</TableHead>
               <TableHead className="font-semibold text-center text-foreground">Tipo</TableHead>
@@ -251,7 +251,7 @@ export function TransactionTable({
                 return (
                   <TableRow
                     key={tx.id}
-                    className="hover:bg-slate-50 dark:hover:bg-muted/50 border-slate-200 dark:border-border transition-colors"
+                    className="hover:bg-slate-50 dark:hover:bg-muted/50 border-border transition-colors"
                   >
                     <TableCell className="whitespace-nowrap text-center font-mono text-xs font-semibold text-foreground">
                       {tx.code || '-'}

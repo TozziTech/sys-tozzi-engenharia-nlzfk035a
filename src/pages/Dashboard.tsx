@@ -424,7 +424,7 @@ const Dashboard = () => {
       case 'metrics':
         return (
           <div className={`grid ${gapClass} md:grid-cols-2 lg:grid-cols-4 h-full`}>
-            <Card className="shadow-sm border-muted/60 h-full flex flex-col justify-center">
+            <Card className="h-full flex flex-col justify-center border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
                 <div className="p-2 bg-primary/10 rounded-full">
@@ -436,7 +436,7 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground mt-1">Em andamento ou planejamento</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-muted/60 h-full flex flex-col justify-center">
+            <Card className="h-full flex flex-col justify-center border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Alertas de Diagnóstico</CardTitle>
                 <div className="p-2 bg-destructive/10 rounded-full">
@@ -450,7 +450,7 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground mt-1">Atrasos ou orçamento estourado</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-muted/60 h-full flex flex-col justify-center">
+            <Card className="h-full flex flex-col justify-center border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Projetos Concluídos</CardTitle>
                 <div className="p-2 bg-green-500/10 rounded-full">
@@ -462,7 +462,7 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground mt-1">Entregas finalizadas</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-muted/60 h-full flex flex-col justify-center">
+            <Card className="h-full flex flex-col justify-center border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Equipe Ativa</CardTitle>
                 <div className="p-2 bg-blue-500/10 rounded-full">
@@ -478,7 +478,7 @@ const Dashboard = () => {
         )
       case 'financial':
         return (
-          <Card className="shadow-sm h-full flex flex-col">
+          <Card className="h-full flex flex-col border-border">
             <CardHeader>
               <CardTitle>Métricas Financeiras</CardTitle>
               <CardDescription>Análise mensal de Receitas vs Despesas registradas.</CardDescription>
@@ -519,7 +519,7 @@ const Dashboard = () => {
         )
       case 'bottlenecks':
         return (
-          <Card className="shadow-sm border-destructive/30 h-full flex flex-col">
+          <Card className="border-border h-full flex flex-col">
             <CardHeader>
               <CardTitle className="flex items-center text-destructive">
                 <AlertTriangle className="w-5 h-5 mr-2" />
@@ -541,7 +541,7 @@ const Dashboard = () => {
                   {bottlenecks.map((b, i) => (
                     <div
                       key={i}
-                      className="flex flex-col gap-1 p-3 rounded-md bg-muted/50 border border-muted"
+                      className="flex flex-col gap-1 p-3 rounded-md bg-muted/50 border border-border"
                     >
                       <Link
                         to={`/projects/${b.project.id}`}
@@ -576,7 +576,7 @@ const Dashboard = () => {
         )
       case 'progress':
         return (
-          <Card className="shadow-sm h-full flex flex-col">
+          <Card className="h-full flex flex-col border-border">
             <CardHeader>
               <CardTitle>Progresso dos Projetos</CardTitle>
               <CardDescription>Acompanhamento detalhado do desenvolvimento.</CardDescription>
@@ -620,7 +620,7 @@ const Dashboard = () => {
         )
       case 'activity':
         return (
-          <Card className="shadow-sm h-full flex flex-col">
+          <Card className="h-full flex flex-col border-border">
             <CardHeader>
               <CardTitle>Atividade Recente</CardTitle>
               <CardDescription>Últimas atualizações da equipe de projetos.</CardDescription>
@@ -648,7 +648,7 @@ const Dashboard = () => {
                   },
                 ].map((a, i) => (
                   <div key={i} className="flex items-start">
-                    <div className="bg-muted/50 p-2 rounded-full mr-4 mt-0.5 border border-muted">
+                    <div className="bg-muted/50 p-2 rounded-full mr-4 mt-0.5 border border-border">
                       <Activity className="h-4 w-4 text-foreground/70" />
                     </div>
                     <div className="space-y-1 flex-1">
@@ -773,7 +773,7 @@ const Dashboard = () => {
               .map((p) => (
                 <Card
                   key={p.id}
-                  className="border-yellow-200 dark:border-yellow-900/50 bg-yellow-50/30 dark:bg-yellow-900/10 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden"
+                  className="border-primary dark:border-yellow-900/50 bg-yellow-50/30 dark:bg-yellow-900/10 hover:shadow-lg transition-shadow relative overflow-hidden"
                 >
                   <div className="absolute top-0 left-0 w-1 h-full bg-yellow-500" />
                   <CardHeader className="pb-2 pl-5">
@@ -908,7 +908,7 @@ const Dashboard = () => {
 
         <TabsContent value="kpis" className={spaceYClass}>
           <div className={`grid ${gapClass} md:grid-cols-2 lg:grid-cols-4`}>
-            <Card className="shadow-sm border-muted/60">
+            <Card className="border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Concluídas no Prazo</CardTitle>
                 <div className="p-2 bg-green-500/10 rounded-full">
@@ -920,7 +920,7 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground mt-1">Tarefas entregues em dia</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-muted/60">
+            <Card className="border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Concluídas c/ Atraso</CardTitle>
                 <div className="p-2 bg-amber-500/10 rounded-full">
@@ -934,7 +934,7 @@ const Dashboard = () => {
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-muted/60">
+            <Card className="border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Tarefas Atrasadas</CardTitle>
                 <div className="p-2 bg-destructive/10 rounded-full">
@@ -948,7 +948,7 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground mt-1">Pendentes e fora do prazo</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-muted/60">
+            <Card className="border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">TMA de Projetos</CardTitle>
                 <div className="p-2 bg-blue-500/10 rounded-full">
@@ -963,7 +963,7 @@ const Dashboard = () => {
           </div>
 
           <div className={`grid ${gapClass} md:grid-cols-2`}>
-            <Card className="shadow-sm">
+            <Card className="border-border">
               <CardHeader>
                 <CardTitle>Qualidade das Entregas (Tarefas Concluídas)</CardTitle>
                 <CardDescription>
@@ -1013,7 +1013,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm">
+            <Card className="border-border">
               <CardHeader>
                 <CardTitle>Status Atual das Tarefas Pendentes</CardTitle>
                 <CardDescription>Visão geral de tarefas em andamento e atrasadas.</CardDescription>
@@ -1064,7 +1064,7 @@ const Dashboard = () => {
         </TabsContent>
 
         <TabsContent value="performance" className={spaceYClass}>
-          <div className="flex flex-col sm:flex-row items-center gap-4 bg-muted/30 p-4 rounded-lg border">
+          <div className="flex flex-col sm:flex-row items-center gap-4 bg-muted/30 p-4 rounded-lg border border-border shadow-sm">
             <div className="flex flex-col gap-1 w-full sm:w-auto">
               <span className="text-sm font-medium">Filtro de Produtividade</span>
               <div className="flex flex-wrap items-center gap-2">
@@ -1099,7 +1099,7 @@ const Dashboard = () => {
           </div>
 
           <div className={`grid ${gapClass} md:grid-cols-2`}>
-            <Card className="col-span-1 shadow-sm">
+            <Card className="col-span-1 border-border">
               <CardHeader>
                 <CardTitle>Distribuição de Tarefas por Membro</CardTitle>
                 <CardDescription>Volume total de tarefas alocadas e status.</CardDescription>
@@ -1152,7 +1152,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="col-span-1 shadow-sm">
+            <Card className="col-span-1 border-border">
               <CardHeader>
                 <CardTitle>Status de Conclusão</CardTitle>
                 <CardDescription>Detalhamento de produtividade por membro.</CardDescription>

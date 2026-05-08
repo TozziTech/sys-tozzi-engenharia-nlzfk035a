@@ -254,7 +254,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarSeparator className="bg-zinc-800" />
-      <SidebarContent className="scrollbar-hide py-2">
+      <SidebarContent className="scrollbar-hide py-2 text-[#ccc6c4]">
         {groups.map((group, i) => {
           const visibleItems = group.items.filter((item) => {
             if (user?.role === 'Administrador') return true

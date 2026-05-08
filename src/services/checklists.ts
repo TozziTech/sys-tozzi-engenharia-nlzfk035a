@@ -11,3 +11,9 @@ export const deleteChecklistTemplate = (id: string) =>
 
 export const createChecklistExecution = (data: any) =>
   pb.collection('checklist_executions').create(data)
+
+export const getChecklistExecutions = (options?: any) =>
+  pb.collection('checklist_executions').getList(1, 50, { sort: '-created', ...options })
+
+export const generateChecklistPdf = (id: string) =>
+  pb.send(`/backend/v1/checklists/${id}/pdf`, { method: 'POST' })

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-08T02:28:09.713Z",
+  "generatedAt": "2026-05-08T02:38:32.134Z",
   "collections": [
     {
       "name": "users",
@@ -4616,6 +4616,26 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["em_andamento", "concluído"]
+        },
+        {
+          "name": "responsible",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "report_file",
+          "type": "file",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

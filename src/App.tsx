@@ -59,6 +59,7 @@ import DisciplineTemplates from './pages/DisciplineTemplates'
 import AccessControl from './pages/AccessControl'
 import ChecklistTemplates from './pages/ChecklistTemplates'
 import NewChecklist from './pages/NewChecklist'
+import ChecklistHistory from './pages/ChecklistHistory'
 import Meetings from './pages/admin/Meetings'
 import MeetingTemplates from './pages/admin/MeetingTemplates'
 import MeetingTemplateDetails from './pages/admin/MeetingTemplateDetails'
@@ -229,6 +230,7 @@ const router = createBrowserRouter(
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/checklist-templates" element={<ChecklistTemplates />} />
             <Route path="/novo-checklist" element={<NewChecklist />} />
+            <Route path="/historico-checklists" element={<ChecklistHistory />} />
             <Route path="/settings/templates" element={<DisciplineTemplates />} />
             <Route
               path="/settings/templates/:templateId"

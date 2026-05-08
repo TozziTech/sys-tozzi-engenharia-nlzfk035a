@@ -118,6 +118,12 @@ const getNavigationGroups = () => [
       },
       { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
       { name: 'Novo Checklist', id: 'novo_checklist', href: '/novo-checklist', icon: FileCheck },
+      {
+        name: 'Histórico de Checklists',
+        id: 'historico_checklists',
+        href: '/historico-checklists',
+        icon: History,
+      },
     ],
   },
   {

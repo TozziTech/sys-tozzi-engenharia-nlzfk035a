@@ -204,154 +204,156 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{servico ? 'Editar Serviço' : 'Novo Lançamento'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Código do Serviço</Label>
-              <Input
-                required
-                value={formData.codigo}
-                onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
-                placeholder="SER-001"
-              />
+        <div className="flex-1 overflow-y-auto pr-2 -mr-2">
+          <form id="servico-form" onSubmit={handleSubmit} className="space-y-4 py-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Código do Serviço</Label>
+                <Input
+                  required
+                  value={formData.codigo}
+                  onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
+                  placeholder="SER-001"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data de Início</Label>
+                <Input
+                  type="date"
+                  required
+                  value={formData.data_inicio}
+                  onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Data de Início</Label>
-              <Input
-                type="date"
-                required
-                value={formData.data_inicio}
-                onChange={(e) => setFormData({ ...formData, data_inicio: e.target.value })}
-              />
-            </div>
-          </div>
 
-          <div className="space-y-2 flex flex-col">
-            <Label>Projeto / Serviço Vinculado (Opcional)</Label>
-            <Popover open={openProjectCombo} onOpenChange={setOpenProjectCombo}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={openProjectCombo}
-                  className="w-full justify-between font-normal bg-zinc-950/50"
+            <div className="space-y-2 flex flex-col">
+              <Label>Projeto / Serviço Vinculado (Opcional)</Label>
+              <Popover open={openProjectCombo} onOpenChange={setOpenProjectCombo}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openProjectCombo}
+                    className="w-full justify-between font-normal bg-zinc-950/50"
+                  >
+                    {formData.project_ref
+                      ? projects.find((p) => p.id === formData.project_ref)?.name
+                      : 'Selecione o projeto vinculado...'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar projeto..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {projects.map((project) => (
+                          <CommandItem
+                            key={project.id}
+                            value={project.name}
+                            onSelect={() => {
+                              setFormData({
+                                ...formData,
+                                project_ref: project.id,
+                                projeto_servico: project.name,
+                              })
+                              setOpenProjectCombo(false)
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                formData.project_ref === project.id ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                            {project.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {!formData.project_ref && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                <Label>Nome Manual do Serviço</Label>
+                <Input
+                  required={!formData.project_ref}
+                  value={formData.projeto_servico}
+                  onChange={(e) => setFormData({ ...formData, projeto_servico: e.target.value })}
+                  placeholder="Ex: Consultoria Financeira"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2 flex flex-col">
+              <Label>Cliente</Label>
+              <ClientCombobox
+                value={formData.cliente}
+                onChange={(val) => setFormData({ ...formData, cliente: val })}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Valor Total (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={formData.valor_total}
+                  onChange={(e) => setFormData({ ...formData, valor_total: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(val) => setFormData({ ...formData, status: val })}
                 >
-                  {formData.project_ref
-                    ? projects.find((p) => p.id === formData.project_ref)?.name
-                    : 'Selecione o projeto vinculado...'}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[400px] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Buscar projeto..." />
-                  <CommandList>
-                    <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
-                    <CommandGroup>
-                      {projects.map((project) => (
-                        <CommandItem
-                          key={project.id}
-                          value={project.name}
-                          onSelect={() => {
-                            setFormData({
-                              ...formData,
-                              project_ref: project.id,
-                              projeto_servico: project.name,
-                            })
-                            setOpenProjectCombo(false)
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              'mr-2 h-4 w-4',
-                              formData.project_ref === project.id ? 'opacity-100' : 'opacity-0',
-                            )}
-                          />
-                          {project.name}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pendente">Pendente</SelectItem>
+                    <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                    <SelectItem value="Concluído">Concluído</SelectItem>
+                    <SelectItem value="Cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-          {!formData.project_ref && (
-            <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-              <Label>Nome Manual do Serviço</Label>
-              <Input
-                required={!formData.project_ref}
-                value={formData.projeto_servico}
-                onChange={(e) => setFormData({ ...formData, projeto_servico: e.target.value })}
-                placeholder="Ex: Consultoria Financeira"
+            <div className="space-y-2 pt-2 border-t border-border">
+              <Label>Observações</Label>
+              <Textarea
+                value={formData.observacoes}
+                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                placeholder="Informações adicionais..."
+                rows={3}
               />
             </div>
-          )}
+          </form>
+        </div>
 
-          <div className="space-y-2 flex flex-col">
-            <Label>Cliente</Label>
-            <ClientCombobox
-              value={formData.cliente}
-              onChange={(val) => setFormData({ ...formData, cliente: val })}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Valor Total (R$)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={formData.valor_total}
-                onChange={(e) => setFormData({ ...formData, valor_total: e.target.value })}
-                placeholder="0.00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(val) => setFormData({ ...formData, status: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pendente">Pendente</SelectItem>
-                  <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                  <SelectItem value="Concluído">Concluído</SelectItem>
-                  <SelectItem value="Cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2 pt-2 border-t border-zinc-800">
-            <Label>Observações</Label>
-            <Textarea
-              value={formData.observacoes}
-              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              placeholder="Informações adicionais..."
-              rows={3}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </div>
-        </form>
+        <div className="flex justify-end gap-2 pt-4 mt-auto border-t border-border">
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="servico-form" disabled={loading}>
+            {loading ? 'Salvando...' : 'Salvar'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )

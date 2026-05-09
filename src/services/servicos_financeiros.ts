@@ -40,7 +40,9 @@ export const getServicos = async (params?: {
   }
   if (params?.search) {
     const safeSearch = params.search.replace(/"/g, '\\"')
-    filterParts.push(`(cliente ~ "${safeSearch}" || projeto_servico ~ "${safeSearch}")`)
+    filterParts.push(
+      `(cliente ~ "${safeSearch}" || projeto_servico ~ "${safeSearch}" || codigo ~ "${safeSearch}")`,
+    )
   }
   if (params?.status && params.status !== 'Todos') {
     filterParts.push(`status = "${params.status}"`)

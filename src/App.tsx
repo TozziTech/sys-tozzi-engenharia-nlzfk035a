@@ -215,12 +215,21 @@ const router = createBrowserRouter(
             <Route path="/admin/audit-log" element={<Audit />} />
             <Route path="/admin/audit-logs" element={<Audit />} />
             <Route path="/apa" element={<ApaPage />} />
+            <Route path="/apa/dashboard" element={<Navigate to="/apa?tab=dashboard" replace />} />
+            <Route path="/apa/new" element={<Navigate to="/apa?tab=new" replace />} />
+            <Route path="/apa/history" element={<Navigate to="/apa?tab=history" replace />} />
+            <Route path="/apa/actions" element={<Navigate to="/apa?tab=actions" replace />} />
             <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
             <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
             <Route path="/admin/efficiency" element={<EfficiencyReports />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/checklist-templates" element={<ChecklistTemplates />} />
             <Route path="/checklists" element={<ChecklistsPage />} />
+            <Route path="/checklists/new" element={<Navigate to="/checklists?tab=new" replace />} />
+            <Route
+              path="/checklists/history"
+              element={<Navigate to="/checklists?tab=history" replace />}
+            />
             <Route path="/settings/templates" element={<DisciplineTemplates />} />
             <Route
               path="/settings/templates/:templateId"

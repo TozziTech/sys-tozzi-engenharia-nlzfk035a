@@ -118,33 +118,7 @@ const getPriorityColor = (priority: string) => {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
-type DatePreset =
-  | 'Este Mês'
-  | 'Últimos 3 Meses'
-  | 'Últimos 6 Meses'
-  | 'Este Ano'
-  | 'Todos os Tempos'
-  | 'Customizado'
-
 const EMPTY_ARRAY: any[] = []
-
-const getPresetRange = (preset: DatePreset) => {
-  const now = new Date()
-  switch (preset) {
-    case 'Este Mês':
-      return { from: startOfMonth(now), to: endOfMonth(now) }
-    case 'Últimos 3 Meses':
-      return { from: startOfMonth(subMonths(now, 2)), to: endOfMonth(now) }
-    case 'Últimos 6 Meses':
-      return { from: startOfMonth(subMonths(now, 5)), to: endOfMonth(now) }
-    case 'Este Ano':
-      return { from: startOfYear(now), to: endOfYear(now) }
-    case 'Todos os Tempos':
-      return { from: new Date(2000, 0, 1), to: new Date(2100, 0, 1) }
-    default:
-      return { from: startOfMonth(now), to: endOfMonth(now) }
-  }
-}
 
 export default function DesignerPanel() {
   const { user } = useAuth()
@@ -153,12 +127,7 @@ export default function DesignerPanel() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = searchParams.get('tab') || 'gerenciamento'
 
-  const [datePreset, setDatePreset] = useState<DatePreset>('Todos os Tempos')
-  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(() =>
-    getPresetRange('Todos os Tempos'),
-  )
-
-  const [calendarMonth, setCalendarMonth] = useState(dateRange.from)
+  const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
   const [exportingDocs, setExportingDocs] = useState(false)
@@ -207,9 +176,6 @@ export default function DesignerPanel() {
     }
   }
 
-  const filterFrom = format(dateRange.from, "yyyy-MM-dd 00:00:00.000'Z'")
-  const filterTo = format(dateRange.to, "yyyy-MM-dd 23:59:59.999'Z'")
-
   const { data: myProjects = EMPTY_ARRAY, refetch: refetchProjects } = useQuery(
     `designer_projects_${user?.id}`,
     async () => {
@@ -236,10 +202,10 @@ export default function DesignerPanel() {
   )
 
   const { data: urgentTasks = EMPTY_ARRAY, refetch: refetchTasks } = useQuery(
-    `designer_urgent_tasks_${user?.id}_${filterFrom}_${filterTo}`,
+    `designer_urgent_tasks_${user?.id}`,
     () =>
       pb.collection('tasks').getFullList({
-        filter: `responsible = "${user?.id}" && status != "Concluído" && due_date >= "${filterFrom}" && due_date <= "${filterTo}"`,
+        filter: `responsible = "${user?.id}" && status != "Concluído"`,
         expand: 'project',
         sort: 'due_date',
       }),
@@ -332,31 +298,19 @@ export default function DesignerPanel() {
     return { overdueCount: overdue, dueSoonCount: dueSoon }
   }, [allPagamentos])
 
-  useEffect(() => {
-    setCalendarMonth(dateRange.from)
-  }, [dateRange.from.getTime()])
-
   useRealtime('projects', refetchProjects, !!user?.id)
   useRealtime('user_project_access', refetchProjects, !!user?.id)
   useRealtime('tasks', refetchTasks, !!user?.id)
 
-  const periodProjects = useMemo(() => {
-    return myProjects.filter((p) => {
-      const pStart = p.start_date ? new Date(p.start_date) : new Date(0)
-      const pEnd = p.end_date ? new Date(p.end_date) : new Date(8640000000000000)
-      return isBefore(pStart, dateRange.to) && isAfter(pEnd, dateRange.from)
-    })
-  }, [myProjects, dateRange])
-
   const chartData = useMemo(() => {
     const counts = { Pendente: 0, 'Em Andamento': 0, Concluído: 0 }
-    periodProjects.forEach((p) => {
+    myProjects.forEach((p) => {
       if (p.status === 'Concluído') counts['Concluído']++
       else if (p.status === 'Em Andamento' || p.status === 'Em Execução') counts['Em Andamento']++
       else counts['Pendente']++
     })
 
-    const total = periodProjects.length || 1
+    const total = myProjects.length || 1
 
     return [
       {
@@ -378,11 +332,15 @@ export default function DesignerPanel() {
         fill: 'var(--color-concluido)',
       },
     ]
-  }, [periodProjects])
+  }, [])
 
   const monthlyRevenue = useMemo(() => {
+    const now = new Date()
+    const from = startOfYear(now)
+    const to = endOfYear(now)
+
     const monthsMap = new Map()
-    const interval = eachMonthOfInterval({ start: dateRange.from, end: dateRange.to })
+    const interval = eachMonthOfInterval({ start: from, end: to })
     interval.forEach((d) => {
       const key = format(d, 'yyyy-MM')
       monthsMap.set(key, {
@@ -397,7 +355,7 @@ export default function DesignerPanel() {
       if (!p.data_pagamento) return
       const d = new Date(p.data_pagamento)
       d.setHours(d.getHours() + 12)
-      if (d >= dateRange.from && d <= dateRange.to) {
+      if (d >= from && d <= to) {
         const key = format(d, 'yyyy-MM')
         if (monthsMap.has(key)) {
           monthsMap.get(key).total += p.valor
@@ -406,7 +364,7 @@ export default function DesignerPanel() {
     })
 
     return Array.from(monthsMap.values())
-  }, [revenueData, dateRange])
+  }, [revenueData])
 
   const averageRevenue = useMemo(() => {
     if (!monthlyRevenue.length) return 0
@@ -463,55 +421,6 @@ export default function DesignerPanel() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          {/* Global Filter */}
-          <div className="flex items-center gap-2 bg-card p-2 rounded-lg border border-border w-full md:w-auto">
-            <Select
-              value={datePreset}
-              onValueChange={(val: DatePreset) => {
-                setDatePreset(val)
-                if (val !== 'Customizado') setDateRange(getPresetRange(val))
-              }}
-            >
-              <SelectTrigger className="w-[160px] bg-background border-border">
-                <SelectValue placeholder="Período" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Este Mês">Este Mês</SelectItem>
-                <SelectItem value="Últimos 3 Meses">Últimos 3 Meses</SelectItem>
-                <SelectItem value="Últimos 6 Meses">Últimos 6 Meses</SelectItem>
-                <SelectItem value="Este Ano">Este Ano</SelectItem>
-                <SelectItem value="Todos os Tempos">Todos os Tempos</SelectItem>
-                <SelectItem value="Customizado">Customizado</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="border-border bg-background text-foreground flex gap-2 hover:bg-muted/50"
-                >
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  {format(dateRange.from, 'dd/MM/yy')} - {format(dateRange.to, 'dd/MM/yy')}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={(range: any) => {
-                    if (range?.from && range?.to) {
-                      setDateRange({ from: range.from, to: range.to })
-                      setDatePreset('Customizado')
-                    }
-                  }}
-                  initialFocus
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
           <Button
             variant="outline"
             className="border-border bg-background text-foreground hidden md:flex shadow-sm hover:bg-muted/50"
@@ -602,13 +511,13 @@ export default function DesignerPanel() {
           <div className="space-y-4">
             <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              Atividades do Período
+              Atividades em Andamento
             </h3>
             {urgentTasks.length === 0 ? (
               <div className="text-center py-8 bg-card/30 rounded-xl border border-dashed border-border">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-3 opacity-50" />
                 <p className="text-sm text-muted-foreground">
-                  Nenhum registro encontrado para este período.
+                  Nenhum registro pendente encontrado.
                 </p>
               </div>
             ) : (
@@ -652,10 +561,9 @@ export default function DesignerPanel() {
             </h3>
             <Card className="border-border bg-card">
               <CardHeader className="pb-3 border-b border-border/50">
-                <CardTitle className="text-lg text-foreground">Período Selecionado</CardTitle>
+                <CardTitle className="text-lg text-foreground">Geral</CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  Distribuição de status (%) dos {periodProjects.length} projetos com atividades
-                  neste período
+                  Distribuição de status (%) dos {myProjects.length} projetos com atividades
                 </CardDescription>
               </CardHeader>
               <CardContent className="py-6">
@@ -703,7 +611,7 @@ export default function DesignerPanel() {
             </Card>
           </div>
 
-          <MyTasksList dateRange={dateRange} />
+          <MyTasksList dateRange={{ from: new Date(2000, 0, 1), to: new Date(2100, 0, 1) }} />
         </TabsContent>
 
         {hasFinanceAccess && (
@@ -741,8 +649,8 @@ export default function DesignerPanel() {
                   <div>
                     <CardTitle className="text-lg flex items-center gap-2 text-foreground">
                       <TrendingUp className="h-5 w-5 text-emerald-500" />
-                      Receita Mensal (Período Selecionado)
-                    </CardTitle>
+                      Receita Mensal (Este Ano)
+                    </CardTitle>{' '}
                     <CardDescription className="mt-1 flex items-center gap-2 text-muted-foreground">
                       Média mensal calculada:{' '}
                       <Badge

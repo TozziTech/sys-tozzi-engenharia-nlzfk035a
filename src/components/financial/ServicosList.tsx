@@ -230,7 +230,7 @@ export function ServicosList() {
               ) : servicos.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground h-24">
-                    Nenhum serviço encontrado.
+                    Nenhum lançamento encontrado.
                   </TableCell>
                 </TableRow>
               ) : (

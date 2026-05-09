@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, Fragment, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -10,6 +10,14 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,30 +33,76 @@ import { getServicos, deleteServico, type ServicoFinanceiro } from '@/services/s
 import { ServicoModal } from './ServicoModal'
 import { ExpandedPaymentRow } from '@/components/meu-painel/ExpandedPaymentRow'
 import { useRealtime } from '@/hooks/use-realtime'
-import { Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Trash2, ChevronDown, ChevronRight, Search, FilterX } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  format,
+} from 'date-fns'
 
 export function ServicosList() {
   const [servicos, setServicos] = useState<ServicoFinanceiro[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const { toast } = useToast()
+  const { user } = useAuth()
 
-  const loadData = async () => {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('Todos')
+  const [periodFilter, setPeriodFilter] = useState('Todos')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const loadData = useCallback(async () => {
+    if (!user?.id) return
+
     try {
       setLoading(true)
-      const data = await getServicos()
+
+      let fromDate = undefined
+      let toDate = undefined
+      const now = new Date()
+
+      if (periodFilter === 'Semana') {
+        fromDate = format(startOfWeek(now, { weekStartsOn: 0 }), "yyyy-MM-dd 00:00:00.000'Z'")
+        toDate = format(endOfWeek(now, { weekStartsOn: 0 }), "yyyy-MM-dd 23:59:59.999'Z'")
+      } else if (periodFilter === 'Mês') {
+        fromDate = format(startOfMonth(now), "yyyy-MM-dd 00:00:00.000'Z'")
+        toDate = format(endOfMonth(now), "yyyy-MM-dd 23:59:59.999'Z'")
+      } else if (periodFilter === 'Ano') {
+        fromDate = format(startOfYear(now), "yyyy-MM-dd 00:00:00.000'Z'")
+        toDate = format(endOfYear(now), "yyyy-MM-dd 23:59:59.999'Z'")
+      }
+
+      const data = await getServicos({
+        userId: user.id,
+        search: debouncedSearch,
+        status: statusFilter,
+        fromDate,
+        toDate,
+      })
+
       setServicos(data)
     } catch (error) {
       console.error(error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id, debouncedSearch, statusFilter, periodFilter])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   useRealtime('servicos_financeiros', () => {
     loadData()
@@ -90,13 +144,68 @@ export function ServicosList() {
     })
   }
 
+  const clearFilters = () => {
+    setSearchTerm('')
+    setStatusFilter('Todos')
+    setPeriodFilter('Todos')
+  }
+
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'Todos' || periodFilter !== 'Todos'
+
   return (
     <Card>
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <CardTitle>Serviços Financeiros</CardTitle>
         <ServicoModal />
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Filter Bar */}
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por cliente ou serviço..."
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full md:w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos os Status</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+              <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+              <SelectItem value="Concluído">Concluído</SelectItem>
+              <SelectItem value="Cancelado">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={periodFilter} onValueChange={setPeriodFilter}>
+            <SelectTrigger className="w-full md:w-[180px]">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos os Tempos</SelectItem>
+              <SelectItem value="Semana">Esta Semana</SelectItem>
+              <SelectItem value="Mês">Este Mês</SelectItem>
+              <SelectItem value="Ano">Este Ano</SelectItem>
+            </SelectContent>
+          </Select>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              className="px-3 md:px-4"
+              onClick={clearFilters}
+              title="Limpar Filtros"
+            >
+              <FilterX className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Limpar</span>
+            </Button>
+          )}
+        </div>
+
         <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
@@ -121,7 +230,7 @@ export function ServicosList() {
               ) : servicos.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground h-24">
-                    Nenhum serviço registrado.
+                    Nenhum serviço encontrado.
                   </TableCell>
                 </TableRow>
               ) : (

@@ -26,9 +26,37 @@ export interface ServicoFinanceiro {
   expand?: any
 }
 
-export const getServicos = async () => {
+export const getServicos = async (params?: {
+  userId?: string
+  search?: string
+  status?: string
+  fromDate?: string
+  toDate?: string
+}) => {
+  const filterParts: string[] = []
+
+  if (params?.userId) {
+    filterParts.push(`user_id = "${params.userId}"`)
+  }
+  if (params?.search) {
+    const safeSearch = params.search.replace(/"/g, '\\"')
+    filterParts.push(`(cliente ~ "${safeSearch}" || projeto_servico ~ "${safeSearch}")`)
+  }
+  if (params?.status && params.status !== 'Todos') {
+    filterParts.push(`status = "${params.status}"`)
+  }
+  if (params?.fromDate) {
+    filterParts.push(`data_inicio >= "${params.fromDate}"`)
+  }
+  if (params?.toDate) {
+    filterParts.push(`data_inicio <= "${params.toDate}"`)
+  }
+
+  const filter = filterParts.join(' && ')
+
   return await pb.collection('servicos_financeiros').getFullList<ServicoFinanceiro>({
     sort: '-created',
+    filter: filter || undefined,
     expand: 'user_id,project_ref',
   })
 }

@@ -284,6 +284,7 @@ export function FinancialTransactions() {
             users={users}
             onEdit={(tx) => canWriteFinance && setEditTx(tx)}
             onDelete={(tx) => canWriteFinance && setDeleteTx(tx)}
+            parentFilterKey={`${selectedProject}-${selectedType}-${selectedStatus}-${selectedRecurrence}-${dateRange?.from?.toISOString()}-${dateRange?.to?.toISOString()}`}
           />
         </CardContent>
       </Card>

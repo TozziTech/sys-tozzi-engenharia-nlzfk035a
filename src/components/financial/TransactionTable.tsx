@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Repeat,
   MoreHorizontal,
@@ -11,6 +11,15 @@ import {
   AlertTriangle,
   Filter,
 } from 'lucide-react'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -49,6 +58,7 @@ interface TableProps {
   users: any[]
   onEdit: (tx: any) => void
   onDelete: (tx: any) => void
+  parentFilterKey?: string
 }
 
 export function TransactionTable({
@@ -58,6 +68,7 @@ export function TransactionTable({
   users,
   onEdit,
   onDelete,
+  parentFilterKey,
 }: TableProps) {
   const { canWrite } = usePermissions()
   const { user } = useAuth()
@@ -130,6 +141,111 @@ export function TransactionTable({
     return matchStatus && matchType && matchRecurrence
   })
 
+  const ITEMS_PER_PAGE = 20
+  const [currentPage, setCurrentPage] = useState(1)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [parentFilterKey, statusFilter, typeFilter, recurrenceFilter])
+
+  const totalItems = filteredTransactions.length
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems)
+  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex)
+
+  const renderPaginationItems = () => {
+    const items = []
+    const maxVisiblePages = 5
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              onClick={(e) => {
+                e.preventDefault()
+                setCurrentPage(i)
+              }}
+              isActive={currentPage === i}
+              className="cursor-pointer"
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>,
+        )
+      }
+    } else {
+      items.push(
+        <PaginationItem key={1}>
+          <PaginationLink
+            onClick={(e) => {
+              e.preventDefault()
+              setCurrentPage(1)
+            }}
+            isActive={currentPage === 1}
+            className="cursor-pointer"
+          >
+            1
+          </PaginationLink>
+        </PaginationItem>,
+      )
+
+      if (currentPage > 3) {
+        items.push(
+          <PaginationItem key="ellipsis-start">
+            <PaginationEllipsis />
+          </PaginationItem>,
+        )
+      }
+
+      const start = Math.max(2, currentPage - 1)
+      const end = Math.min(totalPages - 1, currentPage + 1)
+
+      for (let i = start; i <= end; i++) {
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              onClick={(e) => {
+                e.preventDefault()
+                setCurrentPage(i)
+              }}
+              isActive={currentPage === i}
+              className="cursor-pointer"
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>,
+        )
+      }
+
+      if (currentPage < totalPages - 2) {
+        items.push(
+          <PaginationItem key="ellipsis-end">
+            <PaginationEllipsis />
+          </PaginationItem>,
+        )
+      }
+
+      items.push(
+        <PaginationItem key={totalPages}>
+          <PaginationLink
+            onClick={(e) => {
+              e.preventDefault()
+              setCurrentPage(totalPages)
+            }}
+            isActive={currentPage === totalPages}
+            className="cursor-pointer"
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>,
+      )
+    }
+
+    return items
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -187,7 +303,8 @@ export function TransactionTable({
           </Button>
         </div>
         <div className="text-sm text-muted-foreground">
-          Exibindo {filteredTransactions.length} de {safeTransactions.length} registros
+          Exibindo {totalItems > 0 ? startIndex + 1 : 0}-{endIndex} de {totalItems} registros
+          {safeTransactions.length !== totalItems && ` (filtrados de ${safeTransactions.length})`}
         </div>
       </div>
       <div className="rounded-md border border-primary/40 dark:border-border overflow-hidden bg-white dark:bg-card text-card-foreground shadow-md">
@@ -213,7 +330,7 @@ export function TransactionTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredTransactions.length === 0 ? (
+            {paginatedTransactions.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={11}
@@ -223,7 +340,7 @@ export function TransactionTable({
                 </TableCell>
               </TableRow>
             ) : (
-              filteredTransactions.map((tx: any) => {
+              paginatedTransactions.map((tx: any) => {
                 const cId = tx.categoryId || tx.category
                 const pId = tx.projectId || tx.project_id
                 const cat = safeCategories.find((c: any) => c.id === cId || c.name === cId)
@@ -463,6 +580,38 @@ export function TransactionTable({
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-end pt-4 pb-2">
+          <Pagination className="mx-0 w-auto">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setCurrentPage((p) => Math.max(1, p - 1))
+                  }}
+                  className={
+                    currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+                  }
+                />
+              </PaginationItem>
+              {renderPaginationItems()}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }}
+                  className={
+                    currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   )
 }

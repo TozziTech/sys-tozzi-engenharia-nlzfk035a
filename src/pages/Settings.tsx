@@ -19,8 +19,13 @@ import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { useTheme } from 'next-themes'
 import { useThemeColor } from '@/components/ThemeProvider'
-import { Sun, Moon, Monitor } from 'lucide-react'
+import { Sun, Moon, Monitor, Keyboard, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  usePreferencesStore,
+  defaultShortcuts,
+  type ShortcutConfig,
+} from '@/stores/usePreferencesStore'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
 import usePreviewThemeStore from '@/stores/usePreviewThemeStore'
@@ -61,6 +66,105 @@ export default function Settings() {
     active: false,
   })
   const [savingSchedule, setSavingSchedule] = useState(false)
+
+  const { shortcuts, setShortcuts } = usePreferencesStore()
+  const [localShortcuts, setLocalShortcuts] = useState<Record<string, ShortcutConfig>>({})
+  const [recordingKey, setRecordingKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLocalShortcuts(shortcuts)
+  }, [shortcuts])
+
+  const formatShortcut = (config: ShortcutConfig) => {
+    if (!config?.key) return ''
+    const parts = []
+    if (config.ctrlKey) parts.push('Ctrl')
+    if (config.altKey) parts.push('Alt')
+    if (config.shiftKey) parts.push('Shift')
+    if (config.metaKey) parts.push('Meta')
+    parts.push(config.key === ' ' ? 'Space' : config.key.toUpperCase())
+    return parts.join(' + ')
+  }
+
+  const handleRecordKey = (e: React.KeyboardEvent, actionId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return
+
+    const newConfig = {
+      ...localShortcuts[actionId],
+      key: e.key,
+      ctrlKey: e.ctrlKey,
+      altKey: e.altKey,
+      shiftKey: e.shiftKey,
+      metaKey: e.metaKey,
+    }
+
+    const isCritical =
+      (e.ctrlKey || e.metaKey) &&
+      ['t', 'w', 'n', 'r', 'p', 's', 'j', 'd', 'f', 'g'].includes(e.key.toLowerCase())
+    if (isCritical) {
+      if (
+        !window.confirm(
+          'Este atalho pode conflitar com funções do navegador. Deseja usar mesmo assim?',
+        )
+      ) {
+        setRecordingKey(null)
+        return
+      }
+    }
+
+    const conflict = Object.entries(localShortcuts).find(
+      ([id, c]) =>
+        id !== actionId &&
+        c.key &&
+        c.key.toLowerCase() === newConfig.key.toLowerCase() &&
+        c.ctrlKey === newConfig.ctrlKey &&
+        c.altKey === newConfig.altKey &&
+        c.shiftKey === newConfig.shiftKey &&
+        c.metaKey === newConfig.metaKey,
+    )
+
+    if (conflict) {
+      toast({
+        title: 'Atalho em uso',
+        description: `Combinação já usada em ${conflict[1].label}`,
+        variant: 'destructive',
+      })
+      setRecordingKey(null)
+      return
+    }
+
+    setLocalShortcuts((prev) => ({
+      ...prev,
+      [actionId]: newConfig,
+    }))
+    setRecordingKey(null)
+  }
+
+  const handleClearShortcut = (actionId: string) => {
+    setLocalShortcuts((prev) => ({
+      ...prev,
+      [actionId]: {
+        ...prev[actionId],
+        key: '',
+        ctrlKey: false,
+        altKey: false,
+        shiftKey: false,
+        metaKey: false,
+      },
+    }))
+  }
+
+  const handleResetShortcuts = () => {
+    setLocalShortcuts(defaultShortcuts)
+  }
+
+  const handleSaveShortcuts = () => {
+    setShortcuts(localShortcuts, user?.id)
+    toast({ title: 'Atalhos salvos com sucesso!' })
+  }
 
   const colors = [
     { name: 'Zinc', value: 'zinc', colorClass: 'bg-zinc-900 dark:bg-zinc-100' },
@@ -471,6 +575,69 @@ export default function Settings() {
                   </Button>
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Keyboard className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Configuração de Atalhos</CardTitle>
+            </div>
+            <CardDescription>
+              Personalize as teclas de atalho para navegação rápida no sistema.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(localShortcuts).map(([actionId, config]) => (
+                <div
+                  key={actionId}
+                  className="flex items-center justify-between p-3 border rounded-lg bg-card shadow-sm"
+                >
+                  <div>
+                    <div className="font-medium text-sm">{config.label}</div>
+                    <div className="text-xs text-muted-foreground truncate max-w-[150px]">
+                      {config.path}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={recordingKey === actionId ? 'default' : 'outline'}
+                      size="sm"
+                      className="min-w-[120px] justify-center"
+                      onClick={() => setRecordingKey(actionId)}
+                      onBlur={() => setRecordingKey(null)}
+                      onKeyDown={(e) => {
+                        if (recordingKey === actionId) {
+                          handleRecordKey(e, actionId)
+                        }
+                      }}
+                    >
+                      {recordingKey === actionId
+                        ? 'Pressione...'
+                        : formatShortcut(config) || 'Sem atalho'}
+                    </Button>
+                    {config.key && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleClearShortcut(actionId)}
+                      >
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={handleResetShortcuts}>
+                Restaurar Padrões
+              </Button>
+              <Button onClick={handleSaveShortcuts}>Salvar Atalhos</Button>
             </div>
           </CardContent>
         </Card>

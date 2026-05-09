@@ -1,54 +1,58 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/use-auth'
+import { usePreferencesStore } from '@/stores/usePreferencesStore'
 
 export function KeyboardShortcuts() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const { shortcuts, loadPreferences } = usePreferencesStore()
+
+  useEffect(() => {
+    if (user) {
+      loadPreferences(user)
+    }
+  }, [user, loadPreferences])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if any specific element is focused (like an input or textarea)
-      // to avoid conflicting with standard typing shortcuts, although Alt + Key is usually safe.
       const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT'].includes(
-        (document.activeElement as HTMLElement)?.tagName,
+        (document.activeElement as HTMLElement)?.tagName || '',
       )
 
-      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-        let matched = true
-        switch (e.key.toLowerCase()) {
-          case 'a':
-            navigate('/apa?tab=dashboard')
-            toast.info('Navegando para Análise Pós-Ação', { duration: 1500 })
-            break
-          case 'k':
-            navigate('/checklists')
-            toast.info('Navegando para Checklists', { duration: 1500 })
-            break
-          case 'r':
-            navigate('/admin/reunioes')
-            toast.info('Navegando para Reuniões', { duration: 1500 })
-            break
-          case 'd':
-            navigate('/files/library')
-            toast.info('Navegando para Gestão ARQ/DOC', { duration: 1500 })
-            break
-          case 'h':
-            navigate('/dashboard')
-            toast.info('Navegando para Dashboard', { duration: 1500 })
-            break
-          default:
-            matched = false
-        }
+      let actionToTrigger: any = null
 
-        if (matched) {
-          e.preventDefault()
+      for (const key in shortcuts) {
+        const config = shortcuts[key]
+        if (!config.key) continue
+
+        const matchKey = e.key.toLowerCase() === config.key.toLowerCase()
+        const matchAlt = e.altKey === config.altKey
+        const matchCtrl = e.ctrlKey === config.ctrlKey
+        const matchShift = e.shiftKey === config.shiftKey
+        const matchMeta = e.metaKey === config.metaKey
+
+        if (matchKey && matchAlt && matchCtrl && matchShift && matchMeta) {
+          const hasModifiers = config.altKey || config.ctrlKey || config.metaKey || config.shiftKey
+          if (isInputFocused && !hasModifiers) {
+            continue // Skip single key shortcuts when typing inside an input
+          }
+          actionToTrigger = config
+          break
         }
+      }
+
+      if (actionToTrigger) {
+        e.preventDefault()
+        navigate(actionToTrigger.path)
+        toast.info(`Navegando para ${actionToTrigger.label}`, { duration: 1500 })
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [navigate])
+  }, [navigate, shortcuts])
 
   return null
 }

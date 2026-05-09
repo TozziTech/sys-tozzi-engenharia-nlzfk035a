@@ -167,22 +167,10 @@ const getNavigationGroups = () => [
         icon: FileStack,
       },
       {
-        name: 'Dashboard de Reuniões',
-        id: 'dashboard_reunioes',
-        href: '/meetings-dashboard',
-        icon: Presentation,
-      },
-      {
         name: 'Reuniões',
         id: 'reunioes',
         href: '/admin/reunioes',
         icon: Users,
-      },
-      {
-        name: 'Modelos de Checklist',
-        id: 'modelos_checklist',
-        href: '/checklist-templates',
-        icon: FileCheck,
       },
     ],
   },
@@ -200,6 +188,12 @@ const getNavigationGroups = () => [
         icon: FileSpreadsheet,
       },
       { name: 'Cursos', id: 'cursos', href: '/files/courses', icon: GraduationCap },
+      {
+        name: 'Modelos de Checklist',
+        id: 'modelos_checklist',
+        href: '/checklist-templates',
+        icon: FileCheck,
+      },
     ],
   },
   {

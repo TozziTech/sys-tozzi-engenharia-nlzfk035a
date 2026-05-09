@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Command,
@@ -56,6 +57,7 @@ import { getMeetings, createMeeting, updateMeeting, deleteMeeting } from '@/serv
 import { useRealtime } from '@/hooks/use-realtime'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import MeetingsDashboard from '../MeetingsDashboard'
 
 export default function Meetings() {
   const [meetings, setMeetings] = useState<any[]>([])
@@ -247,173 +249,187 @@ export default function Meetings() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Reuniões</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/admin/reunioes/templates">Gerenciar Templates</Link>
-          </Button>
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Agendar Reunião
-          </Button>
+      <Tabs defaultValue="list" className="space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold tracking-tight">Reuniões</h1>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <TabsList>
+              <TabsTrigger value="list">Lista de Reuniões</TabsTrigger>
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            </TabsList>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild>
+                <Link to="/admin/reunioes/templates">Gerenciar Templates</Link>
+              </Button>
+              <Button onClick={() => setOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Agendar Reunião
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>Filtros e Calendário</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Buscar por Título</Label>
-                <Input
-                  placeholder="Ex: Reunião de Alinhamento..."
-                  value={searchTitle}
-                  onChange={(e) => setSearchTitle(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Projeto</Label>
-                <Select value={filterProject} onValueChange={setFilterProject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os projetos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os projetos</SelectItem>
-                    {projects.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
+        <TabsContent value="list" className="m-0 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="md:col-span-1">
+              <CardHeader>
+                <CardTitle>Filtros e Calendário</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Buscar por Título</Label>
+                    <Input
+                      placeholder="Ex: Reunião de Alinhamento..."
+                      value={searchTitle}
+                      onChange={(e) => setSearchTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Projeto</Label>
+                    <Select value={filterProject} onValueChange={setFilterProject}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos os projetos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os projetos</SelectItem>
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos os status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os status</SelectItem>
+                        <SelectItem value="Pendente">Pendente</SelectItem>
+                        <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                        <SelectItem value="Realizada">Realizada</SelectItem>
+                        <SelectItem value="Cancelada">Cancelada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex justify-center border-t pt-6">
+                  <Calendar
+                    mode="multiple"
+                    selected={meetingDates}
+                    className="rounded-md border shadow"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-3">
+              <CardHeader>
+                <CardTitle>Próximas Reuniões</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Título</TableHead>
+                      <TableHead>Projeto</TableHead>
+                      <TableHead>Data/Hora</TableHead>
+                      <TableHead>Participantes</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Link (Meet)</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMeetings.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">{m.title}</TableCell>
+                        <TableCell>{m.expand?.project?.name || '-'}</TableCell>
+                        <TableCell>
+                          {format(new Date(m.date_time), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>{m.participants?.length || 0} convidados</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              m.status === 'Realizada'
+                                ? 'default'
+                                : m.status === 'Cancelada'
+                                  ? 'destructive'
+                                  : 'secondary'
+                            }
+                          >
+                            {m.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {m.meet_link ? (
+                            <a
+                              href={m.meet_link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 hover:underline flex items-center gap-1 text-sm"
+                            >
+                              <ExternalLink className="h-3 w-3" /> Entrar
+                            </a>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          {(m.status === 'Pendente' || m.status === 'Em Andamento') && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-green-600"
+                              title="Finalizar Ata e Enviar Email"
+                              onClick={() => handleFinalize(m)}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(m)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500"
+                            onClick={() => {
+                              setMeetingToDelete(m)
+                              setDeleteOpen(true)
+                            }}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link to={`/admin/reunioes/${m.id}`}>Detalhes</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os status</SelectItem>
-                    <SelectItem value="Pendente">Pendente</SelectItem>
-                    <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                    <SelectItem value="Realizada">Realizada</SelectItem>
-                    <SelectItem value="Cancelada">Cancelada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                    {filteredMeetings.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-4">
+                          Nenhuma reunião encontrada.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-            <div className="flex justify-center border-t pt-6">
-              <Calendar
-                mode="multiple"
-                selected={meetingDates}
-                className="rounded-md border shadow"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-3">
-          <CardHeader>
-            <CardTitle>Próximas Reuniões</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Projeto</TableHead>
-                  <TableHead>Data/Hora</TableHead>
-                  <TableHead>Participantes</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Link (Meet)</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredMeetings.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="font-medium">{m.title}</TableCell>
-                    <TableCell>{m.expand?.project?.name || '-'}</TableCell>
-                    <TableCell>
-                      {format(new Date(m.date_time), "dd 'de' MMM, HH:mm", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell>{m.participants?.length || 0} convidados</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          m.status === 'Realizada'
-                            ? 'default'
-                            : m.status === 'Cancelada'
-                              ? 'destructive'
-                              : 'secondary'
-                        }
-                      >
-                        {m.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {m.meet_link ? (
-                        <a
-                          href={m.meet_link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:underline flex items-center gap-1 text-sm"
-                        >
-                          <ExternalLink className="h-3 w-3" /> Entrar
-                        </a>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      {(m.status === 'Pendente' || m.status === 'Em Andamento') && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-green-600"
-                          title="Finalizar Ata e Enviar Email"
-                          onClick={() => handleFinalize(m)}
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => handleEditClick(m)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500"
-                        onClick={() => {
-                          setMeetingToDelete(m)
-                          setDeleteOpen(true)
-                        }}
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/admin/reunioes/${m.id}`}>Detalhes</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredMeetings.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-4">
-                      Nenhuma reunião encontrada.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="dashboard" className="m-0">
+          <MeetingsDashboard />
+        </TabsContent>
+      </Tabs>
 
       {/* CREATE DIALOG */}
       <Dialog open={open} onOpenChange={setOpen}>

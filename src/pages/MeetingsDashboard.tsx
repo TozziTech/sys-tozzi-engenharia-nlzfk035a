@@ -129,6 +129,26 @@ export default function MeetingsDashboard() {
     ]
   }, [filteredActions, pendingActions.length])
 
+  const meetingStatusStats = useMemo(() => {
+    const counts: Record<string, number> = {
+      Pendente: 0,
+      'Em Andamento': 0,
+      Realizada: 0,
+      Cancelada: 0,
+    }
+    filteredMeetings.forEach((m) => {
+      if (counts[m.status] !== undefined) {
+        counts[m.status]++
+      }
+    })
+    return [
+      { name: 'Pendente', value: counts['Pendente'], fill: '#f59e0b' },
+      { name: 'Em Andamento', value: counts['Em Andamento'], fill: '#3b82f6' },
+      { name: 'Realizada', value: counts['Realizada'], fill: '#22c55e' },
+      { name: 'Cancelada', value: counts['Cancelada'], fill: '#ef4444' },
+    ].filter((s) => s.value > 0)
+  }, [filteredMeetings])
+
   const handleExport = () => {
     const periodLabel = dateRange?.from
       ? `De ${format(dateRange.from, 'dd/MM/yyyy')} até ${dateRange.to ? format(dateRange.to, 'dd/MM/yyyy') : '...'}`
@@ -148,16 +168,15 @@ export default function MeetingsDashboard() {
   }
 
   return (
-    <div className="container max-w-7xl mx-auto py-8 space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard de Reuniões</h1>
           <p className="text-muted-foreground">
-            Acompanhe estatísticas, compromissos e pendências.
+            Acompanhe estatísticas, compromissos e pendências das reuniões.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <Select value={selectedProject} onValueChange={setSelectedProject}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Filtrar por Projeto" />
@@ -445,32 +464,61 @@ export default function MeetingsDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Resolução de Ações</CardTitle>
-            </CardHeader>
-            <CardContent className="h-[250px] flex items-center justify-center">
-              <ChartContainer config={{}} className="h-full w-full max-w-[200px]">
-                <PieChart>
-                  <Tooltip content={<ChartTooltipContent />} />
-                  <Pie
-                    data={actionStats}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    stroke="none"
-                  >
-                    {actionStats.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Status das Reuniões</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[250px] flex items-center justify-center">
+                <ChartContainer config={{}} className="h-full w-full max-w-[200px]">
+                  <PieChart>
+                    <Tooltip content={<ChartTooltipContent />} />
+                    <Pie
+                      data={meetingStatusStats}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={70}
+                      stroke="none"
+                    >
+                      {meetingStatusStats.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Resolução de Ações</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[250px] flex items-center justify-center">
+                <ChartContainer config={{}} className="h-full w-full max-w-[200px]">
+                  <PieChart>
+                    <Tooltip content={<ChartTooltipContent />} />
+                    <Pie
+                      data={actionStats}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={70}
+                      stroke="none"
+                    >
+                      {actionStats.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

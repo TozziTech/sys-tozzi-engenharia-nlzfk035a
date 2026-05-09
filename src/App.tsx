@@ -65,7 +65,6 @@ import MeetingTemplates from './pages/admin/MeetingTemplates'
 import MeetingTemplateDetails from './pages/admin/MeetingTemplateDetails'
 import MeetingDetails from './pages/admin/MeetingDetails'
 import MeetingInProgress from './pages/admin/MeetingInProgress'
-import MeetingsDashboard from './pages/MeetingsDashboard'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
 import ApaLayout from './pages/apa/ApaLayout'
 import ApaCreate from './pages/apa/ApaCreate'
@@ -213,7 +212,6 @@ const router = createBrowserRouter(
             <Route path="/admin/reunioes/templates/:id" element={<MeetingTemplateDetails />} />
             <Route path="/admin/reunioes/:id" element={<MeetingDetails />} />
             <Route path="/admin/reunioes/:id/in-progress" element={<MeetingInProgress />} />
-            <Route path="/meetings-dashboard" element={<MeetingsDashboard />} />
             <Route path="/audit-logs" element={<Audit />} />
             <Route path="/admin/audit-log" element={<Audit />} />
             <Route path="/admin/audit-logs" element={<Audit />} />

@@ -17,7 +17,7 @@ export function KeyboardShortcuts() {
         let matched = true
         switch (e.key.toLowerCase()) {
           case 'a':
-            navigate('/apa')
+            navigate('/apa?tab=dashboard')
             toast.info('Navegando para Análise Pós-Ação', { duration: 1500 })
             break
           case 'k':

@@ -98,7 +98,7 @@ const getNavigationGroups = () => [
       {
         name: 'Análise Pós-Ação',
         id: 'apa',
-        href: '/apa',
+        href: '/apa?tab=dashboard',
         icon: FileCheck,
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
       },
@@ -276,7 +276,7 @@ export function AppSidebar() {
                         !item.href.includes('?') &&
                         (!location.search || location.search === '?tab=overview')) ||
                       (location.pathname === '/' && item.href === '/dashboard') ||
-                      (item.href === '/apa' && location.pathname.startsWith('/apa'))
+                      (item.href.startsWith('/apa') && location.pathname.startsWith('/apa'))
                     return (
                       <SidebarMenuItem key={item.name}>
                         <SidebarMenuButton

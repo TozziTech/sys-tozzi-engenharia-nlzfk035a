@@ -157,10 +157,6 @@ export default function ApaActions() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Ações Corretivas</h1>
-      </div>
-
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>Lista de Ações e Melhorias</CardTitle>

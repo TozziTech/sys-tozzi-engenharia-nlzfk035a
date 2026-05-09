@@ -1,9 +1,0 @@
-import { Outlet } from 'react-router-dom'
-
-export default function ApaLayout() {
-  return (
-    <div className="p-6">
-      <Outlet />
-    </div>
-  )
-}

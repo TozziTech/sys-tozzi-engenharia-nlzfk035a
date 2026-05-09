@@ -66,13 +66,11 @@ import MeetingTemplateDetails from './pages/admin/MeetingTemplateDetails'
 import MeetingDetails from './pages/admin/MeetingDetails'
 import MeetingInProgress from './pages/admin/MeetingInProgress'
 import DocumentResourcesPage from './pages/files/DocumentResourcesPage'
-import ApaLayout from './pages/apa/ApaLayout'
-import ApaCreate from './pages/apa/ApaCreate'
-import ApaHistory from './pages/apa/ApaHistory'
-import LessonsLearnedDashboard from './pages/apa/LessonsLearnedDashboard'
-import ApaActions from './pages/apa/ApaActions'
+import ApaPage from './pages/apa/ApaPage'
+import ChecklistsPage from './pages/checklists/ChecklistsPage'
 import FavoriteDocumentsPage from './pages/files/FavoriteDocumentsPage'
 import { AuthProvider, useAuth } from './hooks/use-auth'
+import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { RoleGuard } from './components/auth/RoleGuard'
 import { ThemeColorInjector } from './components/ThemeColorInjector'
 import { ThemeSync } from './components/ThemeSync'
@@ -112,6 +110,7 @@ function HomeRoute() {
 const RootProviders = () => (
   <TooltipProvider>
     <RealtimeSync />
+    <KeyboardShortcuts />
     <Toaster />
     <Sonner />
     <Outlet />
@@ -215,20 +214,13 @@ const router = createBrowserRouter(
             <Route path="/audit-logs" element={<Audit />} />
             <Route path="/admin/audit-log" element={<Audit />} />
             <Route path="/admin/audit-logs" element={<Audit />} />
-            <Route path="/apa" element={<ApaLayout />}>
-              <Route index element={<Navigate to="dashboard" replace />} />
-              <Route path="dashboard" element={<LessonsLearnedDashboard />} />
-              <Route path="new" element={<ApaCreate />} />
-              <Route path="history" element={<ApaHistory />} />
-              <Route path="actions" element={<ApaActions />} />
-            </Route>
+            <Route path="/apa" element={<ApaPage />} />
             <Route path="/gestao/admin/documentos" element={<AdminDocuments />} />
             <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
             <Route path="/admin/efficiency" element={<EfficiencyReports />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/checklist-templates" element={<ChecklistTemplates />} />
-            <Route path="/novo-checklist" element={<NewChecklist />} />
-            <Route path="/historico-checklists" element={<ChecklistHistory />} />
+            <Route path="/checklists" element={<ChecklistsPage />} />
             <Route path="/settings/templates" element={<DisciplineTemplates />} />
             <Route
               path="/settings/templates/:templateId"

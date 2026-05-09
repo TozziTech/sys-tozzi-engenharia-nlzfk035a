@@ -182,14 +182,7 @@ export default function ChecklistHistory() {
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <History className="h-8 w-8 text-amber-500" />
-          Histórico de Checklists
-        </h2>
-      </div>
-
+    <div className="flex-1 space-y-4">
       <Card className="border-amber-500/20 bg-background/50 backdrop-blur-sm shadow-sm">
         <CardHeader className="pb-3 border-b border-amber-500/10">
           <CardTitle className="text-amber-500 flex items-center gap-2">

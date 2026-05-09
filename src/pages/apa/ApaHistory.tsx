@@ -82,10 +82,6 @@ export default function ApaHistory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Histórico de APAs</h1>
-      </div>
-
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-medium">Filtros</CardTitle>

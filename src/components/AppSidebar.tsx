@@ -98,32 +98,12 @@ const getNavigationGroups = () => [
       {
         name: 'Análise Pós-Ação',
         id: 'apa',
-        href: '/apa/dashboard',
+        href: '/apa',
         icon: FileCheck,
         allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
       },
-      {
-        name: 'Histórico de APAs',
-        id: 'apa_history',
-        href: '/apa/history',
-        icon: History,
-        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
-      },
-      {
-        name: 'Ações Corretivas',
-        id: 'apa_actions',
-        href: '/apa/actions',
-        icon: AlertTriangle,
-        allowedRoles: ['Administrador', 'Gerente de Projeto', 'Projetista'],
-      },
       { name: 'Auditoria de Prazos', id: 'auditoria_prazos', href: '/deadline-audit', icon: Clock },
-      { name: 'Novo Checklist', id: 'novo_checklist', href: '/novo-checklist', icon: FileCheck },
-      {
-        name: 'Histórico de Checklists',
-        id: 'historico_checklists',
-        href: '/historico-checklists',
-        icon: History,
-      },
+      { name: 'Checklists', id: 'checklists', href: '/checklists', icon: FileCheck },
     ],
   },
   {
@@ -296,8 +276,7 @@ export function AppSidebar() {
                         !item.href.includes('?') &&
                         (!location.search || location.search === '?tab=overview')) ||
                       (location.pathname === '/' && item.href === '/dashboard') ||
-                      (item.href === '/apa/dashboard' && location.pathname.startsWith('/apa/'))
-
+                      (item.href === '/apa' && location.pathname.startsWith('/apa'))
                     return (
                       <SidebarMenuItem key={item.name}>
                         <SidebarMenuButton

@@ -115,7 +115,7 @@ export default function ApaCreate() {
         await pb.collection('apa_reports').create(payload)
         toast.success('APA criada com sucesso')
       }
-      navigate('/apa/dashboard')
+      navigate('/apa?tab=dashboard')
     } catch (error) {
       toast.error('Erro ao salvar APA')
     } finally {
@@ -133,15 +133,6 @@ export default function ApaCreate() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Análise Pós-Ação (APA)</h2>
-          <p className="text-muted-foreground">
-            Registre as lições aprendidas e crie um plano de ação para o projeto.
-          </p>
-        </div>
-      </div>
-
       <Card>
         <form onSubmit={handleSubmit}>
           <CardHeader>
@@ -235,7 +226,11 @@ export default function ApaCreate() {
             </div>
 
             <div className="flex justify-end gap-4 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => navigate('/apa/dashboard')}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/apa?tab=dashboard')}
+              >
                 Cancelar
               </Button>
               <Button type="submit" disabled={saving}>

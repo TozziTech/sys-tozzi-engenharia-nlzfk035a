@@ -88,10 +88,7 @@ export default function NewChecklist() {
     const uncheckedItems = summary.responses.filter((r: any) => !r.checked)
 
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-          Resumo da Inspeção
-        </h1>
+      <div className="max-w-4xl mx-auto space-y-6">
         <Card className="bg-slate-50 dark:bg-slate-900 border-amber-500 shadow-elevation">
           <CardHeader className="border-b border-amber-500/30">
             <CardTitle className="text-xl text-slate-800 dark:text-slate-100">
@@ -185,9 +182,7 @@ export default function NewChecklist() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Novo Checklist</h1>
-
+    <div className="max-w-4xl mx-auto space-y-6">
       <Card className="bg-slate-50 dark:bg-slate-900 border-amber-500 shadow-elevation">
         <CardHeader className="border-b border-amber-500/30 pb-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

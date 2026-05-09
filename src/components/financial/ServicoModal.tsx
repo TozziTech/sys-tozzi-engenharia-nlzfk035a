@@ -233,7 +233,7 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
 
             <div className="space-y-2 flex flex-col">
               <Label>Projeto / Serviço Vinculado (Opcional)</Label>
-              <Popover open={openProjectCombo} onOpenChange={setOpenProjectCombo}>
+              <Popover open={openProjectCombo} onOpenChange={setOpenProjectCombo} modal={true}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"

@@ -13,6 +13,33 @@ import {
   ChartLegendContent,
 } from '@/components/ui/chart'
 
+const DEFAULT_COLORS = [
+  '#3b82f6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#8b5cf6',
+  '#ec4899',
+  '#06b6d4',
+  '#14b8a6',
+  '#f43f5e',
+  '#6366f1',
+  '#84cc16',
+  '#34d399',
+  '#f97316',
+  '#eab308',
+  '#a855f7',
+]
+
+function getFallbackColor(name: string) {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const index = Math.abs(hash) % DEFAULT_COLORS.length
+  return DEFAULT_COLORS[index]
+}
+
 interface OverviewProps {
   transactions: any[]
   categories: any[]
@@ -41,8 +68,11 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
       (acc, tx) => {
         const cId = tx.categoryId || tx.category
         const cat = categories.find((c) => c.id === cId || c.name === cId)
-        const catName = cat?.name || 'Sem categoria'
-        const color = cat?.color || 'hsl(var(--muted-foreground))'
+        const isPbId = typeof cId === 'string' && cId.length === 15 && /^[a-zA-Z0-9]+$/.test(cId)
+        const catName =
+          cat?.name ||
+          (typeof cId === 'string' && cId.trim() !== '' && !isPbId ? cId : 'Sem categoria')
+        const color = cat?.color || getFallbackColor(catName)
 
         if (!acc[catName]) {
           acc[catName] = { name: catName, value: 0, fill: color }
@@ -134,7 +164,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
           spent,
           limit,
           percentage,
-          color: c.color || 'hsl(var(--primary))',
+          color: c.color || getFallbackColor(c.name),
         }
       })
       .sort((a, b) => b.percentage - a.percentage)

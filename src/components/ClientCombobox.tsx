@@ -48,8 +48,11 @@ export function ClientCombobox({ value, onChange }: ClientComboboxProps) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        <Command>
+      <PopoverContent
+        className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[300px] flex flex-col"
+        align="start"
+      >
+        <Command className="flex-1 min-h-0">
           <CommandInput
             placeholder="Buscar ou adicionar cliente..."
             value={search}

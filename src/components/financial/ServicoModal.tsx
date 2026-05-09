@@ -204,12 +204,12 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="shrink-0 pb-2">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b border-border">
           <DialogTitle>{servico ? 'Editar Serviço' : 'Novo Lançamento'}</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto pr-4 -mr-4 min-h-0">
-          <form id="servico-form" onSubmit={handleSubmit} className="space-y-4 py-2 pr-2">
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
+          <form id="servico-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Código do Serviço</Label>
@@ -247,8 +247,8 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                  <Command>
+                <PopoverContent className="w-[400px] p-0 max-h-[300px] flex flex-col" align="start">
+                  <Command className="flex-1 min-h-0">
                     <CommandInput placeholder="Buscar projeto..." />
                     <CommandList>
                       <CommandEmpty>Nenhum projeto encontrado.</CommandEmpty>
@@ -346,7 +346,7 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
           </form>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 mt-2 shrink-0 border-t border-border">
+        <div className="flex justify-end gap-2 px-6 py-4 shrink-0 border-t border-border bg-background">
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>
             Cancelar
           </Button>

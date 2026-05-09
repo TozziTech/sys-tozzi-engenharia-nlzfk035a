@@ -68,7 +68,7 @@ export function EngineerCombobox({ value, onChange }: EngineerComboboxProps) {
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Buscar responsável..." />
+          <CommandInput placeholder="Buscar responsável..." autoFocus />
           <CommandList>
             <CommandEmpty>Nenhum responsável encontrado.</CommandEmpty>
             <CommandGroup>

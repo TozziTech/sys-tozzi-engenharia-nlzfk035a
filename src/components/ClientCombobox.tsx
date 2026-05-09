@@ -57,6 +57,7 @@ export function ClientCombobox({ value, onChange }: ClientComboboxProps) {
             placeholder="Buscar ou adicionar cliente..."
             value={search}
             onValueChange={setSearch}
+            autoFocus
           />
           <CommandList>
             <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
@@ -80,19 +81,24 @@ export function ClientCombobox({ value, onChange }: ClientComboboxProps) {
                   {client.name}
                 </CommandItem>
               ))}
-              {search && !clients.some((c) => c.name.toLowerCase() === search.toLowerCase()) && (
-                <CommandItem
-                  value={search}
-                  onSelect={() => {
-                    onChange(search)
-                    setOpen(false)
-                    setSearch('')
-                  }}
-                >
-                  <Check className="mr-2 h-4 w-4 opacity-0" />
-                  Usar "{search}"
-                </CommandItem>
-              )}
+              {search &&
+                !clients.some((c) => {
+                  const removeAccents = (str: string) =>
+                    str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                  return removeAccents(c.name.toLowerCase()) === removeAccents(search.toLowerCase())
+                }) && (
+                  <CommandItem
+                    value={search}
+                    onSelect={() => {
+                      onChange(search)
+                      setOpen(false)
+                      setSearch('')
+                    }}
+                  >
+                    <Check className="mr-2 h-4 w-4 opacity-0" />
+                    Usar "{search}"
+                  </CommandItem>
+                )}
             </CommandGroup>
           </CommandList>
         </Command>

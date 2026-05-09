@@ -5,6 +5,35 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export function removeAccents(str: string) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+export function fuzzyFilter(value: string, search: string): number {
+  if (!search) return 1
+  const v = removeAccents(value.toLowerCase())
+  const s = removeAccents(search.toLowerCase())
+
+  if (v === s) return 1
+  if (v.includes(s)) return 0.5
+
+  const searchWords = s.split(/\s+/).filter(Boolean)
+  if (searchWords.length > 0 && searchWords.every((word) => v.includes(word))) {
+    return 0.3
+  }
+
+  let i = 0
+  let j = 0
+  while (i < v.length && j < s.length) {
+    if (v[i] === s[j]) {
+      j++
+    }
+    i++
+  }
+
+  return j === s.length ? 0.1 : 0
+}
+
 export function validateCPF(cpf: string) {
   if (!cpf) return false
   cpf = cpf.replace(/[^\d]+/g, '')

@@ -16,13 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
 import {
   Form,
   FormControl,
@@ -249,32 +243,25 @@ export function ProjectModuleModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Usar Disciplina Modelo (Opcional)</FormLabel>
-                    <Select
-                      onValueChange={(val) => {
-                        field.onChange(val)
-                        if (val && val !== 'none') {
-                          const t = templates.find((x) => x.id === val)
-                          if (t && !form.getValues('name')) {
-                            form.setValue('name', t.name)
+                    <FormControl>
+                      <Combobox
+                        options={[
+                          { value: 'none', label: 'Nenhum modelo' },
+                          ...templates.map((t) => ({ value: t.id, label: t.name })),
+                        ]}
+                        value={field.value || 'none'}
+                        onChange={(val) => {
+                          field.onChange(val)
+                          if (val && val !== 'none') {
+                            const t = templates.find((x) => x.id === val)
+                            if (t && !form.getValues('name')) {
+                              form.setValue('name', t.name)
+                            }
                           }
-                        }
-                      }}
-                      value={field.value || 'none'}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um modelo para importar tarefas" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum modelo</SelectItem>
-                        {templates.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        }}
+                        placeholder="Selecione um modelo para importar tarefas"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -287,29 +274,31 @@ export function ProjectModuleModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Disciplina</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione a disciplina" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {tags.map((tag) => (
-                          <SelectItem key={tag.id} value={tag.name}>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: tag.color }}
-                              />
-                              {tag.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                        {field.value && !tags.some((t) => t.name === field.value) && (
-                          <SelectItem value={field.value}>{field.value} (Legado)</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Combobox
+                        options={[
+                          ...tags.map((tag) => ({
+                            value: tag.name,
+                            label: tag.name,
+                            render: (
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: tag.color }}
+                                />
+                                {tag.name}
+                              </div>
+                            ),
+                          })),
+                          ...(field.value && !tags.some((t) => t.name === field.value)
+                            ? [{ value: field.value, label: `${field.value} (Legado)` }]
+                            : []),
+                        ]}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Selecione a disciplina"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -347,6 +336,7 @@ export function ProjectModuleModal({
                             placeholder="Buscar ou criar sub-disciplina..."
                             value={subDisciplineSearch}
                             onValueChange={setSubDisciplineSearch}
+                            autoFocus
                           />
                           <CommandList>
                             <CommandEmpty>Nenhuma encontrada.</CommandEmpty>
@@ -399,12 +389,26 @@ export function ProjectModuleModal({
                               })}
                               {subDisciplineSearch &&
                                 !SUB_DISCIPLINES_LIST.some(
-                                  (sd) => sd.toLowerCase() === subDisciplineSearch.toLowerCase(),
+                                  (sd) =>
+                                    sd
+                                      .normalize('NFD')
+                                      .replace(/[\u0300-\u036f]/g, '')
+                                      .toLowerCase() ===
+                                    subDisciplineSearch
+                                      .normalize('NFD')
+                                      .replace(/[\u0300-\u036f]/g, '')
+                                      .toLowerCase(),
                                 ) &&
                                 !field.value?.some(
                                   (v: any) =>
-                                    (typeof v === 'string' ? v : v.name).toLowerCase() ===
-                                    subDisciplineSearch.toLowerCase(),
+                                    (typeof v === 'string' ? v : v.name)
+                                      .normalize('NFD')
+                                      .replace(/[\u0300-\u036f]/g, '')
+                                      .toLowerCase() ===
+                                    subDisciplineSearch
+                                      .normalize('NFD')
+                                      .replace(/[\u0300-\u036f]/g, '')
+                                      .toLowerCase(),
                                 ) && (
                                   <CommandItem
                                     value={subDisciplineSearch}
@@ -554,22 +558,22 @@ export function ProjectModuleModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Pendente">Pendente</SelectItem>
-                        <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                        <SelectItem value="Pausado">Pausado</SelectItem>
-                        <SelectItem value="Concluído">Concluído</SelectItem>
-                        <SelectItem value="Em Análise">Em Análise</SelectItem>
-                        <SelectItem value="Em Revisão">Em Revisão</SelectItem>
-                        <SelectItem value="Em Aprovação">Em Aprovação</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Combobox
+                        options={[
+                          { value: 'Pendente', label: 'Pendente' },
+                          { value: 'Em Andamento', label: 'Em Andamento' },
+                          { value: 'Pausado', label: 'Pausado' },
+                          { value: 'Concluído', label: 'Concluído' },
+                          { value: 'Em Análise', label: 'Em Análise' },
+                          { value: 'Em Revisão', label: 'Em Revisão' },
+                          { value: 'Em Aprovação', label: 'Em Aprovação' },
+                        ]}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Selecione o status"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -597,42 +601,34 @@ export function ProjectModuleModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gerente Responsável</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um responsável" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
-                        {users.filter(
+                    <FormControl>
+                      {(() => {
+                        const filteredUsers = users.filter(
                           (u) =>
                             (u.status === 'Ativo' &&
                               ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(
                                 u.role,
                               )) ||
                             u.id === module?.responsible,
-                        ).length === 0 && (
-                          <SelectItem value="none_disabled" disabled>
-                            Nenhum responsável disponível
-                          </SelectItem>
-                        )}
-                        {users
-                          .filter(
-                            (u) =>
-                              (u.status === 'Ativo' &&
-                                ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(
-                                  u.role,
-                                )) ||
-                              u.id === module?.responsible,
-                          )
-                          .map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.name || u.codigo || 'Usuário sem nome'}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                        )
+                        return (
+                          <Combobox
+                            options={[
+                              { value: 'none', label: 'Nenhum' },
+                              ...filteredUsers.map((u) => ({
+                                value: u.id,
+                                label: u.name || u.codigo || 'Usuário sem nome',
+                              })),
+                            ]}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Selecione um responsável"
+                            emptyText="Nenhum responsável disponível"
+                            disabled={filteredUsers.length === 0}
+                          />
+                        )
+                      })()}
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -644,36 +640,31 @@ export function ProjectModuleModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Projetista (Designer)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um projetista" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
-                        {users.filter(
+                    <FormControl>
+                      {(() => {
+                        const filteredUsers = users.filter(
                           (u) =>
                             (u.status === 'Ativo' && u.role === 'Projetista') ||
                             u.id === module?.designer,
-                        ).length === 0 && (
-                          <SelectItem value="none_disabled" disabled>
-                            Nenhum projetista disponível
-                          </SelectItem>
-                        )}
-                        {users
-                          .filter(
-                            (u) =>
-                              (u.status === 'Ativo' && u.role === 'Projetista') ||
-                              u.id === module?.designer,
-                          )
-                          .map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.name || u.codigo || 'Usuário sem nome'}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                        )
+                        return (
+                          <Combobox
+                            options={[
+                              { value: 'none', label: 'Nenhum' },
+                              ...filteredUsers.map((u) => ({
+                                value: u.id,
+                                label: u.name || u.codigo || 'Usuário sem nome',
+                              })),
+                            ]}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Selecione um projetista"
+                            emptyText="Nenhum projetista disponível"
+                            disabled={filteredUsers.length === 0}
+                          />
+                        )
+                      })()}
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

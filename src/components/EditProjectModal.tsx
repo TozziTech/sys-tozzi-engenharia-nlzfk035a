@@ -61,7 +61,15 @@ const formSchema = z
     path: ['endDate'],
   })
 
-const STATUSES = ['Planejamento', 'Em Andamento', 'Concluído', 'Atrasado']
+const STATUSES = [
+  'Planejamento',
+  'Em Andamento',
+  'Em Análise',
+  'Em Correção',
+  'Aguardando Pagamento',
+  'Concluído',
+  'Atrasado',
+]
 
 interface EditProjectModalProps {
   project: Project

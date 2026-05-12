@@ -13,7 +13,14 @@ export type Discipline =
   | 'Design de Interiores'
   | 'Luminotécnica'
 
-export type Status = 'Planejamento' | 'Em Andamento' | 'Concluído' | 'Atrasado'
+export type Status =
+  | 'Planejamento'
+  | 'Em Andamento'
+  | 'Em Análise'
+  | 'Em Correção'
+  | 'Aguardando Pagamento'
+  | 'Concluído'
+  | 'Atrasado'
 
 export interface Attachment {
   id: string

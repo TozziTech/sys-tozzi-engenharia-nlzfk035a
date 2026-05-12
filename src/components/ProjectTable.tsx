@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format, differenceInDays, startOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Edit2, Eye, Trash2, Star, RotateCcw, Archive, ArchiveRestore } from 'lucide-react'
-import { Project } from '@/types/project'
+import { Edit2, Trash2, Star, RotateCcw, Archive, ArchiveRestore } from 'lucide-react'
+import { Project, Status } from '@/types/project'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -14,6 +14,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { StatusBadge } from './StatusBadge'
 import { AnimatedProgress } from './AnimatedProgress'
 import { EditProjectModal } from './EditProjectModal'
@@ -31,6 +33,85 @@ import useProjectStore from '@/stores/useProjectStore'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { usePermissions } from '@/hooks/use-permissions'
+import { cn } from '@/lib/utils'
+
+const STATUSES: Status[] = [
+  'Planejamento',
+  'Em Andamento',
+  'Em Análise',
+  'Em Correção',
+  'Aguardando Pagamento',
+  'Concluído',
+  'Atrasado',
+]
+
+function ProgressEditCell({
+  project,
+  onChange,
+  canEdit,
+}: {
+  project: Project
+  onChange: (val: number) => void
+  canEdit: boolean
+}) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [val, setVal] = useState(project.progress.toString())
+
+  if (isEditing) {
+    return (
+      <Input
+        type="number"
+        min="0"
+        max="100"
+        autoFocus
+        className="h-8 w-20 text-xs"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={() => {
+          setIsEditing(false)
+          const num = Number(val)
+          if (!isNaN(num) && num >= 0 && num <= 100) {
+            if (num !== project.progress) {
+              onChange(num)
+            }
+          } else {
+            setVal(project.progress.toString())
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.currentTarget.blur()
+          } else if (e.key === 'Escape') {
+            setVal(project.progress.toString())
+            setIsEditing(false)
+          }
+        }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    )
+  }
+
+  return (
+    <div
+      className={cn('w-full', canEdit && 'cursor-pointer hover:opacity-80 group/progress')}
+      onClick={(e) => {
+        if (canEdit) {
+          e.stopPropagation()
+          setIsEditing(true)
+        }
+      }}
+      title={canEdit ? 'Clique para editar o progresso' : ''}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] text-muted-foreground font-medium">{project.progress}%</span>
+        {canEdit && (
+          <Edit2 className="h-3 w-3 text-muted-foreground opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+        )}
+      </div>
+      <AnimatedProgress value={project.progress} />
+    </div>
+  )
+}
 
 interface ProjectTableProps {
   projects: Project[]
@@ -82,7 +163,7 @@ export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectT
             ) : (
               <>
                 <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold w-[200px]">Progresso</TableHead>
+                <TableHead className="font-semibold w-[150px]">Progresso</TableHead>
               </>
             )}
             <TableHead className="text-right"></TableHead>
@@ -160,11 +241,45 @@ export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectT
                 </>
               ) : (
                 <>
-                  <TableCell>
-                    <StatusBadge status={project.status} />
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {can('edit', 'projects') ? (
+                      <Select
+                        value={project.status}
+                        onValueChange={(val) => {
+                          updateProject(project.id, { status: val as Status })
+                          toast({
+                            title: 'Status atualizado',
+                            description: `O status do projeto foi alterado para ${val}.`,
+                          })
+                        }}
+                      >
+                        <SelectTrigger className="h-auto p-0 border-none bg-transparent hover:bg-transparent shadow-none w-fit focus:ring-0 [&>svg]:hidden">
+                          <StatusBadge status={project.status} className="cursor-pointer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <StatusBadge status={project.status} />
+                    )}
                   </TableCell>
-                  <TableCell>
-                    <AnimatedProgress value={project.progress} />
+                  <TableCell onClick={(e) => e.stopPropagation()} className="w-[150px]">
+                    <ProgressEditCell
+                      project={project}
+                      canEdit={can('edit', 'projects')}
+                      onChange={(val) => {
+                        updateProject(project.id, { progress: val })
+                        toast({
+                          title: 'Progresso atualizado',
+                          description: `O progresso do projeto foi alterado para ${val}%.`,
+                        })
+                      }}
+                    />
                   </TableCell>
                 </>
               )}
@@ -225,19 +340,6 @@ export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectT
                           )}
                         </Button>
                       )}
-                      {can('delete', 'projects') && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setProjectToDelete(project)
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}{' '}
                       {can('delete', 'projects') && (
                         <Button
                           variant="ghost"

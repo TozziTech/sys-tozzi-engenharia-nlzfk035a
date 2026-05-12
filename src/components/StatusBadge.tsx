@@ -15,7 +15,16 @@ export function StatusBadge({ status, endDate, className }: StatusBadgeProps) {
     Concluído:
       'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
     Atrasado: 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20',
+    'Aguardando Pagamento':
+      'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
+    'Em Correção':
+      'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 hover:bg-orange-500/20',
+    'Em Análise':
+      'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20 hover:bg-sky-500/20',
   }
+
+  const badgeClass =
+    colors[status] || 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
 
   let isCritical = false
   if (endDate && status !== 'Concluído' && status !== 'Atrasado') {
@@ -49,7 +58,7 @@ export function StatusBadge({ status, endDate, className }: StatusBadgeProps) {
     <span className="contents">
       <Badge
         variant="outline"
-        className={cn('rounded-full font-medium whitespace-nowrap', colors[status], className)}
+        className={cn('rounded-full font-medium whitespace-nowrap', badgeClass, className)}
       >
         {status}
       </Badge>

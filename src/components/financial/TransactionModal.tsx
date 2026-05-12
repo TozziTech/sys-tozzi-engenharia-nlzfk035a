@@ -291,11 +291,13 @@ export function TransactionModal() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="tozzi_interno">TOZZI (Interno)</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
+                {projects
+                  .filter((p) => p.status !== 'Concluído')
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             {fieldErrors.project_id && (

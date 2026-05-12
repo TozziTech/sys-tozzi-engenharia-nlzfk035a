@@ -12,6 +12,8 @@ import {
   Search,
   LayoutGrid,
   List as ListIcon,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
@@ -73,7 +75,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
   const [engineer, setEngineer] = useState<string>('all')
   const [filterMonth, setFilterMonth] = useState<string>('all')
   const [filterYear, setFilterYear] = useState<string>('all')
-  const [showTrash, setShowTrash] = useState(false)
+  const [viewState, setViewState] = useState<'active' | 'archived' | 'trash'>('active')
 
   const [clients, setClients] = useState<any[]>([])
   const [myAccesses, setMyAccesses] = useState<Record<string, string>>({})
@@ -192,7 +194,8 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
       const matchStatus = status === 'all' || p.status === status
       const matchClient = client === 'all' || p.client === client
       const matchEngineer = engineer === 'all' || p.engineer === engineer
-      const matchTrash = showTrash ? !!p.deletedAt : !p.deletedAt
+      const matchTrash = viewState === 'trash' ? !!p.deletedAt : !p.deletedAt
+      const matchArchived = viewState === 'archived' ? p.is_archived : !p.is_archived
 
       let matchPeriod = true
       if (filterMonth !== 'all' || filterYear !== 'all') {
@@ -212,6 +215,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         matchClient &&
         matchEngineer &&
         matchTrash &&
+        matchArchived &&
         matchPeriod &&
         matchMine
       )
@@ -224,7 +228,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
     status,
     client,
     engineer,
-    showTrash,
+    viewState,
     filterMonth,
     filterYear,
     filterOnlyMine,
@@ -360,21 +364,21 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
               <LayoutGrid className="h-4 w-4" />
             </ToggleGroupItem>
           </ToggleGroup>
-          <Button
-            variant={showTrash ? 'default' : 'outline'}
-            onClick={() => setShowTrash(!showTrash)}
-            className={showTrash ? 'bg-red-600 hover:bg-red-700' : ''}
-          >
-            {showTrash ? (
-              <>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Voltar aos Projetos
-              </>
-            ) : (
-              <>
+
+          {viewState !== 'active' ? (
+            <Button variant="default" onClick={() => setViewState('active')}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setViewState('archived')}>
+                <Archive className="mr-2 h-4 w-4" /> Arquivados
+              </Button>
+              <Button variant="outline" onClick={() => setViewState('trash')}>
                 <Trash2 className="mr-2 h-4 w-4" /> Lixeira
-              </>
-            )}
-          </Button>
+              </Button>
+            </div>
+          )}
           <Button
             variant="outline"
             onClick={async () => {
@@ -553,12 +557,18 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             className="w-64 h-64 object-cover rounded-full mb-6 opacity-80"
           />
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            {showTrash ? 'Lixeira vazia' : 'Nenhum projeto encontrado'}
+            {viewState === 'trash'
+              ? 'Lixeira vazia'
+              : viewState === 'archived'
+                ? 'Nenhum projeto arquivado'
+                : 'Nenhum projeto encontrado'}
           </h3>
           <p className="text-muted-foreground max-w-md">
-            {showTrash
+            {viewState === 'trash'
               ? 'Não há projetos excluídos recentemente.'
-              : 'Não encontramos nenhum projeto com os filtros aplicados.'}
+              : viewState === 'archived'
+                ? 'Você ainda não arquivou nenhum projeto.'
+                : 'Não encontramos nenhum projeto com os filtros aplicados.'}
           </p>
         </div>
       ) : user?.role === 'Administrador' ||
@@ -566,9 +576,17 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         filterOnlyMine ? (
         <>
           {viewMode === 'table' ? (
-            <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />
+            <ProjectTable
+              projects={projectsWithAccess}
+              isTrashView={viewState === 'trash'}
+              isArchivedView={viewState === 'archived'}
+            />
           ) : (
-            <ProjectCardList projects={projectsWithAccess} isTrashView={showTrash} />
+            <ProjectCardList
+              projects={projectsWithAccess}
+              isTrashView={viewState === 'trash'}
+              isArchivedView={viewState === 'archived'}
+            />
           )}
         </>
       ) : (
@@ -587,9 +605,17 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
                 Nenhum projeto com acesso no momento.
               </p>
             ) : viewMode === 'table' ? (
-              <ProjectTable projects={projectsWithAccess} isTrashView={showTrash} />
+              <ProjectTable
+                projects={projectsWithAccess}
+                isTrashView={viewState === 'trash'}
+                isArchivedView={viewState === 'archived'}
+              />
             ) : (
-              <ProjectCardList projects={projectsWithAccess} isTrashView={showTrash} />
+              <ProjectCardList
+                projects={projectsWithAccess}
+                isTrashView={viewState === 'trash'}
+                isArchivedView={viewState === 'archived'}
+              />
             )}
           </TabsContent>
           <TabsContent value="without-access">

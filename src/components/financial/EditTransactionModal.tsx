@@ -290,11 +290,13 @@ export function EditTransactionModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="tozzi_interno">TOZZI (Interno)</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
+                {projects
+                  .filter((p) => p.status !== 'Concluído' || p.id === formData.projectId)
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

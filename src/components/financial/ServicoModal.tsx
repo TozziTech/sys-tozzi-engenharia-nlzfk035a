@@ -71,7 +71,7 @@ export function ServicoModal({ servico, onSuccess }: ServicoModalProps) {
         .getFullList({
           sort: '-created',
           fields: 'id,name',
-          filter: 'status != "Concluído" && status != "Cancelado"',
+          filter: 'status != "Concluído"',
         })
         .then(setProjects)
         .catch(console.error)

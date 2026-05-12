@@ -16,6 +16,8 @@ import {
   Star,
   RotateCcw,
   GripHorizontal,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -40,12 +42,13 @@ import { cn } from '@/lib/utils'
 interface ProjectCardListProps {
   projects: Project[]
   isTrashView?: boolean
+  isArchivedView?: boolean
 }
 
-export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps) {
+export function ProjectCardList({ projects, isTrashView, isArchivedView }: ProjectCardListProps) {
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
-  const { deleteProject, restoreProject } = useProjectStore()
+  const { deleteProject, restoreProject, updateProject } = useProjectStore()
   const { projectOrder, setProjectOrder } = usePreferencesStore()
   const { user } = useAuth()
   const { toast } = useToast()
@@ -243,6 +246,30 @@ export function ProjectCardList({ projects, isTrashView }: ProjectCardListProps)
                         }}
                       >
                         <Edit2 className="h-3 w-3 mr-1" /> Editar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs hover:bg-muted"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          updateProject(project.id, { is_archived: !project.is_archived })
+                          toast({
+                            title: project.is_archived
+                              ? 'Projeto desarquivado'
+                              : 'Projeto arquivado',
+                            description: project.is_archived
+                              ? 'O projeto voltou para a lista de ativos.'
+                              : 'O projeto foi movido para os arquivados.',
+                          })
+                        }}
+                      >
+                        {project.is_archived ? (
+                          <ArchiveRestore className="h-3 w-3 mr-1" />
+                        ) : (
+                          <Archive className="h-3 w-3 mr-1" />
+                        )}
+                        {project.is_archived ? 'Desarquivar' : 'Arquivar'}
                       </Button>
                       <Button
                         variant="outline"

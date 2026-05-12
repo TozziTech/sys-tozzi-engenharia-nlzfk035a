@@ -341,6 +341,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           budget: r.budget || 0,
           spent: r.spent || 0,
           description: r.description,
+          is_archived: r.is_archived || false,
           deletedAt: r.deleted_at ? r.deleted_at : undefined,
         })),
       )
@@ -515,6 +516,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         if (isValid(d)) payload.end_date = d.toISOString()
       }
       if (p.description !== undefined) payload.description = p.description
+      if (p.is_archived !== undefined) payload.is_archived = p.is_archived
 
       await pb.collection('projects').update(id, payload)
 

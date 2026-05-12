@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format, differenceInDays, startOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Edit2, Eye, Trash2, Star, RotateCcw } from 'lucide-react'
+import { Edit2, Eye, Trash2, Star, RotateCcw, Archive, ArchiveRestore } from 'lucide-react'
 import { Project } from '@/types/project'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -35,13 +35,14 @@ import { usePermissions } from '@/hooks/use-permissions'
 interface ProjectTableProps {
   projects: Project[]
   isTrashView?: boolean
+  isArchivedView?: boolean
 }
 
-export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
+export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectTableProps) {
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const navigate = useNavigate()
-  const { deleteProject, restoreProject } = useProjectStore()
+  const { deleteProject, restoreProject, updateProject } = useProjectStore()
   const { toast } = useToast()
   const { can } = usePermissions()
 
@@ -193,24 +194,50 @@ export function ProjectTable({ projects, isTrashView }: ProjectTableProps) {
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
                         onClick={(e) => {
                           e.stopPropagation()
-                          navigate(`/projects/${project.id}`)
+                          setProjectToEdit(project)
                         }}
                       >
-                        <Eye className="h-4 w-4" />
+                        <Edit2 className="h-4 w-4" />
                       </Button>
                       {can('edit', 'projects') && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          title={project.is_archived ? 'Desarquivar' : 'Arquivar'}
                           onClick={(e) => {
                             e.stopPropagation()
-                            setProjectToEdit(project)
+                            updateProject(project.id, { is_archived: !project.is_archived })
+                            toast({
+                              title: project.is_archived
+                                ? 'Projeto desarquivado'
+                                : 'Projeto arquivado',
+                              description: project.is_archived
+                                ? 'O projeto voltou para a lista de ativos.'
+                                : 'O projeto foi movido para os arquivados.',
+                            })
                           }}
                         >
-                          <Edit2 className="h-4 w-4" />
+                          {project.is_archived ? (
+                            <ArchiveRestore className="h-4 w-4" />
+                          ) : (
+                            <Archive className="h-4 w-4" />
+                          )}
                         </Button>
                       )}
+                      {can('delete', 'projects') && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setProjectToDelete(project)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}{' '}
                       {can('delete', 'projects') && (
                         <Button
                           variant="ghost"

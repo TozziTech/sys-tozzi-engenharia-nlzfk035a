@@ -172,5 +172,6 @@ export interface Project {
   cnpj?: string
   cnpj_obra?: string
   is_priority?: boolean
+  is_archived?: boolean
   deletedAt?: string
 }

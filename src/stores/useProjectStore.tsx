@@ -280,6 +280,7 @@ interface ProjectStore {
   setNewProjectModalOpen: (open: boolean) => void
   globalSearch: string
   setGlobalSearch: (s: string) => void
+  updateProjectOrder: (draggedId: string, targetId: string) => void
 
   slackWebhookUrl: string
   setSlackWebhookUrl: (url: string) => void
@@ -322,28 +323,36 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     try {
       const records = await pb.collection('projects').getFullList({ sort: '-created' })
       setProjects(
-        records.map((r) => ({
-          id: r.id,
-          name: r.name,
-          client: r.client || 'Cliente Desconhecido',
-          discipline: r.discipline || 'Geral',
-          status: r.status || 'Planejamento',
-          startDate:
-            r.start_date && isValid(new Date(r.start_date))
-              ? r.start_date.substring(0, 10)
-              : new Date().toISOString().substring(0, 10),
-          endDate:
-            r.end_date && isValid(new Date(r.end_date))
-              ? r.end_date.substring(0, 10)
-              : new Date().toISOString().substring(0, 10),
-          progress: r.progress || 0,
-          engineer: r.engineer || 'Não atribuído',
-          budget: r.budget || 0,
-          spent: r.spent || 0,
-          description: r.description,
-          is_archived: r.is_archived || false,
-          deletedAt: r.deleted_at ? r.deleted_at : undefined,
-        })),
+        records
+          .map((r) => ({
+            id: r.id,
+            name: r.name,
+            client: r.client || 'Cliente Desconhecido',
+            discipline: r.discipline || 'Geral',
+            status: r.status || 'Planejamento',
+            startDate:
+              r.start_date && isValid(new Date(r.start_date))
+                ? r.start_date.substring(0, 10)
+                : new Date().toISOString().substring(0, 10),
+            endDate:
+              r.end_date && isValid(new Date(r.end_date))
+                ? r.end_date.substring(0, 10)
+                : new Date().toISOString().substring(0, 10),
+            progress: r.progress || 0,
+            engineer: r.engineer || 'Não atribuído',
+            budget: r.budget || 0,
+            spent: r.spent || 0,
+            description: r.description,
+            is_archived: r.is_archived || false,
+            deletedAt: r.deleted_at ? r.deleted_at : undefined,
+            ordem: r.ordem || 0,
+            created: r.created,
+          }))
+          .sort(
+            (a, b) =>
+              (a.ordem || 0) - (b.ordem || 0) ||
+              new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime(),
+          ),
       )
     } catch (e) {
       console.error(e)
@@ -547,6 +556,41 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const updateProjectOrder = async (draggedId: string, targetId: string) => {
+    setProjects((prev) => {
+      const sorted = [...prev].sort(
+        (a, b) =>
+          (a.ordem ?? 0) - (b.ordem ?? 0) ||
+          new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime(),
+      )
+
+      const draggedIdx = sorted.findIndex((p) => p.id === draggedId)
+      const targetIdx = sorted.findIndex((p) => p.id === targetId)
+
+      if (draggedIdx === -1 || targetIdx === -1 || draggedIdx === targetIdx) return prev
+
+      const [item] = sorted.splice(draggedIdx, 1)
+      sorted.splice(targetIdx, 0, item)
+
+      const updates: { id: string; ordem: number }[] = []
+      const newProjects = sorted.map((p, idx) => {
+        if (p.ordem !== idx) {
+          updates.push({ id: p.id, ordem: idx })
+          return { ...p, ordem: idx }
+        }
+        return p
+      })
+
+      if (updates.length > 0) {
+        Promise.all(
+          updates.map((u) => pb.collection('projects').update(u.id, { ordem: u.ordem })),
+        ).catch(console.error)
+      }
+
+      return newProjects
+    })
+  }
+
   const addComment = (c: Comment) => setComments((prev) => [...prev, c])
 
   const assignTask = (projectName: string, taskName: string, assigneeName: string) => {
@@ -715,6 +759,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setNewProjectModalOpen,
         globalSearch,
         setGlobalSearch,
+        updateProjectOrder,
         slackWebhookUrl,
         setSlackWebhookUrl,
         assignTask,

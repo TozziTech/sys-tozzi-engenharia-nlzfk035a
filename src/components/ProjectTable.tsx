@@ -2,7 +2,15 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format, differenceInDays, startOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Edit2, Trash2, Star, RotateCcw, Archive, ArchiveRestore } from 'lucide-react'
+import {
+  Edit2,
+  Trash2,
+  Star,
+  RotateCcw,
+  Archive,
+  ArchiveRestore,
+  GripHorizontal,
+} from 'lucide-react'
 import { Project, Status } from '@/types/project'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -123,6 +131,8 @@ interface ProjectTableProps {
 export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectTableProps) {
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
   const navigate = useNavigate()
   const { deleteProject, restoreProject, updateProject } = useProjectStore()
   const { toast } = useToast()
@@ -152,6 +162,7 @@ export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectT
       <Table>
         <TableHeader className="bg-muted/50">
           <TableRow className="hover:bg-transparent">
+            <TableHead className="w-8 px-1"></TableHead>
             <TableHead className="font-semibold">Nome do Projeto</TableHead>
             <TableHead className="font-semibold">Cliente</TableHead>
             <TableHead className="font-semibold">Início</TableHead>
@@ -174,9 +185,54 @@ export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectT
           {projects.map((project) => (
             <TableRow
               key={project.id}
-              className={`group transition-colors ${!isTrashView ? 'cursor-pointer hover:bg-muted/50' : 'hover:bg-muted/50'} ${isCritical(project) ? 'bg-destructive/5 hover:bg-destructive/10' : ''}`}
+              draggable={!isTrashView && can('edit', 'projects')}
+              onDragStart={(e) => {
+                if (isTrashView || !can('edit', 'projects')) return
+                setDraggedId(project.id)
+                e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.setData('text/plain', project.id)
+              }}
+              onDragOver={(e) => {
+                if (isTrashView || !can('edit', 'projects')) return
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+                if (project.id !== draggedId) setDragOverId(project.id)
+              }}
+              onDragLeave={() => setDragOverId(null)}
+              onDrop={(e) => {
+                if (isTrashView || !can('edit', 'projects')) return
+                e.preventDefault()
+                setDragOverId(null)
+                const droppedId = e.dataTransfer.getData('text/plain')
+                if (droppedId && droppedId !== project.id) {
+                  useProjectStore.getState().updateProjectOrder(droppedId, project.id)
+                }
+                setDraggedId(null)
+              }}
+              onDragEnd={() => {
+                setDraggedId(null)
+                setDragOverId(null)
+              }}
+              className={cn(
+                'group transition-all',
+                !isTrashView ? 'cursor-pointer hover:bg-muted/50' : 'hover:bg-muted/50',
+                isCritical(project) ? 'bg-destructive/5 hover:bg-destructive/10' : '',
+                draggedId === project.id ? 'opacity-50' : '',
+                dragOverId === project.id ? 'border-t-2 border-t-primary bg-muted/30' : '',
+              )}
               onClick={() => !isTrashView && navigate(`/projects/${project.id}`)}
             >
+              <TableCell className="w-8 px-1">
+                {!isTrashView && can('edit', 'projects') && (
+                  <div
+                    className="cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-foreground inline-flex items-center justify-center p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Arraste para reordenar"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <GripHorizontal className="h-4 w-4" />
+                  </div>
+                )}
+              </TableCell>
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
                   {!isTrashView && (

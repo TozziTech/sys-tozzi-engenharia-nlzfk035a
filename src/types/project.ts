@@ -182,4 +182,6 @@ export interface Project {
   is_priority?: boolean
   is_archived?: boolean
   deletedAt?: string
+  ordem?: number
+  created?: string
 }

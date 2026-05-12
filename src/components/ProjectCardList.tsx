@@ -33,7 +33,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import useProjectStore from '@/stores/useProjectStore'
-import { usePreferencesStore } from '@/stores/usePreferencesStore'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
@@ -49,7 +48,6 @@ export function ProjectCardList({ projects, isTrashView, isArchivedView }: Proje
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const { deleteProject, restoreProject, updateProject } = useProjectStore()
-  const { projectOrder, setProjectOrder } = usePreferencesStore()
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -57,16 +55,14 @@ export function ProjectCardList({ projects, isTrashView, isArchivedView }: Proje
   const [dragOverId, setDragOverId] = useState<string | null>(null)
 
   const sortedProjects = useMemo(() => {
-    if (isTrashView || !projectOrder || projectOrder.length === 0) return projects
+    if (isTrashView) return projects
     return [...projects].sort((a, b) => {
-      const indexA = projectOrder.indexOf(a.id)
-      const indexB = projectOrder.indexOf(b.id)
-      if (indexA === -1 && indexB === -1) return 0
-      if (indexA === -1) return 1
-      if (indexB === -1) return -1
-      return indexA - indexB
+      return (
+        (a.ordem ?? 0) - (b.ordem ?? 0) ||
+        new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime()
+      )
     })
-  }, [projects, projectOrder, isTrashView])
+  }, [projects, isTrashView])
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     if (isTrashView) return
@@ -95,19 +91,7 @@ export function ProjectCardList({ projects, isTrashView, isArchivedView }: Proje
     setDragOverId(null)
 
     if (draggedId && draggedId !== targetId) {
-      const currentOrder = projectOrder.length > 0 ? projectOrder : projects.map((p) => p.id)
-      const missing = projects.map((p) => p.id).filter((id) => !currentOrder.includes(id))
-      const fullOrder = [...currentOrder, ...missing]
-
-      const oldIndex = fullOrder.indexOf(draggedId)
-      const newIndex = fullOrder.indexOf(targetId)
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const newOrder = [...fullOrder]
-        newOrder.splice(oldIndex, 1)
-        newOrder.splice(newIndex, 0, draggedId)
-        setProjectOrder(newOrder, user?.id)
-      }
+      useProjectStore.getState().updateProjectOrder(draggedId, targetId)
     }
     setDraggedId(null)
   }

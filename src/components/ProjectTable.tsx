@@ -36,6 +36,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { cn } from '@/lib/utils'
 
 const STATUSES: Status[] = [
+  'Pendente',
   'Planejamento',
   'Em Andamento',
   'Em Análise',

@@ -14,6 +14,7 @@ export type Discipline =
   | 'Luminotécnica'
 
 export type Status =
+  | 'Pendente'
   | 'Planejamento'
   | 'Em Andamento'
   | 'Em Análise'

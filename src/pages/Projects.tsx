@@ -14,6 +14,7 @@ import {
   List as ListIcon,
   Archive,
   ArchiveRestore,
+  ChevronDown,
 } from 'lucide-react'
 import useProjectStore from '@/stores/useProjectStore'
 import { usePreferencesStore } from '@/stores/usePreferencesStore'
@@ -45,7 +46,20 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Checkbox } from '@/components/ui/checkbox'
 import pb from '@/lib/pocketbase/client'
+
+const PROJECT_STATUSES = [
+  'Pendente',
+  'Planejamento',
+  'Em Andamento',
+  'Em Análise',
+  'Em Correção',
+  'Aguardando Pagamento',
+  'Concluído',
+  'Atrasado',
+]
 
 const months = [
   { value: '1', label: 'Janeiro' },
@@ -70,7 +84,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
   const { can } = usePermissions()
 
   const [discipline, setDiscipline] = useState<string>('all')
-  const [status, setStatus] = useState<string>('all')
+  const [statuses, setStatuses] = useState<string[]>([])
   const [client, setClient] = useState<string>('all')
   const [engineer, setEngineer] = useState<string>('all')
   const [filterMonth, setFilterMonth] = useState<string>('all')
@@ -191,7 +205,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         matchedClients.includes(p.client)
 
       const matchDisc = discipline === 'all' || p.discipline === discipline
-      const matchStatus = status === 'all' || p.status === status
+      const matchStatus = statuses.length === 0 || statuses.includes(p.status)
       const matchClient = client === 'all' || p.client === client
       const matchEngineer = engineer === 'all' || p.engineer === engineer
       const matchTrash = viewState === 'trash' ? !!p.deletedAt : !p.deletedAt
@@ -225,7 +239,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
     globalSearch,
     clients,
     discipline,
-    status,
+    statuses,
     client,
     engineer,
     viewState,
@@ -303,7 +317,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
 
   const clearFilters = () => {
     setDiscipline('all')
-    setStatus('all')
+    setStatuses([])
     setClient('all')
     setEngineer('all')
     setFilterMonth('all')
@@ -312,7 +326,7 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
 
   const hasActiveFilters =
     discipline !== 'all' ||
-    status !== 'all' ||
+    statuses.length > 0 ||
     client !== 'all' ||
     engineer !== 'all' ||
     filterMonth !== 'all' ||
@@ -499,18 +513,40 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
               <SelectItem value="AVAC">AVAC</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full bg-background border-input">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Status (Todos)</SelectItem>
-              <SelectItem value="Planejamento">Planejamento</SelectItem>
-              <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-              <SelectItem value="Concluído">Concluído</SelectItem>
-              <SelectItem value="Atrasado">Atrasado</SelectItem>
-            </SelectContent>
-          </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between font-normal bg-background border-input px-3"
+              >
+                <span className="truncate">
+                  {statuses.length === 0 ? 'Status (Todos)' : `${statuses.length} selecionado(s)`}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-50 ml-2 shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-2" align="start">
+              <div className="flex flex-col gap-1">
+                {PROJECT_STATUSES.map((s) => (
+                  <label
+                    key={s}
+                    className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted p-1.5 rounded-md"
+                  >
+                    <Checkbox
+                      checked={statuses.includes(s)}
+                      onCheckedChange={(checked) => {
+                        if (checked) setStatuses([...statuses, s])
+                        else setStatuses(statuses.filter((st) => st !== s))
+                      }}
+                    />
+                    <span className="truncate">{s}</span>
+                  </label>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <Select value={client} onValueChange={setClient}>
             <SelectTrigger className="w-full bg-background border-input">
               <SelectValue placeholder="Cliente" />

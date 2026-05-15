@@ -66,8 +66,11 @@ export function EngineerCombobox({ value, onChange }: EngineerComboboxProps) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="start">
-        <Command>
+      <PopoverContent
+        className="w-[300px] p-0 max-h-[var(--radix-popover-content-available-height)] flex flex-col overflow-hidden"
+        align="start"
+      >
+        <Command className="flex-1 overflow-hidden">
           <CommandInput placeholder="Buscar responsável..." autoFocus />
           <CommandList>
             <CommandEmpty>Nenhum responsável encontrado.</CommandEmpty>

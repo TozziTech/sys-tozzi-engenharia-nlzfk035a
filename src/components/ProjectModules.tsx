@@ -472,10 +472,15 @@ export function ProjectModules({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-56 p-3" align="end">
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm leading-none">Filtrar por Especialidade</h4>
-                <div className="space-y-2">
+            <PopoverContent
+              className="w-56 p-3 max-h-[var(--radix-popover-content-available-height)] flex flex-col overflow-hidden"
+              align="end"
+            >
+              <div className="flex flex-col h-full overflow-hidden">
+                <h4 className="font-medium text-sm leading-none shrink-0 mb-3">
+                  Filtrar por Especialidade
+                </h4>
+                <div className="space-y-2 overflow-y-auto flex-1 pr-1">
                   {SUB_DISCIPLINES_LIST.map((sd) => (
                     <div key={sd} className="flex items-center space-x-2">
                       <Checkbox
@@ -496,7 +501,7 @@ export function ProjectModules({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full h-7 text-xs mt-2"
+                    className="w-full h-7 text-xs mt-3 shrink-0"
                     onClick={clearFilters}
                   >
                     Limpar Filtros

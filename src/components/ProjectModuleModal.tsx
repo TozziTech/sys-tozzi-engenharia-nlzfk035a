@@ -330,8 +330,8 @@ export function ProjectModuleModal({
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[300px] sm:w-[450px] p-0">
-                        <Command>
+                      <PopoverContent className="w-[300px] sm:w-[450px] p-0 max-h-[var(--radix-popover-content-available-height)] flex flex-col overflow-hidden">
+                        <Command className="flex-1 overflow-hidden">
                           <CommandInput
                             placeholder="Buscar ou criar sub-disciplina..."
                             value={subDisciplineSearch}

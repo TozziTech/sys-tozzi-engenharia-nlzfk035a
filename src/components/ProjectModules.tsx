@@ -649,7 +649,7 @@ export function ProjectModules({
                                 <TableCell className="w-8 px-2 text-center text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing">
                                   <GripVertical className="h-4 w-4 inline-block" />
                                 </TableCell>
-                              )}{' '}
+                              )}
                               <TableCell
                                 className={priorityMode ? 'border-l-4 border-l-amber-500' : ''}
                               >

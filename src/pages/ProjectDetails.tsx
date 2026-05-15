@@ -1217,7 +1217,7 @@ export default function ProjectDetails() {
               Gestão/Gerencial
             </TabsTrigger>
             <TabsTrigger value="operacional" className="flex-1 min-w-[140px] sm:min-w-[120px]">
-              Operacional
+              Disciplinas
             </TabsTrigger>
             <TabsTrigger value="anotacoes" className="flex-1 min-w-[140px] sm:min-w-[120px]">
               Anotações

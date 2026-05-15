@@ -67,12 +67,12 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[var(--radix-popover-content-available-height)] flex flex-col overflow-hidden"
+        className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[300px] flex flex-col overflow-hidden"
         align="start"
       >
         <Command className="flex-1 overflow-hidden">
           <CommandInput placeholder={searchPlaceholder} autoFocus />
-          <CommandList>
+          <CommandList className="max-h-[250px] overflow-y-auto">
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (

@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useAuth } from '@/hooks/use-auth'
-import useProjectStore from '@/stores/useProjectStore'
 import { createProjectModule, updateProjectModule } from '@/services/project_modules'
 import { ProjectModule, SUB_DISCIPLINES_LIST } from '@/types/project_modules'
 import {
@@ -89,12 +88,12 @@ export function ProjectModuleModal({
   module?: ProjectModule
 }) {
   const { user } = useAuth()
-  const { users, projects } = useProjectStore()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [subDisciplineSearch, setSubDisciplineSearch] = useState('')
   const [tags, setTags] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
 
   useEffect(() => {
     pb.collection('tags').getFullList({ sort: 'name' }).then(setTags).catch(console.error)
@@ -102,6 +101,8 @@ export function ProjectModuleModal({
       .getFullList({ sort: 'name' })
       .then(setTemplates)
       .catch(console.error)
+
+    pb.collection('users').getFullList({ sort: 'name' }).then(setUsers).catch(console.error)
   }, [])
 
   const form = useForm<FormData>({
@@ -606,9 +607,7 @@ export function ProjectModuleModal({
                         const filteredUsers = users.filter(
                           (u) =>
                             (u.status === 'Ativo' &&
-                              ['Administrador', 'Gerente de Projeto', 'Projetista'].includes(
-                                u.role,
-                              )) ||
+                              ['Administrador', 'Gerente de Projeto'].includes(u.role)) ||
                             u.id === module?.responsible,
                         )
                         return (
@@ -644,7 +643,13 @@ export function ProjectModuleModal({
                       {(() => {
                         const filteredUsers = users.filter(
                           (u) =>
-                            (u.status === 'Ativo' && u.role === 'Projetista') ||
+                            (u.status === 'Ativo' &&
+                              [
+                                'Projetista',
+                                'Estagiário',
+                                'Administrador',
+                                'Gerente de Projeto',
+                              ].includes(u.role)) ||
                             u.id === module?.designer,
                         )
                         return (

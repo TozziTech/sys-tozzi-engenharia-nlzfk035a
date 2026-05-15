@@ -620,7 +620,7 @@ export function ProjectModules({
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            {isDraggable && <TableHead className="w-8 p-0"></TableHead>}
+                            {isDraggable ? <TableHead className="w-8 p-0"></TableHead> : null}
                             <TableHead>Disciplina / Edificação</TableHead>
                             <TableHead>Sub-disciplinas</TableHead>
                             <TableHead>Equipe</TableHead>
@@ -645,11 +645,11 @@ export function ProjectModules({
                                   : 'transition-transform duration-200',
                               )}
                             >
-                              {isDraggable && (
+                              {isDraggable ? (
                                 <TableCell className="w-8 px-2 text-center text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing">
                                   <GripVertical className="h-4 w-4 inline-block" />
                                 </TableCell>
-                              )}
+                              ) : null}
                               <TableCell
                                 className={priorityMode ? 'border-l-4 border-l-amber-500' : ''}
                               >

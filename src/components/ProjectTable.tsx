@@ -134,7 +134,7 @@ export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectT
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const navigate = useNavigate()
-  const { deleteProject, restoreProject, updateProject } = useProjectStore()
+  const { deleteProject, restoreProject, updateProject, updateProjectOrder } = useProjectStore()
   const { toast } = useToast()
   const { can } = usePermissions()
 
@@ -205,7 +205,7 @@ export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectT
                 setDragOverId(null)
                 const droppedId = e.dataTransfer.getData('text/plain')
                 if (droppedId && droppedId !== project.id) {
-                  useProjectStore.getState().updateProjectOrder(droppedId, project.id)
+                  updateProjectOrder(droppedId, project.id)
                 }
                 setDraggedId(null)
               }}
@@ -242,9 +242,7 @@ export function ProjectTable({ projects, isTrashView, isArchivedView }: ProjectT
                         pb.collection('projects')
                           .update(project.id, { is_priority: !project.is_priority })
                           .then(() =>
-                            useProjectStore
-                              .getState()
-                              .updateProject(project.id, { is_priority: !project.is_priority }),
+                            updateProject(project.id, { is_priority: !project.is_priority }),
                           )
                           .catch(console.error)
                       }}

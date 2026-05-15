@@ -256,18 +256,8 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         (a.ordem ?? 0) - (b.ordem ?? 0) ||
         new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime(),
     )
-
-    if (user?.role === 'Projetista') {
-      sorted.sort((a, b) => {
-        const aIsMine = isLinkedToUser(a)
-        const bIsMine = isLinkedToUser(b)
-        if (aIsMine && !bIsMine) return -1
-        if (!aIsMine && bIsMine) return 1
-        return 0
-      })
-    }
     return sorted
-  }, [filteredProjects, user?.role, isLinkedToUser])
+  }, [filteredProjects])
 
   const { projectsWithAccess, projectsWithoutAccess } = useMemo(() => {
     const withAcc: typeof prioritizedProjects = []

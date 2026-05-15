@@ -318,8 +318,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<ExpenseCategory[]>(MOCK_CATEGORIES)
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const hasCheckedAutomations = useRef(false)
+  const isReorderingRef = useRef(false)
 
   const loadProjects = async () => {
+    if (isReorderingRef.current) return
     try {
       const records = await pb.collection('projects').getFullList({ sort: '-created' })
       setProjects(
@@ -557,6 +559,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }
 
   const updateProjectOrder = async (draggedId: string, targetId: string) => {
+    isReorderingRef.current = true
+
+    let updatesToRun: { id: string; ordem: number }[] = []
+
     setProjects((prev) => {
       const sorted = [...prev].sort(
         (a, b) =>
@@ -567,7 +573,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const draggedIdx = sorted.findIndex((p) => p.id === draggedId)
       const targetIdx = sorted.findIndex((p) => p.id === targetId)
 
-      if (draggedIdx === -1 || targetIdx === -1 || draggedIdx === targetIdx) return prev
+      if (draggedIdx === -1 || targetIdx === -1 || draggedIdx === targetIdx) {
+        isReorderingRef.current = false
+        return prev
+      }
 
       const [item] = sorted.splice(draggedIdx, 1)
       sorted.splice(targetIdx, 0, item)
@@ -581,14 +590,26 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         return p
       })
 
-      if (updates.length > 0) {
-        Promise.all(
-          updates.map((u) => pb.collection('projects').update(u.id, { ordem: u.ordem })),
-        ).catch(console.error)
-      }
-
+      updatesToRun = updates
       return newProjects
     })
+
+    if (updatesToRun.length > 0) {
+      try {
+        await Promise.all(
+          updatesToRun.map((u) => pb.collection('projects').update(u.id, { ordem: u.ordem })),
+        )
+      } catch (e) {
+        console.error('Error updating project order:', e)
+      } finally {
+        setTimeout(() => {
+          isReorderingRef.current = false
+          loadProjects()
+        }, 1500)
+      }
+    } else {
+      isReorderingRef.current = false
+    }
   }
 
   const addComment = (c: Comment) => setComments((prev) => [...prev, c])

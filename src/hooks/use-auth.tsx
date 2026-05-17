@@ -4,6 +4,9 @@ import { ClientResponseError } from 'pocketbase'
 
 interface AuthContextType {
   user: any
+  originalUser: any
+  roleOverride: string | null
+  setRoleOverride: (role: string | null) => void
   signUp: (data: any) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => void
@@ -26,7 +29,10 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<any>(pb.authStore.record)
+  const [roleOverride, setRoleOverride] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const effectiveUser = user ? { ...user, role: roleOverride || user.role } : null
 
   useEffect(() => {
     const unsubscribe = pb.authStore.onChange((_token, record) => {
@@ -142,7 +148,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AuthContext.Provider
       value={{
-        user,
+        user: effectiveUser,
+        originalUser: user,
+        roleOverride,
+        setRoleOverride,
         signUp,
         signIn,
         signOut,

@@ -12,8 +12,16 @@ import {
   AlertCircle,
   Calendar,
   Clock,
+  User,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -52,7 +60,7 @@ export function Header() {
   const navigate = useNavigate()
   const { projects, globalSearch, setGlobalSearch, setNewProjectModalOpen } = useProjectStore()
 
-  const { user } = useAuth()
+  const { user, originalUser, roleOverride, setRoleOverride } = useAuth() as any
   const [notifications, setNotifications] = useState<any[]>([])
 
   const loadNotifications = async () => {
@@ -399,6 +407,63 @@ export function Header() {
           </Popover>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {originalUser?.role === 'Administrador' && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={roleOverride ? 'default' : 'outline'}
+                  size="sm"
+                  className="hidden sm:flex h-9 gap-2 border-dashed border-border text-xs rounded-full px-4 shrink-0 whitespace-nowrap"
+                >
+                  {roleOverride ? (
+                    <>
+                      <AlertTriangle className="h-3 w-3" />{' '}
+                      <span className="font-semibold">{roleOverride}</span>
+                    </>
+                  ) : (
+                    <>
+                      <User className="h-3 w-3" /> Testar Papel
+                    </>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => setRoleOverride(null)}>
+                  <Check
+                    className={cn('mr-2 h-4 w-4', !roleOverride ? 'opacity-100' : 'opacity-0')}
+                  />
+                  Meu Papel Original
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setRoleOverride('Administrador')}>
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      roleOverride === 'Administrador' ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
+                  Administrador
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setRoleOverride('Gerente de Projeto')}>
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      roleOverride === 'Gerente de Projeto' ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
+                  Gerente de Projeto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setRoleOverride('Projetista')}>
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      roleOverride === 'Projetista' ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
+                  Projetista
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <DensityToggle />
           <ThemeToggle />
           <Popover>

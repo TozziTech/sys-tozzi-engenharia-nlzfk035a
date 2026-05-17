@@ -69,6 +69,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { exportDesignerDashboardPDF } from '@/lib/exportPdf'
 import { ServicosList } from '@/components/financial/ServicosList'
 import { MyTasksList } from '@/components/meu-painel/MyTasksList'
+import { ArrowRight } from 'lucide-react'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -337,6 +338,48 @@ export default function DesignerPanel() {
     }
   }, [urgentPayments.length, hasFinanceAccess])
 
+  const { data: upcomingDeadlines = [] } = useQuery(
+    `designer_upcoming_${user?.id}`,
+    async () => {
+      if (!user) return []
+      const [tasksRes, modulesRes] = await Promise.all([
+        pb
+          .collection('tasks')
+          .getFullList({
+            filter: `responsible = "${user.id}" && status != "Concluído"`,
+            expand: 'project',
+          }),
+        pb
+          .collection('project_modules')
+          .getFullList({
+            filter: `responsible = "${user.id}" && status != "Concluído"`,
+            expand: 'project',
+          }),
+      ])
+
+      const combined = [
+        ...tasksRes.map((t) => ({
+          id: t.id,
+          title: t.title,
+          date: t.due_date,
+          project: t.expand?.project,
+          type: 'task',
+        })),
+        ...modulesRes.map((m) => ({
+          id: m.id,
+          title: m.name,
+          date: m.deadline,
+          project: m.expand?.project,
+          type: 'module',
+        })),
+      ].filter((x) => x.date)
+
+      combined.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      return combined.slice(0, 10)
+    },
+    { enabled: !!user },
+  )
+
   const { overdueCount, dueSoonCount } = useMemo(() => {
     let overdue = 0
     let dueSoon = 0
@@ -577,72 +620,160 @@ export default function DesignerPanel() {
             </div>
           )}
 
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              Atividades em Andamento
-            </h3>
-            {urgentTasks.length === 0 ? (
-              <div className="text-center py-8 bg-zinc-50 dark:bg-zinc-900/20 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 shadow-sm">
-                <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-3 opacity-50" />
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  Nenhum registro pendente encontrado.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {urgentTasks.map((t) => (
-                  <div
-                    key={t.id}
-                    className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 hover:border-primary/50 hover:shadow-md transition-all shadow-sm flex flex-col justify-between"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge
-                          variant="outline"
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                Atividades em Andamento
+              </h3>
+              {urgentTasks.length === 0 ? (
+                <div className="text-center py-8 bg-zinc-50 dark:bg-zinc-900/20 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 shadow-sm">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    Nenhum registro pendente encontrado.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {urgentTasks.map((t) => (
+                    <div
+                      key={t.id}
+                      className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 hover:border-primary/50 hover:shadow-md transition-all shadow-sm flex flex-col justify-between"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'whitespace-nowrap',
+                              getPriorityColor(t.priority || 'Urgente'),
+                            )}
+                          >
+                            {t.priority || 'Urgente'}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-[10px] whitespace-nowrap hidden sm:inline-flex shadow-sm',
+                              t.source === 'Checklist de Projeto'
+                                ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20'
+                                : t.source === 'Tarefa Hierárquica'
+                                  ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
+                                  : 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20',
+                            )}
+                          >
+                            {t.source}
+                          </Badge>
+                        </div>
+                        <span
                           className={cn(
-                            'whitespace-nowrap',
-                            getPriorityColor(t.priority || 'Urgente'),
+                            'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',
+                            t.due_date
+                              ? 'text-muted-foreground bg-background border-border'
+                              : 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/30 dark:border-rose-900',
                           )}
                         >
-                          {t.priority || 'Urgente'}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-[10px] whitespace-nowrap hidden sm:inline-flex shadow-sm',
-                            t.source === 'Checklist de Projeto'
-                              ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20'
-                              : t.source === 'Tarefa Hierárquica'
-                                ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
-                                : 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20',
-                          )}
-                        >
-                          {t.source}
-                        </Badge>
+                          {t.due_date
+                            ? new Date(t.due_date).toLocaleDateString('pt-BR')
+                            : 'Sem Data'}
+                        </span>
                       </div>
-                      <span
-                        className={cn(
-                          'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',
-                          t.due_date
-                            ? 'text-muted-foreground bg-background border-border'
-                            : 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/30 dark:border-rose-900',
-                        )}
-                      >
-                        {t.due_date ? new Date(t.due_date).toLocaleDateString('pt-BR') : 'Sem Data'}
-                      </span>
+                      <p className="font-semibold text-foreground text-sm mb-1 leading-snug">
+                        {t.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <LayoutDashboard className="w-3.5 h-3.5 opacity-70" />
+                        {t.expand?.project?.name || 'Projeto não especificado'}
+                      </p>
                     </div>
-                    <p className="font-semibold text-foreground text-sm mb-1 leading-snug">
-                      {t.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <LayoutDashboard className="w-3.5 h-3.5 opacity-70" />
-                      {t.expand?.project?.name || 'Projeto não especificado'}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
+                <CalendarIcon className="h-5 w-5 text-amber-500" />
+                Próximos Vencimentos
+              </h3>
+              <Card className="border-border bg-card">
+                <CardContent className="p-0">
+                  {upcomingDeadlines.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      Nenhum vencimento próximo encontrado.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {upcomingDeadlines.map((item: any) => {
+                        const date = new Date(item.date)
+                        date.setHours(23, 59, 59)
+                        const diffHours = (date.getTime() - new Date().getTime()) / (1000 * 60 * 60)
+                        const isUrgent = diffHours <= 48
+                        const isOverdue = diffHours < 0
+
+                        return (
+                          <Link
+                            to={
+                              item.type === 'module'
+                                ? `/projects/${item.project?.id}/disciplines/${item.id}`
+                                : `/projects/${item.project?.id}`
+                            }
+                            key={`${item.type}-${item.id}`}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex-1 min-w-0 pr-4">
+                              <p
+                                className={cn(
+                                  'font-medium text-sm truncate',
+                                  isUrgent || isOverdue ? 'text-destructive' : 'text-foreground',
+                                )}
+                              >
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                                <span
+                                  className={cn(
+                                    'w-2 h-2 rounded-full',
+                                    item.type === 'module' ? 'bg-indigo-500' : 'bg-emerald-500',
+                                  )}
+                                />
+                                {item.type === 'module' ? 'Disciplina' : 'Tarefa'} •{' '}
+                                {item.project?.name || 'Projeto Desconhecido'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 mt-2 sm:mt-0 shrink-0">
+                              <Badge
+                                variant={
+                                  isOverdue ? 'destructive' : isUrgent ? 'outline' : 'secondary'
+                                }
+                                className={cn(
+                                  isUrgent &&
+                                    !isOverdue &&
+                                    'border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-500/10',
+                                )}
+                              >
+                                {isOverdue ? 'Atrasado' : isUrgent ? 'Urgente' : 'No Prazo'}
+                              </Badge>
+                              <div className="flex flex-col items-end">
+                                <span
+                                  className={cn(
+                                    'text-sm font-medium',
+                                    (isUrgent || isOverdue) && 'text-destructive',
+                                  )}
+                                >
+                                  {date.toLocaleDateString('pt-BR')}
+                                </span>
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-muted-foreground ml-1" />
+                            </div>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           <div className="space-y-4">

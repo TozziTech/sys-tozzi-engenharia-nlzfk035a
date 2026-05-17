@@ -250,7 +250,11 @@ export default function DesignerPanel() {
         expand: { project: h.expand?.projeto_id },
       }))
 
-      const combined = [...tasks, ...mappedChecklists, ...mappedHierarquicas]
+      const combined = [
+        ...tasks.map((t) => ({ ...t, source: 'Tarefa Geral' })),
+        ...mappedChecklists.map((c) => ({ ...c, source: 'Checklist de Projeto' })),
+        ...mappedHierarquicas.map((h) => ({ ...h, source: 'Tarefa Hierárquica' })),
+      ]
       combined.sort((a, b) => {
         const dateA = a.due_date ? new Date(a.due_date).getTime() : 0
         const dateB = b.due_date ? new Date(b.due_date).getTime() : 0
@@ -590,18 +594,33 @@ export default function DesignerPanel() {
                 {urgentTasks.map((t) => (
                   <div
                     key={t.id}
-                    className="p-4 rounded-xl bg-card border border-border hover:border-primary/50 transition-colors shadow-sm"
+                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-border hover:border-primary/50 transition-colors shadow-sm"
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'whitespace-nowrap',
-                          getPriorityColor(t.priority || 'Urgente'),
-                        )}
-                      >
-                        {t.priority || 'Urgente'}
-                      </Badge>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'whitespace-nowrap',
+                            getPriorityColor(t.priority || 'Urgente'),
+                          )}
+                        >
+                          {t.priority || 'Urgente'}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[10px] whitespace-nowrap hidden sm:inline-flex',
+                            t.source === 'Checklist de Projeto'
+                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                              : t.source === 'Tarefa Hierárquica'
+                                ? 'bg-purple-500/10 text-purple-600 border-purple-500/20'
+                                : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+                          )}
+                        >
+                          {t.source}
+                        </Badge>
+                      </div>
                       <span
                         className={cn(
                           'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',

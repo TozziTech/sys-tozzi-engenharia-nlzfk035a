@@ -555,7 +555,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             setDropTarget(null)
           }}
           className={cn(
-            'group flex items-center gap-2 py-1.5 px-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-transparent hover:border-slate-100 dark:hover:border-slate-800 relative',
+            'group flex items-center gap-2 py-1.5 px-3 hover:bg-white dark:hover:bg-slate-800/80 transition-colors border-b border-transparent hover:border-slate-200 dark:hover:border-slate-700 relative',
             draggedId === node.id && 'opacity-50',
             dropTarget?.id === node.id &&
               dropTarget.position === 'inside' &&
@@ -676,7 +676,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
               variant="outline"
               className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-amber-500/10 text-amber-600 border-amber-500/20"
             >
-              Checklist Admin
+              Checklist de Projeto
             </Badge>
           ) : node.is_hierarquica ? (
             <Badge
@@ -685,22 +685,14 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             >
               Tarefa Hierárquica
             </Badge>
-          ) : node.is_internal ? (
-            <Badge
-              variant="outline"
-              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-primary/5 text-primary border-primary/20"
-            >
-              Checklist Interno
-            </Badge>
           ) : (
             <Badge
               variant="outline"
               className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
             >
-              Tarefa de Projeto
+              Tarefa Geral
             </Badge>
           )}
-
           {node.expand?.module && (
             <span
               className="text-xs text-slate-400 truncate max-w-[120px] shrink-0 ml-2 hidden sm:inline-block"
@@ -751,7 +743,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
   }
 
   return (
-    <Card className="mt-8 border-slate-200 dark:border-slate-800">
+    <Card className="mt-8 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 shadow-sm">
+      {' '}
       <CardContent className="p-6">
         <div className="flex justify-between items-center mb-6">
           <div className="space-y-1">
@@ -770,7 +763,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           </Button>
         </div>
 
-        <div className="border border-slate-100 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 overflow-hidden">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50 overflow-hidden shadow-inner">
           {isLoading ? (
             <div className="py-8 text-center text-slate-500 text-sm">Carregando tarefas...</div>
           ) : tree.length === 0 && inlineCreateId !== 'root' ? (

@@ -83,6 +83,17 @@ import Welcome from './pages/Welcome'
 import ChangePassword from './pages/ChangePassword'
 import PublicReportView from './pages/PublicReportView'
 
+function DashboardGuard({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
+  if (user?.role === 'Projetista' || user?.role === 'Estagiário') {
+    return <Navigate to="/designer-panel" replace />
+  }
+  if (user?.role === 'Cliente' || user?.role === 'Visitante') {
+    return <Navigate to="/client-dashboard" replace />
+  }
+  return <>{children}</>
+}
+
 function HomeRoute() {
   const { user } = useAuth()
 
@@ -167,7 +178,14 @@ const router = createBrowserRouter(
             <Route path="/files/favorites" element={<FavoriteDocumentsPage />} />
 
             {/* Module-Guarded Routes (Settings, Admin, Managers, etc) */}
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/dashboard"
+              element={
+                <DashboardGuard>
+                  <Dashboard />
+                </DashboardGuard>
+              }
+            />
             <Route path="/projects" element={<Projects />} />
             <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
             <Route path="/financial-dashboard" element={<FinancialDashboard />} />

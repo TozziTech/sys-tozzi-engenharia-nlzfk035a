@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { Navigate } from 'react-router-dom'
 import {
   Filter,
   XCircle,
@@ -327,6 +328,10 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
     engineer !== 'all' ||
     filterMonth !== 'all' ||
     filterYear !== 'all'
+
+  if (!filterOnlyMine && (user?.role === 'Projetista' || user?.role === 'Estagiário')) {
+    return <Navigate to="/designer-panel" replace />
+  }
 
   return (
     <div className="w-full mx-auto py-8 px-4 md:px-8">

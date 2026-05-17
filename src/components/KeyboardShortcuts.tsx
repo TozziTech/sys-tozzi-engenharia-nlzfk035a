@@ -52,7 +52,4 @@ export function KeyboardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [navigate, shortcuts])
-
-  return null
-}
+  }, [n

@@ -50,7 +50,7 @@ const getTaskStatusColor = (status: string) => {
     case 'Pendente':
       return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800'
     default:
-      return 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+      return 'bg-zinc-100 text-zinc-800 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'
   }
 }
 
@@ -555,7 +555,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             setDropTarget(null)
           }}
           className={cn(
-            'group flex items-center gap-2 py-1.5 px-3 hover:bg-white dark:hover:bg-slate-800/80 transition-colors border-b border-transparent hover:border-slate-200 dark:hover:border-slate-700 relative',
+            'group flex items-center gap-2 py-1.5 px-3 hover:bg-white dark:hover:bg-zinc-800/80 transition-colors border-b border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 relative',
             draggedId === node.id && 'opacity-50',
             dropTarget?.id === node.id &&
               dropTarget.position === 'inside' &&
@@ -569,7 +569,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           )}
           style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}
         >
-          <div className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 text-slate-400 shrink-0">
+          <div className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 text-zinc-400 shrink-0">
             <GripVertical className="h-4 w-4" />
           </div>
           <div
@@ -584,7 +584,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                className="h-6 w-6 p-0 text-zinc-400 hover:text-primary hover:bg-primary/10"
                 onClick={() => {
                   setInlineCreateId(node.id)
                   setExpandedIds((prev) => new Set(prev).add(node.id))
@@ -597,7 +597,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+              className="h-6 w-6 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
               onClick={() => setTaskToDelete(node.id)}
               title="Excluir tarefa"
             >
@@ -613,9 +613,9 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           >
             {hasChildren ? (
               isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4 text-zinc-500" />
               ) : (
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4 text-zinc-500" />
               )
             ) : (
               <span className="h-4 w-4" />
@@ -639,10 +639,10 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
                   setEditingTitle(node.title)
                 }}
                 className={cn(
-                  'text-sm font-medium cursor-text px-1.5 py-0.5 rounded hover:bg-slate-200/50 dark:hover:bg-slate-800 truncate transition-colors',
+                  'text-sm font-medium cursor-text px-1.5 py-0.5 rounded hover:bg-zinc-200/50 dark:hover:bg-zinc-800 truncate transition-colors',
                   node.status === 'Concluído'
-                    ? 'line-through text-slate-400'
-                    : 'text-slate-700 dark:text-slate-200',
+                    ? 'line-through text-zinc-400'
+                    : 'text-zinc-700 dark:text-zinc-200',
                 )}
                 title="Clique para editar o título"
               >
@@ -651,11 +651,11 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             )}
           </div>
 
-          <div className="flex items-center gap-1 shrink-0 bg-slate-50 dark:bg-slate-900/50 px-2 py-0.5 rounded border border-transparent group-hover:border-slate-200 dark:group-hover:border-slate-700 transition-colors">
-            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+          <div className="flex items-center gap-1 shrink-0 bg-zinc-50 dark:bg-zinc-900/50 px-2 py-0.5 rounded border border-transparent group-hover:border-zinc-200 dark:group-hover:border-zinc-700 transition-colors">
+            <Calendar className="h-3.5 w-3.5 text-zinc-400" />
             <input
               type="date"
-              className="text-xs bg-transparent border-none outline-none cursor-pointer text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 w-[100px] sm:w-[110px]"
+              className="text-xs bg-transparent border-none outline-none cursor-pointer text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 w-[100px] sm:w-[110px]"
               value={node.due_date ? node.due_date.split(' ')[0] : ''}
               onChange={(e) => handleUpdateDueDate(node.id, e.target.value)}
               title="Data de Vencimento"
@@ -674,28 +674,28 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           {node.is_admin_checklist ? (
             <Badge
               variant="outline"
-              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-amber-500/10 text-amber-600 border-amber-500/20"
+              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20 shadow-sm"
             >
               Checklist de Projeto
             </Badge>
           ) : node.is_hierarquica ? (
             <Badge
               variant="outline"
-              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-purple-500/10 text-purple-600 border-purple-500/20"
+              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20 shadow-sm"
             >
               Tarefa Hierárquica
             </Badge>
           ) : (
             <Badge
               variant="outline"
-              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
+              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 shadow-sm"
             >
               Tarefa Geral
             </Badge>
           )}
           {node.expand?.module && (
             <span
-              className="text-xs text-slate-400 truncate max-w-[120px] shrink-0 ml-2 hidden sm:inline-block"
+              className="text-xs text-zinc-400 truncate max-w-[120px] shrink-0 ml-2 hidden sm:inline-block"
               title={`Disciplina: ${node.expand.module.name}`}
             >
               {node.expand.module.name}
@@ -743,16 +743,16 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
   }
 
   return (
-    <Card className="mt-8 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 shadow-sm">
+    <Card className="mt-8 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20 shadow-sm">
       {' '}
       <CardContent className="p-6">
         <div className="flex justify-between items-center mb-6">
           <div className="space-y-1">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
+            <h3 className="text-xl font-semibold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
               <CheckSquare className="h-5 w-5 text-primary" />
               Minhas Tarefas
             </h3>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
               Gerencie suas responsabilidades. Edite títulos clicando neles, adicione subtarefas ou
               arraste para reorganizar.
             </p>
@@ -763,11 +763,11 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           </Button>
         </div>
 
-        <div className="border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50 overflow-hidden shadow-inner">
+        <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 overflow-hidden shadow-sm">
           {isLoading ? (
-            <div className="py-8 text-center text-slate-500 text-sm">Carregando tarefas...</div>
+            <div className="py-8 text-center text-zinc-500 text-sm">Carregando tarefas...</div>
           ) : tree.length === 0 && inlineCreateId !== 'root' ? (
-            <div className="py-8 text-center text-slate-500 text-sm">
+            <div className="py-8 text-center text-zinc-500 text-sm">
               Nenhum registro pendente encontrado.
             </div>
           ) : (
@@ -782,7 +782,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
               )}
               {treeWithDate.length > 0 && (
                 <div>
-                  <div className="px-4 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                  <div className="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-900 border-y border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 shadow-sm">
                     Tarefas Agendadas
                   </div>
                   {treeWithDate.map((node) => renderNode(node, 0))}
@@ -814,11 +814,11 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
         </AlertDialog>
 
         {selectedIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-5">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-900 shadow-xl border border-zinc-200 dark:border-zinc-800 rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-5">
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
               {selectedIds.size} {selectedIds.size === 1 ? 'selecionada' : 'selecionadas'}
             </span>
-            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
+            <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">

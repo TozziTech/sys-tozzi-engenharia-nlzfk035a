@@ -82,7 +82,7 @@ const getStatusColor = (status: string) => {
     case 'Pendente':
     case 'Planejamento':
     default:
-      return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
+      return 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-500/10 dark:text-zinc-400 dark:border-zinc-500/20'
   }
 }
 
@@ -583,9 +583,9 @@ export default function DesignerPanel() {
               Atividades em Andamento
             </h3>
             {urgentTasks.length === 0 ? (
-              <div className="text-center py-8 bg-card/30 rounded-xl border border-dashed border-border">
+              <div className="text-center py-8 bg-zinc-50 dark:bg-zinc-900/20 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-3 opacity-50" />
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   Nenhum registro pendente encontrado.
                 </p>
               </div>
@@ -594,7 +594,7 @@ export default function DesignerPanel() {
                 {urgentTasks.map((t) => (
                   <div
                     key={t.id}
-                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-border hover:border-primary/50 transition-colors shadow-sm"
+                    className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 hover:border-primary/50 hover:shadow-md transition-all shadow-sm flex flex-col justify-between"
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -610,12 +610,12 @@ export default function DesignerPanel() {
                         <Badge
                           variant="outline"
                           className={cn(
-                            'text-[10px] whitespace-nowrap hidden sm:inline-flex',
+                            'text-[10px] whitespace-nowrap hidden sm:inline-flex shadow-sm',
                             t.source === 'Checklist de Projeto'
-                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                              ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20'
                               : t.source === 'Tarefa Hierárquica'
-                                ? 'bg-purple-500/10 text-purple-600 border-purple-500/20'
-                                : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+                                ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
+                                : 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20',
                           )}
                         >
                           {t.source}
@@ -853,29 +853,29 @@ export default function DesignerPanel() {
             </div>
 
             {filteredProjects.length === 0 ? (
-              <div className="text-center py-16 bg-card/30 rounded-xl border border-dashed border-border">
-                <CalendarIcon className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">
+              <div className="text-center py-16 bg-zinc-50 dark:bg-zinc-900/20 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 shadow-sm">
+                <CalendarIcon className="h-8 w-8 text-zinc-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-2">
                   Nenhum projeto ativo no cronograma
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   Você não tem projetos associados ou eles não possuem datas definidas.
                 </p>
               </div>
             ) : (
               <div className="w-full">
                 <div className="hidden md:block rounded-xl border border-border overflow-hidden bg-card/50">
-                  <div className="grid grid-cols-7 bg-muted/50 border-b border-border">
+                  <div className="grid grid-cols-7 bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
                       <div
                         key={d}
-                        className="p-3 text-center text-sm font-medium text-muted-foreground"
+                        className="p-3 text-center text-sm font-medium text-zinc-500 dark:text-zinc-400"
                       >
                         {d}
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-7 gap-px bg-border auto-rows-fr">
+                  <div className="grid grid-cols-7 gap-px bg-zinc-200 dark:bg-zinc-800 auto-rows-fr">
                     {calendarDays.map((day, i) => {
                       const key = format(day, 'yyyy-MM-dd')
                       const dayProjects = projectsByDate[key] || []
@@ -883,8 +883,9 @@ export default function DesignerPanel() {
                         <div
                           key={i}
                           className={cn(
-                            'min-h-[120px] p-2 bg-background transition-colors flex flex-col gap-1',
-                            !isSameMonth(day, calendarMonth) && 'bg-muted/30 opacity-60',
+                            'min-h-[120px] p-2 bg-white dark:bg-zinc-950 transition-colors flex flex-col gap-1',
+                            !isSameMonth(day, calendarMonth) &&
+                              'bg-zinc-50/50 dark:bg-zinc-900/50 opacity-60',
                           )}
                         >
                           <div className="flex justify-end mb-1">

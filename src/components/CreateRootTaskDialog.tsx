@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/hooks/use-auth'
 
 interface Project {
   id: string
@@ -47,6 +48,7 @@ interface CreateRootTaskDialogProps {
 
 export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRootTaskDialogProps) {
   const { toast } = useToast()
+  const { user } = useAuth()
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -103,7 +105,7 @@ export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRo
       return
     }
     if (!projectId) {
-      setErrors({ projeto_id: 'O projeto é obrigatório.' })
+      setErrors({ project: 'O projeto é obrigatório.' })
       return
     }
 
@@ -112,21 +114,18 @@ export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRo
 
     try {
       const data = {
-        titulo: title,
-        descricao: description,
-        projeto_id: projectId,
-        concluida: status === 'Concluído',
-        dados_customizados: {
-          due_date: dueDate ? dueDate.toISOString() : null,
-          status,
-          tags: selectedTags,
-        },
-        parent_id: null,
+        title: title,
+        description: description,
+        project: projectId,
+        status: status,
+        due_date: dueDate ? dueDate.toISOString() : null,
+        tags: selectedTags,
+        responsible: user?.id,
       }
 
-      await pb.collection('tarefas_hierarquicas').create(data)
+      await pb.collection('tasks').create(data)
 
-      toast({ title: 'Tarefa raiz criada com sucesso!' })
+      toast({ title: 'Tarefa criada com sucesso!' })
       onSuccess?.()
       onOpenChange(false)
     } catch (err: any) {
@@ -182,7 +181,7 @@ export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRo
               Projeto <span className="text-destructive">*</span>
             </Label>
             <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger id="project" className={errors.projeto_id ? 'border-destructive' : ''}>
+              <SelectTrigger id="project" className={errors.project ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Selecione um projeto" />
               </SelectTrigger>
               <SelectContent>
@@ -193,7 +192,7 @@ export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRo
                 ))}
               </SelectContent>
             </Select>
-            {errors.projeto_id && <p className="text-sm text-destructive">{errors.projeto_id}</p>}
+            {errors.project && <p className="text-sm text-destructive">{errors.project}</p>}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

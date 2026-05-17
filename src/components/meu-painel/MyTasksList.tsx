@@ -128,6 +128,9 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
         d.setHours(d.getHours() + 12)
         if (d >= dateRange.from && d <= dateRange.to) matches = true
       }
+      if (!t.due_date && !t.completed_at) {
+        matches = true
+      }
 
       if (matches) {
         matchingIds.add(t.id)
@@ -143,25 +146,38 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     return tasks.filter((t) => matchingIds.has(t.id))
   }, [tasks, dateRange])
 
-  const tree = useMemo(() => {
+  const { treeWithDate, treeWithoutDate, tree } = useMemo(() => {
     const map = new Map()
     filteredTasks.forEach((t) => map.set(t.id, { ...t, children: [] }))
-    const roots: any[] = []
+    const rootsWithDate: any[] = []
+    const rootsWithoutDate: any[] = []
     filteredTasks.forEach((t) => {
       if (t.parent_task && map.has(t.parent_task)) {
         map.get(t.parent_task).children.push(map.get(t.id))
       } else {
-        roots.push(map.get(t.id))
+        if (!t.due_date) {
+          rootsWithoutDate.push(map.get(t.id))
+        } else {
+          rootsWithDate.push(map.get(t.id))
+        }
       }
     })
     const sortFn = (a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)
-    roots.sort(sortFn)
+    rootsWithDate.sort(sortFn)
+    rootsWithoutDate.sort(sortFn)
+
     const sortChildren = (node: any) => {
       node.children.sort(sortFn)
       node.children.forEach(sortChildren)
     }
-    roots.forEach(sortChildren)
-    return roots
+    rootsWithDate.forEach(sortChildren)
+    rootsWithoutDate.forEach(sortChildren)
+
+    return {
+      treeWithDate: rootsWithDate,
+      treeWithoutDate: rootsWithoutDate,
+      tree: [...rootsWithoutDate, ...rootsWithDate],
+    }
   }, [filteredTasks])
 
   const visibleIds = useMemo(() => {
@@ -680,10 +696,27 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             <div className="py-8 text-center text-slate-500 text-sm">Carregando tarefas...</div>
           ) : tree.length === 0 && inlineCreateId !== 'root' ? (
             <div className="py-8 text-center text-slate-500 text-sm">
-              Nenhum registro encontrado para este período.
+              Nenhum registro pendente encontrado.
             </div>
           ) : (
-            <div className="py-2">{tree.map((node) => renderNode(node, 0))}</div>
+            <div className="py-2 flex flex-col gap-4">
+              {treeWithoutDate.length > 0 && (
+                <div>
+                  <div className="px-4 py-1.5 bg-rose-50/50 dark:bg-rose-950/20 border-y border-rose-100 dark:border-rose-900 text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-2 mb-1">
+                    <Calendar className="w-3.5 h-3.5" /> Pendente de Agendamento (Sem Data)
+                  </div>
+                  {treeWithoutDate.map((node) => renderNode(node, 0))}
+                </div>
+              )}
+              {treeWithDate.length > 0 && (
+                <div>
+                  <div className="px-4 py-1.5 bg-slate-50 dark:bg-slate-900 border-y border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                    Tarefas Agendadas
+                  </div>
+                  {treeWithDate.map((node) => renderNode(node, 0))}
+                </div>
+              )}
+            </div>
           )}
         </div>
 

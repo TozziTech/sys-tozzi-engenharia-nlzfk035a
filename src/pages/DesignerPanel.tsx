@@ -205,7 +205,21 @@ export default function DesignerPanel() {
     `designer_urgent_tasks_${user?.id}`,
     async () => {
       if (!user) return []
-      const [tasks, checklists] = await Promise.all([
+
+      const upaRes = await pb.collection('user_project_access').getFullList({
+        filter: `user = "${user.id}"`,
+      })
+      const assignedProjectIds = user.assigned_projects || []
+      const accessProjectIds = upaRes.map((u: any) => u.project)
+      const allProjectIds = Array.from(new Set([...assignedProjectIds, ...accessProjectIds]))
+
+      let projectFilter = `(projeto_id.engineer ~ "${user.name}" || projeto_id.engineer = "${user.id}")`
+      if (allProjectIds.length > 0) {
+        const idsFilter = allProjectIds.map((id) => `projeto_id="${id}"`).join(' || ')
+        projectFilter = `(${projectFilter}) || (${idsFilter})`
+      }
+
+      const [tasks, checklists, hierarquicas] = await Promise.all([
         pb.collection('tasks').getFullList({
           filter: `responsible = "${user.id}" && status != "Concluído"`,
           expand: 'project',
@@ -213,6 +227,10 @@ export default function DesignerPanel() {
         pb.collection('project_admin_checklist').getFullList({
           filter: `responsible = "${user.id}" && status != "Concluído" && status != "Cancelado"`,
           expand: 'project',
+        }),
+        pb.collection('tarefas_hierarquicas').getFullList({
+          filter: `concluida = false && (${projectFilter})`,
+          expand: 'projeto_id',
         }),
       ])
 
@@ -223,10 +241,24 @@ export default function DesignerPanel() {
         is_admin_checklist: true,
       }))
 
-      const combined = [...tasks, ...mappedChecklists]
+      const mappedHierarquicas = hierarquicas.map((h) => ({
+        id: h.id,
+        title: h.titulo,
+        due_date: null,
+        status: 'Pendente',
+        priority: 'Média',
+        expand: { project: h.expand?.projeto_id },
+      }))
+
+      const combined = [...tasks, ...mappedChecklists, ...mappedHierarquicas]
       combined.sort((a, b) => {
-        const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity
-        const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity
+        const dateA = a.due_date ? new Date(a.due_date).getTime() : 0
+        const dateB = b.due_date ? new Date(b.due_date).getTime() : 0
+
+        if (dateA === 0 && dateB !== 0) return -1
+        if (dateB === 0 && dateA !== 0) return 1
+        if (dateA === 0 && dateB === 0) return 0
+
         return dateA - dateB
       })
       return combined
@@ -324,6 +356,7 @@ export default function DesignerPanel() {
   useRealtime('user_project_access', refetchProjects, !!user?.id)
   useRealtime('tasks', refetchTasks, !!user?.id)
   useRealtime('project_admin_checklist', refetchTasks, !!user?.id)
+  useRealtime('tarefas_hierarquicas', refetchTasks, !!user?.id)
 
   const chartData = useMemo(() => {
     const counts = { Pendente: 0, 'Em Andamento': 0, Concluído: 0 }
@@ -439,9 +472,18 @@ export default function DesignerPanel() {
             </div>
             Resumo de Projeto (Meu Painel)
           </h2>
-          <p className="text-muted-foreground mt-2">
-            Olá, {user?.name}. Acompanhe o progresso dos seus projetos, cronogramas e prazos.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-2">
+            <p className="text-muted-foreground">
+              Olá, {user?.name}. Acompanhe o progresso dos seus projetos, cronogramas e prazos.
+            </p>
+            <Badge
+              variant="secondary"
+              className="bg-primary/10 text-primary hover:bg-primary/20 w-fit"
+            >
+              {urgentTasks.length}{' '}
+              {urgentTasks.length === 1 ? 'Tarefa Pendente' : 'Tarefas Pendentes'}
+            </Badge>
+          </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           <Button
@@ -560,8 +602,15 @@ export default function DesignerPanel() {
                       >
                         {t.priority || 'Urgente'}
                       </Badge>
-                      <span className="text-xs font-medium text-muted-foreground bg-background px-2 py-1 rounded-md border border-border">
-                        {new Date(t.due_date).toLocaleDateString('pt-BR')}
+                      <span
+                        className={cn(
+                          'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',
+                          t.due_date
+                            ? 'text-muted-foreground bg-background border-border'
+                            : 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/30 dark:border-rose-900',
+                        )}
+                      >
+                        {t.due_date ? new Date(t.due_date).toLocaleDateString('pt-BR') : 'Sem Data'}
                       </span>
                     </div>
                     <p className="font-semibold text-foreground text-sm mb-1 leading-snug">
@@ -634,7 +683,7 @@ export default function DesignerPanel() {
             </Card>
           </div>
 
-          <MyTasksList dateRange={{ from: new Date(2000, 0, 1), to: new Date(2100, 0, 1) }} />
+          <MyTasksList />
         </TabsContent>
 
         {hasFinanceAccess && (

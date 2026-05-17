@@ -37,6 +37,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useQuery, queryClient } from '@/hooks/use-query'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
+import { CreateRootTaskDialog } from '@/components/CreateRootTaskDialog'
 
 const getTaskStatusColor = (status: string) => {
   switch (status) {
@@ -69,6 +70,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
   const [inlineCreateId, setInlineCreateId] = useState<string | null>(null)
   const [inlineCreateTitle, setInlineCreateTitle] = useState('')
 
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
 
   // Inline Editing State
@@ -83,7 +86,20 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     `tasks_my_list_${user?.id}`,
     async () => {
       if (!user?.id) return []
-      const [tasksRes, checklistsRes] = await Promise.all([
+      const upaRes = await pb.collection('user_project_access').getFullList({
+        filter: `user = "${user.id}"`,
+      })
+      const assignedProjectIds = user.assigned_projects || []
+      const accessProjectIds = upaRes.map((u: any) => u.project)
+      const allProjectIds = Array.from(new Set([...assignedProjectIds, ...accessProjectIds]))
+
+      let projectFilter = `(projeto_id.engineer ~ "${user.name}" || projeto_id.engineer = "${user.id}")`
+      if (allProjectIds.length > 0) {
+        const idsFilter = allProjectIds.map((id) => `projeto_id="${id}"`).join(' || ')
+        projectFilter = `(${projectFilter}) || (${idsFilter})`
+      }
+
+      const [tasksRes, checklistsRes, hierarquicasRes] = await Promise.all([
         pb.collection('tasks').getFullList({
           filter: `responsible = "${user.id}"`,
           sort: 'ordem',
@@ -93,6 +109,11 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           filter: `responsible = "${user.id}"`,
           sort: '-created',
           expand: 'project',
+        }),
+        pb.collection('tarefas_hierarquicas').getFullList({
+          filter: projectFilter,
+          sort: 'ordem',
+          expand: 'projeto_id,parent_id',
         }),
       ])
 
@@ -104,13 +125,30 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
         parent_task: null,
       }))
 
-      return [...tasksRes, ...mappedChecklists]
+      const mappedHierarquicas = hierarquicasRes
+        .filter(
+          (h) =>
+            !h.dados_customizados?.responsible || h.dados_customizados?.responsible === user.id,
+        )
+        .map((h) => ({
+          ...h,
+          title: h.titulo,
+          due_date: h.dados_customizados?.due_date || null,
+          status: h.dados_customizados?.status || (h.concluida ? 'Concluído' : 'Pendente'),
+          project: h.projeto_id,
+          parent_task: h.parent_id || null,
+          is_hierarquica: true,
+          expand: { ...h.expand, project: h.expand?.projeto_id, parent_task: h.expand?.parent_id },
+        }))
+
+      return [...tasksRes, ...mappedChecklists, ...mappedHierarquicas]
     },
     { enabled: !!user },
   )
 
   useRealtime('tasks', refetch)
   useRealtime('project_admin_checklist', refetch)
+  useRealtime('tarefas_hierarquicas', refetch)
 
   const filteredTasks = useMemo(() => {
     if (!dateRange) return tasks
@@ -227,6 +265,12 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           const node = tasks.find((t) => t.id === id)
           if (node?.is_admin_checklist) {
             return pb.collection('project_admin_checklist').update(id, { status })
+          } else if (node?.is_hierarquica) {
+            const custom = node.dados_customizados || {}
+            return pb.collection('tarefas_hierarquicas').update(id, {
+              concluida: status === 'Concluído',
+              dados_customizados: { ...custom, status },
+            })
           }
           return pb.collection('tasks').update(id, { status })
         }),
@@ -248,6 +292,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           const node = tasks.find((t) => t.id === id)
           if (node?.is_admin_checklist) {
             return pb.collection('project_admin_checklist').delete(id)
+          } else if (node?.is_hierarquica) {
+            return pb.collection('tarefas_hierarquicas').delete(id)
           }
           return pb.collection('tasks').delete(id)
         }),
@@ -277,6 +323,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           const node = tasks.find((t) => t.id === id)
           if (node?.is_admin_checklist) {
             return pb.collection('project_admin_checklist').delete(id)
+          } else if (node?.is_hierarquica) {
+            return pb.collection('tarefas_hierarquicas').delete(id)
           }
           return pb.collection('tasks').delete(id)
         }),
@@ -299,14 +347,31 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
   const handleCreateInline = async () => {
     if (!inlineCreateTitle.trim() || !inlineCreateId) return
     try {
-      await pb.collection('tasks').create({
-        title: inlineCreateTitle,
-        parent_task: inlineCreateId === 'root' ? null : inlineCreateId,
-        status: 'Pendente',
-        responsible: user?.id,
-        ordem: Date.now() / 1000,
-        due_date: dateRange ? dateRange.to.toISOString() : undefined,
-      })
+      const parentNode = tasks.find((t) => t.id === inlineCreateId)
+      if (parentNode?.is_hierarquica) {
+        await pb.collection('tarefas_hierarquicas').create({
+          titulo: inlineCreateTitle,
+          parent_id: inlineCreateId === 'root' ? null : inlineCreateId,
+          projeto_id: parentNode.project,
+          concluida: false,
+          ordem: Date.now() / 1000,
+          dados_customizados: {
+            status: 'Pendente',
+            responsible: user?.id,
+            due_date: dateRange ? dateRange.to.toISOString() : undefined,
+          },
+        })
+      } else {
+        await pb.collection('tasks').create({
+          title: inlineCreateTitle,
+          parent_task: inlineCreateId === 'root' ? null : inlineCreateId,
+          project: parentNode?.project,
+          status: 'Pendente',
+          responsible: user?.id,
+          ordem: Date.now() / 1000,
+          due_date: dateRange ? dateRange.to.toISOString() : undefined,
+        })
+      }
       queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
       queryClient().invalidateQueries(`designer_urgent_tasks_`)
       setInlineCreateTitle('')
@@ -342,6 +407,8 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     try {
       if (node.is_admin_checklist) {
         await pb.collection('project_admin_checklist').update(editingId, { item: newTitle })
+      } else if (node.is_hierarquica) {
+        await pb.collection('tarefas_hierarquicas').update(editingId, { titulo: newTitle })
       } else {
         await pb.collection('tasks').update(editingId, { title: newTitle })
       }
@@ -363,6 +430,11 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
       if (node?.is_admin_checklist) {
         await pb.collection('project_admin_checklist').update(id, {
           deadline: dateStr ? `${dateStr} 12:00:00.000Z` : null,
+        })
+      } else if (node?.is_hierarquica) {
+        const custom = node.dados_customizados || {}
+        await pb.collection('tarefas_hierarquicas').update(id, {
+          dados_customizados: { ...custom, due_date: dateStr ? `${dateStr} 12:00:00.000Z` : null },
         })
       } else {
         await pb.collection('tasks').update(id, {
@@ -419,6 +491,15 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
       return
     }
 
+    if (
+      (dragged.is_hierarquica && !target.is_hierarquica) ||
+      (!dragged.is_hierarquica && target.is_hierarquica)
+    ) {
+      setDraggedId(null)
+      setDropTarget(null)
+      return
+    }
+
     let newParent = dragged.parent_task
     if (dropTarget.position === 'inside') {
       newParent = target.id
@@ -437,10 +518,17 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     }
 
     try {
-      await pb.collection('tasks').update(draggedId, {
-        parent_task: newParent || null,
-        ordem: newOrdem,
-      })
+      if (dragged.is_hierarquica) {
+        await pb.collection('tarefas_hierarquicas').update(draggedId, {
+          parent_id: newParent || null,
+          ordem: newOrdem,
+        })
+      } else {
+        await pb.collection('tasks').update(draggedId, {
+          parent_task: newParent || null,
+          ordem: newOrdem,
+        })
+      }
       queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
     } catch (err) {
       console.error(err)
@@ -590,6 +678,13 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             >
               Checklist Admin
             </Badge>
+          ) : node.is_hierarquica ? (
+            <Badge
+              variant="outline"
+              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-purple-500/10 text-purple-600 border-purple-500/20"
+            >
+              Tarefa Hierárquica
+            </Badge>
           ) : node.is_internal ? (
             <Badge
               variant="outline"
@@ -669,27 +764,11 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
               arraste para reorganizar.
             </p>
           </div>
-          <Button size="sm" onClick={() => setInlineCreateId('root')}>
+          <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Tarefa Raiz
           </Button>
         </div>
-
-        {inlineCreateId === 'root' && (
-          <div className="flex items-center gap-2 py-2 px-3 mb-2 bg-slate-50 dark:bg-slate-800/50 rounded-md">
-            <Input
-              autoFocus
-              value={inlineCreateTitle}
-              onChange={(e) => setInlineCreateTitle(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onBlur={() => {
-                if (!inlineCreateTitle.trim()) setInlineCreateId(null)
-              }}
-              placeholder="Digite o título da tarefa raiz e pressione Enter..."
-              className="h-8 text-sm"
-            />
-          </div>
-        )}
 
         <div className="border border-slate-100 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 overflow-hidden">
           {isLoading ? (
@@ -775,6 +854,12 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             </Button>
           </div>
         )}
+
+        <CreateRootTaskDialog
+          open={isCreateDialogOpen}
+          onOpenChange={setIsCreateDialogOpen}
+          onSuccess={() => refetch()}
+        />
       </CardContent>
     </Card>
   )

@@ -74,9 +74,22 @@ export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRo
 
       const fetchOptions = async () => {
         try {
+          const upaRes = await pb.collection('user_project_access').getFullList({
+            filter: `user = "${user?.id}"`,
+          })
+          const assignedProjectIds = user?.assigned_projects || []
+          const accessProjectIds = upaRes.map((u: any) => u.project)
+          const allProjectIds = Array.from(new Set([...assignedProjectIds, ...accessProjectIds]))
+
+          let projectFilter = `(engineer ~ "${user?.name}" || engineer = "${user?.id}")`
+          if (allProjectIds.length > 0) {
+            const idsFilter = allProjectIds.map((id) => `id="${id}"`).join(' || ')
+            projectFilter = `(${projectFilter}) || (${idsFilter})`
+          }
+
           const [projectsRes, tagsRes] = await Promise.all([
             pb.collection('projects').getFullList<Project>({
-              filter: `is_archived = false && deleted_at = ""`,
+              filter: `is_archived = false && deleted_at = "" && (${projectFilter})`,
               sort: 'name',
             }),
             pb.collection('tags').getFullList<Tag>({
@@ -91,7 +104,7 @@ export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRo
       }
       fetchOptions()
     }
-  }, [open])
+  }, [open, user])
 
   const toggleTag = (tagId: string) => {
     setSelectedTags((prev) =>
@@ -114,16 +127,19 @@ export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRo
 
     try {
       const data = {
-        title: title,
-        description: description,
-        project: projectId,
-        status: status,
-        due_date: dueDate ? dueDate.toISOString() : null,
-        tags: selectedTags,
-        responsible: user?.id,
+        titulo: title,
+        descricao: description,
+        projeto_id: projectId,
+        concluida: status === 'Concluído',
+        dados_customizados: {
+          status: status,
+          due_date: dueDate ? dueDate.toISOString() : null,
+          tags: selectedTags,
+          responsible: user?.id,
+        },
       }
 
-      await pb.collection('tasks').create(data)
+      await pb.collection('tarefas_hierarquicas').create(data)
 
       toast({ title: 'Tarefa criada com sucesso!' })
       onSuccess?.()
@@ -143,6 +159,8 @@ export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRo
       setLoading(false)
     }
   }
+
+  const isFormValid = title.trim().length > 0 && projectId.length > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -311,7 +329,7 @@ export function CreateRootTaskDialog({ open, onOpenChange, onSuccess }: CreateRo
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
+          <Button onClick={handleSubmit} disabled={loading || !isFormValid}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Criar Tarefa
           </Button>

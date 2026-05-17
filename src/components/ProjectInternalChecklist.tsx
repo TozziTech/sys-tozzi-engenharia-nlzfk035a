@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Trash2, GripVertical, Pencil, Check, X } from 'lucide-react'
+import { Trash2, GripVertical, Pencil, Check, X, UserCircle } from 'lucide-react'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
 import {
@@ -14,6 +14,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+
+interface User {
+  id: string
+  name: string
+  avatar: string
+  collectionId: string
+  collectionName: string
+}
 
 interface InternalTask {
   id: string
@@ -22,6 +40,111 @@ interface InternalTask {
   priority: string
   ordem: number
   created: string
+  responsible?: string
+  expand?: {
+    responsible?: User
+  }
+}
+
+function ResponsibleSelector({
+  task,
+  users,
+  onAssign,
+}: {
+  task: InternalTask
+  users: User[]
+  onAssign: (taskId: string, userId: string | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const responsible = task.expand?.responsible
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            'h-7 px-2 gap-1.5 text-xs rounded-md border',
+            !responsible
+              ? 'border-transparent text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity'
+              : 'border-border bg-background shadow-sm hover:bg-muted',
+          )}
+          title={responsible ? responsible.name : 'Atribuir responsável'}
+        >
+          {responsible ? (
+            <>
+              <Avatar className="h-4 w-4">
+                <AvatarImage
+                  src={
+                    responsible.avatar
+                      ? pb.files.getURL(responsible as any, responsible.avatar)
+                      : undefined
+                  }
+                />
+                <AvatarFallback className="text-[8px]">
+                  {responsible.name?.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden sm:inline-block max-w-[80px] truncate">
+                {responsible.name}
+              </span>
+            </>
+          ) : (
+            <>
+              <UserCircle className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline-block">Atribuir</span>
+            </>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[200px] p-0" align="end">
+        <Command>
+          <CommandInput placeholder="Buscar usuário..." className="h-9" />
+          <CommandList>
+            <CommandEmpty>Nenhum usuário encontrado.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="unassigned"
+                onSelect={() => {
+                  onAssign(task.id, null)
+                  setOpen(false)
+                }}
+                className="text-muted-foreground cursor-pointer"
+              >
+                <UserCircle className="mr-2 h-4 w-4" />
+                Sem responsável
+              </CommandItem>
+              {users.map((user) => (
+                <CommandItem
+                  key={user.id}
+                  value={user.name}
+                  onSelect={() => {
+                    onAssign(task.id, user.id)
+                    setOpen(false)
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Avatar className="mr-2 h-5 w-5">
+                    <AvatarImage
+                      src={user.avatar ? pb.files.getURL(user as any, user.avatar) : undefined}
+                    />
+                    <AvatarFallback className="text-[10px]">
+                      {user.name?.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate flex-1">{user.name}</span>
+                  {responsible?.id === user.id && (
+                    <Check className="ml-auto h-4 w-4 text-emerald-500" />
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 export function ProjectInternalChecklist({
@@ -32,6 +155,7 @@ export function ProjectInternalChecklist({
   enabled: boolean
 }) {
   const [tasks, setTasks] = useState<InternalTask[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newPriority, setNewPriority] = useState('Média')
   const [isLoading, setIsLoading] = useState(true)
@@ -48,6 +172,7 @@ export function ProjectInternalChecklist({
       const records = await pb.collection('tasks').getFullList({
         filter: `project = "${projectId}" && is_internal = true`,
         sort: 'ordem,created',
+        expand: 'responsible',
       })
       setTasks(records as any)
     } catch (error) {
@@ -57,9 +182,31 @@ export function ProjectInternalChecklist({
     }
   }, [projectId])
 
+  const loadUsers = useCallback(async () => {
+    if (!pb.authStore.isValid) return
+    try {
+      const records = await pb.collection('users').getFullList({
+        filter: "role = 'Administrador' || role = 'Gerente de Projeto' || role = 'Projetista'",
+        sort: 'name',
+      })
+      setUsers(records as any)
+    } catch (error) {
+      console.error('Error loading users:', error)
+    }
+  }, [])
+
   useEffect(() => {
     loadTasks()
-  }, [loadTasks])
+    loadUsers()
+  }, [loadTasks, loadUsers])
+
+  const handleUpdateResponsible = async (taskId: string, responsibleId: string | null) => {
+    try {
+      await pb.collection('tasks').update(taskId, { responsible: responsibleId })
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar responsável', variant: 'destructive' })
+    }
+  }
 
   useRealtime('tasks', loadTasks, enabled)
 
@@ -339,6 +486,12 @@ export function ProjectInternalChecklist({
                   )}
                 </div>
                 <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto pl-10 sm:pl-0 gap-2 shrink-0">
+                  <ResponsibleSelector
+                    task={task}
+                    users={users}
+                    onAssign={handleUpdateResponsible}
+                  />
+
                   <Select
                     value={task.priority || 'Média'}
                     onValueChange={(val) => handleUpdatePriority(task, val)}

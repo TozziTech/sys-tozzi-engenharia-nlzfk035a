@@ -422,7 +422,9 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
+      <div
+        className={`grid gap-4 mb-6 ${user?.role === 'Administrador' || user?.role === 'Gerente de Projeto' ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}
+      >
         <Card className="shadow-sm border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -447,22 +449,24 @@ export default function Projects({ filterOnlyMine = false }: { filterOnlyMine?: 
             <p className="text-xs text-muted-foreground mt-1">Projetos entregues</p>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Valor de Contrato em Aberto
-            </CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                totalOpenContracts,
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Soma dos projetos filtrados</p>
-          </CardContent>
-        </Card>
+        {(user?.role === 'Administrador' || user?.role === 'Gerente de Projeto') && (
+          <Card className="shadow-sm border-border">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Valor de Contrato em Aberto
+              </CardTitle>
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                  totalOpenContracts,
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Soma dos projetos filtrados</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="bg-card p-4 rounded-xl border border-border shadow-sm mb-6 flex flex-col xl:flex-row gap-4 items-start xl:items-center">

@@ -25,9 +25,9 @@ export function KeyboardShortcuts() {
 
       for (const key in shortcuts) {
         const config = shortcuts[key]
-        if (!config.key) continue
+        if (!config?.key || typeof e.key !== 'string') continue
 
-        const matchKey = e.key.toLowerCase() === config.key.toLowerCase()
+        const matchKey = e.key.toLowerCase() === String(config.key).toLowerCase()
         const matchAlt = e.altKey === config.altKey
         const matchCtrl = e.ctrlKey === config.ctrlKey
         const matchShift = e.shiftKey === config.shiftKey

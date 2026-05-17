@@ -81,16 +81,36 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     refetch,
   } = useQuery(
     `tasks_my_list_${user?.id}`,
-    () =>
-      pb.collection('tasks').getFullList({
-        filter: `responsible = "${user?.id}"`,
-        sort: 'ordem',
-        expand: 'project,parent_task,module',
-      }),
+    async () => {
+      if (!user?.id) return []
+      const [tasksRes, checklistsRes] = await Promise.all([
+        pb.collection('tasks').getFullList({
+          filter: `responsible = "${user.id}"`,
+          sort: 'ordem',
+          expand: 'project,parent_task,module',
+        }),
+        pb.collection('project_admin_checklist').getFullList({
+          filter: `responsible = "${user.id}"`,
+          sort: '-created',
+          expand: 'project',
+        }),
+      ])
+
+      const mappedChecklists = checklistsRes.map((c) => ({
+        ...c,
+        title: c.item,
+        due_date: c.deadline,
+        is_admin_checklist: true,
+        parent_task: null,
+      }))
+
+      return [...tasksRes, ...mappedChecklists]
+    },
     { enabled: !!user },
   )
 
   useRealtime('tasks', refetch)
+  useRealtime('project_admin_checklist', refetch)
 
   const filteredTasks = useMemo(() => {
     if (!dateRange) return tasks
@@ -187,7 +207,13 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
   const handleBatchStatus = async (status: string) => {
     try {
       await Promise.all(
-        Array.from(selectedIds).map((id) => pb.collection('tasks').update(id, { status })),
+        Array.from(selectedIds).map((id) => {
+          const node = tasks.find((t) => t.id === id)
+          if (node?.is_admin_checklist) {
+            return pb.collection('project_admin_checklist').update(id, { status })
+          }
+          return pb.collection('tasks').update(id, { status })
+        }),
       )
       queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
       queryClient().invalidateQueries(`designer_urgent_tasks_`)
@@ -201,7 +227,15 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
   const handleBatchDelete = async () => {
     if (!confirm('Excluir as tarefas selecionadas?')) return
     try {
-      await Promise.all(Array.from(selectedIds).map((id) => pb.collection('tasks').delete(id)))
+      await Promise.all(
+        Array.from(selectedIds).map((id) => {
+          const node = tasks.find((t) => t.id === id)
+          if (node?.is_admin_checklist) {
+            return pb.collection('project_admin_checklist').delete(id)
+          }
+          return pb.collection('tasks').delete(id)
+        }),
+      )
       queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
       queryClient().invalidateQueries(`designer_urgent_tasks_`)
       toast({ title: 'Tarefas excluídas com sucesso' })
@@ -217,12 +251,20 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
       const idsToDelete = new Set<string>()
       const collectIds = (id: string) => {
         idsToDelete.add(id)
-        const children = tasks.filter((t) => t.parent_task === id)
+        const children = tasks.filter((t) => t.parent_task === id && !t.is_admin_checklist)
         children.forEach((c) => collectIds(c.id))
       }
       collectIds(taskToDelete)
 
-      await Promise.all(Array.from(idsToDelete).map((id) => pb.collection('tasks').delete(id)))
+      await Promise.all(
+        Array.from(idsToDelete).map((id) => {
+          const node = tasks.find((t) => t.id === id)
+          if (node?.is_admin_checklist) {
+            return pb.collection('project_admin_checklist').delete(id)
+          }
+          return pb.collection('tasks').delete(id)
+        }),
+      )
 
       queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
       queryClient().invalidateQueries(`designer_urgent_tasks_`)
@@ -282,7 +324,11 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     }
 
     try {
-      await pb.collection('tasks').update(editingId, { title: newTitle })
+      if (node.is_admin_checklist) {
+        await pb.collection('project_admin_checklist').update(editingId, { item: newTitle })
+      } else {
+        await pb.collection('tasks').update(editingId, { title: newTitle })
+      }
       queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
       setEditingId(null)
     } catch (e) {
@@ -297,9 +343,16 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
 
   const handleUpdateDueDate = async (id: string, dateStr: string) => {
     try {
-      await pb.collection('tasks').update(id, {
-        due_date: dateStr ? `${dateStr} 12:00:00.000Z` : null,
-      })
+      const node = tasks.find((t) => t.id === id)
+      if (node?.is_admin_checklist) {
+        await pb.collection('project_admin_checklist').update(id, {
+          deadline: dateStr ? `${dateStr} 12:00:00.000Z` : null,
+        })
+      } else {
+        await pb.collection('tasks').update(id, {
+          due_date: dateStr ? `${dateStr} 12:00:00.000Z` : null,
+        })
+      }
       queryClient().invalidateQueries(`tasks_my_list_${user?.id}`)
       queryClient().invalidateQueries(`designer_urgent_tasks_`)
       toast({ title: 'Data atualizada' })
@@ -343,6 +396,12 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     const dragged = tasks.find((t) => t.id === draggedId)
     const target = tasks.find((t) => t.id === targetId)
     if (!dragged || !target) return
+
+    if (dragged.is_admin_checklist || target.is_admin_checklist) {
+      setDraggedId(null)
+      setDropTarget(null)
+      return
+    }
 
     let newParent = dragged.parent_task
     if (dropTarget.position === 'inside') {
@@ -417,18 +476,20 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           </div>
 
           <div className="flex items-center opacity-100 sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0 gap-0.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
-              onClick={() => {
-                setInlineCreateId(node.id)
-                setExpandedIds((prev) => new Set(prev).add(node.id))
-              }}
-              title="Adicionar subtarefa"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+            {!node.is_admin_checklist && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                onClick={() => {
+                  setInlineCreateId(node.id)
+                  setExpandedIds((prev) => new Set(prev).add(node.id))
+                }}
+                title="Adicionar subtarefa"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -506,12 +567,26 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             {node.status || 'Pendente'}
           </span>
 
-          {node.is_internal && (
+          {node.is_admin_checklist ? (
+            <Badge
+              variant="outline"
+              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-amber-500/10 text-amber-600 border-amber-500/20"
+            >
+              Checklist Admin
+            </Badge>
+          ) : node.is_internal ? (
             <Badge
               variant="outline"
               className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-primary/5 text-primary border-primary/20"
             >
-              Interna
+              Checklist Interno
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
+            >
+              Tarefa de Projeto
             </Badge>
           )}
 

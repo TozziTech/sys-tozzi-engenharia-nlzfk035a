@@ -203,12 +203,34 @@ export default function DesignerPanel() {
 
   const { data: urgentTasks = EMPTY_ARRAY, refetch: refetchTasks } = useQuery(
     `designer_urgent_tasks_${user?.id}`,
-    () =>
-      pb.collection('tasks').getFullList({
-        filter: `responsible = "${user?.id}" && status != "Concluído"`,
-        expand: 'project',
-        sort: 'due_date',
-      }),
+    async () => {
+      if (!user) return []
+      const [tasks, checklists] = await Promise.all([
+        pb.collection('tasks').getFullList({
+          filter: `responsible = "${user.id}" && status != "Concluído"`,
+          expand: 'project',
+        }),
+        pb.collection('project_admin_checklist').getFullList({
+          filter: `responsible = "${user.id}" && status != "Concluído" && status != "Cancelado"`,
+          expand: 'project',
+        }),
+      ])
+
+      const mappedChecklists = checklists.map((c) => ({
+        ...c,
+        title: c.item,
+        due_date: c.deadline,
+        is_admin_checklist: true,
+      }))
+
+      const combined = [...tasks, ...mappedChecklists]
+      combined.sort((a, b) => {
+        const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity
+        const dateB = b.due_date ? new Date(b.due_date).getTime() : Infinity
+        return dateA - dateB
+      })
+      return combined
+    },
     { enabled: !!user },
   )
 
@@ -301,6 +323,7 @@ export default function DesignerPanel() {
   useRealtime('projects', refetchProjects, !!user?.id)
   useRealtime('user_project_access', refetchProjects, !!user?.id)
   useRealtime('tasks', refetchTasks, !!user?.id)
+  useRealtime('project_admin_checklist', refetchTasks, !!user?.id)
 
   const chartData = useMemo(() => {
     const counts = { Pendente: 0, 'Em Andamento': 0, Concluído: 0 }

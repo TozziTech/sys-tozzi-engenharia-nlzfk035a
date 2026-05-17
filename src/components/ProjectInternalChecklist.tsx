@@ -222,6 +222,7 @@ export function ProjectInternalChecklist({
         priority: newPriority,
         ordem: maxOrdem + 1,
         is_internal: true,
+        responsible: pb.authStore.record?.id,
       })
       setNewTaskTitle('')
       setNewPriority('Média')

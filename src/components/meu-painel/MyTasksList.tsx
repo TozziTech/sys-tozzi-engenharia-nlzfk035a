@@ -29,11 +29,14 @@ import {
   ChevronDown,
   CheckSquare,
   Calendar,
+  Briefcase,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent } from '@/components/ui/card'
 import { useQuery, queryClient } from '@/hooks/use-query'
+import { Link } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 
 const getTaskStatusColor = (status: string) => {
   switch (status) {
@@ -82,7 +85,7 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
       pb.collection('tasks').getFullList({
         filter: `responsible = "${user?.id}"`,
         sort: 'ordem',
-        expand: 'project,parent_task',
+        expand: 'project,parent_task,module',
       }),
     { enabled: !!user },
   )
@@ -503,13 +506,33 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
             {node.status || 'Pendente'}
           </span>
 
-          {node.expand?.project && (
-            <span
-              className="text-xs text-slate-400 truncate max-w-[120px] shrink-0 ml-3 hidden sm:inline-block"
-              title={node.expand.project.name}
+          {node.is_internal && (
+            <Badge
+              variant="outline"
+              className="text-[10px] py-0 px-1.5 shrink-0 ml-2 hidden sm:inline-flex bg-primary/5 text-primary border-primary/20"
             >
-              {node.expand.project.name}
+              Interna
+            </Badge>
+          )}
+
+          {node.expand?.module && (
+            <span
+              className="text-xs text-slate-400 truncate max-w-[120px] shrink-0 ml-2 hidden sm:inline-block"
+              title={`Disciplina: ${node.expand.module.name}`}
+            >
+              {node.expand.module.name}
             </span>
+          )}
+
+          {node.expand?.project && (
+            <Link
+              to={`/projects/${node.project}`}
+              className="text-xs text-primary hover:text-primary/80 hover:underline truncate max-w-[150px] shrink-0 ml-2 hidden sm:inline-flex items-center gap-1"
+              title={`Projeto: ${node.expand.project.name}`}
+            >
+              <Briefcase className="h-3 w-3" />
+              {node.expand.project.name}
+            </Link>
           )}
         </div>
 

@@ -16,7 +16,9 @@ import {
   ChevronRight,
   Settings2,
   GripVertical,
+  Edit,
 } from 'lucide-react'
+import { EditTaskDialog } from '@/components/EditTaskDialog'
 import {
   Bar,
   BarChart,
@@ -80,6 +82,7 @@ const Dashboard = () => {
   const [users, setUsers] = useState<any[]>([])
   const [perfFilter, setPerfFilter] = useState({ period: 'all', status: 'all' })
   const [isEditMode, setIsEditMode] = useState(false)
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
 
   const pClass = density === 'compact' ? 'p-3 md:p-4 pt-4' : 'p-4 md:p-8 pt-6'
   const gapClass = density === 'compact' ? 'gap-3' : 'gap-4'
@@ -622,44 +625,50 @@ const Dashboard = () => {
         return (
           <Card className="h-full flex flex-col border-border">
             <CardHeader>
-              <CardTitle>Atividade Recente</CardTitle>
-              <CardDescription>Últimas atualizações da equipe de projetos.</CardDescription>
+              <CardTitle>Tarefas Recentes</CardTitle>
+              <CardDescription>Últimas tarefas pendentes de atenção.</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto max-h-[350px]">
-              <div className="space-y-6">
-                {[
-                  {
-                    user: 'João Silva',
-                    action: 'finalizou a tarefa no',
-                    target: 'Design System',
-                    time: 'Há 2 horas',
-                  },
-                  {
-                    user: 'Maria Santos',
-                    action: 'adicionou um comentário em',
-                    target: 'App de Entregas',
-                    time: 'Há 4 horas',
-                  },
-                  {
-                    user: 'Pedro Costa',
-                    action: 'criou o projeto',
-                    target: 'Landing Page B2B',
-                    time: 'Ontem às 16:30',
-                  },
-                ].map((a, i) => (
-                  <div key={i} className="flex items-start">
-                    <div className="bg-muted/50 p-2 rounded-full mr-4 mt-0.5 border border-border">
-                      <Activity className="h-4 w-4 text-foreground/70" />
+              <div className="space-y-4">
+                {tasks
+                  .filter((t) => t.status !== 'Concluído')
+                  .slice(0, 5)
+                  .map((t, i) => (
+                    <div
+                      key={t.id || i}
+                      className="flex items-start justify-between group p-2 hover:bg-muted/50 rounded-lg transition-colors border border-transparent hover:border-border"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="bg-primary/10 p-2 rounded-full mt-0.5">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold leading-snug">{t.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Vencimento:{' '}
+                            {t.due_date
+                              ? new Date(t.due_date).toLocaleDateString('pt-BR')
+                              : 'Sem data'}
+                          </p>
+                        </div>
+                      </div>
+                      {user?.role !== 'Cliente' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100"
+                          onClick={() => setEditingTaskId(t.id)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
-                    <div className="space-y-1 flex-1">
-                      <p className="text-sm leading-snug">
-                        <span className="font-semibold">{a.user}</span> {a.action}{' '}
-                        <span className="font-semibold text-primary">{a.target}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">{a.time}</p>
-                    </div>
+                  ))}
+                {tasks.filter((t) => t.status !== 'Concluído').length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhuma tarefa pendente.
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -759,6 +768,14 @@ const Dashboard = () => {
         companySettings={companySettings}
         userName={user?.name || user?.email || 'Administrador'}
         printMode={printMode}
+      />
+      <EditTaskDialog
+        taskId={editingTaskId}
+        open={!!editingTaskId}
+        onOpenChange={(open) => {
+          if (!open) setEditingTaskId(null)
+        }}
+        onTaskUpdated={() => loadData()}
       />
 
       {projects.filter((p) => p.is_priority && p.status !== 'Concluído').length > 0 && (

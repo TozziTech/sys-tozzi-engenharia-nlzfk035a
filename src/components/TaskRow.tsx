@@ -9,7 +9,9 @@ import {
   GripVertical,
   AlertCircle,
   Clock,
+  Edit,
 } from 'lucide-react'
+import { EditTaskDialog } from '@/components/EditTaskDialog'
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/hooks/use-permissions'
 
@@ -34,6 +36,7 @@ interface TaskRowProps {
   onDragEnd: () => void
   isOverdue: (date: string | null) => boolean
   onClickTitle?: (task: TaskNode) => void
+  onEdit?: (id: string) => void
 }
 
 export function TaskRow({
@@ -55,8 +58,10 @@ export function TaskRow({
   onDragEnd,
   isOverdue,
   onClickTitle,
+  onEdit,
 }: TaskRowProps) {
   const { can } = usePermissions()
+  const [isEditing, setIsEditing] = useState(false)
   const canEditTasks = can('edit', 'tasks')
   const canDeleteTasks = can('delete', 'tasks')
   const canCreateTasks = can('create', 'tasks')
@@ -244,6 +249,20 @@ export function TaskRow({
       {columns.acoes && (
         <TableCell className="py-2.5 text-center">
           <div className="flex items-center justify-center gap-1 transition-opacity">
+            {canEditTasks && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-7 h-7 hover:bg-primary/10 hover:text-primary text-slate-500"
+                onClick={() => {
+                  if (onEdit) onEdit(task.id)
+                  else setIsEditing(true)
+                }}
+                title="Editar tarefa"
+              >
+                <Edit className="w-3.5 h-3.5" />
+              </Button>
+            )}
             {canCreateTasks && (
               <Button
                 variant="ghost"
@@ -271,7 +290,13 @@ export function TaskRow({
       )}
 
       {/* Empty cell to align with the + button in header */}
-      <TableCell className="py-2.5 p-0"></TableCell>
+      <TableCell className="py-2.5 p-0">
+        <EditTaskDialog
+          taskId={isEditing ? task.id : null}
+          open={isEditing}
+          onOpenChange={setIsEditing}
+        />
+      </TableCell>
     </TableRow>
   )
 }

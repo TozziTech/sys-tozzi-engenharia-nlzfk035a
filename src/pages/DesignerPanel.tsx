@@ -69,7 +69,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { exportDesignerDashboardPDF } from '@/lib/exportPdf'
 import { ServicosList } from '@/components/financial/ServicosList'
 import { MyTasksList } from '@/components/meu-painel/MyTasksList'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Edit } from 'lucide-react'
+import { EditTaskDialog } from '@/components/EditTaskDialog'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -134,6 +135,7 @@ export default function DesignerPanel() {
   const [exportingDocs, setExportingDocs] = useState(false)
   const hasShownDailySummary = useRef(false)
   const [showDailySummary, setShowDailySummary] = useState(false)
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
 
   const hasFinanceAccess = canAccess('planilha_financeira') || user?.role === 'Administrador'
 
@@ -343,18 +345,14 @@ export default function DesignerPanel() {
     async () => {
       if (!user) return []
       const [tasksRes, modulesRes] = await Promise.all([
-        pb
-          .collection('tasks')
-          .getFullList({
-            filter: `responsible = "${user.id}" && status != "Concluído"`,
-            expand: 'project',
-          }),
-        pb
-          .collection('project_modules')
-          .getFullList({
-            filter: `responsible = "${user.id}" && status != "Concluído"`,
-            expand: 'project',
-          }),
+        pb.collection('tasks').getFullList({
+          filter: `responsible = "${user.id}" && status != "Concluído"`,
+          expand: 'project',
+        }),
+        pb.collection('project_modules').getFullList({
+          filter: `responsible = "${user.id}" && status != "Concluído"`,
+          expand: 'project',
+        }),
       ])
 
       const combined = [
@@ -665,18 +663,33 @@ export default function DesignerPanel() {
                             {t.source}
                           </Badge>
                         </div>
-                        <span
-                          className={cn(
-                            'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',
-                            t.due_date
-                              ? 'text-muted-foreground bg-background border-border'
-                              : 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/30 dark:border-rose-900',
+                        <div className="flex flex-col items-end gap-1">
+                          <span
+                            className={cn(
+                              'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',
+                              t.due_date
+                                ? 'text-muted-foreground bg-background border-border'
+                                : 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/30 dark:border-rose-900',
+                            )}
+                          >
+                            {t.due_date
+                              ? new Date(t.due_date).toLocaleDateString('pt-BR')
+                              : 'Sem Data'}
+                          </span>
+                          {t.source === 'Tarefa Geral' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                setEditingTaskId(t.id)
+                              }}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
                           )}
-                        >
-                          {t.due_date
-                            ? new Date(t.due_date).toLocaleDateString('pt-BR')
-                            : 'Sem Data'}
-                        </span>
+                        </div>
                       </div>
                       <p className="font-semibold text-foreground text-sm mb-1 leading-snug">
                         {t.title}
@@ -741,30 +754,47 @@ export default function DesignerPanel() {
                                 {item.project?.name || 'Projeto Desconhecido'}
                               </p>
                             </div>
-                            <div className="flex items-center gap-3 mt-2 sm:mt-0 shrink-0">
-                              <Badge
-                                variant={
-                                  isOverdue ? 'destructive' : isUrgent ? 'outline' : 'secondary'
-                                }
-                                className={cn(
-                                  isUrgent &&
-                                    !isOverdue &&
-                                    'border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-500/10',
-                                )}
-                              >
-                                {isOverdue ? 'Atrasado' : isUrgent ? 'Urgente' : 'No Prazo'}
-                              </Badge>
-                              <div className="flex flex-col items-end">
-                                <span
+                            <div className="flex items-center gap-3 mt-2 sm:mt-0 shrink-0 relative">
+                              {item.type === 'task' && (
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 group-hover:-translate-x-4 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      setEditingTaskId(item.id)
+                                    }}
+                                    className="h-8 shadow-sm"
+                                  >
+                                    <Edit className="w-3.5 h-3.5 mr-1.5" /> Editar
+                                  </Button>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-3 transition-transform duration-200 group-hover:-translate-x-24">
+                                <Badge
+                                  variant={
+                                    isOverdue ? 'destructive' : isUrgent ? 'outline' : 'secondary'
+                                  }
                                   className={cn(
-                                    'text-sm font-medium',
-                                    (isUrgent || isOverdue) && 'text-destructive',
+                                    isUrgent &&
+                                      !isOverdue &&
+                                      'border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-500/10',
                                   )}
                                 >
-                                  {date.toLocaleDateString('pt-BR')}
-                                </span>
+                                  {isOverdue ? 'Atrasado' : isUrgent ? 'Urgente' : 'No Prazo'}
+                                </Badge>
+                                <div className="flex flex-col items-end">
+                                  <span
+                                    className={cn(
+                                      'text-sm font-medium',
+                                      (isUrgent || isOverdue) && 'text-destructive',
+                                    )}
+                                  >
+                                    {date.toLocaleDateString('pt-BR')}
+                                  </span>
+                                </div>
+                                <ArrowRight className="h-4 w-4 text-muted-foreground ml-1" />
                               </div>
-                              <ArrowRight className="h-4 w-4 text-muted-foreground ml-1" />
                             </div>
                           </Link>
                         )
@@ -1154,6 +1184,16 @@ export default function DesignerPanel() {
         </TabsContent>
       </Tabs>
 
+      <EditTaskDialog
+        taskId={editingTaskId}
+        open={!!editingTaskId}
+        onOpenChange={(open) => {
+          if (!open) setEditingTaskId(null)
+        }}
+        onTaskUpdated={() => {
+          refetchTasks()
+        }}
+      />
       <Dialog open={showDailySummary} onOpenChange={setShowDailySummary}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>

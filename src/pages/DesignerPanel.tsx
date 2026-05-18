@@ -71,8 +71,9 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { exportDesignerDashboardPDF } from '@/lib/exportPdf'
 import { ServicosList } from '@/components/financial/ServicosList'
 import { MyTasksList } from '@/components/meu-painel/MyTasksList'
-import { ArrowRight, Edit } from 'lucide-react'
+import { ArrowRight, Edit, Trash2 } from 'lucide-react'
 import { EditTaskDialog } from '@/components/EditTaskDialog'
+import { AppBreadcrumbs } from '@/components/AppBreadcrumbs'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -137,9 +138,19 @@ export default function DesignerPanel() {
   const [exportingDocs, setExportingDocs] = useState(false)
   const hasShownDailySummary = useRef(false)
   const [showDailySummary, setShowDailySummary] = useState(false)
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [editingTask, setEditingTask] = useState<{ id: string; collection: string } | null>(null)
 
   const hasFinanceAccess = canAccess('planilha_financeira') || user?.role === 'Administrador'
+
+  const handleDeleteTask = async (task: any) => {
+    if (!confirm('Deseja realmente excluir este item?')) return
+    try {
+      await pb.collection(task.collectionName || 'tasks').delete(task.id)
+      toast({ title: 'Item excluído com sucesso!' })
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' })
+    }
+  }
 
   const handleTaskToggle = async (task: any, checked: boolean) => {
     try {
@@ -270,17 +281,21 @@ export default function DesignerPanel() {
         projectFilter = `(${projectFilter}) || (${idsFilter})`
       }
 
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      const dateStr = sevenDaysAgo.toISOString().replace('T', ' ')
+
       const [tasks, checklists, hierarquicas] = await Promise.all([
         pb.collection('tasks').getFullList({
-          filter: `responsible = "${user.id}" && status != "Concluído"`,
+          filter: `responsible = "${user.id}" && (status != "Concluído" || updated >= "${dateStr}")`,
           expand: 'project',
         }),
         pb.collection('project_admin_checklist').getFullList({
-          filter: `responsible = "${user.id}" && status != "Concluído" && status != "Cancelado"`,
+          filter: `responsible = "${user.id}" && status != "Cancelado" && (status != "Concluído" || updated >= "${dateStr}")`,
           expand: 'project',
         }),
         pb.collection('tarefas_hierarquicas').getFullList({
-          filter: `concluida = false && (${projectFilter})`,
+          filter: `(${projectFilter}) && (concluida = false || updated >= "${dateStr}")`,
           expand: 'projeto_id',
         }),
       ])
@@ -296,22 +311,33 @@ export default function DesignerPanel() {
         id: h.id,
         title: h.titulo,
         due_date: null,
-        status: 'Pendente',
+        status: h.concluida ? 'Concluído' : 'Pendente',
         priority: 'Média',
         expand: { project: h.expand?.projeto_id },
       }))
 
       const combined = [
-        ...tasks.map((t) => ({ ...t, source: 'Tarefa Geral' })),
-        ...mappedChecklists.map((c) => ({ ...c, source: 'Checklist de Projeto' })),
-        ...mappedHierarquicas.map((h) => ({ ...h, source: 'Tarefa Hierárquica' })),
+        ...tasks.map((t) => ({ ...t, source: 'Tarefa Geral', collectionName: 'tasks' })),
+        ...mappedChecklists.map((c) => ({
+          ...c,
+          source: 'Checklist de Projeto',
+          collectionName: 'project_admin_checklist',
+        })),
+        ...mappedHierarquicas.map((h) => ({
+          ...h,
+          source: 'Tarefa Hierárquica',
+          collectionName: 'tarefas_hierarquicas',
+        })),
       ]
       combined.sort((a, b) => {
+        if (a.status === 'Concluído' && b.status !== 'Concluído') return 1
+        if (a.status !== 'Concluído' && b.status === 'Concluído') return -1
+
         const dateA = a.due_date ? new Date(a.due_date).getTime() : 0
         const dateB = b.due_date ? new Date(b.due_date).getTime() : 0
 
-        if (dateA === 0 && dateB !== 0) return -1
-        if (dateB === 0 && dateA !== 0) return 1
+        if (dateA === 0 && dateB !== 0) return 1
+        if (dateB === 0 && dateA !== 0) return -1
         if (dateA === 0 && dateB === 0) return 0
 
         return dateA - dateB
@@ -392,13 +418,17 @@ export default function DesignerPanel() {
     `designer_upcoming_${user?.id}`,
     async () => {
       if (!user) return []
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      const dateStr = sevenDaysAgo.toISOString().replace('T', ' ')
+
       const [tasksRes, modulesRes] = await Promise.all([
         pb.collection('tasks').getFullList({
-          filter: `responsible = "${user.id}" && status != "Concluído"`,
+          filter: `responsible = "${user.id}" && (status != "Concluído" || updated >= "${dateStr}")`,
           expand: 'project',
         }),
         pb.collection('project_modules').getFullList({
-          filter: `responsible = "${user.id}" && status != "Concluído"`,
+          filter: `responsible = "${user.id}" && (status != "Concluído" || updated >= "${dateStr}")`,
           expand: 'project',
         }),
       ])
@@ -422,7 +452,11 @@ export default function DesignerPanel() {
         })),
       ].filter((x) => x.date)
 
-      combined.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      combined.sort((a, b) => {
+        if (a.status === 'Concluído' && b.status !== 'Concluído') return 1
+        if (a.status !== 'Concluído' && b.status === 'Concluído') return -1
+        return new Date(a.date).getTime() - new Date(b.date).getTime()
+      })
       return combined.slice(0, 10)
     },
     { enabled: !!user },
@@ -559,17 +593,7 @@ export default function DesignerPanel() {
 
   return (
     <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-        <Link
-          to="/meus-projetos"
-          className="hover:text-foreground transition-colors flex items-center gap-1"
-        >
-          <LayoutDashboard className="w-4 h-4" />
-          Meus Projetos
-        </Link>
-        <ChevronRight className="w-4 h-4" />
-        <span className="text-foreground font-medium">Meu Painel</span>
-      </div>
+      <AppBreadcrumbs />
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
@@ -593,6 +617,49 @@ export default function DesignerPanel() {
           </div>
         </div>
         <div className="flex flex-col md:flex-row items-end md:items-center gap-3">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 h-10 px-3 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex flex-col items-end text-left">
+                  <span className="text-sm font-semibold leading-none">{user?.name}</span>
+                  <span className="text-xs text-muted-foreground mt-1 leading-none">
+                    {user?.role}
+                  </span>
+                </div>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56" align="end">
+              <div className="space-y-2">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+                <div className="h-px bg-border my-2" />
+                <div className="text-sm">
+                  <span className="font-semibold text-foreground">Papel Atual:</span>{' '}
+                  <span className="text-muted-foreground">{roleOverride || user?.role}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold text-foreground">Status:</span>{' '}
+                  <Badge
+                    variant="outline"
+                    className="ml-1 text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                  >
+                    Ativo
+                  </Badge>
+                </div>
+                <div className="h-px bg-border my-2" />
+                <Link to="/profile">
+                  <Button variant="ghost" className="w-full justify-start h-8 text-sm px-2">
+                    Acessar Perfil
+                  </Button>
+                </Link>
+              </div>
+            </PopoverContent>
+          </Popover>
           {(user?.role === 'Administrador' || roleOverride) && (
             <div className="flex items-center gap-2">
               <Select value={roleOverride || user?.role} onValueChange={(v) => setRoleOverride(v)}>
@@ -766,20 +833,32 @@ export default function DesignerPanel() {
                               ? new Date(t.due_date).toLocaleDateString('pt-BR')
                               : 'Sem Data'}
                           </span>
-                          {t.source === 'Tarefa Geral' && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border/50 shadow-sm"
+                              className="h-6 w-6 bg-background border border-border/50 shadow-sm"
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                setEditingTaskId(t.id)
+                                setEditingTask({ id: t.id, collection: t.collectionName })
                               }}
                             >
-                              <Edit className="h-3.5 w-3.5" />
+                              <Edit className="h-3.5 w-3.5 text-blue-500" />
                             </Button>
-                          )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 bg-background border border-border/50 shadow-sm hover:bg-rose-50"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleDeleteTask(t)
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                       <p
@@ -839,7 +918,10 @@ export default function DesignerPanel() {
                                     checked={item.status === 'Concluído'}
                                     disabled={!canToggleTask(item)}
                                     onCheckedChange={(checked) =>
-                                      handleTaskToggle(item, checked as boolean)
+                                      handleTaskToggle(
+                                        { ...item, source: 'Tarefa Geral' },
+                                        checked as boolean,
+                                      )
                                     }
                                     className="w-5 h-5 rounded-full data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-colors mt-0.5 shadow-sm"
                                   />
@@ -872,18 +954,30 @@ export default function DesignerPanel() {
                             </div>
                             <div className="flex items-center gap-3 mt-2 sm:mt-0 shrink-0 relative overflow-hidden sm:overflow-visible group-hover:pr-24 transition-all duration-200">
                               {item.type === 'task' && (
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full group-hover:translate-x-0 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 bg-background/80 backdrop-blur-sm pl-2 py-1">
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full group-hover:translate-x-0 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 bg-background/80 backdrop-blur-sm pl-2 py-1 flex items-center gap-1">
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={(e) => {
                                       e.preventDefault()
                                       e.stopPropagation()
-                                      setEditingTaskId(item.id)
+                                      setEditingTask({ id: item.id, collection: 'tasks' })
                                     }}
                                     className="h-8 shadow-sm bg-background hover:bg-muted"
                                   >
-                                    <Edit className="w-3.5 h-3.5 mr-1.5" /> Editar
+                                    <Edit className="w-3.5 h-3.5 mr-1.5 text-blue-500" /> Editar
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      handleDeleteTask({ ...item, collectionName: 'tasks' })
+                                    }}
+                                    className="h-8 w-8 shadow-sm bg-background hover:bg-rose-50"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                                   </Button>
                                 </div>
                               )}
@@ -1302,10 +1396,11 @@ export default function DesignerPanel() {
       </Tabs>
 
       <EditTaskDialog
-        taskId={editingTaskId}
-        open={!!editingTaskId}
+        taskId={editingTask?.id || null}
+        collectionName={editingTask?.collection || 'tasks'}
+        open={!!editingTask}
         onOpenChange={(open) => {
-          if (!open) setEditingTaskId(null)
+          if (!open) setEditingTask(null)
         }}
         onTaskUpdated={() => {
           refetchTasks()

@@ -29,12 +29,19 @@ import { Loader2 } from 'lucide-react'
 
 interface EditTaskDialogProps {
   taskId: string | null
+  collectionName?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onTaskUpdated?: () => void
 }
 
-export function EditTaskDialog({ taskId, open, onOpenChange, onTaskUpdated }: EditTaskDialogProps) {
+export function EditTaskDialog({
+  taskId,
+  collectionName = 'tasks',
+  open,
+  onOpenChange,
+  onTaskUpdated,
+}: EditTaskDialogProps) {
   const { toast } = useToast()
   const { can } = usePermissions()
   const canEdit = can('edit', 'tasks')
@@ -64,18 +71,38 @@ export function EditTaskDialog({ taskId, open, onOpenChange, onTaskUpdated }: Ed
 
       if (taskId) {
         setLoading(true)
-        pb.collection('tasks')
+        pb.collection(collectionName)
           .getOne(taskId)
           .then((t) => {
             setTask(t)
-            setTitle(t.title || '')
-            setDescription(t.description || '')
-            setStatus(t.status || 'Pendente')
-            setDueDate(t.due_date ? t.due_date.substring(0, 10) : '')
-            setPriority(t.priority || 'Média')
-            setResponsible(t.responsible || 'none')
-            setIsInternal(t.is_internal || false)
-            setSelectedTags(t.tags || [])
+            if (collectionName === 'tarefas_hierarquicas') {
+              setTitle(t.titulo || '')
+              setDescription(t.descricao || '')
+              setStatus(t.concluida ? 'Concluído' : 'Pendente')
+              setDueDate('')
+              setPriority('Média')
+              setResponsible('none')
+              setIsInternal(false)
+              setSelectedTags([])
+            } else if (collectionName === 'project_admin_checklist') {
+              setTitle(t.item || '')
+              setDescription('')
+              setStatus(t.status || 'Pendente')
+              setDueDate(t.deadline ? t.deadline.substring(0, 10) : '')
+              setPriority('Média')
+              setResponsible(t.responsible || 'none')
+              setIsInternal(false)
+              setSelectedTags([])
+            } else {
+              setTitle(t.title || '')
+              setDescription(t.description || '')
+              setStatus(t.status || 'Pendente')
+              setDueDate(t.due_date ? t.due_date.substring(0, 10) : '')
+              setPriority(t.priority || 'Média')
+              setResponsible(t.responsible || 'none')
+              setIsInternal(t.is_internal || false)
+              setSelectedTags(t.tags || [])
+            }
           })
           .catch((err) => {
             console.error(err)
@@ -103,34 +130,48 @@ export function EditTaskDialog({ taskId, open, onOpenChange, onTaskUpdated }: Ed
     setErrors({})
 
     try {
-      const data: any = {
-        title,
-        description,
-        status,
-        priority,
-        is_internal: isInternal,
-        tags: selectedTags,
-      }
+      let data: any = {}
 
-      if (dueDate) {
-        data.due_date = `${dueDate} 12:00:00.000Z`
+      if (collectionName === 'tarefas_hierarquicas') {
+        data = {
+          titulo: title,
+          descricao: description,
+          concluida: status === 'Concluído',
+        }
+      } else if (collectionName === 'project_admin_checklist') {
+        data = {
+          item: title,
+          status,
+          is_completed: status === 'Concluído',
+        }
+        if (dueDate) data.deadline = `${dueDate} 12:00:00.000Z`
+        else data.deadline = null
+        if (responsible && responsible !== 'none') data.responsible = responsible
+        else data.responsible = null
       } else {
-        data.due_date = null
+        data = {
+          title,
+          description,
+          status,
+          priority,
+          is_internal: isInternal,
+          tags: selectedTags,
+        }
+
+        if (dueDate) data.due_date = `${dueDate} 12:00:00.000Z`
+        else data.due_date = null
+
+        if (responsible && responsible !== 'none') data.responsible = responsible
+        else data.responsible = null
+
+        if (status === 'Concluído' && task?.status !== 'Concluído') {
+          data.completed_at = new Date().toISOString()
+        } else if (status !== 'Concluído') {
+          data.completed_at = null
+        }
       }
 
-      if (responsible && responsible !== 'none') {
-        data.responsible = responsible
-      } else {
-        data.responsible = null
-      }
-
-      if (status === 'Concluído' && task?.status !== 'Concluído') {
-        data.completed_at = new Date().toISOString()
-      } else if (status !== 'Concluído') {
-        data.completed_at = null
-      }
-
-      await pb.collection('tasks').update(taskId!, data)
+      await pb.collection(collectionName).update(taskId!, data)
 
       toast({ title: 'Tarefa atualizada com sucesso!' })
       onTaskUpdated?.()
@@ -310,7 +351,7 @@ export function EditTaskDialog({ taskId, open, onOpenChange, onTaskUpdated }: Ed
               </TabsContent>
 
               <TabsContent value="attachments" className="mt-0 h-full">
-                {task && (
+                {task && collectionName === 'tasks' ? (
                   <TaskAttachments
                     taskId={task.id}
                     attachments={
@@ -322,6 +363,10 @@ export function EditTaskDialog({ taskId, open, onOpenChange, onTaskUpdated }: Ed
                     }
                     onUpdate={handleAttachmentUpdate}
                   />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    Anexos não suportados para este tipo de tarefa.
+                  </div>
                 )}
               </TabsContent>
             </div>

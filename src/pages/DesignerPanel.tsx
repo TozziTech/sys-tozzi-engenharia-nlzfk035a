@@ -125,7 +125,7 @@ const formatCurrency = (value: number) =>
 const EMPTY_ARRAY: any[] = []
 
 export default function DesignerPanel() {
-  const { user } = useAuth()
+  const { user, roleOverride, setRoleOverride } = useAuth()
   const { canAccess } = usePermissions()
   const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -559,6 +559,18 @@ export default function DesignerPanel() {
 
   return (
     <div className="flex-1 space-y-6 p-6 pb-20 animate-in fade-in duration-500">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+        <Link
+          to="/meus-projetos"
+          className="hover:text-foreground transition-colors flex items-center gap-1"
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          Meus Projetos
+        </Link>
+        <ChevronRight className="w-4 h-4" />
+        <span className="text-foreground font-medium">Meu Painel</span>
+      </div>
+
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
@@ -580,31 +592,48 @@ export default function DesignerPanel() {
             </Badge>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <Button
-            variant="outline"
-            className="border-border bg-background text-foreground hidden md:flex shadow-sm hover:bg-muted/50"
-            onClick={() => {
-              queryClient().invalidateQueries('')
-            }}
-          >
-            <RefreshCw className="w-4 h-4 mr-2 text-muted-foreground" />
-            Atualizar
-          </Button>
+        <div className="flex flex-col md:flex-row items-end md:items-center gap-3">
+          {(user?.role === 'Administrador' || roleOverride) && (
+            <div className="flex items-center gap-2">
+              <Select value={roleOverride || user?.role} onValueChange={(v) => setRoleOverride(v)}>
+                <SelectTrigger className="w-[180px] h-10">
+                  <SelectValue placeholder="Trocar Perfil" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Projetista">Projetista</SelectItem>
+                  <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
+                  <SelectItem value="Administrador">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          <Button
-            variant="default"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-md w-full md:w-auto"
-            onClick={handleExportDashboard}
-            disabled={exportingDocs}
-          >
-            {exportingDocs ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <FileText className="w-4 h-4 mr-2" />
-            )}
-            Exportar Relatório
-          </Button>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <Button
+              variant="outline"
+              className="border-border bg-background text-foreground hidden md:flex shadow-sm hover:bg-muted/50 h-10"
+              onClick={() => {
+                queryClient().invalidateQueries('')
+              }}
+            >
+              <RefreshCw className="w-4 h-4 mr-2 text-muted-foreground" />
+              Atualizar
+            </Button>
+
+            <Button
+              variant="default"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-md w-full md:w-auto h-10"
+              onClick={handleExportDashboard}
+              disabled={exportingDocs}
+            >
+              {exportingDocs ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
+              Exportar
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -686,7 +715,12 @@ export default function DesignerPanel() {
                   {urgentTasks.map((t) => (
                     <div
                       key={t.id}
-                      className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 hover:border-primary/50 hover:shadow-md transition-all shadow-sm flex flex-col justify-between"
+                      className={cn(
+                        'p-4 rounded-xl border transition-all shadow-sm flex flex-col justify-between group relative',
+                        t.status === 'Concluído'
+                          ? 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 opacity-60'
+                          : 'bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 hover:border-primary/50 hover:shadow-md',
+                      )}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -736,9 +770,10 @@ export default function DesignerPanel() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border/50 shadow-sm"
                               onClick={(e) => {
                                 e.preventDefault()
+                                e.stopPropagation()
                                 setEditingTaskId(t.id)
                               }}
                             >
@@ -747,7 +782,14 @@ export default function DesignerPanel() {
                           )}
                         </div>
                       </div>
-                      <p className="font-semibold text-foreground text-sm mb-1 leading-snug">
+                      <p
+                        className={cn(
+                          'font-semibold text-sm mb-1 leading-snug',
+                          t.status === 'Concluído'
+                            ? 'text-muted-foreground line-through'
+                            : 'text-foreground',
+                        )}
+                      >
                         {t.title}
                       </p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -788,7 +830,7 @@ export default function DesignerPanel() {
                                 : `/projects/${item.project?.id}`
                             }
                             key={`${item.type}-${item.id}`}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/50 transition-colors group relative"
                           >
                             <div className="flex-1 min-w-0 pr-4 flex items-center gap-3">
                               {item.type === 'task' && (
@@ -807,11 +849,15 @@ export default function DesignerPanel() {
                                 <p
                                   className={cn(
                                     'font-medium text-sm truncate',
-                                    isUrgent || isOverdue ? 'text-destructive' : 'text-foreground',
+                                    item.status === 'Concluído'
+                                      ? 'text-muted-foreground line-through'
+                                      : isUrgent || isOverdue
+                                        ? 'text-destructive'
+                                        : 'text-foreground',
                                   )}
                                 >
                                   {item.title}
-                                </p>
+                                </p>{' '}
                                 <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
                                   <span
                                     className={cn(
@@ -824,23 +870,24 @@ export default function DesignerPanel() {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3 mt-2 sm:mt-0 shrink-0 relative">
+                            <div className="flex items-center gap-3 mt-2 sm:mt-0 shrink-0 relative overflow-hidden sm:overflow-visible group-hover:pr-24 transition-all duration-200">
                               {item.type === 'task' && (
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 group-hover:-translate-x-4 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full group-hover:translate-x-0 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 bg-background/80 backdrop-blur-sm pl-2 py-1">
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={(e) => {
                                       e.preventDefault()
+                                      e.stopPropagation()
                                       setEditingTaskId(item.id)
                                     }}
-                                    className="h-8 shadow-sm"
+                                    className="h-8 shadow-sm bg-background hover:bg-muted"
                                   >
                                     <Edit className="w-3.5 h-3.5 mr-1.5" /> Editar
                                   </Button>
                                 </div>
                               )}
-                              <div className="flex items-center gap-3 transition-transform duration-200 group-hover:-translate-x-24">
+                              <div className="flex items-center gap-3">
                                 <Badge
                                   variant={
                                     isOverdue ? 'destructive' : isUrgent ? 'outline' : 'secondary'

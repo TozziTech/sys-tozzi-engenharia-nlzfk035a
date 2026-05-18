@@ -44,6 +44,7 @@ import { Progress } from '@/components/ui/progress'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -138,6 +140,52 @@ export default function DesignerPanel() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
 
   const hasFinanceAccess = canAccess('planilha_financeira') || user?.role === 'Administrador'
+
+  const handleTaskToggle = async (task: any, checked: boolean) => {
+    try {
+      const newStatus = checked ? 'Concluído' : 'Pendente'
+      const completedAt = checked ? new Date().toISOString() : null
+
+      if (task.type === 'task' || task.source === 'Tarefa Geral') {
+        await pb.collection('tasks').update(task.id, {
+          status: newStatus,
+          completed_at: completedAt,
+        })
+      } else if (task.source === 'Checklist de Projeto' || task.is_admin_checklist) {
+        await pb.collection('project_admin_checklist').update(task.id, {
+          status: newStatus,
+          is_completed: checked,
+        })
+      } else if (task.source === 'Tarefa Hierárquica') {
+        await pb.collection('tarefas_hierarquicas').update(task.id, {
+          concluida: checked,
+        })
+      }
+
+      toast({
+        title: `Tarefa ${checked ? 'concluída' : 'reaberta'} com sucesso!`,
+      })
+    } catch (error: any) {
+      const fieldErrors = extractFieldErrors(error)
+      const errorMsg =
+        Object.keys(fieldErrors).length > 0
+          ? Object.entries(fieldErrors)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(', ')
+          : error.message || 'Erro desconhecido'
+
+      toast({
+        title: 'Erro ao atualizar tarefa',
+        description: errorMsg,
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const canToggleTask = (task: any) => {
+    if (user?.role === 'Administrador' || user?.role === 'Gerente de Projeto') return true
+    return task.responsible === user?.id
+  }
 
   const handleExportDashboard = async () => {
     setExportingDocs(true)
@@ -362,6 +410,8 @@ export default function DesignerPanel() {
           date: t.due_date,
           project: t.expand?.project,
           type: 'task',
+          status: t.status,
+          responsible: t.responsible,
         })),
         ...modulesRes.map((m) => ({
           id: m.id,
@@ -640,6 +690,12 @@ export default function DesignerPanel() {
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2 flex-wrap">
+                          <Checkbox
+                            checked={t.status === 'Concluído'}
+                            disabled={!canToggleTask(t)}
+                            onCheckedChange={(checked) => handleTaskToggle(t, checked as boolean)}
+                            className="w-5 h-5 rounded-full data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-colors shadow-sm"
+                          />
                           <Badge
                             variant="outline"
                             className={cn(
@@ -734,25 +790,39 @@ export default function DesignerPanel() {
                             key={`${item.type}-${item.id}`}
                             className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/50 transition-colors"
                           >
-                            <div className="flex-1 min-w-0 pr-4">
-                              <p
-                                className={cn(
-                                  'font-medium text-sm truncate',
-                                  isUrgent || isOverdue ? 'text-destructive' : 'text-foreground',
-                                )}
-                              >
-                                {item.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
-                                <span
+                            <div className="flex-1 min-w-0 pr-4 flex items-center gap-3">
+                              {item.type === 'task' && (
+                                <div onClick={(e) => e.preventDefault()}>
+                                  <Checkbox
+                                    checked={item.status === 'Concluído'}
+                                    disabled={!canToggleTask(item)}
+                                    onCheckedChange={(checked) =>
+                                      handleTaskToggle(item, checked as boolean)
+                                    }
+                                    className="w-5 h-5 rounded-full data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-colors mt-0.5 shadow-sm"
+                                  />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p
                                   className={cn(
-                                    'w-2 h-2 rounded-full',
-                                    item.type === 'module' ? 'bg-indigo-500' : 'bg-emerald-500',
+                                    'font-medium text-sm truncate',
+                                    isUrgent || isOverdue ? 'text-destructive' : 'text-foreground',
                                   )}
-                                />
-                                {item.type === 'module' ? 'Disciplina' : 'Tarefa'} •{' '}
-                                {item.project?.name || 'Projeto Desconhecido'}
-                              </p>
+                                >
+                                  {item.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                                  <span
+                                    className={cn(
+                                      'w-2 h-2 rounded-full',
+                                      item.type === 'module' ? 'bg-indigo-500' : 'bg-emerald-500',
+                                    )}
+                                  />
+                                  {item.type === 'module' ? 'Disciplina' : 'Tarefa'} •{' '}
+                                  {item.project?.name || 'Projeto Desconhecido'}
+                                </p>
+                              </div>
                             </div>
                             <div className="flex items-center gap-3 mt-2 sm:mt-0 shrink-0 relative">
                               {item.type === 'task' && (

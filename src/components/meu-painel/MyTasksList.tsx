@@ -184,37 +184,67 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
     return tasks.filter((t) => matchingIds.has(t.id))
   }, [tasks, dateRange])
 
-  const { treeWithDate, treeWithoutDate, tree } = useMemo(() => {
-    const map = new Map()
-    filteredTasks.forEach((t) => map.set(t.id, { ...t, children: [] }))
-    const rootsWithDate: any[] = []
-    const rootsWithoutDate: any[] = []
-    filteredTasks.forEach((t) => {
-      if (t.parent_task && map.has(t.parent_task)) {
-        map.get(t.parent_task).children.push(map.get(t.id))
-      } else {
-        if (!t.due_date) {
-          rootsWithoutDate.push(map.get(t.id))
+  const {
+    personalTreeWithDate,
+    personalTreeWithoutDate,
+    personalTree,
+    projectTreeWithDate,
+    projectTreeWithoutDate,
+    projectTree,
+    tree,
+  } = useMemo(() => {
+    const build = (tasksSubset: any[]) => {
+      const map = new Map()
+      tasksSubset.forEach((t) => map.set(t.id, { ...t, children: [] }))
+      const rootsWithDate: any[] = []
+      const rootsWithoutDate: any[] = []
+      tasksSubset.forEach((t) => {
+        if (t.parent_task && map.has(t.parent_task)) {
+          map.get(t.parent_task).children.push(map.get(t.id))
         } else {
-          rootsWithDate.push(map.get(t.id))
+          if (!t.due_date) {
+            rootsWithoutDate.push(map.get(t.id))
+          } else {
+            rootsWithDate.push(map.get(t.id))
+          }
         }
-      }
-    })
-    const sortFn = (a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)
-    rootsWithDate.sort(sortFn)
-    rootsWithoutDate.sort(sortFn)
+      })
+      const sortFn = (a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)
+      rootsWithDate.sort(sortFn)
+      rootsWithoutDate.sort(sortFn)
 
-    const sortChildren = (node: any) => {
-      node.children.sort(sortFn)
-      node.children.forEach(sortChildren)
+      const sortChildren = (node: any) => {
+        node.children.sort(sortFn)
+        node.children.forEach(sortChildren)
+      }
+      rootsWithDate.forEach(sortChildren)
+      rootsWithoutDate.forEach(sortChildren)
+
+      return {
+        treeWithDate: rootsWithDate,
+        treeWithoutDate: rootsWithoutDate,
+        tree: [...rootsWithoutDate, ...rootsWithDate],
+      }
     }
-    rootsWithDate.forEach(sortChildren)
-    rootsWithoutDate.forEach(sortChildren)
+
+    const personal = filteredTasks.filter(
+      (t) => !t.project && !t.is_admin_checklist && !t.is_hierarquica,
+    )
+    const project = filteredTasks.filter(
+      (t) => t.project || t.is_admin_checklist || t.is_hierarquica,
+    )
+
+    const personalBuilt = build(personal)
+    const projectBuilt = build(project)
 
     return {
-      treeWithDate: rootsWithDate,
-      treeWithoutDate: rootsWithoutDate,
-      tree: [...rootsWithoutDate, ...rootsWithDate],
+      personalTreeWithDate: personalBuilt.treeWithDate,
+      personalTreeWithoutDate: personalBuilt.treeWithoutDate,
+      personalTree: personalBuilt.tree,
+      projectTreeWithDate: projectBuilt.treeWithDate,
+      projectTreeWithoutDate: projectBuilt.treeWithoutDate,
+      projectTree: projectBuilt.tree,
+      tree: [...personalBuilt.tree, ...projectBuilt.tree],
     }
   }, [filteredTasks])
 
@@ -705,11 +735,16 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           {node.expand?.project && (
             <Link
               to={`/projects/${node.project}`}
-              className="text-xs text-primary hover:text-primary/80 hover:underline truncate max-w-[150px] shrink-0 ml-2 hidden sm:inline-flex items-center gap-1"
-              title={`Projeto: ${node.expand.project.name}`}
+              className="text-xs text-primary hover:text-primary/80 hover:underline truncate max-w-[200px] shrink-0 ml-2 hidden sm:inline-flex items-center gap-1"
+              title={`Projeto: ${node.expand.project.name}${node.expand.project.client ? ` | Cliente: ${node.expand.project.client}` : ''}`}
             >
               <Briefcase className="h-3 w-3" />
-              {node.expand.project.name}
+              <span className="truncate">{node.expand.project.name}</span>
+              {node.expand.project.client && (
+                <span className="text-muted-foreground ml-1 truncate">
+                  ({node.expand.project.client})
+                </span>
+              )}
             </Link>
           )}
         </div>
@@ -750,11 +785,11 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           <div className="space-y-1">
             <h3 className="text-xl font-semibold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
               <CheckSquare className="h-5 w-5 text-primary" />
-              Minhas Tarefas
+              Gestão de Tarefas
             </h3>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Gerencie suas responsabilidades. Edite títulos clicando neles, adicione subtarefas ou
-              arraste para reorganizar.
+              Gerencie suas tarefas pessoais e atividades de projeto. Edite títulos clicando neles,
+              adicione subtarefas ou arraste para reorganizar.
             </p>
           </div>
           <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
@@ -763,33 +798,76 @@ export function MyTasksList({ dateRange }: { dateRange?: { from: Date; to: Date 
           </Button>
         </div>
 
-        <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 overflow-hidden shadow-sm">
-          {isLoading ? (
-            <div className="py-8 text-center text-zinc-500 text-sm">Carregando tarefas...</div>
-          ) : tree.length === 0 && inlineCreateId !== 'root' ? (
-            <div className="py-8 text-center text-zinc-500 text-sm">
-              Nenhum registro pendente encontrado.
-            </div>
-          ) : (
-            <div className="py-2 flex flex-col gap-4">
-              {treeWithoutDate.length > 0 && (
-                <div>
-                  <div className="px-4 py-1.5 bg-rose-50/50 dark:bg-rose-950/20 border-y border-rose-100 dark:border-rose-900 text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-2 mb-1">
-                    <Calendar className="w-3.5 h-3.5" /> Pendente de Agendamento (Sem Data)
-                  </div>
-                  {treeWithoutDate.map((node) => renderNode(node, 0))}
+        <div className="space-y-8">
+          <div>
+            <h4 className="text-lg font-semibold mb-4 text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-indigo-500" />
+              Minhas Tarefas (Pessoais)
+            </h4>
+            <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 overflow-hidden shadow-sm">
+              {isLoading ? (
+                <div className="py-8 text-center text-zinc-500 text-sm">Carregando tarefas...</div>
+              ) : personalTree.length === 0 ? (
+                <div className="py-8 text-center text-zinc-500 text-sm">
+                  Nenhuma tarefa pessoal pendente.
+                </div>
+              ) : (
+                <div className="py-2 flex flex-col gap-4">
+                  {personalTreeWithoutDate.length > 0 && (
+                    <div>
+                      <div className="px-4 py-1.5 bg-rose-50/50 dark:bg-rose-950/20 border-y border-rose-100 dark:border-rose-900 text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-2 mb-1">
+                        <Calendar className="w-3.5 h-3.5" /> Pendente de Agendamento (Sem Data)
+                      </div>
+                      {personalTreeWithoutDate.map((node) => renderNode(node, 0))}
+                    </div>
+                  )}
+                  {personalTreeWithDate.length > 0 && (
+                    <div>
+                      <div className="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-900 border-y border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 shadow-sm">
+                        Tarefas Agendadas
+                      </div>
+                      {personalTreeWithDate.map((node) => renderNode(node, 0))}
+                    </div>
+                  )}
                 </div>
               )}
-              {treeWithDate.length > 0 && (
-                <div>
-                  <div className="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-900 border-y border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 shadow-sm">
-                    Tarefas Agendadas
-                  </div>
-                  {treeWithDate.map((node) => renderNode(node, 0))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-lg font-semibold mb-4 text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-primary" />
+              Tarefas de Projeto
+            </h4>
+            <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 overflow-hidden shadow-sm">
+              {isLoading ? (
+                <div className="py-8 text-center text-zinc-500 text-sm">Carregando tarefas...</div>
+              ) : projectTree.length === 0 ? (
+                <div className="py-8 text-center text-zinc-500 text-sm">
+                  Nenhuma tarefa de projeto pendente.
+                </div>
+              ) : (
+                <div className="py-2 flex flex-col gap-4">
+                  {projectTreeWithoutDate.length > 0 && (
+                    <div>
+                      <div className="px-4 py-1.5 bg-rose-50/50 dark:bg-rose-950/20 border-y border-rose-100 dark:border-rose-900 text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-2 mb-1">
+                        <Calendar className="w-3.5 h-3.5" /> Pendente de Agendamento (Sem Data)
+                      </div>
+                      {projectTreeWithoutDate.map((node) => renderNode(node, 0))}
+                    </div>
+                  )}
+                  {projectTreeWithDate.length > 0 && (
+                    <div>
+                      <div className="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-900 border-y border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 shadow-sm">
+                        Tarefas Agendadas
+                      </div>
+                      {projectTreeWithDate.map((node) => renderNode(node, 0))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
 
         <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>

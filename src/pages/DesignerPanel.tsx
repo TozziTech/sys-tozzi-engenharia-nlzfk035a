@@ -15,6 +15,8 @@ import {
   Info,
   RefreshCw,
   AlertTriangle,
+  User as UserIcon,
+  Plus,
 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useQuery, queryClient } from '@/hooks/use-query'
@@ -59,6 +61,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import pb from '@/lib/pocketbase/client'
@@ -141,6 +145,13 @@ export default function DesignerPanel() {
   const [editingTask, setEditingTask] = useState<{ id: string; collection: string } | null>(null)
 
   const hasFinanceAccess = canAccess('planilha_financeira') || user?.role === 'Administrador'
+
+  const [createTaskOpen, setCreateTaskOpen] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDueDate, setNewTaskDueDate] = useState('')
+  const [newTaskProject, setNewTaskProject] = useState('none')
+  const [newTaskPriority, setNewTaskPriority] = useState('Média')
+  const [creatingTask, setCreatingTask] = useState(false)
 
   const handleDeleteTask = async (task: any) => {
     if (!confirm('Deseja realmente excluir este item?')) return
@@ -313,6 +324,7 @@ export default function DesignerPanel() {
         due_date: null,
         status: h.concluida ? 'Concluído' : 'Pendente',
         priority: 'Média',
+        project: h.projeto_id,
         expand: { project: h.expand?.projeto_id },
       }))
 
@@ -557,6 +569,44 @@ export default function DesignerPanel() {
     return sum / monthlyRevenue.length
   }, [monthlyRevenue])
 
+  const personalTasks = useMemo(() => {
+    return urgentTasks.filter((t) => t.collectionName === 'tasks' && !t.project)
+  }, [urgentTasks])
+
+  const projectTasks = useMemo(() => {
+    return urgentTasks.filter(
+      (t) => (t.collectionName === 'tasks' && t.project) || t.collectionName !== 'tasks',
+    )
+  }, [urgentTasks])
+
+  const handleCreateDesignerTask = async () => {
+    if (!newTaskTitle.trim()) {
+      toast({ title: 'Título é obrigatório', variant: 'destructive' })
+      return
+    }
+    setCreatingTask(true)
+    try {
+      await pb.collection('tasks').create({
+        title: newTaskTitle,
+        status: 'Pendente',
+        responsible: user?.id,
+        project: newTaskProject !== 'none' ? newTaskProject : null,
+        due_date: newTaskDueDate ? `${newTaskDueDate} 12:00:00.000Z` : null,
+        priority: newTaskPriority,
+      })
+      toast({ title: 'Tarefa criada com sucesso!' })
+      setCreateTaskOpen(false)
+      setNewTaskTitle('')
+      setNewTaskDueDate('')
+      setNewTaskProject('none')
+      setNewTaskPriority('Média')
+    } catch (e: any) {
+      toast({ title: 'Erro ao criar tarefa', description: e.message, variant: 'destructive' })
+    } finally {
+      setCreatingTask(false)
+    }
+  }
+
   const filteredProjects = useMemo(() => {
     return myProjects
   }, [myProjects])
@@ -765,120 +815,248 @@ export default function DesignerPanel() {
           )}
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
-                <AlertCircle className="h-5 w-5 text-destructive" />
-                Atividades em Andamento
-              </h3>
-              {urgentTasks.length === 0 ? (
-                <div className="text-center py-8 bg-zinc-50 dark:bg-zinc-900/20 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    Nenhum registro pendente encontrado.
-                  </p>
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
+                    <UserIcon className="h-5 w-5 text-indigo-500" />
+                    Minhas Tarefas
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCreateTaskOpen(true)}
+                    className="h-8"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nova Tarefa
+                  </Button>
                 </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {urgentTasks.map((t) => (
-                    <div
-                      key={t.id}
-                      className={cn(
-                        'p-4 rounded-xl border transition-all shadow-sm flex flex-col justify-between group relative',
-                        t.status === 'Concluído'
-                          ? 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 opacity-60'
-                          : 'bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 hover:border-primary/50 hover:shadow-md',
-                      )}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Checkbox
-                            checked={t.status === 'Concluído'}
-                            disabled={!canToggleTask(t)}
-                            onCheckedChange={(checked) => handleTaskToggle(t, checked as boolean)}
-                            className="w-5 h-5 rounded-full data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-colors shadow-sm"
-                          />
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'whitespace-nowrap',
-                              getPriorityColor(t.priority || 'Urgente'),
-                            )}
-                          >
-                            {t.priority || 'Urgente'}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'text-[10px] whitespace-nowrap hidden sm:inline-flex shadow-sm',
-                              t.source === 'Checklist de Projeto'
-                                ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20'
-                                : t.source === 'Tarefa Hierárquica'
-                                  ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
-                                  : 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20',
-                            )}
-                          >
-                            {t.source}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <span
-                            className={cn(
-                              'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',
-                              t.due_date
-                                ? 'text-muted-foreground bg-background border-border'
-                                : 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/30 dark:border-rose-900',
-                            )}
-                          >
-                            {t.due_date
-                              ? new Date(t.due_date).toLocaleDateString('pt-BR')
-                              : 'Sem Data'}
-                          </span>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 bg-background border border-border/50 shadow-sm"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                setEditingTask({ id: t.id, collection: t.collectionName })
-                              }}
-                            >
-                              <Edit className="h-3.5 w-3.5 text-blue-500" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 bg-background border border-border/50 shadow-sm hover:bg-rose-50"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                handleDeleteTask(t)
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-rose-500" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <p
+                {personalTasks.length === 0 ? (
+                  <div className="text-center py-6 bg-zinc-50 dark:bg-zinc-900/20 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Nenhuma tarefa pessoal pendente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {personalTasks.map((t) => (
+                      <div
+                        key={t.id}
                         className={cn(
-                          'font-semibold text-sm mb-1 leading-snug',
+                          'p-4 rounded-xl border transition-all shadow-sm flex flex-col justify-between group relative',
                           t.status === 'Concluído'
-                            ? 'text-muted-foreground line-through'
-                            : 'text-foreground',
+                            ? 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 opacity-60'
+                            : 'bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 hover:border-primary/50 hover:shadow-md',
                         )}
                       >
-                        {t.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <LayoutDashboard className="w-3.5 h-3.5 opacity-70" />
-                        {t.expand?.project?.name || 'Projeto não especificado'}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Checkbox
+                              checked={t.status === 'Concluído'}
+                              disabled={!canToggleTask(t)}
+                              onCheckedChange={(checked) => handleTaskToggle(t, checked as boolean)}
+                              className="w-5 h-5 rounded-full data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-colors shadow-sm"
+                            />
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'whitespace-nowrap',
+                                getPriorityColor(t.priority || 'Urgente'),
+                              )}
+                            >
+                              {t.priority || 'Urgente'}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span
+                              className={cn(
+                                'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',
+                                t.due_date
+                                  ? 'text-muted-foreground bg-background border-border'
+                                  : 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/30 dark:border-rose-900',
+                              )}
+                            >
+                              {t.due_date
+                                ? new Date(t.due_date).toLocaleDateString('pt-BR')
+                                : 'Sem Data'}
+                            </span>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 bg-background border border-border/50 shadow-sm"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setEditingTask({ id: t.id, collection: t.collectionName })
+                                }}
+                              >
+                                <Edit className="h-3.5 w-3.5 text-blue-500" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 bg-background border border-border/50 shadow-sm hover:bg-rose-50"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleDeleteTask(t)
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                        <p
+                          className={cn(
+                            'font-semibold text-sm mb-1 leading-snug',
+                            t.status === 'Concluído'
+                              ? 'text-muted-foreground line-through'
+                              : 'text-foreground',
+                          )}
+                        >
+                          {t.title}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
+                  <LayoutDashboard className="h-5 w-5 text-primary" />
+                  Tarefas de Projeto
+                </h3>
+                {projectTasks.length === 0 ? (
+                  <div className="text-center py-6 bg-zinc-50 dark:bg-zinc-900/20 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Nenhuma tarefa de projeto pendente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {projectTasks.map((t) => (
+                      <div
+                        key={t.id}
+                        className={cn(
+                          'p-4 rounded-xl border transition-all shadow-sm flex flex-col justify-between group relative',
+                          t.status === 'Concluído'
+                            ? 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 opacity-60'
+                            : 'bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 hover:border-primary/50 hover:shadow-md',
+                        )}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Checkbox
+                              checked={t.status === 'Concluído'}
+                              disabled={!canToggleTask(t)}
+                              onCheckedChange={(checked) => handleTaskToggle(t, checked as boolean)}
+                              className="w-5 h-5 rounded-full data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-colors shadow-sm"
+                            />
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'whitespace-nowrap',
+                                getPriorityColor(t.priority || 'Urgente'),
+                              )}
+                            >
+                              {t.priority || 'Urgente'}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px] whitespace-nowrap hidden sm:inline-flex shadow-sm',
+                                t.source === 'Checklist de Projeto'
+                                  ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20'
+                                  : t.source === 'Tarefa Hierárquica'
+                                    ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
+                                    : 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20',
+                              )}
+                            >
+                              {t.source}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span
+                              className={cn(
+                                'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',
+                                t.due_date
+                                  ? 'text-muted-foreground bg-background border-border'
+                                  : 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/30 dark:border-rose-900',
+                              )}
+                            >
+                              {t.due_date
+                                ? new Date(t.due_date).toLocaleDateString('pt-BR')
+                                : 'Sem Data'}
+                            </span>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 bg-background border border-border/50 shadow-sm"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setEditingTask({ id: t.id, collection: t.collectionName })
+                                }}
+                              >
+                                <Edit className="h-3.5 w-3.5 text-blue-500" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 bg-background border border-border/50 shadow-sm hover:bg-rose-50"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleDeleteTask(t)
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                        <p
+                          className={cn(
+                            'font-semibold text-sm mb-1 leading-snug',
+                            t.status === 'Concluído'
+                              ? 'text-muted-foreground line-through'
+                              : 'text-foreground',
+                          )}
+                        >
+                          {t.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
+                          <LayoutDashboard className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                          <span
+                            className="truncate"
+                            title={t.expand?.project?.name || 'Projeto não especificado'}
+                          >
+                            {t.expand?.project?.name || 'Projeto não especificado'}
+                          </span>
+                          {t.expand?.project?.client && (
+                            <>
+                              <span className="mx-0.5 opacity-50 shrink-0">•</span>
+                              <span
+                                className="truncate font-medium opacity-80"
+                                title={t.expand?.project?.client}
+                              >
+                                {t.expand?.project?.client}
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -1406,6 +1584,87 @@ export default function DesignerPanel() {
           refetchTasks()
         }}
       />
+      <Dialog open={createTaskOpen} onOpenChange={setCreateTaskOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Nova Tarefa</DialogTitle>
+            <DialogDescription>
+              Crie uma tarefa pessoal ou vincule a um projeto específico.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="title" className="text-sm font-medium">
+                Título da Tarefa <span className="text-red-500">*</span>
+              </label>
+              <Input
+                id="title"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                placeholder="Ex: Atualizar prancha 01"
+              />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="dueDate" className="text-sm font-medium">
+                Data de Conclusão
+              </label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={newTaskDueDate}
+                onChange={(e) => setNewTaskDueDate(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="project" className="text-sm font-medium">
+                Projeto (Opcional)
+              </label>
+              <Select value={newTaskProject} onValueChange={setNewTaskProject}>
+                <SelectTrigger id="project">
+                  <SelectValue placeholder="Sem projeto (Tarefa Pessoal)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem projeto (Tarefa Pessoal)</SelectItem>
+                  {myProjects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="priority" className="text-sm font-medium">
+                Prioridade
+              </label>
+              <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                <SelectTrigger id="priority">
+                  <SelectValue placeholder="Média" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Baixa">Baixa</SelectItem>
+                  <SelectItem value="Média">Média</SelectItem>
+                  <SelectItem value="Alta">Alta</SelectItem>
+                  <SelectItem value="Urgente">Urgente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCreateTaskOpen(false)}
+              disabled={creatingTask}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateDesignerTask} disabled={creatingTask}>
+              {creatingTask ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showDailySummary} onOpenChange={setShowDailySummary}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>

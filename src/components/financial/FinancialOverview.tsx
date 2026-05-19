@@ -226,7 +226,7 @@ export function FinancialOverview({ transactions, categories }: OverviewProps) {
                     innerRadius={60}
                     outerRadius={80}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    className="text-foreground fill-foreground"
+                    className="text-foreground"
                   >
                     {expensesByCategory.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />

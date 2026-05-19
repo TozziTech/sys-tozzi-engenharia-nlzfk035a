@@ -136,9 +136,7 @@ export function EditTransactionModal({
         date: formData.date ? new Date(formData.date).toISOString() : null,
         project_id: formData.projectId && formData.projectId !== 'none' ? formData.projectId : null,
         category:
-          formData.type === 'Saída' && formData.categoryId && formData.categoryId !== 'none'
-            ? formData.categoryId
-            : null,
+          formData.categoryId && formData.categoryId !== 'none' ? formData.categoryId : null,
         responsible:
           formData.responsible && formData.responsible !== 'none' ? formData.responsible : null,
         bank_account:
@@ -221,7 +219,6 @@ export function EditTransactionModal({
                 setFormData({
                   ...formData,
                   type: v,
-                  categoryId: v === 'Entrada' ? '' : formData.categoryId,
                 })
               }
               disabled={!canWriteFinance}
@@ -345,27 +342,26 @@ export function EditTransactionModal({
             </Select>
           </div>
 
-          {formData.type === 'Saída' && (
-            <div className="col-span-2 space-y-2">
-              <Label>Categoria de Despesa</Label>
-              <Select
-                value={formData.categoryId}
-                onValueChange={(v) => setFormData({ ...formData, categoryId: v })}
-                disabled={!canWriteFinance}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="col-span-2 space-y-2">
+            <Label>Categoria</Label>
+            <Select
+              value={formData.categoryId}
+              onValueChange={(v) => setFormData({ ...formData, categoryId: v })}
+              disabled={!canWriteFinance}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma categoria..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem categoria</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="col-span-2 space-y-4 border rounded-md p-4 bg-slate-50 dark:bg-slate-900/50 mt-2">
             <div className="flex items-center space-x-2">
               <Switch

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-24T19:31:38.064Z",
+  "generatedAt": "2026-05-24T19:49:44.110Z",
   "collections": [
     {
       "name": "users",
@@ -3220,6 +3220,12 @@
           "required": false,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "rich_content",
+          "type": "editor",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

@@ -1,118 +1,140 @@
-import * as React from 'react'
-import { Bold, Underline, Strikethrough, List, ListOrdered, RemoveFormatting } from 'lucide-react'
+import React, { useRef, useEffect } from 'react'
+import { Button } from './button'
+import { Bold, Italic, Underline, Strikethrough, List, ListOrdered } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
-export interface RichTextEditorProps {
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  className?: string
-  minHeight?: string
+export interface RichTextEditorProps extends Omit<
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+  'onChange'
+> {
+  value?: string | number | readonly string[]
+  onChange?: (event: any) => void
 }
 
-export function RichTextEditor({
-  value,
-  onChange,
-  placeholder,
-  className,
-  minHeight = 'min-h-[200px]',
-}: RichTextEditorProps) {
-  const editorRef = React.useRef<HTMLDivElement>(null)
-  const [isFocused, setIsFocused] = React.useState(false)
+export const RichTextEditor = React.forwardRef<HTMLDivElement, RichTextEditorProps>(
+  ({ value, onChange, placeholder, className, name, id, disabled, ...props }, ref) => {
+    const editorRef = useRef<HTMLDivElement>(null)
 
-  React.useEffect(() => {
-    if (editorRef.current && document.activeElement !== editorRef.current) {
-      if (editorRef.current.innerHTML !== value) {
-        editorRef.current.innerHTML = value || ''
+    useEffect(() => {
+      if (editorRef.current) {
+        const currentHtml = editorRef.current.innerHTML
+        const newHtml = value?.toString() || ''
+        if (currentHtml !== newHtml) {
+          editorRef.current.innerHTML = newHtml
+        }
+      }
+    }, [value])
+
+    const handleInput = () => {
+      if (editorRef.current && onChange) {
+        const html = editorRef.current.innerHTML
+        const mockEvent = {
+          target: { value: html, name, id },
+          currentTarget: { value: html, name, id },
+          preventDefault: () => {},
+          stopPropagation: () => {},
+        }
+        onChange(mockEvent)
       }
     }
-  }, [value])
 
-  const handleInput = React.useCallback(() => {
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML)
+    const execCommand = (command: string, arg?: string) => {
+      document.execCommand(command, false, arg)
+      if (editorRef.current) {
+        editorRef.current.focus()
+        handleInput()
+      }
     }
-  }, [onChange])
 
-  const executeCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value)
-    editorRef.current?.focus()
-    handleInput()
-  }
-
-  return (
-    <div
-      className={cn(
-        'flex flex-col border rounded-md overflow-hidden bg-background focus-within:ring-1 focus-within:ring-ring transition-shadow',
-        className,
-      )}
-    >
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b bg-muted/95 p-1 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
-        <ToggleGroup type="multiple" size="sm">
-          <ToggleGroupItem value="bold" aria-label="Bold" onClick={() => executeCommand('bold')}>
+    return (
+      <div
+        className={cn(
+          'border rounded-md overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-ring bg-background',
+          className,
+          disabled && 'opacity-50 cursor-not-allowed',
+        )}
+      >
+        <div className="flex flex-wrap items-center gap-1 border-b bg-muted/50 p-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="h-8 w-8 p-0"
+            onClick={() => execCommand('bold')}
+            disabled={disabled}
+            title="Negrito"
+          >
             <Bold className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="underline"
-            aria-label="Underline"
-            onClick={() => executeCommand('underline')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="h-8 w-8 p-0"
+            onClick={() => execCommand('italic')}
+            disabled={disabled}
+            title="Itálico"
+          >
+            <Italic className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="h-8 w-8 p-0"
+            onClick={() => execCommand('underline')}
+            disabled={disabled}
+            title="Sublinhado"
           >
             <Underline className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="strikethrough"
-            aria-label="Strikethrough"
-            onClick={() => executeCommand('strikeThrough')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="h-8 w-8 p-0"
+            onClick={() => execCommand('strikeThrough')}
+            disabled={disabled}
+            title="Tachado"
           >
             <Strikethrough className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
-        <div className="w-px h-6 bg-border mx-1" />
-        <ToggleGroup type="multiple" size="sm">
-          <ToggleGroupItem
-            value="ul"
-            aria-label="Bulleted List"
-            onClick={() => executeCommand('insertUnorderedList')}
+          </Button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="h-8 w-8 p-0"
+            onClick={() => execCommand('insertUnorderedList')}
+            disabled={disabled}
+            title="Lista"
           >
             <List className="h-4 w-4" />
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="ol"
-            aria-label="Numbered List"
-            onClick={() => executeCommand('insertOrderedList')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="h-8 w-8 p-0"
+            onClick={() => execCommand('insertOrderedList')}
+            disabled={disabled}
+            title="Lista Numerada"
           >
             <ListOrdered className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
-        <div className="w-px h-6 bg-border mx-1" />
-        <ToggleGroup type="single" size="sm">
-          <ToggleGroupItem
-            value="clear"
-            aria-label="Clear Formatting"
-            onClick={() => executeCommand('removeFormat')}
-          >
-            <RemoveFormatting className="h-4 w-4" />
-          </ToggleGroupItem>
-        </ToggleGroup>
+          </Button>
+        </div>
+        <div
+          ref={editorRef}
+          className="p-3 min-h-[300px] outline-none prose dark:prose-invert prose-sm max-w-none overflow-y-visible [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_b]:font-bold [&_i]:italic [&_u]:underline [&_strike]:line-through [&_s]:line-through"
+          contentEditable={!disabled}
+          onInput={handleInput}
+          onBlur={handleInput}
+          data-placeholder={placeholder}
+          style={{ cursor: disabled ? 'not-allowed' : 'text' }}
+          {...(props as any)}
+        />
       </div>
-      <div
-        ref={editorRef}
-        className={cn(
-          'p-4 outline-none prose prose-sm max-w-none dark:prose-invert break-words',
-          minHeight,
-          'empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:cursor-text empty:before:block',
-        )}
-        contentEditable
-        onInput={handleInput}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        data-placeholder={placeholder}
-        style={{
-          height: 'auto',
-          overflowY: 'visible',
-        }}
-      />
-    </div>
-  )
-}
+    )
+  },
+)
+RichTextEditor.displayName = 'RichTextEditor'

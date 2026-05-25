@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-24T22:05:03.754Z",
+  "generatedAt": "2026-05-25T04:57:40.259Z",
   "collections": [
     {
       "name": "users",
@@ -3226,9 +3226,15 @@
           "type": "editor",
           "required": false,
           "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE INDEX `idx_user_notes_ordem` ON `user_notes` (project, ordem)"]
     },
     {
       "name": "contact_interactions",

@@ -1,254 +1,258 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Plus, Edit2, Trash2, Bold, Underline, Strikethrough } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { useToast } from '@/hooks/use-toast'
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Plus, Save, Edit2, Trash2, Clock } from 'lucide-react'
-import { format } from 'date-fns'
 import { useRealtime } from '@/hooks/use-realtime'
-import { ProjectInternalChecklist } from './ProjectInternalChecklist'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useToast } from '@/hooks/use-toast'
 
-interface Note {
-  id: string
-  content: string
-  created: string
-  updated: string
-  user: string
-  last_editor: string
-  expand?: {
-    user?: { name: string; email: string }
-    last_editor?: { name: string; email: string }
+function RichTextEditor({
+  initialHTML,
+  onChange,
+}: {
+  initialHTML: string
+  onChange: (h: string, t: string) => void
+}) {
+  const editorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (
+      editorRef.current &&
+      editorRef.current.innerHTML !== initialHTML &&
+      document.activeElement !== editorRef.current
+    ) {
+      editorRef.current.innerHTML = initialHTML || ''
+    }
+  }, [initialHTML])
+
+  const formatDoc = (cmd: string) => {
+    document.execCommand(cmd, false, '')
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML, editorRef.current.innerText)
+      editorRef.current.focus()
+    }
   }
+
+  return (
+    <div className="border rounded-md flex flex-col w-full flex-1 overflow-hidden">
+      <div className="flex items-center gap-1 p-1 bg-muted/30 border-b shrink-0">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => formatDoc('bold')}
+        >
+          <Bold className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => formatDoc('underline')}
+        >
+          <Underline className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => formatDoc('strikeThrough')}
+        >
+          <Strikethrough className="h-4 w-4" />
+        </Button>
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        className="flex-1 p-4 outline-none prose dark:prose-invert max-w-none overflow-y-auto"
+        onInput={(e) => onChange(e.currentTarget.innerHTML, e.currentTarget.innerText)}
+        onBlur={(e) => onChange(e.currentTarget.innerHTML, e.currentTarget.innerText)}
+      />
+    </div>
+  )
 }
 
-export function ProjectNotes({ projectId, enabled }: { projectId: string; enabled: boolean }) {
+export function ProjectNotes({ projectId, enabled }: { projectId: string; enabled?: boolean }) {
   const { user } = useAuth()
   const { toast } = useToast()
-  const [notes, setNotes] = useState<Note[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editContent, setEditContent] = useState('')
-  const [isCreating, setIsCreating] = useState(false)
-  const [newContent, setNewContent] = useState('')
+  const [notes, setNotes] = useState<any[]>([])
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingNote, setEditingNote] = useState<any>(null)
+
+  const [title, setTitle] = useState('')
+  const [richContent, setRichContent] = useState('')
+  const [textContent, setTextContent] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   const loadNotes = useCallback(async () => {
     if (!projectId || !pb.authStore.isValid) return
     try {
-      const records = await pb.collection('user_notes').getFullList({
-        filter: `project = "${projectId}"`,
-        sort: '-created',
-        expand: 'user,last_editor',
-      })
-      setNotes(records as any)
-    } catch (error) {
-      console.error('Error loading notes:', error)
-    } finally {
-      setIsLoading(false)
+      setNotes(
+        await pb
+          .collection('user_notes')
+          .getFullList({ filter: `project = "${projectId}"`, sort: '-created', expand: 'user' }),
+      )
+    } catch (e) {
+      console.error(e)
     }
   }, [projectId])
 
   useEffect(() => {
     loadNotes()
   }, [loadNotes])
-
   useRealtime('user_notes', loadNotes, enabled)
 
-  const handleCreate = async () => {
-    if (!newContent.trim()) return
-    try {
-      await pb.collection('user_notes').create({
-        content: newContent,
-        project: projectId,
-        user: user?.id,
-        last_editor: user?.id,
-        category: 'Anotações',
-      })
-      setNewContent('')
-      setIsCreating(false)
-      toast({ title: 'Anotação salva', description: 'Sua nota foi criada com sucesso.' })
-    } catch (error) {
-      toast({ title: 'Erro ao criar nota', variant: 'destructive' })
-    }
+  const handleOpenModal = (note?: any) => {
+    setEditingNote(note || null)
+    setTitle(note?.category || '')
+    setRichContent(note?.rich_content || note?.content || '')
+    setTextContent(note?.content || '')
+    setIsModalOpen(true)
   }
 
-  const handleUpdate = async (id: string) => {
-    if (!editContent.trim()) return
+  const handleSave = async () => {
+    if (!title.trim()) return toast({ title: 'O título é obrigatório', variant: 'destructive' })
+    setIsSaving(true)
     try {
-      await pb.collection('user_notes').update(id, {
-        content: editContent,
+      const data = {
+        project: projectId,
+        user: editingNote ? editingNote.user : user?.id,
+        category: title,
+        rich_content: richContent,
+        content: textContent,
         last_editor: user?.id,
-      })
-      setEditingId(null)
-      toast({
-        title: 'Anotação atualizada',
-        description: 'As alterações foram salvas com sucesso.',
-      })
-    } catch (error) {
-      toast({ title: 'Erro ao atualizar nota', variant: 'destructive' })
+      }
+      if (editingNote) await pb.collection('user_notes').update(editingNote.id, data)
+      else await pb.collection('user_notes').create(data)
+      toast({ title: editingNote ? 'Nota atualizada' : 'Nota criada' })
+      setIsModalOpen(false)
+    } catch (e) {
+      toast({ title: 'Erro ao salvar', variant: 'destructive' })
+    } finally {
+      setIsSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta anotação?')) return
+    if (!confirm('Deseja excluir esta nota?')) return
     try {
       await pb.collection('user_notes').delete(id)
-      toast({ title: 'Anotação excluída', description: 'Sua nota foi removida do projeto.' })
-    } catch (error) {
-      toast({ title: 'Erro ao excluir nota', variant: 'destructive' })
+      toast({ title: 'Nota excluída' })
+    } catch (e) {
+      toast({ title: 'Erro ao excluir', variant: 'destructive' })
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-32 bg-muted rounded-lg"></div>
-        <div className="h-32 bg-muted rounded-lg"></div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-6 w-full">
-      <div className="w-full">
-        <ProjectInternalChecklist projectId={projectId} enabled={enabled} />
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-medium">Anotações do Projeto</h3>
+          <p className="text-sm text-muted-foreground">Registre informações e detalhes.</p>
+        </div>
+        <Button onClick={() => handleOpenModal()} className="gap-2">
+          <Plus className="h-4 w-4" /> Nova Nota
+        </Button>
       </div>
 
-      <div className="space-y-6 w-full">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">Anotações do Projeto</h3>
-          {!isCreating && (
-            <Button onClick={() => setIsCreating(true)} className="gap-2" size="sm">
-              <Plus className="h-4 w-4" />
-              Nova Anotação
-            </Button>
-          )}
-        </div>
-
-        {isCreating && (
-          <Card className="border-primary/50 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Criar nova anotação</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
-                placeholder="Digite sua anotação sobre o projeto aqui..."
-                className="min-h-[120px] resize-y"
-                autoFocus
-              />
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2 pt-0">
-              <Button variant="ghost" size="sm" onClick={() => setIsCreating(false)}>
-                Cancelar
-              </Button>
-              <Button size="sm" onClick={handleCreate} disabled={!newContent.trim()}>
-                <Save className="h-4 w-4 mr-2" />
-                Salvar
-              </Button>
-            </CardFooter>
-          </Card>
-        )}
-
-        {notes.length === 0 && !isCreating ? (
-          <div className="text-center py-12 bg-muted/20 border border-dashed rounded-lg">
-            <p className="text-muted-foreground text-sm">
-              Nenhuma anotação encontrada para este projeto.
-            </p>
-            <Button variant="link" onClick={() => setIsCreating(true)} className="mt-2">
-              Criar a primeira anotação
-            </Button>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {notes.length === 0 ? (
+          <div className="col-span-full p-8 text-center border rounded-lg bg-muted/20 text-muted-foreground">
+            Nenhuma anotação registrada.
           </div>
         ) : (
-          <div className="space-y-4">
-            {notes.map((note) => (
-              <Card key={note.id}>
-                {editingId === note.id ? (
-                  <>
-                    <CardContent className="pt-6">
-                      <Textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        className="min-h-[120px] resize-y"
-                        autoFocus
-                      />
-                    </CardContent>
-                    <CardFooter className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
-                        Cancelar
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleUpdate(note.id)}
-                        disabled={!editContent.trim()}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Salvar
-                      </Button>
-                    </CardFooter>
-                  </>
-                ) : (
-                  <>
-                    <CardContent className="pt-6">
-                      <div className="whitespace-pre-wrap text-sm">{note.content}</div>
-                    </CardContent>
-                    <CardFooter className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-3 bg-muted/20 border-t text-xs text-muted-foreground">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1">
-                          <span>
-                            Criado por:{' '}
-                            <span className="font-medium text-foreground">
-                              {note.expand?.user?.name || 'Usuário'}
-                            </span>{' '}
-                            em {format(new Date(note.created), 'dd/MM/yyyy HH:mm')}
-                          </span>
-                        </div>
-                        {note.last_editor && note.updated !== note.created && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              Última edição:{' '}
-                              <span className="font-medium text-foreground">
-                                {note.expand?.last_editor?.name || 'Usuário'}
-                              </span>{' '}
-                              em {format(new Date(note.updated), 'dd/MM/yyyy HH:mm')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2 self-end sm:self-auto">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2"
-                          onClick={() => {
-                            setEditContent(note.content)
-                            setEditingId(note.id)
-                          }}
-                        >
-                          <Edit2 className="h-3.5 w-3.5 mr-1" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(note.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Excluir
-                        </Button>
-                      </div>
-                    </CardFooter>
-                  </>
-                )}
-              </Card>
-            ))}
-          </div>
+          notes.map((note) => (
+            <Card key={note.id} className="flex flex-col h-[280px]">
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2 shrink-0">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-base truncate" title={note.category}>
+                    {note.category}
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-1 truncate">
+                    Por {note.expand?.user?.name || 'Usuário'} •{' '}
+                    {new Date(note.created).toLocaleDateString('pt-BR')}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleOpenModal(note)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDelete(note.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto custom-scrollbar">
+                <div
+                  className="text-sm prose dark:prose-invert prose-sm max-w-none break-words"
+                  dangerouslySetInnerHTML={{ __html: note.rich_content || note.content || '' }}
+                />
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <div className="p-6 pb-4 shrink-0 border-b bg-background z-10">
+            <DialogTitle>{editingNote ? 'Editar Nota' : 'Nova Nota'}</DialogTitle>
+            <DialogDescription>
+              Use as ferramentas de formatação para destacar o texto.
+            </DialogDescription>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+            <div className="space-y-2 shrink-0">
+              <Label htmlFor="note-title">Título / Categoria</Label>
+              <Input
+                id="note-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ex: Requisitos do Cliente..."
+              />
+            </div>
+            <div className="space-y-2 flex-1 flex flex-col min-h-[300px]">
+              <Label>Conteúdo da Nota</Label>
+              <RichTextEditor
+                initialHTML={
+                  editingNote ? editingNote.rich_content || editingNote.content || '' : ''
+                }
+                onChange={(html, text) => {
+                  setRichContent(html)
+                  setTextContent(text)
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="p-4 shrink-0 border-t bg-muted/10 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Salvando...' : 'Salvar Nota'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

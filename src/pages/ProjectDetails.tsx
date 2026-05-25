@@ -1214,7 +1214,7 @@ export default function ProjectDetails() {
             )}
           >
             <TabsTrigger value="gestao" className="flex-1 min-w-[140px] sm:min-w-[120px]">
-              Gestão/Gerencial
+              Gestão
             </TabsTrigger>
             <TabsTrigger value="operacional" className="flex-1 min-w-[140px] sm:min-w-[120px]">
               Disciplinas

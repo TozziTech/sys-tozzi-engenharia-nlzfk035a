@@ -1,140 +1,84 @@
-import React, { useRef, useEffect } from 'react'
-import { Button } from './button'
-import { Bold, Italic, Underline, Strikethrough, List, ListOrdered } from 'lucide-react'
+import * as React from 'react'
+import { Bold, Italic, Underline, Strikethrough } from 'lucide-react'
+import { Toggle } from '@/components/ui/toggle'
 import { cn } from '@/lib/utils'
 
-export interface RichTextEditorProps extends Omit<
-  React.TextareaHTMLAttributes<HTMLTextAreaElement>,
-  'onChange'
-> {
-  value?: string | number | readonly string[]
-  onChange?: (event: any) => void
+export interface RichTextEditorProps {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  className?: string
 }
 
-export const RichTextEditor = React.forwardRef<HTMLDivElement, RichTextEditorProps>(
-  ({ value, onChange, placeholder, className, name, id, disabled, ...props }, ref) => {
-    const editorRef = useRef<HTMLDivElement>(null)
+export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
+  const editorRef = React.useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-      if (editorRef.current) {
-        const currentHtml = editorRef.current.innerHTML
-        const newHtml = value?.toString() || ''
-        if (currentHtml !== newHtml) {
-          editorRef.current.innerHTML = newHtml
-        }
-      }
-    }, [value])
-
-    const handleInput = () => {
-      if (editorRef.current && onChange) {
-        const html = editorRef.current.innerHTML
-        const mockEvent = {
-          target: { value: html, name, id },
-          currentTarget: { value: html, name, id },
-          preventDefault: () => {},
-          stopPropagation: () => {},
-        }
-        onChange(mockEvent)
-      }
+  React.useEffect(() => {
+    if (editorRef.current && value !== editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = value || ''
     }
+  }, [value])
 
-    const execCommand = (command: string, arg?: string) => {
-      document.execCommand(command, false, arg)
-      if (editorRef.current) {
-        editorRef.current.focus()
-        handleInput()
-      }
+  const handleInput = () => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML)
     }
+  }
 
-    return (
-      <div
-        className={cn(
-          'border rounded-md overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-ring bg-background',
-          className,
-          disabled && 'opacity-50 cursor-not-allowed',
-        )}
-      >
-        <div className="flex flex-wrap items-center gap-1 border-b bg-muted/50 p-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            className="h-8 w-8 p-0"
-            onClick={() => execCommand('bold')}
-            disabled={disabled}
-            title="Negrito"
-          >
-            <Bold className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            className="h-8 w-8 p-0"
-            onClick={() => execCommand('italic')}
-            disabled={disabled}
-            title="Itálico"
-          >
-            <Italic className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            className="h-8 w-8 p-0"
-            onClick={() => execCommand('underline')}
-            disabled={disabled}
-            title="Sublinhado"
-          >
-            <Underline className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            className="h-8 w-8 p-0"
-            onClick={() => execCommand('strikeThrough')}
-            disabled={disabled}
-            title="Tachado"
-          >
-            <Strikethrough className="h-4 w-4" />
-          </Button>
-          <div className="w-px h-4 bg-border mx-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            className="h-8 w-8 p-0"
-            onClick={() => execCommand('insertUnorderedList')}
-            disabled={disabled}
-            title="Lista"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            className="h-8 w-8 p-0"
-            onClick={() => execCommand('insertOrderedList')}
-            disabled={disabled}
-            title="Lista Numerada"
-          >
-            <ListOrdered className="h-4 w-4" />
-          </Button>
-        </div>
-        <div
-          ref={editorRef}
-          className="p-3 min-h-[300px] outline-none prose dark:prose-invert prose-sm max-w-none overflow-y-visible [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_b]:font-bold [&_i]:italic [&_u]:underline [&_strike]:line-through [&_s]:line-through"
-          contentEditable={!disabled}
-          onInput={handleInput}
-          onBlur={handleInput}
-          data-placeholder={placeholder}
-          style={{ cursor: disabled ? 'not-allowed' : 'text' }}
-          {...(props as any)}
-        />
+  const executeCommand = (command: string) => {
+    document.execCommand(command, false, undefined)
+    handleInput()
+    editorRef.current?.focus()
+  }
+
+  return (
+    <div
+      className={cn(
+        'border rounded-md border-input bg-background overflow-hidden flex flex-col',
+        className,
+      )}
+    >
+      <div className="flex items-center gap-1 border-b bg-muted/50 p-1 flex-wrap">
+        <Toggle
+          size="sm"
+          pressed={false}
+          onClick={() => executeCommand('bold')}
+          aria-label="Toggle bold"
+        >
+          <Bold className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={false}
+          onClick={() => executeCommand('italic')}
+          aria-label="Toggle italic"
+        >
+          <Italic className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={false}
+          onClick={() => executeCommand('underline')}
+          aria-label="Toggle underline"
+        >
+          <Underline className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={false}
+          onClick={() => executeCommand('strikeThrough')}
+          aria-label="Toggle strikethrough"
+        >
+          <Strikethrough className="h-4 w-4" />
+        </Toggle>
       </div>
-    )
-  },
-)
-RichTextEditor.displayName = 'RichTextEditor'
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={handleInput}
+        className="flex-1 overflow-y-auto p-3 outline-none cursor-text empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground min-h-[200px]"
+        data-placeholder={placeholder}
+      />
+    </div>
+  )
+}

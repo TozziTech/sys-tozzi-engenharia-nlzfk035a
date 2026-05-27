@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Edit2, Trash2, Bold, Underline, Strikethrough } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
@@ -131,7 +138,7 @@ export function ProjectNotes({ projectId, enabled }: { projectId: string; enable
       }
       if (editingNote) await pb.collection('user_notes').update(editingNote.id, data)
       else await pb.collection('user_notes').create(data)
-      toast({ title: editingNote ? 'Nota atualizada' : 'Nota criada' })
+      toast({ title: editingNote ? 'Anotação atualizada' : 'Anotação criada' })
       setIsModalOpen(false)
     } catch (e) {
       toast({ title: 'Erro ao salvar', variant: 'destructive' })
@@ -141,10 +148,10 @@ export function ProjectNotes({ projectId, enabled }: { projectId: string; enable
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Deseja excluir esta nota?')) return
+    if (!confirm('Deseja excluir esta anotação?')) return
     try {
       await pb.collection('user_notes').delete(id)
-      toast({ title: 'Nota excluída' })
+      toast({ title: 'Anotação excluída' })
     } catch (e) {
       toast({ title: 'Erro ao excluir', variant: 'destructive' })
     }
@@ -158,53 +165,50 @@ export function ProjectNotes({ projectId, enabled }: { projectId: string; enable
           <p className="text-sm text-muted-foreground">Registre informações e detalhes.</p>
         </div>
         <Button onClick={() => handleOpenModal()} className="gap-2">
-          <Plus className="h-4 w-4" /> Nova Nota
+          <Plus className="h-4 w-4" /> Nova Anotação
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="flex flex-col gap-4">
         {notes.length === 0 ? (
-          <div className="col-span-full p-8 text-center border rounded-lg bg-muted/20 text-muted-foreground">
+          <div className="p-8 text-center border rounded-lg bg-muted/20 text-muted-foreground">
             Nenhuma anotação registrada.
           </div>
         ) : (
           notes.map((note) => (
-            <Card key={note.id} className="flex flex-col h-[280px]">
-              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2 shrink-0">
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-base truncate" title={note.category}>
-                    {note.category}
-                  </CardTitle>
-                  <CardDescription className="text-xs mt-1 truncate">
-                    Por {note.expand?.user?.name || 'Usuário'} •{' '}
-                    {new Date(note.created).toLocaleDateString('pt-BR')}
-                  </CardDescription>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => handleOpenModal(note)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(note.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+            <Card key={note.id} className="flex flex-col w-full">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg uppercase" title={note.category}>
+                  {note.category || 'SEM TÍTULO'}
+                </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto custom-scrollbar">
+              <CardContent className="pb-4">
                 <div
-                  className="text-sm prose dark:prose-invert prose-sm max-w-none break-words"
+                  className="text-sm prose dark:prose-invert prose-sm max-w-none break-words whitespace-pre-wrap"
                   dangerouslySetInnerHTML={{ __html: note.rich_content || note.content || '' }}
                 />
               </CardContent>
+              <CardFooter className="pt-4 border-t bg-muted/5 flex items-center justify-between text-xs text-muted-foreground">
+                <div>
+                  Por {note.expand?.user?.name || 'Usuário'} •{' '}
+                  {new Date(note.created).toLocaleDateString('pt-BR')}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => handleOpenModal(note)}>
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => handleDelete(note.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir
+                  </Button>
+                </div>
+              </CardFooter>
             </Card>
           ))
         )}
@@ -213,7 +217,7 @@ export function ProjectNotes({ projectId, enabled }: { projectId: string; enable
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
           <div className="p-6 pb-4 shrink-0 border-b bg-background z-10">
-            <DialogTitle>{editingNote ? 'Editar Nota' : 'Nova Nota'}</DialogTitle>
+            <DialogTitle>{editingNote ? 'Editar Anotação' : 'Nova Anotação'}</DialogTitle>
             <DialogDescription>
               Use as ferramentas de formatação para destacar o texto.
             </DialogDescription>
@@ -221,7 +225,7 @@ export function ProjectNotes({ projectId, enabled }: { projectId: string; enable
 
           <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
             <div className="space-y-2 shrink-0">
-              <Label htmlFor="note-title">Título / Categoria</Label>
+              <Label htmlFor="note-title">Título</Label>
               <Input
                 id="note-title"
                 value={title}
@@ -248,7 +252,7 @@ export function ProjectNotes({ projectId, enabled }: { projectId: string; enable
               Cancelar
             </Button>
             <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Salvando...' : 'Salvar Nota'}
+              {isSaving ? 'Salvando...' : 'Salvar Anotação'}
             </Button>
           </div>
         </DialogContent>
